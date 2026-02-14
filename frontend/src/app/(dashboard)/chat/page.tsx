@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useAuth } from "@clerk/nextjs";
 import { Send, Loader2 } from "lucide-react";
+import { apiFetch } from "@/lib/api";
 
 interface Message {
   id: string;
@@ -12,6 +14,7 @@ interface Message {
 }
 
 export default function ChatPage() {
+  const { getToken } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -44,19 +47,14 @@ export default function ChatPage() {
     setStatus("Connecting to co-founder...");
 
     try {
-      // Use Server-Sent Events for streaming
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/agent/chat/stream`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            message: userMessage.content,
-            project_id: "default",
-            session_id: sessionId,
-          }),
-        }
-      );
+      const response = await apiFetch("/api/agent/chat/stream", getToken, {
+        method: "POST",
+        body: JSON.stringify({
+          message: userMessage.content,
+          project_id: "default",
+          session_id: sessionId,
+        }),
+      });
 
       if (!response.ok) throw new Error("Failed to connect");
 
@@ -91,7 +89,6 @@ export default function ChatPage() {
         }
       }
 
-      // Add assistant message
       if (assistantContent) {
         setMessages((prev) => [
           ...prev,
@@ -121,25 +118,30 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="h-[calc(100vh-3rem)] flex flex-col">
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+    <div className="h-[calc(100vh-7rem)] flex flex-col glass-strong rounded-2xl overflow-hidden">
+      {/* Messages area */}
+      <div className="flex-1 overflow-y-auto p-6 space-y-4">
         {messages.length === 0 && (
-          <div className="text-center text-muted-foreground py-12">
-            <h2 className="text-xl font-semibold mb-2">
-              Start a conversation with your co-founder
+          <div className="text-center py-16">
+            <h2 className="font-display text-xl font-semibold text-white mb-2">
+              Chat with your co-founder
             </h2>
-            <p>
-              Describe what you want to build, and I'll help you plan, code, and
-              ship it.
+            <p className="text-muted-foreground mb-8 max-w-md mx-auto">
+              Describe what you want to build, and I&apos;ll help you plan,
+              code, and ship it.
             </p>
-            <div className="mt-6 grid gap-2 max-w-md mx-auto">
+            <div className="grid gap-2 max-w-md mx-auto">
               <SuggestionButton
-                onClick={() => setInput("Create a REST API for user authentication")}
+                onClick={() =>
+                  setInput("Create a REST API for user authentication")
+                }
               >
                 Create a REST API for user authentication
               </SuggestionButton>
               <SuggestionButton
-                onClick={() => setInput("Add a dark mode toggle to the settings page")}
+                onClick={() =>
+                  setInput("Add a dark mode toggle to the settings page")
+                }
               >
                 Add a dark mode toggle to the settings page
               </SuggestionButton>
@@ -158,22 +160,22 @@ export default function ChatPage() {
             className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
           >
             <div
-              className={`max-w-[80%] rounded-lg px-4 py-2 ${
+              className={`max-w-[80%] rounded-2xl px-4 py-3 ${
                 message.role === "user"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted"
+                  ? "bg-brand text-white"
+                  : "glass border border-white/5"
               }`}
             >
-              <p className="whitespace-pre-wrap">{message.content}</p>
+              <p className="whitespace-pre-wrap text-sm">{message.content}</p>
               {message.node && (
-                <p className="text-xs opacity-60 mt-1">{message.node}</p>
+                <p className="text-xs opacity-50 mt-1.5">{message.node}</p>
               )}
             </div>
           </div>
         ))}
 
         {isLoading && status && (
-          <div className="flex items-center gap-2 text-muted-foreground">
+          <div className="flex items-center gap-2.5 text-neon-cyan">
             <Loader2 className="w-4 h-4 animate-spin" />
             <span className="text-sm">{status}</span>
           </div>
@@ -182,22 +184,23 @@ export default function ChatPage() {
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Input bar */}
       <form
         onSubmit={handleSubmit}
-        className="border-t border-border p-4 flex gap-2"
+        className="border-t border-white/5 p-4 flex gap-3"
       >
         <input
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Describe what you want to build..."
-          className="flex-1 px-4 py-2 rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+          className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand/50 focus:border-transparent transition-all"
           disabled={isLoading}
         />
         <button
           type="submit"
           disabled={isLoading || !input.trim()}
-          className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-4 py-2.5 rounded-xl bg-brand text-white hover:bg-brand-dark disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           {isLoading ? (
             <Loader2 className="w-5 h-5 animate-spin" />
@@ -220,7 +223,7 @@ function SuggestionButton({
   return (
     <button
       onClick={onClick}
-      className="text-left px-4 py-2 text-sm rounded-md border border-border hover:bg-accent"
+      className="text-left px-4 py-2.5 text-sm rounded-xl border border-white/10 text-muted-foreground hover:text-white hover:bg-white/5 hover:border-white/20 transition-all"
     >
       {children}
     </button>
