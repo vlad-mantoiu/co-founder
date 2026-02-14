@@ -1,0 +1,739 @@
+{
+ "Description": "VPC and networking for AI Co-Founder",
+ "Resources": {
+  "CoFounderVpc3621F74E": {
+   "Type": "AWS::EC2::VPC",
+   "Properties": {
+    "CidrBlock": "10.0.0.0/16",
+    "EnableDnsHostnames": true,
+    "EnableDnsSupport": true,
+    "InstanceTenancy": "default",
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "CoFounderNetwork/CoFounderVpc"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "CoFounderNetwork/CoFounderVpc/Resource"
+   }
+  },
+  "CoFounderVpcPublicSubnet1SubnetF0902965": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-1a",
+    "CidrBlock": "10.0.0.0/24",
+    "MapPublicIpOnLaunch": true,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "Public"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Public"
+     },
+     {
+      "Key": "Name",
+      "Value": "CoFounderNetwork/CoFounderVpc/PublicSubnet1"
+     }
+    ],
+    "VpcId": {
+     "Ref": "CoFounderVpc3621F74E"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "CoFounderNetwork/CoFounderVpc/PublicSubnet1/Subnet"
+   }
+  },
+  "CoFounderVpcPublicSubnet1RouteTableA8725C45": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "CoFounderNetwork/CoFounderVpc/PublicSubnet1"
+     }
+    ],
+    "VpcId": {
+     "Ref": "CoFounderVpc3621F74E"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "CoFounderNetwork/CoFounderVpc/PublicSubnet1/RouteTable"
+   }
+  },
+  "CoFounderVpcPublicSubnet1RouteTableAssociation2A6B26D3": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "CoFounderVpcPublicSubnet1RouteTableA8725C45"
+    },
+    "SubnetId": {
+     "Ref": "CoFounderVpcPublicSubnet1SubnetF0902965"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "CoFounderNetwork/CoFounderVpc/PublicSubnet1/RouteTableAssociation"
+   }
+  },
+  "CoFounderVpcPublicSubnet1DefaultRoute82692175": {
+   "Type": "AWS::EC2::Route",
+   "Properties": {
+    "DestinationCidrBlock": "0.0.0.0/0",
+    "GatewayId": {
+     "Ref": "CoFounderVpcIGW84F9252C"
+    },
+    "RouteTableId": {
+     "Ref": "CoFounderVpcPublicSubnet1RouteTableA8725C45"
+    }
+   },
+   "DependsOn": [
+    "CoFounderVpcVPCGW1FF5F829"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "CoFounderNetwork/CoFounderVpc/PublicSubnet1/DefaultRoute"
+   }
+  },
+  "CoFounderVpcPublicSubnet1EIP12182739": {
+   "Type": "AWS::EC2::EIP",
+   "Properties": {
+    "Domain": "vpc",
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "CoFounderNetwork/CoFounderVpc/PublicSubnet1"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "CoFounderNetwork/CoFounderVpc/PublicSubnet1/EIP"
+   }
+  },
+  "CoFounderVpcPublicSubnet1NATGateway7044D716": {
+   "Type": "AWS::EC2::NatGateway",
+   "Properties": {
+    "AllocationId": {
+     "Fn::GetAtt": [
+      "CoFounderVpcPublicSubnet1EIP12182739",
+      "AllocationId"
+     ]
+    },
+    "SubnetId": {
+     "Ref": "CoFounderVpcPublicSubnet1SubnetF0902965"
+    },
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "CoFounderNetwork/CoFounderVpc/PublicSubnet1"
+     }
+    ]
+   },
+   "DependsOn": [
+    "CoFounderVpcPublicSubnet1DefaultRoute82692175",
+    "CoFounderVpcPublicSubnet1RouteTableAssociation2A6B26D3"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "CoFounderNetwork/CoFounderVpc/PublicSubnet1/NATGateway"
+   }
+  },
+  "CoFounderVpcPublicSubnet2Subnet4F0847BE": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-1b",
+    "CidrBlock": "10.0.1.0/24",
+    "MapPublicIpOnLaunch": true,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "Public"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Public"
+     },
+     {
+      "Key": "Name",
+      "Value": "CoFounderNetwork/CoFounderVpc/PublicSubnet2"
+     }
+    ],
+    "VpcId": {
+     "Ref": "CoFounderVpc3621F74E"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "CoFounderNetwork/CoFounderVpc/PublicSubnet2/Subnet"
+   }
+  },
+  "CoFounderVpcPublicSubnet2RouteTable4F73CFA0": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "CoFounderNetwork/CoFounderVpc/PublicSubnet2"
+     }
+    ],
+    "VpcId": {
+     "Ref": "CoFounderVpc3621F74E"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "CoFounderNetwork/CoFounderVpc/PublicSubnet2/RouteTable"
+   }
+  },
+  "CoFounderVpcPublicSubnet2RouteTableAssociation35304A43": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "CoFounderVpcPublicSubnet2RouteTable4F73CFA0"
+    },
+    "SubnetId": {
+     "Ref": "CoFounderVpcPublicSubnet2Subnet4F0847BE"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "CoFounderNetwork/CoFounderVpc/PublicSubnet2/RouteTableAssociation"
+   }
+  },
+  "CoFounderVpcPublicSubnet2DefaultRoute9504D590": {
+   "Type": "AWS::EC2::Route",
+   "Properties": {
+    "DestinationCidrBlock": "0.0.0.0/0",
+    "GatewayId": {
+     "Ref": "CoFounderVpcIGW84F9252C"
+    },
+    "RouteTableId": {
+     "Ref": "CoFounderVpcPublicSubnet2RouteTable4F73CFA0"
+    }
+   },
+   "DependsOn": [
+    "CoFounderVpcVPCGW1FF5F829"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "CoFounderNetwork/CoFounderVpc/PublicSubnet2/DefaultRoute"
+   }
+  },
+  "CoFounderVpcPrivateSubnet1Subnet784130CB": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-1a",
+    "CidrBlock": "10.0.2.0/24",
+    "MapPublicIpOnLaunch": false,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "Private"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Private"
+     },
+     {
+      "Key": "Name",
+      "Value": "CoFounderNetwork/CoFounderVpc/PrivateSubnet1"
+     }
+    ],
+    "VpcId": {
+     "Ref": "CoFounderVpc3621F74E"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "CoFounderNetwork/CoFounderVpc/PrivateSubnet1/Subnet"
+   }
+  },
+  "CoFounderVpcPrivateSubnet1RouteTable69870132": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "CoFounderNetwork/CoFounderVpc/PrivateSubnet1"
+     }
+    ],
+    "VpcId": {
+     "Ref": "CoFounderVpc3621F74E"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "CoFounderNetwork/CoFounderVpc/PrivateSubnet1/RouteTable"
+   }
+  },
+  "CoFounderVpcPrivateSubnet1RouteTableAssociation041C7157": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "CoFounderVpcPrivateSubnet1RouteTable69870132"
+    },
+    "SubnetId": {
+     "Ref": "CoFounderVpcPrivateSubnet1Subnet784130CB"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "CoFounderNetwork/CoFounderVpc/PrivateSubnet1/RouteTableAssociation"
+   }
+  },
+  "CoFounderVpcPrivateSubnet1DefaultRoute5F8025A1": {
+   "Type": "AWS::EC2::Route",
+   "Properties": {
+    "DestinationCidrBlock": "0.0.0.0/0",
+    "NatGatewayId": {
+     "Ref": "CoFounderVpcPublicSubnet1NATGateway7044D716"
+    },
+    "RouteTableId": {
+     "Ref": "CoFounderVpcPrivateSubnet1RouteTable69870132"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "CoFounderNetwork/CoFounderVpc/PrivateSubnet1/DefaultRoute"
+   }
+  },
+  "CoFounderVpcPrivateSubnet2SubnetDF50EE77": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-1b",
+    "CidrBlock": "10.0.3.0/24",
+    "MapPublicIpOnLaunch": false,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "Private"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Private"
+     },
+     {
+      "Key": "Name",
+      "Value": "CoFounderNetwork/CoFounderVpc/PrivateSubnet2"
+     }
+    ],
+    "VpcId": {
+     "Ref": "CoFounderVpc3621F74E"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "CoFounderNetwork/CoFounderVpc/PrivateSubnet2/Subnet"
+   }
+  },
+  "CoFounderVpcPrivateSubnet2RouteTable55CC7217": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "CoFounderNetwork/CoFounderVpc/PrivateSubnet2"
+     }
+    ],
+    "VpcId": {
+     "Ref": "CoFounderVpc3621F74E"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "CoFounderNetwork/CoFounderVpc/PrivateSubnet2/RouteTable"
+   }
+  },
+  "CoFounderVpcPrivateSubnet2RouteTableAssociation3F7D492E": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "CoFounderVpcPrivateSubnet2RouteTable55CC7217"
+    },
+    "SubnetId": {
+     "Ref": "CoFounderVpcPrivateSubnet2SubnetDF50EE77"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "CoFounderNetwork/CoFounderVpc/PrivateSubnet2/RouteTableAssociation"
+   }
+  },
+  "CoFounderVpcPrivateSubnet2DefaultRouteC4A14D2D": {
+   "Type": "AWS::EC2::Route",
+   "Properties": {
+    "DestinationCidrBlock": "0.0.0.0/0",
+    "NatGatewayId": {
+     "Ref": "CoFounderVpcPublicSubnet1NATGateway7044D716"
+    },
+    "RouteTableId": {
+     "Ref": "CoFounderVpcPrivateSubnet2RouteTable55CC7217"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "CoFounderNetwork/CoFounderVpc/PrivateSubnet2/DefaultRoute"
+   }
+  },
+  "CoFounderVpcIsolatedSubnet1SubnetC9EF0F79": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-1a",
+    "CidrBlock": "10.0.4.0/24",
+    "MapPublicIpOnLaunch": false,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "Isolated"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Isolated"
+     },
+     {
+      "Key": "Name",
+      "Value": "CoFounderNetwork/CoFounderVpc/IsolatedSubnet1"
+     }
+    ],
+    "VpcId": {
+     "Ref": "CoFounderVpc3621F74E"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "CoFounderNetwork/CoFounderVpc/IsolatedSubnet1/Subnet"
+   }
+  },
+  "CoFounderVpcIsolatedSubnet1RouteTable789E1407": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "CoFounderNetwork/CoFounderVpc/IsolatedSubnet1"
+     }
+    ],
+    "VpcId": {
+     "Ref": "CoFounderVpc3621F74E"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "CoFounderNetwork/CoFounderVpc/IsolatedSubnet1/RouteTable"
+   }
+  },
+  "CoFounderVpcIsolatedSubnet1RouteTableAssociation46DD89BA": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "CoFounderVpcIsolatedSubnet1RouteTable789E1407"
+    },
+    "SubnetId": {
+     "Ref": "CoFounderVpcIsolatedSubnet1SubnetC9EF0F79"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "CoFounderNetwork/CoFounderVpc/IsolatedSubnet1/RouteTableAssociation"
+   }
+  },
+  "CoFounderVpcIsolatedSubnet2Subnet730BA4FA": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-1b",
+    "CidrBlock": "10.0.5.0/24",
+    "MapPublicIpOnLaunch": false,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "Isolated"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Isolated"
+     },
+     {
+      "Key": "Name",
+      "Value": "CoFounderNetwork/CoFounderVpc/IsolatedSubnet2"
+     }
+    ],
+    "VpcId": {
+     "Ref": "CoFounderVpc3621F74E"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "CoFounderNetwork/CoFounderVpc/IsolatedSubnet2/Subnet"
+   }
+  },
+  "CoFounderVpcIsolatedSubnet2RouteTableAC698B99": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "CoFounderNetwork/CoFounderVpc/IsolatedSubnet2"
+     }
+    ],
+    "VpcId": {
+     "Ref": "CoFounderVpc3621F74E"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "CoFounderNetwork/CoFounderVpc/IsolatedSubnet2/RouteTable"
+   }
+  },
+  "CoFounderVpcIsolatedSubnet2RouteTableAssociation150FCDE1": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "CoFounderVpcIsolatedSubnet2RouteTableAC698B99"
+    },
+    "SubnetId": {
+     "Ref": "CoFounderVpcIsolatedSubnet2Subnet730BA4FA"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "CoFounderNetwork/CoFounderVpc/IsolatedSubnet2/RouteTableAssociation"
+   }
+  },
+  "CoFounderVpcIGW84F9252C": {
+   "Type": "AWS::EC2::InternetGateway",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "CoFounderNetwork/CoFounderVpc"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "CoFounderNetwork/CoFounderVpc/IGW"
+   }
+  },
+  "CoFounderVpcVPCGW1FF5F829": {
+   "Type": "AWS::EC2::VPCGatewayAttachment",
+   "Properties": {
+    "InternetGatewayId": {
+     "Ref": "CoFounderVpcIGW84F9252C"
+    },
+    "VpcId": {
+     "Ref": "CoFounderVpc3621F74E"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "CoFounderNetwork/CoFounderVpc/VPCGW"
+   }
+  },
+  "CoFounderVpcFlowLogIAMRole8E158DB5": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "vpc-flow-logs.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "CoFounderNetwork/CoFounderVpc/FlowLog"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "CoFounderNetwork/CoFounderVpc/FlowLog/IAMRole/Resource"
+   }
+  },
+  "CoFounderVpcFlowLogIAMRoleDefaultPolicyC4A04EDB": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents",
+        "logs:DescribeLogStreams"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::GetAtt": [
+         "CoFounderVpcFlowLogLogGroup5D7A10C3",
+         "Arn"
+        ]
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "CoFounderVpcFlowLogIAMRoleDefaultPolicyC4A04EDB",
+    "Roles": [
+     {
+      "Ref": "CoFounderVpcFlowLogIAMRole8E158DB5"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "CoFounderNetwork/CoFounderVpc/FlowLog/IAMRole/DefaultPolicy/Resource"
+   }
+  },
+  "CoFounderVpcFlowLogLogGroup5D7A10C3": {
+   "Type": "AWS::Logs::LogGroup",
+   "Properties": {
+    "RetentionInDays": 731,
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "CoFounderNetwork/CoFounderVpc/FlowLog"
+     }
+    ]
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "CoFounderNetwork/CoFounderVpc/FlowLog/LogGroup/Resource"
+   }
+  },
+  "CoFounderVpcFlowLogEE32D505": {
+   "Type": "AWS::EC2::FlowLog",
+   "Properties": {
+    "DeliverLogsPermissionArn": {
+     "Fn::GetAtt": [
+      "CoFounderVpcFlowLogIAMRole8E158DB5",
+      "Arn"
+     ]
+    },
+    "LogDestinationType": "cloud-watch-logs",
+    "LogGroupName": {
+     "Ref": "CoFounderVpcFlowLogLogGroup5D7A10C3"
+    },
+    "ResourceId": {
+     "Ref": "CoFounderVpc3621F74E"
+    },
+    "ResourceType": "VPC",
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "CoFounderNetwork/CoFounderVpc/FlowLog"
+     }
+    ],
+    "TrafficType": "REJECT"
+   },
+   "Metadata": {
+    "aws:cdk:path": "CoFounderNetwork/CoFounderVpc/FlowLog/FlowLog"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/0WOQW/CMAyFfwv3NGMZh10R2hASGlWZuE5u8LpAGleJQzVF+e9TW0ZP7/Pz85OVVC+vcrmAPhT6fC2sqWU6MuirgD58JdRKplOnxebbncqNKGNtjT7G2iEP3kwVRcZPqC3O/uytQyBtgA25R3iAt105yAfwFhh7+BWlNzdgnIt3jtE7fASmT+7Tmhn0T4uOxbulfk/NsL9jFgZamSqafhq1JGv0WDJRFpaaINOemq2n2A2bf85ZVBgoej3eHyJ3kbNwdEZ5CU83tZLPSi4Xl2BM4aNj06KsJv0D2XkpOFkBAAA="
+   },
+   "Metadata": {
+    "aws:cdk:path": "CoFounderNetwork/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "VpcId": {
+   "Description": "VPC ID",
+   "Value": {
+    "Ref": "CoFounderVpc3621F74E"
+   },
+   "Export": {
+    "Name": "CoFounderVpcId"
+   }
+  },
+  "ExportsOutputFnGetAttCoFounderVpc3621F74ECidrBlockA9E6A4DA": {
+   "Value": {
+    "Fn::GetAtt": [
+     "CoFounderVpc3621F74E",
+     "CidrBlock"
+    ]
+   },
+   "Export": {
+    "Name": "CoFounderNetwork:ExportsOutputFnGetAttCoFounderVpc3621F74ECidrBlockA9E6A4DA"
+   }
+  },
+  "ExportsOutputRefCoFounderVpc3621F74EE3EF6E5B": {
+   "Value": {
+    "Ref": "CoFounderVpc3621F74E"
+   },
+   "Export": {
+    "Name": "CoFounderNetwork:ExportsOutputRefCoFounderVpc3621F74EE3EF6E5B"
+   }
+  },
+  "ExportsOutputRefCoFounderVpcIsolatedSubnet1SubnetC9EF0F7978C3ED81": {
+   "Value": {
+    "Ref": "CoFounderVpcIsolatedSubnet1SubnetC9EF0F79"
+   },
+   "Export": {
+    "Name": "CoFounderNetwork:ExportsOutputRefCoFounderVpcIsolatedSubnet1SubnetC9EF0F7978C3ED81"
+   }
+  },
+  "ExportsOutputRefCoFounderVpcIsolatedSubnet2Subnet730BA4FA3C3CD02F": {
+   "Value": {
+    "Ref": "CoFounderVpcIsolatedSubnet2Subnet730BA4FA"
+   },
+   "Export": {
+    "Name": "CoFounderNetwork:ExportsOutputRefCoFounderVpcIsolatedSubnet2Subnet730BA4FA3C3CD02F"
+   }
+  },
+  "ExportsOutputRefCoFounderVpcPublicSubnet1SubnetF0902965382885A2": {
+   "Value": {
+    "Ref": "CoFounderVpcPublicSubnet1SubnetF0902965"
+   },
+   "Export": {
+    "Name": "CoFounderNetwork:ExportsOutputRefCoFounderVpcPublicSubnet1SubnetF0902965382885A2"
+   }
+  },
+  "ExportsOutputRefCoFounderVpcPublicSubnet2Subnet4F0847BE0D003093": {
+   "Value": {
+    "Ref": "CoFounderVpcPublicSubnet2Subnet4F0847BE"
+   },
+   "Export": {
+    "Name": "CoFounderNetwork:ExportsOutputRefCoFounderVpcPublicSubnet2Subnet4F0847BE0D003093"
+   }
+  },
+  "ExportsOutputRefCoFounderVpcPrivateSubnet1Subnet784130CB936F6128": {
+   "Value": {
+    "Ref": "CoFounderVpcPrivateSubnet1Subnet784130CB"
+   },
+   "Export": {
+    "Name": "CoFounderNetwork:ExportsOutputRefCoFounderVpcPrivateSubnet1Subnet784130CB936F6128"
+   }
+  },
+  "ExportsOutputRefCoFounderVpcPrivateSubnet2SubnetDF50EE77ABDF4F16": {
+   "Value": {
+    "Ref": "CoFounderVpcPrivateSubnet2SubnetDF50EE77"
+   },
+   "Export": {
+    "Name": "CoFounderNetwork:ExportsOutputRefCoFounderVpcPrivateSubnet2SubnetDF50EE77ABDF4F16"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

@@ -1,0 +1,21 @@
+{
+  "version": "48.0.0",
+  "files": {
+    "33c640fb5e0867ed3fb6a6bdfe55fffa9fda5babea8039a733dcc3a1fa73da4b": {
+      "displayName": "CoFounderNetwork Template",
+      "source": {
+        "path": "CoFounderNetwork.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "837175765586-us-east-1-0018d381": {
+          "bucketName": "cdk-hnb659fds-assets-837175765586-us-east-1",
+          "objectKey": "33c640fb5e0867ed3fb6a6bdfe55fffa9fda5babea8039a733dcc3a1fa73da4b.json",
+          "region": "us-east-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::837175765586:role/cdk-hnb659fds-file-publishing-role-837175765586-us-east-1"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}

@@ -1,0 +1,318 @@
+{
+ "Description": "Databases for AI Co-Founder",
+ "Resources": {
+  "DbSecret685A0FA5": {
+   "Type": "AWS::SecretsManager::Secret",
+   "Properties": {
+    "GenerateSecretString": {
+     "ExcludePunctuation": true,
+     "GenerateStringKey": "password",
+     "PasswordLength": 32,
+     "SecretStringTemplate": "{\"username\":\"cofounder\"}"
+    },
+    "Name": "cofounder/database"
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "CoFounderDatabase/DbSecret/Resource"
+   }
+  },
+  "DbSecretAttachment0609CE05": {
+   "Type": "AWS::SecretsManager::SecretTargetAttachment",
+   "Properties": {
+    "SecretId": {
+     "Ref": "DbSecret685A0FA5"
+    },
+    "TargetId": {
+     "Ref": "DatabaseB269D8BB"
+    },
+    "TargetType": "AWS::RDS::DBInstance"
+   },
+   "Metadata": {
+    "aws:cdk:path": "CoFounderDatabase/DbSecret/Attachment/Resource"
+   }
+  },
+  "DbSecurityGroupE9D701AD": {
+   "Type": "AWS::EC2::SecurityGroup",
+   "Properties": {
+    "GroupDescription": "Security group for RDS PostgreSQL",
+    "SecurityGroupEgress": [
+     {
+      "CidrIp": "255.255.255.255/32",
+      "Description": "Disallow all traffic",
+      "FromPort": 252,
+      "IpProtocol": "icmp",
+      "ToPort": 86
+     }
+    ],
+    "SecurityGroupIngress": [
+     {
+      "CidrIp": {
+       "Fn::ImportValue": "CoFounderNetwork:ExportsOutputFnGetAttCoFounderVpc3621F74ECidrBlockA9E6A4DA"
+      },
+      "Description": "Allow PostgreSQL from VPC",
+      "FromPort": 5432,
+      "IpProtocol": "tcp",
+      "ToPort": 5432
+     }
+    ],
+    "VpcId": {
+     "Fn::ImportValue": "CoFounderNetwork:ExportsOutputRefCoFounderVpc3621F74EE3EF6E5B"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "CoFounderDatabase/DbSecurityGroup/Resource"
+   }
+  },
+  "DatabaseSubnetGroup7D60F180": {
+   "Type": "AWS::RDS::DBSubnetGroup",
+   "Properties": {
+    "DBSubnetGroupDescription": "Subnet group for Database database",
+    "SubnetIds": [
+     {
+      "Fn::ImportValue": "CoFounderNetwork:ExportsOutputRefCoFounderVpcIsolatedSubnet1SubnetC9EF0F7978C3ED81"
+     },
+     {
+      "Fn::ImportValue": "CoFounderNetwork:ExportsOutputRefCoFounderVpcIsolatedSubnet2Subnet730BA4FA3C3CD02F"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "CoFounderDatabase/Database/SubnetGroup/Default"
+   }
+  },
+  "DatabaseB269D8BB": {
+   "Type": "AWS::RDS::DBInstance",
+   "Properties": {
+    "AllocatedStorage": "20",
+    "BackupRetentionPeriod": 7,
+    "CopyTagsToSnapshot": true,
+    "DBInstanceClass": "db.t4g.micro",
+    "DBName": "cofounder",
+    "DBSubnetGroupName": {
+     "Ref": "DatabaseSubnetGroup7D60F180"
+    },
+    "DeletionProtection": false,
+    "Engine": "postgres",
+    "EngineVersion": "16.4",
+    "MasterUserPassword": {
+     "Fn::Join": [
+      "",
+      [
+       "{{resolve:secretsmanager:",
+       {
+        "Ref": "DbSecret685A0FA5"
+       },
+       ":SecretString:password::}}"
+      ]
+     ]
+    },
+    "MasterUsername": {
+     "Fn::Join": [
+      "",
+      [
+       "{{resolve:secretsmanager:",
+       {
+        "Ref": "DbSecret685A0FA5"
+       },
+       ":SecretString:username::}}"
+      ]
+     ]
+    },
+    "MaxAllocatedStorage": 100,
+    "MultiAZ": false,
+    "PubliclyAccessible": false,
+    "StorageType": "gp3",
+    "VPCSecurityGroups": [
+     {
+      "Fn::GetAtt": [
+       "DbSecurityGroupE9D701AD",
+       "GroupId"
+      ]
+     }
+    ]
+   },
+   "UpdateReplacePolicy": "Snapshot",
+   "DeletionPolicy": "Snapshot",
+   "Metadata": {
+    "aws:cdk:path": "CoFounderDatabase/Database/Resource"
+   }
+  },
+  "RedisSecurityGroupB05951F6": {
+   "Type": "AWS::EC2::SecurityGroup",
+   "Properties": {
+    "GroupDescription": "Security group for ElastiCache Redis",
+    "SecurityGroupEgress": [
+     {
+      "CidrIp": "255.255.255.255/32",
+      "Description": "Disallow all traffic",
+      "FromPort": 252,
+      "IpProtocol": "icmp",
+      "ToPort": 86
+     }
+    ],
+    "SecurityGroupIngress": [
+     {
+      "CidrIp": {
+       "Fn::ImportValue": "CoFounderNetwork:ExportsOutputFnGetAttCoFounderVpc3621F74ECidrBlockA9E6A4DA"
+      },
+      "Description": "Allow Redis from VPC",
+      "FromPort": 6379,
+      "IpProtocol": "tcp",
+      "ToPort": 6379
+     }
+    ],
+    "VpcId": {
+     "Fn::ImportValue": "CoFounderNetwork:ExportsOutputRefCoFounderVpc3621F74EE3EF6E5B"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "CoFounderDatabase/RedisSecurityGroup/Resource"
+   }
+  },
+  "RedisSubnetGroup": {
+   "Type": "AWS::ElastiCache::SubnetGroup",
+   "Properties": {
+    "CacheSubnetGroupName": "cofounder-redis-subnet",
+    "Description": "Subnet group for Redis",
+    "SubnetIds": [
+     {
+      "Fn::ImportValue": "CoFounderNetwork:ExportsOutputRefCoFounderVpcIsolatedSubnet1SubnetC9EF0F7978C3ED81"
+     },
+     {
+      "Fn::ImportValue": "CoFounderNetwork:ExportsOutputRefCoFounderVpcIsolatedSubnet2Subnet730BA4FA3C3CD02F"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "CoFounderDatabase/RedisSubnetGroup"
+   }
+  },
+  "Redis": {
+   "Type": "AWS::ElastiCache::CacheCluster",
+   "Properties": {
+    "CacheNodeType": "cache.t4g.micro",
+    "CacheSubnetGroupName": "cofounder-redis-subnet",
+    "ClusterName": "cofounder-redis",
+    "Engine": "redis",
+    "EngineVersion": "7.1",
+    "NumCacheNodes": 1,
+    "VpcSecurityGroupIds": [
+     {
+      "Fn::GetAtt": [
+       "RedisSecurityGroupB05951F6",
+       "GroupId"
+      ]
+     }
+    ]
+   },
+   "DependsOn": [
+    "RedisSubnetGroup"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "CoFounderDatabase/Redis"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/2WNQW/CMAyFf0vvqVfCDrtuRUKckOjuk5t6JdCGKnaopij/fSp0G4zTs9/7/KxBL1+gyHDk3DTHvLM1xErQHBWO/BGZjCfhHh225CFWl12Vn26ervKOviV5FUGz78ndAP+TpMjoS0/wVr7W/hSGmf4zkvINQ1yhYI1MG8eCzpCqQu1Ifm9Wbw/GD5oUdchiDZo9QZwe3KPlFJRdYCGf0uRsgwxBknKnhuDAT2f9DAsNRXZga3MfnNieYHfVbyBD49o4AQAA"
+   },
+   "Metadata": {
+    "aws:cdk:path": "CoFounderDatabase/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "DatabaseEndpoint": {
+   "Description": "RDS endpoint",
+   "Value": {
+    "Fn::GetAtt": [
+     "DatabaseB269D8BB",
+     "Endpoint.Address"
+    ]
+   },
+   "Export": {
+    "Name": "CoFounderDbEndpoint"
+   }
+  },
+  "RedisEndpoint": {
+   "Description": "Redis endpoint",
+   "Value": {
+    "Fn::GetAtt": [
+     "Redis",
+     "RedisEndpoint.Address"
+    ]
+   },
+   "Export": {
+    "Name": "CoFounderRedisEndpoint"
+   }
+  },
+  "DbSecretArn": {
+   "Description": "Database secret ARN",
+   "Value": {
+    "Ref": "DbSecret685A0FA5"
+   },
+   "Export": {
+    "Name": "CoFounderDbSecretArn"
+   }
+  },
+  "ExportsOutputFnGetAttDatabaseB269D8BBEndpointAddressA4DBD059": {
+   "Value": {
+    "Fn::GetAtt": [
+     "DatabaseB269D8BB",
+     "Endpoint.Address"
+    ]
+   },
+   "Export": {
+    "Name": "CoFounderDatabase:ExportsOutputFnGetAttDatabaseB269D8BBEndpointAddressA4DBD059"
+   }
+  },
+  "ExportsOutputFnGetAttRedisRedisEndpointAddress0B69B4FF": {
+   "Value": {
+    "Fn::GetAtt": [
+     "Redis",
+     "RedisEndpoint.Address"
+    ]
+   },
+   "Export": {
+    "Name": "CoFounderDatabase:ExportsOutputFnGetAttRedisRedisEndpointAddress0B69B4FF"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}
