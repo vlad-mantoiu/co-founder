@@ -146,7 +146,7 @@ export default function TermsPage() {
             <section>
               <h2 className="text-xl font-bold mb-3">11. Contact</h2>
               <p className="text-sm text-white/50 leading-relaxed">
-                For questions about these terms, contact us at legal@cofounder.helixcx.io.
+                For questions about these terms, contact us at legal@getinsourced.ai.
               </p>
             </section>
           </FadeIn>

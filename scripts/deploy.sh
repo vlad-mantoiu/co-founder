@@ -42,7 +42,7 @@ echo "   Building frontend..."
 docker buildx build --platform linux/amd64 --load \
   -f docker/Dockerfile.frontend \
   --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-pk_test_c3VwZXJiLXRpY2stNDUuY2xlcmsuYWNjb3VudHMuZGV2JA} \
-  --build-arg NEXT_PUBLIC_API_URL=https://api.cofounder.helixcx.io \
+  --build-arg NEXT_PUBLIC_API_URL=https://api.cofounder.getinsourced.ai \
   -t $ECR_URI/cofounder-frontend:latest .
 docker push $ECR_URI/cofounder-frontend:latest
 
@@ -84,8 +84,8 @@ aws ecs wait services-stable \
 # 5. Verify
 echo ""
 echo "Verifying deployment..."
-HEALTH=$(curl -s --max-time 10 https://api.cofounder.helixcx.io/api/health 2>/dev/null || echo '{"status":"unreachable"}')
-FRONTEND_STATUS=$(curl -sI --max-time 10 https://cofounder.helixcx.io 2>/dev/null | head -1 || echo "unreachable")
+HEALTH=$(curl -s --max-time 10 https://api.cofounder.getinsourced.ai/api/health 2>/dev/null || echo '{"status":"unreachable"}')
+FRONTEND_STATUS=$(curl -sI --max-time 10 https://cofounder.getinsourced.ai 2>/dev/null | head -1 || echo "unreachable")
 
 echo "   Backend health: $HEALTH"
 echo "   Frontend status: $FRONTEND_STATUS"
@@ -94,5 +94,5 @@ echo ""
 echo "Deployment complete!"
 echo ""
 echo "Application URLs:"
-echo "   Frontend: https://cofounder.helixcx.io"
-echo "   Backend:  https://api.cofounder.helixcx.io"
+echo "   Frontend: https://cofounder.getinsourced.ai"
+echo "   Backend:  https://api.cofounder.getinsourced.ai"

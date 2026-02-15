@@ -92,7 +92,7 @@ export default function PrivacyPage() {
               <p className="text-sm text-white/50 leading-relaxed">
                 You have the right to access, correct, export, or delete your personal data.
                 You may also object to certain processing activities. To exercise any of
-                these rights, contact us at privacy@cofounder.helixcx.io. We respond to all
+                these rights, contact us at privacy@getinsourced.ai. We respond to all
                 requests within 30 days.
               </p>
             </section>
@@ -126,7 +126,7 @@ export default function PrivacyPage() {
               <h2 className="text-xl font-bold mb-3">9. Contact</h2>
               <p className="text-sm text-white/50 leading-relaxed">
                 For questions about this privacy policy or our data practices, contact us
-                at privacy@cofounder.helixcx.io.
+                at privacy@getinsourced.ai.
               </p>
             </section>
           </FadeIn>

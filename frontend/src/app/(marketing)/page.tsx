@@ -6,9 +6,9 @@ import HomeContent from "@/components/marketing/home-content";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Co-Founder.ai | Your AI Technical Co-Founder",
+  title: "Insourced AI | Autonomous AI Agents for Non-Technical Founders",
   description:
-    "Turn conversations into shipped products. Co-Founder.ai is an autonomous dev system that architects, codes, tests, and deploys your SaaS. No equity required.",
+    "Build your SaaS without coding or giving away equity. Insourced AI is a suite of autonomous AI agents — starting with Co-Founder.ai, your AI technical co-founder that architects, codes, tests, and deploys production software. The best AI coding agent and development platform for startups.",
 };
 
 export default async function HomePage() {

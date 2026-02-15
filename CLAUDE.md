@@ -34,4 +34,4 @@ Stack:
 - Infrastructure: AWS (ECS, RDS, ElastiCache, Route53)
 - LLM: Anthropic Claude (Opus for Architect/Reviewer, Sonnet for Coder/Debugger)
 
-Current Goal: Build AI Co-Founder SaaS at cofounder.helixcx.io
+Current Goal: Build AI Co-Founder SaaS at cofounder.getinsourced.ai

@@ -258,7 +258,7 @@ export default function ContactPage() {
                 {
                   icon: Mail,
                   title: "Email Us",
-                  text: "hello@cofounder.helixcx.io",
+                  text: "hello@getinsourced.ai",
                 },
                 {
                   icon: Clock,

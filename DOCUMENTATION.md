@@ -6,8 +6,8 @@ Co-Founder.ai is an AI-powered autonomous development platform that acts as a te
 
 Instead of hiring a developer, giving away equity, or spending months learning to code, founders describe what they want built and the AI agent handles the full engineering lifecycle: planning the architecture, writing code, running tests in a sandbox, fixing bugs, reviewing its own work, and pushing changes to GitHub as a pull request.
 
-**Live at**: https://cofounder.helixcx.io
-**API**: https://api.cofounder.helixcx.io
+**Live at**: https://cofounder.getinsourced.ai
+**API**: https://api.cofounder.getinsourced.ai
 
 ---
 
@@ -278,12 +278,12 @@ The agent has three memory layers:
                        │
               ┌────────┴────────┐
               │    Route 53      │
-              │  helixcx.io      │
+              │  getinsourced.ai      │
               └────────┬────────┘
                        │
          ┌─────────────┴─────────────┐
          │                           │
-    cofounder.helixcx.io      api.cofounder.helixcx.io
+    cofounder.getinsourced.ai      api.cofounder.getinsourced.ai
          │                           │
     ┌────┴────┐                ┌─────┴─────┐
     │ ALB     │                │   ALB      │
@@ -314,9 +314,9 @@ All services run in a VPC with private subnets. ECS tasks have no public IPs —
 | Stack | What It Creates |
 |-------|----------------|
 | `CoFounderNetwork` | VPC (2 AZs), public/private/isolated subnets, 1 NAT gateway, VPC flow logs |
-| `CoFounderDns` | Route53 hosted zone lookup, ACM certificate for `cofounder.helixcx.io` |
+| `CoFounderDns` | Route53 hosted zone lookup, ACM certificate for `cofounder.getinsourced.ai` |
 | `CoFounderDatabase` | RDS PostgreSQL 16.4 (t4g.micro, 20-100GB), ElastiCache Redis 7.1 (t4g.micro), security groups |
-| `CoFounderCompute` | ECS cluster, backend + frontend Fargate services, ALBs, ACM cert for `api.cofounder.helixcx.io`, auto-scaling (1-4 backend instances at 70% CPU) |
+| `CoFounderCompute` | ECS cluster, backend + frontend Fargate services, ALBs, ACM cert for `api.cofounder.getinsourced.ai`, auto-scaling (1-4 backend instances at 70% CPU) |
 
 ### Secrets
 

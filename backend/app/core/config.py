@@ -41,7 +41,9 @@ class Settings(BaseSettings):
     clerk_publishable_key: str = ""
     clerk_allowed_origins: list[str] = [
         "http://localhost:3000",
-        "https://cofounder.helixcx.io",
+        "https://cofounder.getinsourced.ai",
+        "https://getinsourced.ai",
+        "https://www.getinsourced.ai",
     ]
 
     # LLM Models

@@ -51,7 +51,7 @@ jobs:
           tags: ${{ steps.login-ecr.outputs.registry }}/cofounder-frontend:${{ github.sha }},${{ steps.login-ecr.outputs.registry }}/cofounder-frontend:latest
           build-args: |
             NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-            NEXT_PUBLIC_API_URL=https://api.cofounder.helixcx.io
+            NEXT_PUBLIC_API_URL=https://api.cofounder.getinsourced.ai
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

@@ -8,8 +8,8 @@ import { Terminal, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navLinks = [
-  { href: "/#features", label: "Features" },
-  { href: "/#how-it-works", label: "How It Works" },
+  { href: "/#hero", label: "Vision" },
+  { href: "/#suite", label: "Suite" },
   { href: "/pricing", label: "Pricing" },
   { href: "/about", label: "About" },
 ];
@@ -47,7 +47,7 @@ export function Navbar() {
             <Terminal className="h-4 w-4 text-brand" />
           </div>
           <span className="text-lg font-bold text-white tracking-tight">
-            Co-Founder<span className="text-brand">.ai</span>
+            getinsourced<span className="text-brand">.ai</span>
           </span>
         </Link>
 

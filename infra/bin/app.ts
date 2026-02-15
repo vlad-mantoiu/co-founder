@@ -16,9 +16,9 @@ const env = {
 
 // Configuration
 const config = {
-  domainName: "helixcx.io",
+  domainName: "getinsourced.ai",
   subdomain: "cofounder",
-  fullDomain: "cofounder.helixcx.io",
+  fullDomain: "cofounder.getinsourced.ai",
 };
 
 // 1. Network Stack (VPC, Subnets)

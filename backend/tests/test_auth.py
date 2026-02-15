@@ -51,7 +51,7 @@ def _mock_jwks_client():
 def _mock_settings():
     """Return a mock Settings with test-friendly defaults."""
     s = MagicMock()
-    s.clerk_allowed_origins = ["http://localhost:3000", "https://cofounder.helixcx.io"]
+    s.clerk_allowed_origins = ["http://localhost:3000", "https://cofounder.getinsourced.ai", "https://getinsourced.ai", "https://www.getinsourced.ai"]
     return s
 
 

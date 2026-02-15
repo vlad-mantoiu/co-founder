@@ -32,6 +32,9 @@
   --animate-pulse-glow: pulse-glow 2s ease-in-out infinite;
   --animate-float: float 6s ease-in-out infinite;
   --animate-marquee: marquee 30s linear infinite;
+  --animate-shimmer: shimmer 2s linear infinite;
+  --animate-cursor-blink: cursor-blink 1s steps(2) infinite;
+  --animate-pulse-border: pulse-border 2s ease-in-out infinite;
 }
 
 @keyframes fade-up {
@@ -80,6 +83,35 @@
   }
   100% {
     transform: translateX(-50%);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes cursor-blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes pulse-border {
+  0%, 100% {
+    border-color: rgba(100, 103, 242, 0.3);
+    box-shadow: 0 0 8px rgba(100, 103, 242, 0.1);
+  }
+  50% {
+    border-color: rgba(100, 103, 242, 0.7);
+    box-shadow: 0 0 20px rgba(100, 103, 242, 0.3);
   }
 }
 
@@ -182,4 +214,115 @@ body {
 ::selection {
   background-color: #6467f2;
   color: white;
+}
+
+/* Scrollbar */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+
+/* Flagship glass card — stronger glow border */
+.glass-card-strong {
+  background: rgba(16, 17, 34, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(100, 103, 242, 0.3);
+  box-shadow: 0 0 30px rgba(100, 103, 242, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.glass-card-strong:hover {
+  border-color: rgba(100, 103, 242, 0.5);
+  box-shadow: 0 0 50px rgba(100, 103, 242, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* Glow text utility */
+.glow-text {
+  background: linear-gradient(135deg, #6467f2, #8183f5, #0df2f2);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 20px rgba(100, 103, 242, 0.4));
+}
+
+/* Node connection lines */
+.node-line {
+  position: relative;
+}
+
+.node-line::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: -1.5rem;
+  width: 1.5rem;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(100, 103, 242, 0.4), rgba(100, 103, 242, 0.1));
+}
+
+.node-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #6467f2;
+  box-shadow: 0 0 12px rgba(100, 103, 242, 0.6);
+}
+
+/* Gradient border for CTA input */
+.gradient-border {
+  position: relative;
+  background: rgba(16, 17, 34, 0.8);
+  border-radius: 1rem;
+}
+
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 1rem;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(100, 103, 242, 0.5), rgba(13, 242, 242, 0.3), rgba(100, 103, 242, 0.5));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: rotate-gradient 4s linear infinite;
+}
+
+@keyframes rotate-gradient {
+  0% {
+    background: linear-gradient(0deg, rgba(100, 103, 242, 0.5), rgba(13, 242, 242, 0.3), rgba(100, 103, 242, 0.5));
+  }
+  25% {
+    background: linear-gradient(90deg, rgba(100, 103, 242, 0.5), rgba(13, 242, 242, 0.3), rgba(100, 103, 242, 0.5));
+  }
+  50% {
+    background: linear-gradient(180deg, rgba(100, 103, 242, 0.5), rgba(13, 242, 242, 0.3), rgba(100, 103, 242, 0.5));
+  }
+  75% {
+    background: linear-gradient(270deg, rgba(100, 103, 242, 0.5), rgba(13, 242, 242, 0.3), rgba(100, 103, 242, 0.5));
+  }
+  100% {
+    background: linear-gradient(360deg, rgba(100, 103, 242, 0.5), rgba(13, 242, 242, 0.3), rgba(100, 103, 242, 0.5));
+  }
+}
+
+/* Animation utilities */
+.animate-shimmer {
+  animation: shimmer 2s linear infinite;
+}
+.animate-cursor-blink {
+  animation: cursor-blink 1s steps(2) infinite;
+}
+.animate-pulse-border {
+  animation: pulse-border 2s ease-in-out infinite;
 }

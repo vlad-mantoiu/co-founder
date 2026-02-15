@@ -2,11 +2,10 @@ import Link from "next/link";
 import { Terminal } from "lucide-react";
 
 const footerLinks = {
-  Product: [
-    { label: "Features", href: "/#features" },
+  Platform: [
+    { label: "Co-Founder", href: "/#hero" },
+    { label: "Swarm Agents", href: "/#suite" },
     { label: "Pricing", href: "/pricing" },
-    { label: "How It Works", href: "/#how-it-works" },
-    { label: "Integrations", href: "/#integrations" },
   ],
   Company: [
     { label: "About", href: "/about" },
@@ -29,7 +28,7 @@ export function Footer() {
                 <Terminal className="h-4 w-4 text-brand" />
               </div>
               <span className="text-lg font-bold text-white tracking-tight">
-                Co-Founder<span className="text-brand">.ai</span>
+                getinsourced<span className="text-brand">.ai</span>
               </span>
             </Link>
             <p className="mt-4 text-sm text-white/40 leading-relaxed max-w-xs">
@@ -61,7 +60,7 @@ export function Footer() {
 
         <div className="mt-16 pt-8 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-xs text-white/30">
-            &copy; {new Date().getFullYear()} Co-Founder.ai. All rights
+            &copy; {new Date().getFullYear()} Insourced AI Inc. All rights
             reserved.
           </p>
           <div className="flex items-center gap-6">

@@ -20,9 +20,9 @@ This builds amd64 Docker images, pushes to ECR, deploys CDK stacks, forces ECS r
 | Container Registry | ECR | us-east-1 |
 
 **URLs:**
-- Frontend: `https://cofounder.helixcx.io`
-- Backend API: `https://api.cofounder.helixcx.io`
-- Health check: `https://api.cofounder.helixcx.io/api/health`
+- Frontend: `https://cofounder.getinsourced.ai`
+- Backend API: `https://api.cofounder.getinsourced.ai`
+- Health check: `https://api.cofounder.getinsourced.ai/api/health`
 
 **AWS Account:** 837175765586
 
@@ -30,7 +30,7 @@ This builds amd64 Docker images, pushes to ECR, deploys CDK stacks, forces ECS r
 
 | Stack | Resources | Dependencies |
 |-------|-----------|-------------|
-| `CoFounderDns` | Route53 hosted zone lookup, ACM cert for `cofounder.helixcx.io` | None |
+| `CoFounderDns` | Route53 hosted zone lookup, ACM cert for `cofounder.getinsourced.ai` | None |
 | `CoFounderNetwork` | VPC (2 AZs, public/private subnets, NAT gateway) | None |
 | `CoFounderDatabase` | RDS PostgreSQL, ElastiCache Redis, security groups | Network |
 | `CoFounderCompute` | ECS cluster, backend + frontend Fargate services, ALBs, auto-scaling, API cert | Network, Database, Dns |
@@ -102,8 +102,8 @@ aws ecs list-services --cluster cofounder-cluster --region us-east-1
 ```
 
 ### ACM certificates
-- `cofounder.helixcx.io` cert is in the Dns stack
-- `api.cofounder.helixcx.io` cert is in the Compute stack (separate to avoid cross-stack replacement issues)
+- `cofounder.getinsourced.ai` cert is in the Dns stack
+- `api.cofounder.getinsourced.ai` cert is in the Compute stack (separate to avoid cross-stack replacement issues)
 
 ## Manual Operations
 
