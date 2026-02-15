@@ -52,7 +52,6 @@ const computeStack = new ComputeStack(app, "CoFounderCompute", {
   dbEndpoint: databaseStack.database.instanceEndpoint.hostname,
   redisEndpoint: databaseStack.redis.attrRedisEndpointAddress,
   dbSecretArn: databaseStack.dbSecret.secretArn,
-  certificate: dnsStack.certificate,
   hostedZone: dnsStack.hostedZone,
   domainName: config.fullDomain,
   description: "ECS Fargate compute for AI Co-Founder",
