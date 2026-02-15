@@ -48,7 +48,7 @@ def create_app() -> FastAPI:
         allow_origins=[
             settings.frontend_url,
             "http://localhost:3000",
-            "https://cofounder.helixcx.com",
+            "https://cofounder.helixcx.io",
         ],
         allow_credentials=True,
         allow_methods=["*"],

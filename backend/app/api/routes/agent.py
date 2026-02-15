@@ -3,12 +3,13 @@
 import uuid
 from typing import AsyncGenerator
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.agent.graph import create_cofounder_graph, create_production_graph
 from app.agent.state import create_initial_state
+from app.core.auth import ClerkUser, require_auth
 from app.memory.episodic import get_episodic_memory
 from app.memory.mem0_client import get_semantic_memory
 
@@ -39,7 +40,7 @@ class ChatResponse(BaseModel):
 
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
+async def chat(request: ChatRequest, user: ClerkUser = Depends(require_auth)):
     """Send a message to the AI Co-Founder agent.
 
     This endpoint handles both new conversations and continuations.
@@ -47,7 +48,7 @@ async def chat(request: ChatRequest):
     """
     # Create or retrieve session
     session_id = request.session_id or str(uuid.uuid4())
-    user_id = "user-1"  # TODO: Get from auth
+    user_id = user.user_id
 
     episodic = get_episodic_memory()
 
@@ -140,7 +141,7 @@ async def chat(request: ChatRequest):
 
 
 @router.post("/chat/stream")
-async def chat_stream(request: ChatRequest):
+async def chat_stream(request: ChatRequest, user: ClerkUser = Depends(require_auth)):
     """Stream agent responses in real-time.
 
     Returns Server-Sent Events (SSE) with status updates as the agent works.
@@ -149,7 +150,7 @@ async def chat_stream(request: ChatRequest):
 
     if session_id not in _sessions:
         state = create_initial_state(
-            user_id="user-1",
+            user_id=user.user_id,
             project_id=request.project_id,
             project_path=f"/tmp/cofounder/{request.project_id}",
             goal=request.message,
@@ -201,7 +202,9 @@ async def chat_stream(request: ChatRequest):
 
 
 @router.post("/sessions/{session_id}/resume")
-async def resume_session(session_id: str, action: str = "continue"):
+async def resume_session(
+    session_id: str, action: str = "continue", user: ClerkUser = Depends(require_auth)
+):
     """Resume a paused session (e.g., after human review).
 
     Args:
@@ -234,7 +237,7 @@ async def resume_session(session_id: str, action: str = "continue"):
 
 
 @router.get("/sessions/{session_id}")
-async def get_session(session_id: str):
+async def get_session(session_id: str, user: ClerkUser = Depends(require_auth)):
     """Get the current state of a session."""
     if session_id not in _sessions:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -283,6 +286,7 @@ async def get_task_history(
     project_id: str | None = None,
     limit: int = 20,
     status: str | None = None,
+    user: ClerkUser = Depends(require_auth),
 ):
     """Get task history from episodic memory.
 
@@ -291,7 +295,7 @@ async def get_task_history(
         limit: Maximum number of results
         status: Optional status filter (success, failed, in_progress)
     """
-    user_id = "user-1"  # TODO: Get from auth
+    user_id = user.user_id
     episodic = get_episodic_memory()
 
     try:
@@ -307,13 +311,15 @@ async def get_task_history(
 
 
 @router.get("/history/errors")
-async def get_error_patterns(project_id: str | None = None):
+async def get_error_patterns(
+    project_id: str | None = None, user: ClerkUser = Depends(require_auth)
+):
     """Get common error patterns from failed tasks.
 
     Args:
         project_id: Optional project filter
     """
-    user_id = "user-1"  # TODO: Get from auth
+    user_id = user.user_id
     episodic = get_episodic_memory()
 
     try:
@@ -327,13 +333,15 @@ async def get_error_patterns(project_id: str | None = None):
 
 
 @router.get("/memories")
-async def get_user_memories(project_id: str | None = None):
+async def get_user_memories(
+    project_id: str | None = None, user: ClerkUser = Depends(require_auth)
+):
     """Get stored memories/preferences for the user.
 
     Args:
         project_id: Optional project filter
     """
-    user_id = "user-1"  # TODO: Get from auth
+    user_id = user.user_id
     semantic = get_semantic_memory()
 
     try:

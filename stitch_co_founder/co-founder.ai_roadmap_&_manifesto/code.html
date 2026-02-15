@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Co-Founder.ai Roadmap &amp; Manifesto</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+            extend: {
+                colors: {
+                    "primary": "#7f13ec",
+                    "background-light": "#f7f6f8",
+                    "background-dark": "#050505", /* Overridden per specific request for deep obsidian */
+                    "neon-green": "#00ff9d",
+                    "neon-pink": "#ff00ff",
+                },
+                fontFamily: {
+                    "display": ["Space Grotesk", "sans-serif"]
+                },
+                borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                backgroundImage: {
+                    'grid-pattern': "linear-gradient(to right, #1f1f1f 1px, transparent 1px), linear-gradient(to bottom, #1f1f1f 1px, transparent 1px)",
+                }
+            },
+            },
+        }
+    </script>
+<style>
+        .text-glow {
+            text-shadow: 0 0 10px rgba(127, 19, 236, 0.5), 0 0 20px rgba(127, 19, 236, 0.3);
+        }
+        .text-glow-green {
+            text-shadow: 0 0 10px rgba(0, 255, 157, 0.5);
+        }
+        .box-glow {
+            box-shadow: 0 0 20px rgba(127, 19, 236, 0.15);
+        }
+        .pulse-ring {
+            animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); opacity: 0.8; }
+            100% { transform: scale(2.2); opacity: 0; }
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .grid-bg {
+            background-size: 40px 40px;
+            mask-image: linear-gradient(to bottom, transparent, black 10%, black 90%, transparent);
+        }
+        /* Custom scrollbar for cyberpunk feel */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #050505; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #333; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #7f13ec; 
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 font-display min-h-screen selection:bg-primary selection:text-white overflow-x-hidden">
+<!-- Navigation -->
+<nav class="fixed top-0 w-full z-50 glass-panel border-b border-white/5">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+<div class="flex items-center justify-between h-16">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 bg-primary rounded flex items-center justify-center">
+<span class="text-white font-bold text-lg">C</span>
+</div>
+<span class="text-xl font-bold tracking-widest uppercase">Co-Founder.ai</span>
+</div>
+<div class="hidden md:block">
+<div class="ml-10 flex items-baseline space-x-8">
+<a class="hover:text-primary transition-colors px-3 py-2 text-sm font-medium" href="#">Dashboard</a>
+<a class="text-primary hover:text-primary px-3 py-2 text-sm font-medium border-b-2 border-primary" href="#">Roadmap</a>
+<a class="hover:text-primary transition-colors px-3 py-2 text-sm font-medium" href="#">Documentation</a>
+<a class="bg-primary/20 hover:bg-primary/40 text-primary border border-primary/50 px-4 py-2 rounded text-sm font-medium transition-all" href="#">Join Beta</a>
+</div>
+</div>
+</div>
+</div>
+</nav>
+<!-- Ambient Background Effects -->
+<div class="fixed inset-0 pointer-events-none z-0">
+<div class="absolute inset-0 grid-bg opacity-10 bg-grid-pattern"></div>
+<div class="absolute top-0 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-[120px] mix-blend-screen"></div>
+<div class="absolute bottom-0 right-1/4 w-96 h-96 bg-neon-pink/10 rounded-full blur-[120px] mix-blend-screen"></div>
+</div>
+<!-- Hero Section -->
+<main class="relative z-10 pt-32 pb-16">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+<div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/30 bg-primary/10 text-primary text-xs tracking-widest uppercase mb-6">
+<span class="w-2 h-2 rounded-full bg-neon-green animate-pulse"></span>
+                System Status: Evolving
+            </div>
+<h1 class="text-5xl md:text-7xl font-bold tracking-tighter mb-6 bg-clip-text text-transparent bg-gradient-to-r from-white via-primary to-purple-200 uppercase leading-tight text-glow">
+                We are evolving faster<br/>than humanly possible.
+            </h1>
+<p class="text-xl md:text-2xl text-slate-400 font-light tracking-wide max-w-3xl mx-auto">
+<span class="text-primary">&lt;</span> Evolving at the Speed of AI <span class="text-primary">/&gt;</span>
+</p>
+</div>
+</main>
+<!-- Timeline Section -->
+<section class="relative z-10 py-20 max-w-5xl mx-auto px-4 sm:px-6">
+<!-- Center Spine Line -->
+<div class="absolute left-4 md:left-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-primary to-transparent md:-translate-x-1/2 h-full opacity-50"></div>
+<div class="space-y-24">
+<!-- Node 1: Completed -->
+<div class="relative flex flex-col md:flex-row items-center md:justify-between group">
+<!-- Node Marker -->
+<div class="absolute left-4 md:left-1/2 w-8 h-8 rounded-full bg-background-dark border-2 border-neon-green shadow-[0_0_15px_rgba(0,255,157,0.4)] z-20 md:-translate-x-1/2 flex items-center justify-center -translate-x-1/2">
+<span class="material-icons text-neon-green text-sm">check</span>
+</div>
+<!-- Content Left -->
+<div class="md:w-[45%] pl-12 md:pl-0 md:pr-12 md:text-right order-2 md:order-1 mt-4 md:mt-0">
+<span class="inline-block px-2 py-1 mb-2 text-xs font-bold tracking-wider text-neon-green uppercase border border-neon-green/30 bg-neon-green/10 rounded">Deployed</span>
+<h3 class="text-2xl font-bold text-white mb-2">Single Agent Autonomy</h3>
+<p class="text-slate-400 mb-4 text-sm leading-relaxed">State-of-the-art LangGraph architecture implementation allowing for isolated task execution and self-correction.</p>
+</div>
+<!-- Card Right -->
+<div class="md:w-[45%] pl-12 md:pl-12 order-3 md:order-2 mt-4 md:mt-0">
+<div class="glass-panel p-6 rounded-lg hover:border-neon-green/50 transition-colors duration-300 group-hover:box-glow">
+<div class="flex items-center gap-3 mb-4">
+<div class="p-2 bg-neon-green/10 rounded border border-neon-green/20">
+<span class="material-icons text-neon-green">schema</span>
+</div>
+<h4 class="font-bold text-white">The Zero-Conflict Graph</h4>
+</div>
+<p class="text-sm text-slate-300">
+                            Our architecture ensures deterministic paths for agent reasoning, eliminating hallucinations in critical logic flows.
+                        </p>
+</div>
+</div>
+</div>
+<!-- Node 2: Active (The Judge Agent) -->
+<div class="relative flex flex-col md:flex-row items-center md:justify-between group">
+<!-- Node Marker -->
+<div class="absolute left-4 md:left-1/2 z-20 md:-translate-x-1/2 -translate-x-1/2">
+<div class="relative w-8 h-8 flex items-center justify-center">
+<div class="absolute w-full h-full rounded-full bg-primary/50 pulse-ring"></div>
+<div class="relative w-4 h-4 rounded-full bg-primary shadow-[0_0_20px_#7f13ec]"></div>
+</div>
+</div>
+<!-- Content Right (Flip order for zig zag effect on desktop) -->
+<div class="md:w-[45%] pl-12 md:pl-12 order-2 md:order-2 mt-4 md:mt-0 text-left">
+<span class="inline-block px-2 py-1 mb-2 text-xs font-bold tracking-wider text-primary uppercase border border-primary/30 bg-primary/10 rounded text-glow">Q3 2026 • In Progress</span>
+<h3 class="text-2xl font-bold text-white mb-2 text-glow">The Judge Agent</h3>
+<p class="text-slate-400 mb-4 text-sm leading-relaxed">A secondary, adversarial AI model dedicated solely to security auditing and logic review before code commitment.</p>
+<!-- Voting Button -->
+<button class="group/btn flex items-center gap-2 bg-slate-900 border border-slate-700 hover:border-primary hover:bg-primary/10 rounded-md px-3 py-1.5 transition-all">
+<span class="material-icons text-slate-500 group-hover/btn:text-primary text-sm transition-colors">arrow_upward</span>
+<span class="text-slate-300 text-xs font-mono group-hover/btn:text-white">842 Votes</span>
+</button>
+</div>
+<!-- Card Left -->
+<div class="md:w-[45%] pl-12 md:pl-0 md:pr-12 order-3 md:order-1 mt-4 md:mt-0">
+<div class="glass-panel p-6 rounded-lg hover:border-primary/50 transition-colors duration-300 relative overflow-hidden group-hover:box-glow">
+<div class="absolute -right-10 -top-10 w-32 h-32 bg-primary/20 rounded-full blur-2xl"></div>
+<div class="relative z-10">
+<div class="flex items-center gap-3 mb-4">
+<div class="p-2 bg-primary/10 rounded border border-primary/20">
+<span class="material-icons text-primary">gavel</span>
+</div>
+<h4 class="font-bold text-white">Logic Review Systems</h4>
+</div>
+<p class="text-sm text-slate-300">
+                                Implementing a specialized LLM trained on CVE databases to catch vulnerabilities that generalist coding agents miss.
+                            </p>
+</div>
+</div>
+</div>
+</div>
+<!-- Node 3: Future (Multi-Agent Swarms) -->
+<div class="relative flex flex-col md:flex-row items-center md:justify-between group">
+<!-- Node Marker -->
+<div class="absolute left-4 md:left-1/2 w-6 h-6 rounded-full bg-background-dark border border-neon-pink shadow-[0_0_10px_rgba(255,0,255,0.3)] z-20 md:-translate-x-1/2 flex items-center justify-center -translate-x-1/2">
+<div class="w-2 h-2 rounded-full bg-neon-pink"></div>
+</div>
+<!-- Content Left -->
+<div class="md:w-[45%] pl-12 md:pl-0 md:pr-12 md:text-right order-2 md:order-1 mt-4 md:mt-0">
+<span class="inline-block px-2 py-1 mb-2 text-xs font-bold tracking-wider text-neon-pink uppercase border border-neon-pink/30 bg-neon-pink/10 rounded">Q4 2026 • Planned</span>
+<h3 class="text-2xl font-bold text-white mb-2">Multi-Agent Swarms</h3>
+<p class="text-slate-400 mb-4 text-sm leading-relaxed">Parallel execution of Backend, Frontend, and Database tasks by specialized sub-agents working in unison.</p>
+<!-- Voting Button (Right aligned for desktop) -->
+<div class="flex md:justify-end">
+<button class="group/btn flex items-center gap-2 bg-slate-900 border border-slate-700 hover:border-neon-pink hover:bg-neon-pink/10 rounded-md px-3 py-1.5 transition-all">
+<span class="material-icons text-slate-500 group-hover/btn:text-neon-pink text-sm transition-colors">arrow_upward</span>
+<span class="text-slate-300 text-xs font-mono group-hover/btn:text-white">2,105 Votes</span>
+</button>
+</div>
+</div>
+<!-- Card Right -->
+<div class="md:w-[45%] pl-12 md:pl-12 order-3 md:order-2 mt-4 md:mt-0">
+<div class="glass-panel p-6 rounded-lg hover:border-neon-pink/50 transition-colors duration-300 group-hover:shadow-[0_0_20px_rgba(255,0,255,0.15)]">
+<div class="flex items-center gap-3 mb-4">
+<div class="p-2 bg-neon-pink/10 rounded border border-neon-pink/20">
+<span class="material-icons text-neon-pink">hub</span>
+</div>
+<h4 class="font-bold text-white">Swarm Mode Architecture</h4>
+</div>
+<p class="text-sm text-slate-300">
+                            Breaking the linear bottleneck. One prompt spawns three distinct engineering teams that converge only when APIs are stable.
+                        </p>
+</div>
+</div>
+</div>
+<!-- Node 4: Distant Future (Multimodal Vision) -->
+<div class="relative flex flex-col md:flex-row items-center md:justify-between group opacity-70 hover:opacity-100 transition-opacity">
+<!-- Node Marker -->
+<div class="absolute left-4 md:left-1/2 w-6 h-6 rounded-full bg-background-dark border border-slate-600 z-20 md:-translate-x-1/2 flex items-center justify-center -translate-x-1/2">
+<div class="w-2 h-2 rounded-full bg-slate-600"></div>
+</div>
+<!-- Content Right -->
+<div class="md:w-[45%] pl-12 md:pl-12 order-2 md:order-2 mt-4 md:mt-0 text-left">
+<span class="inline-block px-2 py-1 mb-2 text-xs font-bold tracking-wider text-slate-500 uppercase border border-slate-700 bg-slate-800/30 rounded">2027 • Concept</span>
+<h3 class="text-2xl font-bold text-white mb-2">Multimodal UI Vision</h3>
+<p class="text-slate-400 mb-4 text-sm leading-relaxed">Computer vision integration for pixel-perfect visual regression testing and design-to-code implementation.</p>
+<button class="group/btn flex items-center gap-2 bg-slate-900 border border-slate-700 hover:border-white/50 hover:bg-white/5 rounded-md px-3 py-1.5 transition-all">
+<span class="material-icons text-slate-500 group-hover/btn:text-white text-sm transition-colors">arrow_upward</span>
+<span class="text-slate-300 text-xs font-mono group-hover/btn:text-white">543 Votes</span>
+</button>
+</div>
+<!-- Card Left -->
+<div class="md:w-[45%] pl-12 md:pl-0 md:pr-12 order-3 md:order-1 mt-4 md:mt-0">
+<div class="glass-panel p-6 rounded-lg border-dashed border-slate-700 hover:border-slate-500 transition-colors duration-300">
+<div class="flex items-center gap-3 mb-4">
+<div class="p-2 bg-slate-800 rounded border border-slate-700">
+<span class="material-icons text-slate-400">visibility</span>
+</div>
+<h4 class="font-bold text-white">Visual Regression Eyes</h4>
+</div>
+<p class="text-sm text-slate-400">
+                            Moving beyond DOM parsing. The AI will "see" the rendered page exactly as a user does to identify layout shifts and responsive bugs.
+                        </p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Manifesto Section -->
+<section class="relative z-10 py-24 px-4 sm:px-6">
+<div class="max-w-4xl mx-auto">
+<div class="glass-panel rounded-xl p-8 md:p-12 border-t-4 border-t-primary shadow-[0_0_50px_rgba(127,19,236,0.1)] relative overflow-hidden">
+<!-- Background decorative elements -->
+<div class="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-primary/10 to-transparent rounded-bl-full pointer-events-none"></div>
+<div class="absolute bottom-0 left-0 w-32 h-32 bg-neon-pink/5 rounded-tr-full pointer-events-none"></div>
+<div class="relative z-10 text-center">
+<h2 class="text-3xl md:text-4xl font-bold uppercase tracking-widest mb-8 text-white">The Manifesto</h2>
+<div class="prose prose-invert prose-lg mx-auto text-slate-300 font-light leading-relaxed">
+<p class="mb-6">
+                            For decades, we've built tools that help humans write code faster. <span class="text-white font-medium">Copilots were the first step.</span> But a copilot waits for instructions. A copilot needs a pilot.
+                        </p>
+<p class="mb-6">
+                            At Co-Founder.ai, we believe the future isn't about code completion—it's about <strong class="text-primary">autonomy</strong>. We are building systems that don't just answer questions but understand intent, architecture, and business logic.
+                        </p>
+<p class="text-xl text-white font-normal mt-10 italic">
+                            "We are moving from Coding Assistants to Autonomous Partners."
+                        </p>
+</div>
+<div class="mt-12 flex justify-center gap-6">
+<div class="text-center">
+<div class="text-3xl font-bold text-primary mb-1">24/7</div>
+<div class="text-xs uppercase tracking-widest text-slate-500">Uptime</div>
+</div>
+<div class="w-px bg-slate-800 h-12"></div>
+<div class="text-center">
+<div class="text-3xl font-bold text-neon-green mb-1">0%</div>
+<div class="text-xs uppercase tracking-widest text-slate-500">Ego</div>
+</div>
+<div class="w-px bg-slate-800 h-12"></div>
+<div class="text-center">
+<div class="text-3xl font-bold text-neon-pink mb-1">∞</div>
+<div class="text-xs uppercase tracking-widest text-slate-500">Scale</div>
+</div>
+</div>
+<div class="mt-12">
+<div class="inline-flex items-center gap-4 bg-black/40 rounded-lg p-2 pr-6 border border-white/10">
+<img alt="Tech" class="w-12 h-12 rounded bg-slate-800 object-cover opacity-80" data-alt="Futuristic neon circuitry close up abstract pattern" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAoQBvTJ101Ib7ahVVFTOnh697wnEJot4lNwvobQsv8MQxJ_nnkAyhH7SFQowSaYOy4X-C9KdW9vbJsIfo9XpyW0-nhNH4AG_OgotBomzokoGShZ7ZqqrnBGKjqsGbfbcBOdELUrVd0NqqSz1yScZ5QWfaZpx2qiAeGGDEh69pDH-6qj49ARXGCSDhJwlp8i2RRL5xVSzWyvyuDz-Q9sBARxE9yeW5UBpHKMhFkFxMx1J1CIaQ9yP1Ay8d8dBLlfARErTO9VfrNVOGA"/>
+<div class="text-left">
+<div class="text-xs text-slate-500 uppercase tracking-wider">Join the revolution</div>
+<div class="text-sm text-white">Read the full whitepaper <span class="material-icons text-sm align-middle ml-1 text-primary">arrow_forward</span></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Footer -->
+<footer class="border-t border-white/5 bg-background-dark py-12 relative z-10">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+<div class="flex flex-col md:flex-row justify-between items-center gap-6">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 bg-primary/20 border border-primary/50 rounded flex items-center justify-center">
+<span class="text-primary text-xs font-bold">C</span>
+</div>
+<span class="text-slate-400 text-sm tracking-widest uppercase">Co-Founder.ai</span>
+</div>
+<div class="flex gap-8 text-sm text-slate-500">
+<a class="hover:text-primary transition-colors" href="#">Privacy</a>
+<a class="hover:text-primary transition-colors" href="#">Terms</a>
+<a class="hover:text-primary transition-colors" href="#">Twitter</a>
+<a class="hover:text-primary transition-colors" href="#">GitHub</a>
+</div>
+<div class="text-xs text-slate-600">
+                    © 2024 Co-Founder.ai Inc. System Online.
+                </div>
+</div>
+</div>
+</footer>
+</body></html>

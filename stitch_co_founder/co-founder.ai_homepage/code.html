@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Co-Founder.ai - The Autonomous Technical Co-Founder</title>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<!-- Material Icons -->
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Theme Configuration -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#6467f2", 
+                        "primary-dark": "#4f51c0",
+                        "obsidian": "#050505",
+                        "obsidian-light": "#101114",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#050505", 
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"],
+                        "sans": ["Space Grotesk", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "2xl": "1rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        .glass {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .glass-strong {
+            background: rgba(16, 17, 34, 0.6);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(100, 103, 242, 0.1);
+        }
+
+        .text-glow {
+            text-shadow: 0 0 20px rgba(100, 103, 242, 0.5);
+        }
+        
+        .box-glow {
+            box-shadow: 0 0 40px -10px rgba(100, 103, 242, 0.15);
+        }
+
+        .typing-cursor::after {
+            content: '|';
+            animation: blink 1s step-start infinite;
+        }
+
+        @keyframes blink {
+            50% { opacity: 0; }
+        }
+
+        /* 3D Phone Tilt Effect Base */
+        .phone-container {
+            transform: perspective(1000px) rotateY(-12deg) rotateX(5deg);
+            transform-style: preserve-3d;
+            transition: transform 0.5s ease;
+        }
+        
+        .phone-container:hover {
+            transform: perspective(1000px) rotateY(-5deg) rotateX(2deg) translateY(-10px);
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-gray-900 dark:text-gray-100 font-display min-h-screen flex flex-col antialiased selection:bg-primary selection:text-white">
+<!-- Navigation -->
+<nav class="fixed top-0 w-full z-50 border-b border-white/5 bg-obsidian/80 backdrop-blur-md">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+<div class="flex justify-between items-center h-20">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+<span class="material-icons-round text-white text-lg">terminal</span>
+</div>
+<span class="font-bold text-xl tracking-tight">Co-Founder<span class="text-primary">.ai</span></span>
+</div>
+<div class="hidden md:flex items-center space-x-8">
+<a class="text-sm font-medium text-gray-400 hover:text-white transition-colors" href="#">Manifesto</a>
+<a class="text-sm font-medium text-gray-400 hover:text-white transition-colors" href="#">Pricing</a>
+<a class="text-sm font-medium text-gray-400 hover:text-white transition-colors" href="#">How it Works</a>
+</div>
+<div class="flex items-center gap-4">
+<a class="text-sm font-medium text-gray-400 hover:text-white transition-colors hidden sm:block" href="#">Login</a>
+<a class="bg-white/10 hover:bg-white/20 border border-white/10 text-white px-5 py-2 rounded-full text-sm font-semibold transition-all hover:scale-105" href="#">
+                        Get Access
+                    </a>
+</div>
+</div>
+</div>
+</nav>
+<!-- Hero Section -->
+<header class="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
+<!-- Abstract Background Glows -->
+<div class="absolute top-0 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-[120px] -z-10"></div>
+<div class="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-indigo-900/10 rounded-full blur-[100px] -z-10"></div>
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+<div class="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+<!-- Left Content -->
+<div class="relative z-10 max-w-2xl">
+<div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 mb-6">
+<span class="relative flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+</span>
+<span class="text-xs font-semibold text-primary uppercase tracking-wider">v2.0 Now Live</span>
+</div>
+<h1 class="text-5xl sm:text-6xl lg:text-7xl font-bold leading-[1.1] mb-6">
+                        Stop Giving Away <span class="text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-500">50% Equity.</span>
+</h1>
+<p class="text-xl text-gray-400 mb-10 h-16 sm:h-auto font-light">
+<span class="typing-cursor">Meet the first Autonomous Technical Co-Founder. Build your MVP in days, not months. No equity required.</span>
+</p>
+<div class="flex flex-col sm:flex-row gap-4">
+<button class="bg-primary hover:bg-primary-dark text-white px-8 py-4 rounded-xl font-bold text-lg transition-all shadow-[0_0_20px_rgba(100,103,242,0.4)] hover:shadow-[0_0_30px_rgba(100,103,242,0.6)] flex items-center justify-center gap-2 group">
+                            Hire Your Co-Founder
+                            <span class="material-icons-round group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</button>
+<button class="glass hover:bg-white/5 text-white px-8 py-4 rounded-xl font-medium text-lg transition-all flex items-center justify-center gap-2">
+<span class="material-icons-round">play_circle</span>
+                            Watch Demo
+                        </button>
+</div>
+<div class="mt-8 flex items-center gap-4 text-sm text-gray-500">
+<div class="flex -space-x-2">
+<img alt="User portrait" class="w-8 h-8 rounded-full border-2 border-background-dark" data-alt="Portrait of a female founder" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAygOJUnhtF6OBRui7M362UmNpEh-09wGadesdJbYplcWTxM-58Hbio1Xzp59unJUC_ylFDAuHKTwO7gWtihdLg4R9Hgg5oz4Yykm6ypsDscyNIP2PVWt8RA3BqkZ7mx1mwn9DdjApOIo55RVkGn2wnjLCrzMwSHmLOjWeQ27euSaCvrbDh1VWQB_jPQ4my0NcUIUa_DMoSkdY0FVkYwOwzYZnoN42mPIJ6SMno52efrSmpE6v-clvDVB2GcaAgU3vOPd1plL-fuPkQ"/>
+<img alt="User portrait" class="w-8 h-8 rounded-full border-2 border-background-dark" data-alt="Portrait of a male founder" src="https://lh3.googleusercontent.com/aida-public/AB6AXuApkF22kaAq5XOEc0XFsFFjlYcL2BLKFE1-cVrxuxJ9WQjvHqemqTwgpKPVRrGQiSNPHCRejzs8yGky4vgM1H5J9ZHj8-FXFEW3PTdaQG8-M-1UCIpIdgHVbLlZ5N8DkUZ2qBEDaEk2fCqWQA40MrVrPxf_tFt09Z4e_t1NU9YaEowlLlSoNkf9BHcAEzZlnIXm1UNarZRUBrFeD4qsZ2DTFoWi8VXYF0raS-EEYFikOyJYpWhORZpnehqwS5oGpSf59zyH9uHGesP3"/>
+<img alt="User portrait" class="w-8 h-8 rounded-full border-2 border-background-dark" data-alt="Portrait of a male founder" src="https://lh3.googleusercontent.com/aida-public/AB6AXuArDy9afQOdIBaJDwMmYqd3PBUwDYlm8f4ITJpHt644sXHEyWO-8dDrYRbP5CAuSZrCeSRkBtuFa7D48bLfyF5zwmzEck7HRK1GOprXsXAk3XYQKbSFzb_Adilf7gowTywBGnwC5CiJ5SoCyeXSwjKkZMr6Miyk9QGwDToJHC8Q3hOP3xil9wKu4T1qPFt8I_QCEi6B8-exVjMZavB-uPi78LR5RGSDKqIAFdwW2FvmA23xslSGFUjiz7YCtqODsb4OigqYIIFFtU5T"/>
+</div>
+<p>Trusted by 2,000+ non-technical founders</p>
+</div>
+</div>
+<!-- Right Content: Floating Phone -->
+<div class="relative z-10 flex justify-center lg:justify-end">
+<div class="phone-container relative w-[300px] h-[600px] bg-obsidian-light border-[8px] border-gray-800 rounded-[3rem] shadow-2xl overflow-hidden">
+<!-- Screen Header -->
+<div class="absolute top-0 w-full h-24 bg-obsidian-light/90 backdrop-blur border-b border-white/5 z-20 px-6 pt-10 flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
+<span class="material-icons-round text-white text-sm">smart_toy</span>
+</div>
+<div>
+<h3 class="font-bold text-white text-sm">Co-Founder.ai</h3>
+<p class="text-xs text-primary">Online • executing</p>
+</div>
+</div>
+<!-- Chat Area -->
+<div class="w-full h-full bg-obsidian pt-28 px-4 flex flex-col gap-4 font-sans text-sm">
+<!-- Founder Message -->
+<div class="self-end max-w-[80%]">
+<div class="bg-indigo-600 text-white p-3 rounded-2xl rounded-tr-sm">
+<p>Can we deploy the new Stripe integration? Users are waiting.</p>
+</div>
+<span class="text-[10px] text-gray-500 block text-right mt-1">10:42 AM</span>
+</div>
+<!-- AI Processing Indicator -->
+<div class="self-start max-w-[80%] flex items-center gap-2">
+<div class="flex space-x-1">
+<div class="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce"></div>
+<div class="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+<div class="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+</div>
+<span class="text-xs text-gray-500 italic">Running tests...</span>
+</div>
+<!-- AI Response -->
+<div class="self-start max-w-[90%]">
+<div class="bg-gray-800 text-gray-200 p-3 rounded-2xl rounded-tl-sm border border-white/5">
+<p class="mb-2">Tests passed (142/142). Deployment pipeline triggered.</p>
+<div class="bg-black/30 rounded p-2 text-xs font-mono text-green-400 border border-white/5">
+                                        &gt; git push origin main<br/>
+                                        &gt; vercel --prod<br/>
+                                        &gt; Status: Live ✅
+                                    </div>
+</div>
+<span class="text-[10px] text-gray-500 block mt-1">10:43 AM</span>
+</div>
+<!-- Founder Reply -->
+<div class="self-end max-w-[80%] mt-2">
+<div class="bg-indigo-600 text-white p-3 rounded-2xl rounded-tr-sm">
+<p>Incredible. You're the best. 🚀</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Decorative Elements behind phone -->
+<div class="absolute -right-10 top-1/2 -translate-y-1/2 w-64 h-64 bg-primary/30 rounded-full blur-[80px] -z-10"></div>
+</div>
+</div>
+</div>
+</header>
+<!-- Social Proof Ticker -->
+<section class="border-y border-white/5 bg-black/20 overflow-hidden py-8">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6 text-center">
+<p class="text-sm font-semibold uppercase tracking-widest text-gray-500">Powering the next generation of Unicorns</p>
+</div>
+<div class="relative w-full overflow-hidden">
+<div class="flex items-center space-x-16 animate-marquee whitespace-nowrap opacity-50 grayscale hover:grayscale-0 transition-all duration-500 justify-center">
+<!-- Logos (Simulated with text for constraints, but styled like logos) -->
+<div class="flex items-center gap-2 font-bold text-2xl text-white"><span class="bg-white text-black px-1 rounded">Y</span> Combinator</div>
+<div class="font-bold text-2xl text-white tracking-tighter">stripe</div>
+<div class="font-bold text-xl text-white flex items-center gap-1"><span class="material-icons-round">bolt</span> IndieHackers</div>
+<div class="font-bold text-2xl text-white tracking-wide">ProductHunt</div>
+<div class="font-bold text-2xl text-white italic">TechCrunch</div>
+<!-- Duplicate for seamless scroll effect feeling -->
+<div class="flex items-center gap-2 font-bold text-2xl text-white hidden md:flex"><span class="bg-white text-black px-1 rounded">Y</span> Combinator</div>
+<div class="font-bold text-2xl text-white tracking-tighter hidden md:block">stripe</div>
+</div>
+</div>
+</section>
+<!-- Comparison Table -->
+<section class="py-24 relative">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+<div class="text-center mb-16">
+<h2 class="text-3xl md:text-5xl font-bold mb-4">The Old Way vs. <span class="text-primary">The Future</span></h2>
+<p class="text-gray-400 text-lg max-w-2xl mx-auto">Why give away half your company or spend your life savings on an agency?</p>
+</div>
+<div class="grid md:grid-cols-3 gap-8 items-end">
+<!-- Column 1: Dev Agencies -->
+<div class="glass rounded-2xl p-8 border-t-4 border-gray-700 relative group hover:bg-white/5 transition-colors">
+<h3 class="text-xl font-bold mb-2">Dev Agencies</h3>
+<p class="text-gray-400 text-sm mb-6">Expensive &amp; slow communication loop.</p>
+<div class="space-y-4 mb-8">
+<div class="flex justify-between items-center border-b border-white/5 pb-2">
+<span class="text-gray-400">Cost</span>
+<span class="font-bold text-red-400">$15k - $50k / mo</span>
+</div>
+<div class="flex justify-between items-center border-b border-white/5 pb-2">
+<span class="text-gray-400">Equity</span>
+<span class="font-bold text-white">0% (but cash heavy)</span>
+</div>
+<div class="flex justify-between items-center border-b border-white/5 pb-2">
+<span class="text-gray-400">Speed</span>
+<span class="font-bold text-white">Weekly Updates</span>
+</div>
+<div class="flex justify-between items-center pb-2">
+<span class="text-gray-400">Control</span>
+<span class="font-bold text-white">Low</span>
+</div>
+</div>
+<div class="text-center">
+<span class="material-icons-round text-5xl text-gray-700">money_off</span>
+</div>
+</div>
+<!-- Column 3 (Center Highlight): Co-Founder.ai -->
+<div class="bg-gradient-to-b from-primary/20 to-primary/5 rounded-2xl p-8 border border-primary relative z-10 box-glow scale-105 transform">
+<div class="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-primary text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wide shadow-lg">
+                        Recommended
+                    </div>
+<h3 class="text-2xl font-bold mb-2 text-white">Co-Founder.ai</h3>
+<p class="text-indigo-200 text-sm mb-6">Autonomous execution with full control.</p>
+<div class="space-y-4 mb-8">
+<div class="flex justify-between items-center border-b border-primary/20 pb-2">
+<span class="text-indigo-200">Cost</span>
+<span class="font-bold text-white text-lg">$299 / mo</span>
+</div>
+<div class="flex justify-between items-center border-b border-primary/20 pb-2">
+<span class="text-indigo-200">Equity</span>
+<span class="font-bold text-primary">0% Equity</span>
+</div>
+<div class="flex justify-between items-center border-b border-primary/20 pb-2">
+<span class="text-indigo-200">Speed</span>
+<span class="font-bold text-white">24/7 Execution</span>
+</div>
+<div class="flex justify-between items-center pb-2">
+<span class="text-indigo-200">Control</span>
+<span class="font-bold text-white">100% Admin</span>
+</div>
+</div>
+<button class="w-full bg-primary hover:bg-primary-dark text-white font-bold py-3 rounded-lg transition-colors shadow-lg">
+                        Start Building
+                    </button>
+</div>
+<!-- Column 2: Learning to Code -->
+<div class="glass rounded-2xl p-8 border-t-4 border-gray-700 relative group hover:bg-white/5 transition-colors">
+<h3 class="text-xl font-bold mb-2">Self-Taught</h3>
+<p class="text-gray-400 text-sm mb-6">High effort &amp; distraction from sales.</p>
+<div class="space-y-4 mb-8">
+<div class="flex justify-between items-center border-b border-white/5 pb-2">
+<span class="text-gray-400">Cost</span>
+<span class="font-bold text-white">$0 (Time is money)</span>
+</div>
+<div class="flex justify-between items-center border-b border-white/5 pb-2">
+<span class="text-gray-400">Equity</span>
+<span class="font-bold text-white">100%</span>
+</div>
+<div class="flex justify-between items-center border-b border-white/5 pb-2">
+<span class="text-gray-400">Speed</span>
+<span class="font-bold text-red-400">2 Years (Weekends)</span>
+</div>
+<div class="flex justify-between items-center pb-2">
+<span class="text-gray-400">Control</span>
+<span class="font-bold text-white">Total</span>
+</div>
+</div>
+<div class="text-center">
+<span class="material-icons-round text-5xl text-gray-700">school</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Bento Grid Features -->
+<section class="py-24 bg-obsidian-light/50 relative">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+<div class="mb-12">
+<span class="text-primary font-bold uppercase tracking-wider text-sm">System Architecture</span>
+<h2 class="text-4xl font-bold mt-2">Built for scale. Designed for you.</h2>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-4 md:grid-rows-2 gap-6 h-auto md:h-[600px]">
+<!-- Top Left: Memory Engine (Wide) -->
+<div class="md:col-span-3 glass rounded-3xl p-8 relative overflow-hidden group">
+<div class="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -z-10 transition-opacity group-hover:opacity-100 opacity-50"></div>
+<div class="relative z-10 h-full flex flex-col justify-between">
+<div>
+<div class="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center mb-4">
+<span class="material-icons-round text-white">psychology</span>
+</div>
+<h3 class="text-2xl font-bold mb-2">The Memory Engine</h3>
+<p class="text-gray-400 max-w-sm">It remembers every decision, every bug fix, and every feature request. Context is never lost.</p>
+</div>
+<!-- Visual representation of timeline -->
+<div class="mt-8 flex items-center space-x-4 overflow-hidden opacity-70">
+<div class="flex-shrink-0 w-2 h-2 rounded-full bg-primary"></div>
+<div class="flex-1 h-[1px] bg-gradient-to-r from-primary to-transparent"></div>
+<div class="flex items-center space-x-2 text-xs font-mono text-gray-500">
+<span class="bg-gray-800 px-2 py-1 rounded">auth_v1</span>
+<span class="material-icons-round text-[10px]">arrow_forward</span>
+<span class="bg-primary/20 text-primary px-2 py-1 rounded border border-primary/30">payment_flow</span>
+<span class="material-icons-round text-[10px]">arrow_forward</span>
+<span class="bg-gray-800 px-2 py-1 rounded">dashboard_ui</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Top Right: Safety Box (Square) -->
+<div class="md:col-span-1 glass rounded-3xl p-8 relative overflow-hidden flex flex-col justify-between group">
+<div class="absolute inset-0 bg-gradient-to-br from-transparent to-black/40"></div>
+<div class="relative z-10">
+<div class="w-12 h-12 bg-green-500/10 rounded-xl flex items-center justify-center mb-4 text-green-400 border border-green-500/20">
+<span class="material-icons-round">lock</span>
+</div>
+<h3 class="text-xl font-bold mb-1">Safety Box</h3>
+<p class="text-xs text-gray-400">Sandboxed execution.</p>
+</div>
+<div class="mt-4 bg-black rounded p-3 font-mono text-[10px] text-green-400 border border-green-900/30">
+                        &gt; sandbox --init<br/>
+                        &gt; access: granted<br/>
+                        &gt; env: isolated
+                    </div>
+</div>
+<!-- Bottom Left: WhatsApp Integration (Square) -->
+<div class="md:col-span-1 glass rounded-3xl p-8 relative overflow-hidden flex flex-col justify-between group bg-green-900/5">
+<div class="relative z-10">
+<div class="w-12 h-12 bg-green-600/20 rounded-xl flex items-center justify-center mb-4 text-green-400">
+<span class="material-icons-round">chat</span>
+</div>
+<h3 class="text-xl font-bold mb-1">WhatsApp Ops</h3>
+<p class="text-xs text-gray-400">Deploy from your phone.</p>
+</div>
+<div class="mt-4 flex justify-center">
+<div class="bg-white/5 rounded-full p-4 animate-pulse">
+<span class="material-icons-round text-3xl text-green-500">sync</span>
+</div>
+</div>
+</div>
+<!-- Bottom Right: Nightly Janitor (Wide) -->
+<div class="md:col-span-3 glass rounded-3xl p-8 relative overflow-hidden group">
+<div class="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -z-10"></div>
+<div class="flex flex-col md:flex-row items-center md:items-start justify-between h-full relative z-10">
+<div class="max-w-md">
+<div class="w-12 h-12 bg-indigo-500/20 rounded-xl flex items-center justify-center mb-4 text-indigo-400 border border-indigo-500/20">
+<span class="material-icons-round">cleaning_services</span>
+</div>
+<h3 class="text-2xl font-bold mb-2">The Nightly Janitor</h3>
+<p class="text-gray-400">While you sleep, our agents sweep your codebase for bugs, security vulnerabilities, and dependency updates.</p>
+</div>
+<div class="mt-6 md:mt-0 relative">
+<!-- Visual of sweeping bugs -->
+<div class="flex space-x-2">
+<div class="w-8 h-8 rounded bg-red-900/20 flex items-center justify-center text-red-500 opacity-50 group-hover:opacity-0 transition-opacity duration-1000">
+<span class="material-icons-round text-sm">bug_report</span>
+</div>
+<div class="w-8 h-8 rounded bg-red-900/20 flex items-center justify-center text-red-500 opacity-70 group-hover:opacity-0 transition-opacity duration-700">
+<span class="material-icons-round text-sm">bug_report</span>
+</div>
+<div class="w-8 h-8 rounded bg-red-900/20 flex items-center justify-center text-red-500 group-hover:opacity-0 transition-opacity duration-500">
+<span class="material-icons-round text-sm">bug_report</span>
+</div>
+</div>
+<div class="absolute -bottom-2 -right-2 text-primary opacity-0 group-hover:opacity-100 transition-opacity delay-500 duration-500">
+<span class="material-icons-round text-4xl">check_circle</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Testimonials -->
+<section class="py-24 relative overflow-hidden">
+<!-- Background Accents -->
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-primary/5 blur-[100px] rounded-full -z-10"></div>
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+<h2 class="text-center text-3xl font-bold mb-16">Built by <span class="text-primary">Non-Technical</span> Founders</h2>
+<div class="grid md:grid-cols-3 gap-8">
+<!-- Card 1 -->
+<div class="glass-strong rounded-xl p-6 hover:-translate-y-1 transition-transform duration-300">
+<div class="flex items-center mb-4">
+<img alt="Sarah J." class="w-12 h-12 rounded-full border border-white/10" data-alt="Portrait of Sarah J." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCibqGY3xj8DvBdH1yjxcl5KCvql3zs7eweblKA4udJe8YhMNfjCKhvwrJgWHMFiIBrTZjlaW5FugRhJFUXGUPEV4QGKFd2s5BcO6CKObbAXD_w09c4PNUl7KTMmiG7Z1WOx1GrL-tzSquClQkd7rKzRsenXHM4OIh8kAri6TzRtmk71gqFLGXZdKMWY2pLatXIRIClaDFaNbQXhxCdcIwZXTd6FcRySWjtlKj6t0plTwUak4BO01H0S9BRWOtv3p9kP5haUVj_1EsM"/>
+<div class="ml-4">
+<h4 class="font-bold text-white">Sarah J.</h4>
+<p class="text-xs text-gray-400">Founder, EcomFlow</p>
+</div>
+</div>
+<p class="text-gray-300 text-sm leading-relaxed">
+                        "I spent $25k on an agency that delivered nothing. With Co-Founder.ai, I launched my MVP in 4 days. It's actually magic."
+                    </p>
+</div>
+<!-- Card 2 -->
+<div class="glass-strong rounded-xl p-6 hover:-translate-y-1 transition-transform duration-300">
+<div class="flex items-center mb-4">
+<img alt="Mark D." class="w-12 h-12 rounded-full border border-white/10" data-alt="Portrait of Mark D." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAo7XSfG64vunSEkZhN8ARhlroaEdAA_1jOaCFwBrOyBXn-2cd3CGlfr9v8bNPP7pTgwMbs6IpszKAxSIZMLtKKKqIz_Wsa_fsSmPWbo3fbIis_NMB10ddB_Ct_d4xrkLaetlRHA2mlV844ran8z4VGq2Xp1yI5vfLnjMg3ganPSruOhUHrZs1bcLBSFx4NQ25Xa1YmXJz--CwMnjwgPSIFQsFGERVf_-JrSqsWrNQY1O70rUY4BCYoB4E6AEhZ2b8u-lD4APdxTaDT"/>
+<div class="ml-4">
+<h4 class="font-bold text-white">Mark D.</h4>
+<p class="text-xs text-gray-400">CEO, DataDash</p>
+</div>
+</div>
+<p class="text-gray-300 text-sm leading-relaxed">
+                        "The 'Nightly Janitor' feature is a lifesaver. I wake up to a cleaner codebase every single morning. Best $299 I ever spent."
+                    </p>
+</div>
+<!-- Card 3 -->
+<div class="glass-strong rounded-xl p-6 hover:-translate-y-1 transition-transform duration-300">
+<div class="flex items-center mb-4">
+<img alt="Alex R." class="w-12 h-12 rounded-full border border-white/10" data-alt="Portrait of Alex R." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBLES-haq4cclCR4fBnaBQsoPvstv77U3a0tFV7RUteHipCVKvbUuk0vAQJ0kbKyuv-LVh8MZfkcUILTIUglrpcjRuYQXZ81ug1biolcE_TiYlcnEjMFElW77c0okVwdgdYShqrBmqNme6utDinOKs01EheDRfwHHXF9pui1omkmB5d3XA85uF-pw6v-YA16P1b2T6nvgx0ijxva8sSI66kJvuCMFRgZTZ65vkGynD_--IMqMQV1nzJfnx5_cg3-nYCE5uazdrgcvqI"/>
+<div class="ml-4">
+<h4 class="font-bold text-white">Alex R.</h4>
+<p class="text-xs text-gray-400">Creator, SocialPulse</p>
+</div>
+</div>
+<p class="text-gray-300 text-sm leading-relaxed">
+                        "Finally, I can iterate on my product without begging a developer friend for favors. I control the roadmap."
+                    </p>
+</div>
+</div>
+</div>
+</section>
+<!-- Footer -->
+<footer class="border-t border-white/5 bg-black/50 pt-16 pb-8">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+<div class="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
+<div class="col-span-2 md:col-span-1">
+<div class="flex items-center gap-2 mb-4">
+<span class="material-icons-round text-primary">terminal</span>
+<span class="font-bold text-xl">Co-Founder<span class="text-primary">.ai</span></span>
+</div>
+<p class="text-gray-500 text-sm mb-4">Democratizing software engineering for the visionaries of tomorrow.</p>
+</div>
+<div>
+<h5 class="font-bold text-white mb-4">Product</h5>
+<ul class="space-y-2 text-sm text-gray-400">
+<li><a class="hover:text-primary transition-colors" href="#">Manifesto</a></li>
+<li><a class="hover:text-primary transition-colors" href="#">Pricing</a></li>
+<li><a class="hover:text-primary transition-colors" href="#">Integrations</a></li>
+<li><a class="hover:text-primary transition-colors" href="#">Changelog</a></li>
+</ul>
+</div>
+<div>
+<h5 class="font-bold text-white mb-4">Company</h5>
+<ul class="space-y-2 text-sm text-gray-400">
+<li><a class="hover:text-primary transition-colors" href="#">About Us</a></li>
+<li><a class="hover:text-primary transition-colors" href="#">Careers</a></li>
+<li><a class="hover:text-primary transition-colors" href="#">Legal</a></li>
+<li><a class="hover:text-primary transition-colors" href="#">Contact</a></li>
+</ul>
+</div>
+<div>
+<h5 class="font-bold text-white mb-4">Platform</h5>
+<ul class="space-y-2 text-sm text-gray-400">
+<li><a class="hover:text-primary transition-colors" href="#">Login</a></li>
+<li><a class="hover:text-primary transition-colors" href="#">Sign Up</a></li>
+<li><a class="hover:text-primary transition-colors" href="#">Status</a></li>
+</ul>
+</div>
+</div>
+<div class="border-t border-white/5 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+<p class="text-gray-600 text-sm">© 2023 Co-Founder.ai Inc. All rights reserved.</p>
+<div class="flex space-x-6 text-gray-500">
+<a class="hover:text-white transition-colors" href="#"><i class="material-icons-round text-lg">facebook</i></a>
+<a class="hover:text-white transition-colors" href="#"><i class="material-icons-round text-lg">smart_display</i></a> <!-- Placeholder for twitter/X -->
+<a class="hover:text-white transition-colors" href="#"><i class="material-icons-round text-lg">code</i></a> <!-- Placeholder for github -->
+</div>
+</div>
+</div>
+</footer>
+</body></html>

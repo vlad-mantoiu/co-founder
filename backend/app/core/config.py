@@ -38,6 +38,11 @@ class Settings(BaseSettings):
 
     # Clerk
     clerk_secret_key: str = ""
+    clerk_publishable_key: str = ""
+    clerk_allowed_origins: list[str] = [
+        "http://localhost:3000",
+        "https://cofounder.helixcx.io",
+    ]
 
     # LLM Models
     architect_model: str = "claude-opus-4-20250514"
