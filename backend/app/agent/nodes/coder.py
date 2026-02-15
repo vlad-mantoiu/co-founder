@@ -3,11 +3,10 @@
 Uses Claude Sonnet for efficient code generation.
 """
 
-from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.agent.state import CoFounderState, FileChange
-from app.core.config import get_settings
+from app.core.llm_config import create_tracked_llm
 
 CODER_SYSTEM_PROMPT = """You are an expert software engineer implementing code changes.
 Your task is to write or modify code according to the current plan step.
@@ -31,12 +30,10 @@ If modifying an existing file, include the full modified content.
 
 async def coder_node(state: CoFounderState) -> dict:
     """Generate code for the current plan step."""
-    settings = get_settings()
-
-    llm = ChatAnthropic(
-        model=settings.coder_model,
-        api_key=settings.anthropic_api_key,
-        max_tokens=8192,
+    llm = await create_tracked_llm(
+        user_id=state["user_id"],
+        role="coder",
+        session_id=state["session_id"],
     )
 
     current_step = state["plan"][state["current_step_index"]]

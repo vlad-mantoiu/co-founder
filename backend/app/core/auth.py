@@ -8,6 +8,7 @@ import jwt as pyjwt
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt import PyJWKClient
+from sqlalchemy import select
 
 from app.core.config import get_settings
 
@@ -113,3 +114,34 @@ async def require_auth(
             raise HTTPException(status_code=401, detail="Unauthorized origin (azp mismatch)")
 
     return user
+
+
+async def require_admin(user: ClerkUser = Depends(require_auth)) -> ClerkUser:
+    """FastAPI dependency that requires admin privileges.
+
+    Checks Clerk public_metadata.admin first, then falls back to UserSettings.is_admin.
+    """
+    # Check Clerk JWT claim
+    public_metadata = user.claims.get("public_metadata", {})
+    if public_metadata.get("admin") is True:
+        return user
+
+    # Fallback: check database
+    try:
+        from app.db.base import get_session_factory
+        from app.db.models.user_settings import UserSettings
+
+        factory = get_session_factory()
+        async with factory() as session:
+            result = await session.execute(
+                select(UserSettings).where(
+                    UserSettings.clerk_user_id == user.user_id,
+                    UserSettings.is_admin.is_(True),
+                )
+            )
+            if result.scalar_one_or_none() is not None:
+                return user
+    except RuntimeError:
+        pass  # DB not initialized
+
+    raise HTTPException(status_code=403, detail="Admin access required")

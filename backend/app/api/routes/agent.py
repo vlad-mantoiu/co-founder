@@ -1,6 +1,8 @@
 """Agent API routes for interacting with the AI Co-Founder."""
 
+import json
 import uuid
+from datetime import date
 from typing import AsyncGenerator
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -10,27 +12,84 @@ from pydantic import BaseModel
 from app.agent.graph import create_cofounder_graph, create_production_graph
 from app.agent.state import create_initial_state
 from app.core.auth import ClerkUser, require_auth
+from app.core.llm_config import get_or_create_user_settings
+from app.db.redis import get_redis
 from app.memory.episodic import get_episodic_memory
 from app.memory.mem0_client import get_semantic_memory
 
 router = APIRouter()
 
-# In-memory session storage (replace with Redis in production)
-_sessions: dict[str, dict] = {}
-_episode_map: dict[str, int] = {}  # session_id -> episode_id
+SESSION_TTL = 3600  # 1 hour
+SESSION_PREFIX = "cofounder:session:"
+
+
+# ---------- Helpers ----------
+
+
+async def _get_session(session_id: str) -> dict | None:
+    """Load session metadata from Redis."""
+    r = get_redis()
+    raw = await r.get(f"{SESSION_PREFIX}{session_id}")
+    if raw is None:
+        return None
+    return json.loads(raw)
+
+
+async def _save_session(session_id: str, session: dict) -> None:
+    """Persist session metadata to Redis with TTL."""
+    r = get_redis()
+    await r.set(
+        f"{SESSION_PREFIX}{session_id}",
+        json.dumps(session, default=str),
+        ex=SESSION_TTL,
+    )
+
+
+async def _check_daily_session_limit(user_id: str) -> None:
+    """Raise 403 if user has exceeded their daily session limit."""
+    user_settings = await get_or_create_user_settings(user_id)
+    tier = user_settings.plan_tier
+
+    max_sessions = (
+        user_settings.override_max_sessions_per_day
+        if user_settings.override_max_sessions_per_day is not None
+        else tier.max_sessions_per_day
+    )
+
+    if max_sessions == -1:
+        return  # unlimited
+
+    r = get_redis()
+    today = date.today().isoformat()
+    key = f"cofounder:sessions:{user_id}:{today}"
+    count = int(await r.get(key) or 0)
+
+    if count >= max_sessions:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Daily session limit reached ({count}/{max_sessions}). Resets at midnight UTC.",
+        )
+
+
+async def _increment_session_count(user_id: str) -> None:
+    """Increment daily session counter."""
+    r = get_redis()
+    today = date.today().isoformat()
+    key = f"cofounder:sessions:{user_id}:{today}"
+    await r.incrby(key, 1)
+    await r.expire(key, 90_000)  # 25h TTL
+
+
+# ---------- Request / Response ----------
 
 
 class ChatRequest(BaseModel):
-    """Request to start or continue a chat with the agent."""
-
     message: str
     project_id: str = "default"
     session_id: str | None = None
 
 
 class ChatResponse(BaseModel):
-    """Response from the agent."""
-
     session_id: str
     status: str
     current_node: str
@@ -39,28 +98,33 @@ class ChatResponse(BaseModel):
     needs_human_review: bool
 
 
+# ---------- Endpoints ----------
+
+
 @router.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest, user: ClerkUser = Depends(require_auth)):
-    """Send a message to the AI Co-Founder agent.
-
-    This endpoint handles both new conversations and continuations.
-    For real-time updates, use the /chat/stream endpoint.
-    """
-    # Create or retrieve session
+    """Send a message to the AI Co-Founder agent."""
     session_id = request.session_id or str(uuid.uuid4())
     user_id = user.user_id
 
     episodic = get_episodic_memory()
+    session = await _get_session(session_id)
+    episode_id: int | None = None
 
-    if session_id not in _sessions:
-        # New session - create initial state
+    if session is None:
+        # New session — check limits first
+        await _check_daily_session_limit(user_id)
+
         state = create_initial_state(
             user_id=user_id,
             project_id=request.project_id,
             project_path=f"/workspace/{request.project_id}",
             goal=request.message,
+            session_id=session_id,
         )
-        _sessions[session_id] = {"state": state, "graph": create_production_graph()}
+        graph = create_production_graph()
+        session = {"state": state}
+        await _increment_session_count(user_id)
 
         # Start episodic memory tracking
         try:
@@ -70,35 +134,29 @@ async def chat(request: ChatRequest, user: ClerkUser = Depends(require_auth)):
                 session_id=session_id,
                 goal=request.message,
             )
-            _episode_map[session_id] = episode_id
+            session["episode_id"] = episode_id
         except Exception:
-            pass  # Episodic memory is optional
+            pass
     else:
-        # Existing session - update the goal if provided
-        session = _sessions[session_id]
+        state = session["state"]
+        episode_id = session.get("episode_id")
+        graph = create_production_graph()
         if request.message:
-            session["state"]["current_goal"] = request.message
-            session["state"]["messages"].append({
-                "role": "user",
-                "content": request.message,
-            })
+            state["current_goal"] = request.message
+            state["messages"].append({"role": "user", "content": request.message})
 
-    session = _sessions[session_id]
-    graph = session["graph"]
-    state = session["state"]
-
-    # Run the graph
     config = {"configurable": {"thread_id": session_id}}
 
     try:
         result = await graph.ainvoke(state, config)
         session["state"] = result
+        await _save_session(session_id, session)
 
         # Update episodic memory
-        if session_id in _episode_map:
+        if episode_id:
             try:
                 await episodic.update_episode(
-                    episode_id=_episode_map[session_id],
+                    episode_id=episode_id,
                     steps_completed=result.get("current_step_index", 0),
                     errors=result.get("active_errors"),
                     status="success" if result.get("is_complete") else "in_progress",
@@ -107,7 +165,7 @@ async def chat(request: ChatRequest, user: ClerkUser = Depends(require_auth)):
             except Exception:
                 pass
 
-        # Store conversation in semantic memory for learning
+        # Store in semantic memory
         try:
             semantic = get_semantic_memory()
             await semantic.add(
@@ -127,11 +185,10 @@ async def chat(request: ChatRequest, user: ClerkUser = Depends(require_auth)):
             needs_human_review=result.get("needs_human_review", False),
         )
     except Exception as e:
-        # Record failure in episodic memory
-        if session_id in _episode_map:
+        if episode_id:
             try:
                 await episodic.complete_episode(
-                    episode_id=_episode_map[session_id],
+                    episode_id=episode_id,
                     status="failed",
                     final_error=str(e),
                 )
@@ -142,62 +199,55 @@ async def chat(request: ChatRequest, user: ClerkUser = Depends(require_auth)):
 
 @router.post("/chat/stream")
 async def chat_stream(request: ChatRequest, user: ClerkUser = Depends(require_auth)):
-    """Stream agent responses in real-time.
-
-    Returns Server-Sent Events (SSE) with status updates as the agent works.
-    """
+    """Stream agent responses via SSE."""
     session_id = request.session_id or str(uuid.uuid4())
+    session = await _get_session(session_id)
 
-    if session_id not in _sessions:
+    if session is None:
+        await _check_daily_session_limit(user.user_id)
+
         state = create_initial_state(
             user_id=user.user_id,
             project_id=request.project_id,
             project_path=f"/tmp/cofounder/{request.project_id}",
             goal=request.message,
+            session_id=session_id,
         )
-        _sessions[session_id] = {"state": state, "graph": create_cofounder_graph()}
+        session = {"state": state}
+        await _increment_session_count(user.user_id)
     else:
-        session = _sessions[session_id]
+        state = session["state"]
         if request.message:
-            session["state"]["current_goal"] = request.message
-            session["state"]["messages"].append({
-                "role": "user",
-                "content": request.message,
-            })
+            state["current_goal"] = request.message
+            state["messages"].append({"role": "user", "content": request.message})
+
+    graph = create_cofounder_graph()
 
     async def generate_events() -> AsyncGenerator[str, None]:
-        session = _sessions[session_id]
-        graph = session["graph"]
-        state = session["state"]
         config = {"configurable": {"thread_id": session_id}}
 
         try:
             async for event in graph.astream(state, config):
-                # Extract node name and state from event
                 for node_name, node_state in event.items():
-                    # Handle cases where node_state might not be a dict
                     if isinstance(node_state, dict):
                         status = node_state.get("status_message", "Processing...")
                     else:
                         status = f"Node output: {type(node_state).__name__}"
                     yield f"data: {_format_sse_event(session_id, node_name, status)}\n\n"
 
-            # Final state
-            final_state = session["state"]
-            yield f"data: {_format_sse_event(session_id, 'complete', _get_last_assistant_message(final_state))}\n\n"
+            # Save final state
+            session["state"] = state
+            await _save_session(session_id, session)
 
+            yield f"data: {_format_sse_event(session_id, 'complete', _get_last_assistant_message(state))}\n\n"
         except Exception as e:
-            import traceback
-            error_details = f"{type(e).__name__}: {str(e)}"
+            error_details = f"{type(e).__name__}: {e}"
             yield f"data: {_format_sse_event(session_id, 'error', error_details)}\n\n"
 
     return StreamingResponse(
         generate_events(),
         media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-        },
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
     )
 
 
@@ -205,30 +255,26 @@ async def chat_stream(request: ChatRequest, user: ClerkUser = Depends(require_au
 async def resume_session(
     session_id: str, action: str = "continue", user: ClerkUser = Depends(require_auth)
 ):
-    """Resume a paused session (e.g., after human review).
-
-    Args:
-        session_id: The session to resume.
-        action: "continue" to proceed, "abort" to cancel.
-    """
-    if session_id not in _sessions:
+    """Resume a paused session after human review."""
+    session = await _get_session(session_id)
+    if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    session = _sessions[session_id]
+    state = session["state"]
 
     if action == "abort":
-        session["state"]["has_fatal_error"] = True
-        session["state"]["status_message"] = "Aborted by user"
+        state["has_fatal_error"] = True
+        state["status_message"] = "Aborted by user"
+        await _save_session(session_id, session)
         return {"status": "aborted"}
 
-    # Clear the human review flag and continue
-    session["state"]["needs_human_review"] = False
-
-    graph = session["graph"]
+    state["needs_human_review"] = False
+    graph = create_production_graph()
     config = {"configurable": {"thread_id": session_id}}
 
-    result = await graph.ainvoke(session["state"], config)
+    result = await graph.ainvoke(state, config)
     session["state"] = result
+    await _save_session(session_id, session)
 
     return {
         "status": result.get("status_message"),
@@ -237,12 +283,13 @@ async def resume_session(
 
 
 @router.get("/sessions/{session_id}")
-async def get_session(session_id: str, user: ClerkUser = Depends(require_auth)):
+async def get_session_state(session_id: str, user: ClerkUser = Depends(require_auth)):
     """Get the current state of a session."""
-    if session_id not in _sessions:
+    session = await _get_session(session_id)
+    if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    state = _sessions[session_id]["state"]
+    state = session["state"]
 
     return {
         "session_id": session_id,
@@ -252,33 +299,11 @@ async def get_session(session_id: str, user: ClerkUser = Depends(require_auth)):
         "is_complete": state.get("is_complete"),
         "needs_human_review": state.get("needs_human_review"),
         "plan": state.get("plan"),
-        "messages": state.get("messages", [])[-20:],  # Last 20 messages
+        "messages": state.get("messages", [])[-20:],
     }
 
 
-def _get_last_assistant_message(state: dict) -> str:
-    """Get the last assistant message from state."""
-    messages = state.get("messages", [])
-    for msg in reversed(messages):
-        # Handle both dict messages and LangChain Message objects
-        if isinstance(msg, dict):
-            if msg.get("role") == "assistant":
-                return msg.get("content", "")
-        elif hasattr(msg, "content"):
-            # LangChain Message object
-            return msg.content
-    return state.get("status_message", "Processing...")
-
-
-def _format_sse_event(session_id: str, node: str, message: str) -> str:
-    """Format an SSE event as JSON."""
-    import json
-
-    return json.dumps({
-        "session_id": session_id,
-        "node": node,
-        "message": message,
-    })
+# ---------- History / Memory ----------
 
 
 @router.get("/history")
@@ -288,19 +313,11 @@ async def get_task_history(
     status: str | None = None,
     user: ClerkUser = Depends(require_auth),
 ):
-    """Get task history from episodic memory.
-
-    Args:
-        project_id: Optional project filter
-        limit: Maximum number of results
-        status: Optional status filter (success, failed, in_progress)
-    """
-    user_id = user.user_id
+    """Get task history from episodic memory."""
     episodic = get_episodic_memory()
-
     try:
         episodes = await episodic.get_recent_episodes(
-            user_id=user_id,
+            user_id=user.user_id,
             project_id=project_id,
             limit=limit,
             status=status,
@@ -314,17 +331,11 @@ async def get_task_history(
 async def get_error_patterns(
     project_id: str | None = None, user: ClerkUser = Depends(require_auth)
 ):
-    """Get common error patterns from failed tasks.
-
-    Args:
-        project_id: Optional project filter
-    """
-    user_id = user.user_id
+    """Get common error patterns from failed tasks."""
     episodic = get_episodic_memory()
-
     try:
         patterns = await episodic.get_error_patterns(
-            user_id=user_id,
+            user_id=user.user_id,
             project_id=project_id,
         )
         return {"error_patterns": patterns}
@@ -336,19 +347,31 @@ async def get_error_patterns(
 async def get_user_memories(
     project_id: str | None = None, user: ClerkUser = Depends(require_auth)
 ):
-    """Get stored memories/preferences for the user.
-
-    Args:
-        project_id: Optional project filter
-    """
-    user_id = user.user_id
+    """Get stored memories/preferences for the user."""
     semantic = get_semantic_memory()
-
     try:
         memories = await semantic.get_all(
-            user_id=user_id,
+            user_id=user.user_id,
             project_id=project_id,
         )
         return {"memories": memories}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ---------- Formatters ----------
+
+
+def _get_last_assistant_message(state: dict) -> str:
+    messages = state.get("messages", [])
+    for msg in reversed(messages):
+        if isinstance(msg, dict):
+            if msg.get("role") == "assistant":
+                return msg.get("content", "")
+        elif hasattr(msg, "content"):
+            return msg.content
+    return state.get("status_message", "Processing...")
+
+
+def _format_sse_event(session_id: str, node: str, message: str) -> str:
+    return json.dumps({"session_id": session_id, "node": node, "message": message})

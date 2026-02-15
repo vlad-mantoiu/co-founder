@@ -10,14 +10,10 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import Column, DateTime, Integer, String, Text, JSON, select
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
-
-
-class Base(DeclarativeBase):
-    pass
+from app.db.base import Base, get_session_factory
 
 
 class Episode(Base):
@@ -59,29 +55,10 @@ class Episode(Base):
 class EpisodicMemory:
     """Manages episodic memory for task history and learnings."""
 
-    def __init__(self):
-        """Initialize the episodic memory store."""
-        self.settings = get_settings()
-        self._engine = None
-        self._session_factory = None
-
     async def _get_session(self) -> AsyncSession:
-        """Get an async database session."""
-        if self._engine is None:
-            self._engine = create_async_engine(
-                self.settings.database_url,
-                echo=self.settings.debug,
-            )
-            self._session_factory = async_sessionmaker(
-                self._engine,
-                class_=AsyncSession,
-                expire_on_commit=False,
-            )
-            # Create tables
-            async with self._engine.begin() as conn:
-                await conn.run_sync(Base.metadata.create_all)
-
-        return self._session_factory()
+        """Get an async database session from the shared factory."""
+        factory = get_session_factory()
+        return factory()
 
     async def start_episode(
         self,

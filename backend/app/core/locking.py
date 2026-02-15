@@ -14,7 +14,7 @@ from typing import AsyncGenerator
 
 import redis.asyncio as redis
 
-from app.core.config import get_settings
+from app.db.redis import get_redis
 
 
 class FileLock:
@@ -24,20 +24,9 @@ class FileLock:
     DEFAULT_TTL = 300  # 5 minutes
     LOCK_EXTENSION_INTERVAL = 60  # Extend lock every minute
 
-    def __init__(self):
-        """Initialize the file lock manager."""
-        self.settings = get_settings()
-        self._redis: redis.Redis | None = None
-
     async def _get_redis(self) -> redis.Redis:
-        """Get or create the Redis connection."""
-        if self._redis is None:
-            self._redis = redis.from_url(
-                self.settings.redis_url,
-                encoding="utf-8",
-                decode_responses=True,
-            )
-        return self._redis
+        """Get the shared Redis connection."""
+        return get_redis()
 
     def _lock_key(self, project_id: str, file_path: str) -> str:
         """Generate the Redis key for a file lock."""

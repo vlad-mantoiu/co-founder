@@ -25,6 +25,7 @@ dependencies = [
     "PyJWT>=2.8.0",
     "cryptography>=42.0.0",
     "neo4j>=5.0.0",
+    "alembic>=1.13.0",
 ]
 
 [project.optional-dependencies]

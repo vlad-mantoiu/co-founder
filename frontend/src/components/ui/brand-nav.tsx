@@ -3,19 +3,22 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { UserButton } from "@clerk/nextjs";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Shield } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { useAdmin } from "@/hooks/useAdmin";
 
 const navLinks = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/projects", label: "Projects" },
   { href: "/chat", label: "Chat" },
+  { href: "/architecture", label: "Architecture" },
 ] as const;
 
 export function BrandNav() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { isAdmin } = useAdmin();
 
   return (
     <header className="fixed top-0 inset-x-0 z-50 h-16 glass-strong border-b border-white/5">
@@ -49,6 +52,20 @@ export function BrandNav() {
               </Link>
             );
           })}
+          {isAdmin && (
+            <Link
+              href="/admin"
+              className={cn(
+                "px-4 py-2 rounded-xl text-sm font-medium transition-colors flex items-center gap-1.5",
+                pathname.startsWith("/admin")
+                  ? "bg-brand/15 text-brand"
+                  : "text-muted-foreground hover:text-white hover:bg-white/5",
+              )}
+            >
+              <Shield className="w-3.5 h-3.5" />
+              Admin
+            </Link>
+          )}
         </nav>
 
         {/* Right side */}
@@ -89,6 +106,21 @@ export function BrandNav() {
               </Link>
             );
           })}
+          {isAdmin && (
+            <Link
+              href="/admin"
+              onClick={() => setMobileOpen(false)}
+              className={cn(
+                "flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors",
+                pathname.startsWith("/admin")
+                  ? "bg-brand/15 text-brand"
+                  : "text-muted-foreground hover:text-white hover:bg-white/5",
+              )}
+            >
+              <Shield className="w-3.5 h-3.5" />
+              Admin
+            </Link>
+          )}
         </nav>
       )}
     </header>

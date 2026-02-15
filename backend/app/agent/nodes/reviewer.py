@@ -3,11 +3,10 @@
 Uses Claude Opus for thorough code review.
 """
 
-from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.agent.state import CoFounderState
-from app.core.config import get_settings
+from app.core.llm_config import create_tracked_llm
 
 REVIEWER_SYSTEM_PROMPT = """You are a senior code reviewer performing a thorough review.
 Your task is to evaluate code quality, security, and correctness.
@@ -31,12 +30,10 @@ APPROVED or NEEDS_CHANGES
 
 async def reviewer_node(state: CoFounderState) -> dict:
     """Review the code changes before committing."""
-    settings = get_settings()
-
-    llm = ChatAnthropic(
-        model=settings.reviewer_model,
-        api_key=settings.anthropic_api_key,
-        max_tokens=4096,
+    llm = await create_tracked_llm(
+        user_id=state["user_id"],
+        role="reviewer",
+        session_id=state["session_id"],
     )
 
     # Build review context

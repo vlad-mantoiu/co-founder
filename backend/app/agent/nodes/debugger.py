@@ -3,11 +3,10 @@
 Uses Claude Sonnet for fast iterative debugging.
 """
 
-from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.agent.state import CoFounderState, ErrorInfo
-from app.core.config import get_settings
+from app.core.llm_config import create_tracked_llm
 
 DEBUGGER_SYSTEM_PROMPT = """You are an expert debugger analyzing test failures and errors.
 Your task is to identify the root cause and propose a fix.
@@ -51,10 +50,10 @@ async def debugger_node(state: CoFounderState) -> dict:
             ],
         }
 
-    llm = ChatAnthropic(
-        model=settings.debugger_model,
-        api_key=settings.anthropic_api_key,
-        max_tokens=4096,
+    llm = await create_tracked_llm(
+        user_id=state["user_id"],
+        role="debugger",
+        session_id=state["session_id"],
     )
 
     # Build context from errors

@@ -3,11 +3,10 @@
 Uses Claude Opus for complex reasoning and planning.
 """
 
-from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.agent.state import CoFounderState, PlanStep
-from app.core.config import get_settings
+from app.core.llm_config import create_tracked_llm
 from app.memory.mem0_client import get_semantic_memory
 
 ARCHITECT_SYSTEM_PROMPT = """You are the Architect of an AI Technical Co-Founder system.
@@ -48,12 +47,10 @@ Respond ONLY with the JSON array, no other text.
 
 async def architect_node(state: CoFounderState) -> dict:
     """Analyze the goal and create an execution plan."""
-    settings = get_settings()
-
-    llm = ChatAnthropic(
-        model=settings.architect_model,
-        api_key=settings.anthropic_api_key,
-        max_tokens=4096,
+    llm = await create_tracked_llm(
+        user_id=state["user_id"],
+        role="architect",
+        session_id=state["session_id"],
     )
 
     # Get user preferences from semantic memory

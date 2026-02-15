@@ -7,6 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import api_router
 from app.core.config import get_settings
+from app.db import init_db, close_db, init_redis, close_redis
+from app.db.seed import seed_plan_tiers
 
 
 @asynccontextmanager
@@ -17,16 +19,21 @@ async def lifespan(app: FastAPI):
     print(f"Starting {settings.app_name}...")
     print(f"Debug mode: {settings.debug}")
 
-    # TODO: Initialize database connections
-    # TODO: Initialize Redis connection
-    # TODO: Warm up LLM clients
+    await init_db()
+    print("Database initialized.")
+
+    await init_redis()
+    print("Redis initialized.")
+
+    await seed_plan_tiers()
+    print("Plan tiers seeded.")
 
     yield
 
     # Shutdown
     print("Shutting down...")
-    # TODO: Close database connections
-    # TODO: Close Redis connection
+    await close_redis()
+    await close_db()
 
 
 def create_app() -> FastAPI:

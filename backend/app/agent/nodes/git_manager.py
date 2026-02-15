@@ -3,11 +3,11 @@
 Uses GitHub App integration for real repository operations.
 """
 
-from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.agent.state import CoFounderState
 from app.core.config import get_settings
+from app.core.llm_config import create_tracked_llm
 from app.integrations.github import get_github_client
 
 COMMIT_MESSAGE_PROMPT = """Generate a concise git commit message for these changes.
@@ -52,22 +52,20 @@ async def git_manager_node(state: CoFounderState) -> dict:
     owner, repo, installation_id = repo_info
 
     # Generate commit message
-    llm = ChatAnthropic(
-        model=settings.coder_model,
-        api_key=settings.anthropic_api_key,
-        max_tokens=256,
+    llm = await create_tracked_llm(
+        user_id=state["user_id"],
+        role="coder",
+        session_id=state["session_id"],
     )
 
     changes_summary = _summarize_changes(state)
 
-    # Generate commit message
     commit_response = await llm.ainvoke([
         SystemMessage(content=COMMIT_MESSAGE_PROMPT),
         HumanMessage(content=changes_summary),
     ])
     commit_message = commit_response.content.strip()
 
-    # Generate PR description
     pr_response = await llm.ainvoke([
         SystemMessage(content=PR_DESCRIPTION_PROMPT),
         HumanMessage(content=changes_summary),
@@ -251,14 +249,13 @@ async def _local_git_operations(state: CoFounderState) -> dict:
     import subprocess
     from pathlib import Path
 
-    settings = get_settings()
     project_path = Path(state["project_path"])
 
     # Generate commit message
-    llm = ChatAnthropic(
-        model=settings.coder_model,
-        api_key=settings.anthropic_api_key,
-        max_tokens=256,
+    llm = await create_tracked_llm(
+        user_id=state["user_id"],
+        role="coder",
+        session_id=state["session_id"],
     )
 
     changes_summary = _summarize_changes(state)

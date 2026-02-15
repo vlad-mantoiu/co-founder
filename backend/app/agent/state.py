@@ -53,6 +53,7 @@ class CoFounderState(TypedDict):
     user_id: str
     project_id: str
     project_path: str  # Path in sandbox
+    session_id: str
 
     # High-level goal from user
     current_goal: str
@@ -93,6 +94,7 @@ def create_initial_state(
     project_id: str,
     project_path: str,
     goal: str,
+    session_id: str = "",
 ) -> CoFounderState:
     """Create the initial state for a new agent session."""
     return CoFounderState(
@@ -100,6 +102,7 @@ def create_initial_state(
         user_id=user_id,
         project_id=project_id,
         project_path=project_path,
+        session_id=session_id,
         current_goal=goal,
         plan=[],
         current_step_index=0,
