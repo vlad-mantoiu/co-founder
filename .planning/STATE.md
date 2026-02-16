@@ -69,6 +69,7 @@ Progress: [█████████▓] 95%
 | 06-02     | 7 min    | 2 tasks     | 6 files  |
 | 06-03     | 6 min    | 1 task      | 4 files  |
 | 06-05     | 7 min    | 2 tasks     | 7 files  |
+| Phase 06 P04 | 8 | 2 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -156,6 +157,9 @@ Recent decisions affecting current work:
 - [Phase 06]: OnboardingSession has project_id FK to Project (not inverse)
 - [Phase 06-05]: Jinja2 for markdown templating - mature engine with markdown-friendly syntax
 - [Phase 06-05]: Two variants (readable/technical) for different audiences - founders want Notion-pasteable, devs want structured handoff
+- [Phase 06-04]: asyncio.to_thread() for non-blocking PDF generation prevents event loop blocking
+- [Phase 06-04]: Tier-dependent branding via CSS custom properties (bootstrapper=Co-Founder, partner/cto=white-label)
+- [Phase 06-04]: WeasyPrint-compatible CSS uses float/table layouts (no flexbox/grid in paged media)
 
 ### Pending Todos
 
@@ -191,9 +195,9 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-16 (execute-phase)
-Stopped at: Completed 06-05-PLAN.md
-Resume file: .planning/phases/06-artifact-generation-pipeline/06-05-SUMMARY.md
+Last session: 2026-02-17 (execute-phase)
+Stopped at: Completed 06-04-PLAN.md
+Resume file: .planning/phases/06-artifact-generation-pipeline/06-04-SUMMARY.md
 
 ---
-*Phase 06 IN PROGRESS — Plan 4 of 5 complete: Markdown export with readable and technical variants*
+*Phase 06 IN PROGRESS — Plan 4 of 5 complete: WeasyPrint PDF export with tier branding*
