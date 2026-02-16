@@ -34,12 +34,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. RunnerFake provides deterministic outputs for test scenarios without LLM calls
   3. Test suite runs with RunnerFake and completes in <30 seconds
   4. Existing LangGraph pipeline continues working unchanged via RunnerReal
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 01-01: Create Runner protocol and RunnerReal wrapper
-- [ ] 01-02: Implement RunnerFake with deterministic test doubles
-- [ ] 01-03: Wrap Mem0 synchronous calls with asyncio.to_thread()
+- [ ] 01-01-PLAN.md -- Runner protocol + RunnerReal wrapping LangGraph (TDD)
+- [ ] 01-02-PLAN.md -- RunnerFake with 4 deterministic test scenarios (TDD)
+- [ ] 01-03-PLAN.md -- Test harness infrastructure + critical tech debt fixes
 
 ### Phase 2: State Machine Core
 **Goal**: Five-stage startup journey FSM with transition logic and deterministic progress
