@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 ## Current Position
 
 Phase: 4 of 10 (Onboarding & Idea Capture)
-Plan: 3 of 4 completed
-Status: In Progress
-Last activity: 2026-02-16 — Completed 04-03-PLAN.md (Onboarding UI with conversational flow and inline-editable ThesisSnapshot)
+Plan: 4 of 4 completed
+Status: Complete
+Last activity: 2026-02-16 — Completed 04-04-PLAN.md (Project creation from onboarding with resumption UI and integration tests)
 
-Progress: [██████▒▒▒▒] 75%
+Progress: [████████▒▒] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 14
+- Total plans completed: 15
 - Average duration: 3.3 min
-- Total execution time: 0.75 hours
+- Total execution time: 0.83 hours
 
 **By Phase:**
 
@@ -30,11 +30,11 @@ Progress: [██████▒▒▒▒] 75%
 | 01    | 3     | 10 min | 3.3 min  |
 | 02    | 4     | 12 min | 3.0 min  |
 | 03    | 4     | 20 min | 5.0 min  |
-| 04    | 3     | 9 min  | 3.0 min  |
+| 04    | 4     | 14 min | 3.5 min  |
 
 **Recent Trend:**
-- Last 5 plans: 03-04 (4 min), 04-01 (3 min), 04-02 (4 min), 04-03 (2 min)
-- Trend: Phase 4 progressing rapidly - onboarding UI complete with conversational flow
+- Last 5 plans: 04-01 (3 min), 04-02 (4 min), 04-03 (2 min), 04-04 (5 min)
+- Trend: Phase 4 COMPLETE - onboarding flow, project creation, and resumption all functional
 
 *Updated after each plan completion*
 
@@ -54,6 +54,7 @@ Progress: [██████▒▒▒▒] 75%
 | 04-01     | 3 min    | 2 tasks     | 6 files  |
 | 04-02     | 4 min    | 2 tasks     | 4 files  |
 | 04-03     | 2 min    | 4 tasks     | 8 files  |
+| 04-04     | 5 min    | 2 tasks     | 6 files  |
 
 ## Accumulated Context
 
@@ -106,6 +107,8 @@ Recent decisions affecting current work:
 - [Phase 04-03]: Hybrid card summary + expandable document view for ThesisSnapshot
 - [Phase 04-03]: Controlled textarea for inline editing (simpler than contentEditable in React)
 - [Phase 04-03]: Optimistic updates for thesis field editing with immediate UI response
+- [Phase 04]: Project names truncated to 50 chars with ellipsis, full idea_text in description
+- [Phase 04]: Welcome back screen fetches active sessions on mount, shows continue/start fresh choice
 
 ### Pending Todos
 
@@ -141,8 +144,8 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-16 (execute-phase)
-Stopped at: Completed 04-03-PLAN.md
-Resume file: .planning/phases/04-onboarding-idea-capture/04-03-SUMMARY.md
+Stopped at: Completed 04-04-PLAN.md
+Resume file: .planning/phases/04-onboarding-idea-capture/04-04-SUMMARY.md
 
 ---
-*Phase 04 Plan 03 complete — onboarding UI with conversational flow, progress tracking, and inline-editable ThesisSnapshot*
+*Phase 04 COMPLETE — onboarding flow end-to-end: idea capture → questions → thesis generation → project creation → resumption*
