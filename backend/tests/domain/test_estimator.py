@@ -46,17 +46,21 @@ async def test_default_duration_cto_scale(estimator, redis):
 
 @pytest.mark.asyncio
 async def test_record_completion_updates_ema(estimator, redis):
-    """Test record_completion updates EMA: record 600s, then 300s, new avg = 0.3*300 + 0.7*600 = 510."""
+    """Test record_completion updates EMA starting from default."""
     # Record first completion (600s)
+    # EMA: 0.3 * 600 + 0.7 * 480 (default) = 180 + 336 = 516
     await estimator.record_completion("bootstrapper", 600)
 
+    first_avg = float(await redis.get("queue:avg_duration:bootstrapper"))
+    assert first_avg == 516
+
     # Record second completion (300s)
-    # EMA: 0.3 * 300 + 0.7 * 600 = 90 + 420 = 510
+    # EMA: 0.3 * 300 + 0.7 * 516 = 90 + 361.2 = 451.2
     await estimator.record_completion("bootstrapper", 300)
 
     # Get current average
     avg = float(await redis.get("queue:avg_duration:bootstrapper"))
-    assert avg == 510
+    assert avg == 451.2
 
 
 @pytest.mark.asyncio
