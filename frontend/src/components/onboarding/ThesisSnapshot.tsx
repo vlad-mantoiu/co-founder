@@ -9,6 +9,7 @@ interface ThesisSnapshotProps {
   onEdit: (fieldName: string, newValue: string) => void;
   onCreateProject?: () => void;
   onStartFresh?: () => void;
+  isCreatingProject?: boolean;
 }
 
 /**
@@ -25,6 +26,7 @@ export function ThesisSnapshot({
   onEdit,
   onCreateProject,
   onStartFresh,
+  isCreatingProject = false,
 }: ThesisSnapshotProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [editingField, setEditingField] = useState<string | null>(null);
@@ -177,15 +179,17 @@ export function ThesisSnapshot({
           {onCreateProject && (
             <button
               onClick={onCreateProject}
-              className="flex-1 px-6 py-3 bg-brand hover:bg-brand/90 text-white font-medium rounded-xl transition-colors"
+              disabled={isCreatingProject}
+              className="flex-1 px-6 py-3 bg-brand hover:bg-brand/90 text-white font-medium rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Create Project
+              {isCreatingProject ? "Creating Project..." : "Create Project"}
             </button>
           )}
           {onStartFresh && (
             <button
               onClick={onStartFresh}
-              className="px-6 py-3 text-muted-foreground hover:text-white font-medium transition-colors"
+              disabled={isCreatingProject}
+              className="px-6 py-3 text-muted-foreground hover:text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Start Fresh
             </button>
@@ -262,15 +266,17 @@ export function ThesisSnapshot({
         {onCreateProject && (
           <button
             onClick={onCreateProject}
-            className="flex-1 px-6 py-3 bg-brand hover:bg-brand/90 text-white font-medium rounded-xl transition-colors"
+            disabled={isCreatingProject}
+            className="flex-1 px-6 py-3 bg-brand hover:bg-brand/90 text-white font-medium rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Create Project
+            {isCreatingProject ? "Creating Project..." : "Create Project"}
           </button>
         )}
         {onStartFresh && (
           <button
             onClick={onStartFresh}
-            className="px-6 py-3 text-muted-foreground hover:text-white font-medium transition-colors"
+            disabled={isCreatingProject}
+            className="px-6 py-3 text-muted-foreground hover:text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Start Fresh
           </button>

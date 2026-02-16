@@ -18,6 +18,7 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from app.agent.runner import Runner
 from app.db.models.onboarding_session import OnboardingSession
+from app.db.models.project import Project
 from app.schemas.onboarding import OnboardingQuestion, ThesisSnapshot
 
 # Tier session limits (concurrent active sessions)
@@ -331,6 +332,107 @@ class OnboardingService:
             await session.refresh(onboarding_session)
 
             return onboarding_session
+
+    async def create_project_from_session(
+        self, user_id: str, session_id: str, tier_slug: str
+    ) -> tuple[OnboardingSession, Project]:
+        """Create a Project from a completed onboarding session.
+
+        Args:
+            user_id: Clerk user ID
+            session_id: Onboarding session UUID
+            tier_slug: User's plan tier (for project limit checks)
+
+        Returns:
+            Tuple of (updated OnboardingSession, new Project)
+
+        Raises:
+            HTTPException(404): If session not found or user mismatch
+            HTTPException(400): If session is not completed or project already created
+            HTTPException(403): If user has reached tier project limit
+        """
+        async with self.session_factory() as session:
+            # Load session with user isolation
+            result = await session.execute(
+                select(OnboardingSession).where(
+                    OnboardingSession.id == session_id,
+                    OnboardingSession.clerk_user_id == user_id,
+                )
+            )
+            onboarding_session = result.scalar_one_or_none()
+
+            if onboarding_session is None:
+                raise HTTPException(status_code=404, detail="Session not found")
+
+            # Verify session is completed
+            if onboarding_session.status != "completed":
+                raise HTTPException(
+                    status_code=400,
+                    detail="Session not completed. Finalize the session before creating a project.",
+                )
+
+            # Idempotent guard: verify project not already created
+            if onboarding_session.project_id is not None:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Project already created from this session.",
+                )
+
+            # Check project limit for user's tier
+            # Get tier limits from TIER_PROJECT_LIMITS (should be defined or imported)
+            # For now, use hardcoded values matching projects.py pattern
+            tier_limits = {
+                "bootstrapper": 1,
+                "partner": 5,
+                "cto_scale": -1,  # unlimited
+            }
+            max_projects = tier_limits.get(tier_slug, 1)
+
+            if max_projects != -1:
+                # Count active projects for user
+                result = await session.execute(
+                    select(func.count(Project.id)).where(
+                        Project.clerk_user_id == user_id,
+                        Project.status == "active",
+                    )
+                )
+                active_count = result.scalar() or 0
+
+                if active_count >= max_projects:
+                    raise HTTPException(
+                        status_code=403,
+                        detail=f"Project limit reached ({active_count}/{max_projects}). Upgrade your plan to create more projects.",
+                    )
+
+            # Create Project from idea_text
+            idea_text = onboarding_session.idea_text
+
+            # Project name: first 50 chars of idea_text (truncated with "..." if longer)
+            if len(idea_text) > 50:
+                project_name = idea_text[:50] + "..."
+            else:
+                project_name = idea_text
+
+            project = Project(
+                clerk_user_id=user_id,
+                name=project_name,
+                description=idea_text,  # Full idea_text as description
+                status="active",
+                stage_number=1,  # Stage.THESIS_DEFINED from Phase 02
+            )
+
+            # Link session to project
+            session.add(project)
+            await session.flush()  # Get project.id before linking
+
+            onboarding_session.project_id = project.id
+            flag_modified(onboarding_session, "project_id")
+
+            await session.commit()
+            await session.refresh(onboarding_session)
+            await session.refresh(project)
+
+            return (onboarding_session, project)
 
     # =========================================================================
     # PRIVATE HELPERS

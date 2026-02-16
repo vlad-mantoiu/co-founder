@@ -41,6 +41,15 @@ export interface ThesisSnapshot {
   smallest_viable_experiment?: string | null;
 }
 
+export interface OnboardingSessionInfo {
+  id: string;
+  idea_text: string;
+  status: string;
+  current_question_index: number;
+  total_questions: number;
+  created_at: string;
+}
+
 interface OnboardingState {
   phase: OnboardingPhase;
   sessionId: string | null;
@@ -53,10 +62,11 @@ interface OnboardingState {
   thesisEdits: Record<string, string>;
   error: string | null;
   isLoading: boolean;
+  activeSessions: OnboardingSessionInfo[];
 }
 
 const INITIAL_STATE: OnboardingState = {
-  phase: "idea_input",
+  phase: "idle",
   sessionId: null,
   idea: "",
   questions: [],
@@ -67,6 +77,7 @@ const INITIAL_STATE: OnboardingState = {
   thesisEdits: {},
   error: null,
   isLoading: false,
+  activeSessions: [],
 };
 
 /**
@@ -353,6 +364,7 @@ export function useOnboarding() {
           thesisEdits: {},
           error: null,
           isLoading: false,
+          activeSessions: [],
         });
       } catch (err) {
         setState((s) => ({
@@ -365,6 +377,96 @@ export function useOnboarding() {
     },
     [getToken],
   );
+
+  /**
+   * Fetch active sessions on mount.
+   */
+  const fetchActiveSessions = useCallback(async () => {
+    setState((s) => ({ ...s, isLoading: true }));
+
+    try {
+      const response = await apiFetch("/api/onboarding/sessions", getToken, {
+        method: "GET",
+      });
+
+      if (!response.ok) {
+        // If error, just proceed to idea_input
+        setState((s) => ({ ...s, phase: "idea_input", isLoading: false }));
+        return;
+      }
+
+      const sessions: OnboardingSessionInfo[] = await response.json();
+      const inProgressSessions = sessions.filter((s) => s.status === "in_progress");
+
+      if (inProgressSessions.length > 0) {
+        setState((s) => ({
+          ...s,
+          phase: "idle",
+          activeSessions: inProgressSessions,
+          isLoading: false,
+        }));
+      } else {
+        setState((s) => ({ ...s, phase: "idea_input", isLoading: false }));
+      }
+    } catch (err) {
+      // On error, just go to idea_input
+      setState((s) => ({ ...s, phase: "idea_input", isLoading: false }));
+    }
+  }, [getToken]);
+
+  /**
+   * Start fresh onboarding (skip active sessions).
+   */
+  const startFresh = useCallback(() => {
+    setState((s) => ({ ...s, phase: "idea_input", activeSessions: [] }));
+  }, []);
+
+  /**
+   * Create project from completed onboarding session.
+   */
+  const createProject = useCallback(async () => {
+    if (!state.sessionId) return;
+
+    setState((s) => ({ ...s, isLoading: true, error: null }));
+
+    try {
+      const response = await apiFetch(`/api/onboarding/${state.sessionId}/create-project`, getToken, {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+
+        // Handle project limit error (403)
+        if (response.status === 403) {
+          setState((s) => ({
+            ...s,
+            phase: "error",
+            error: errorData.detail || "Project limit reached. Upgrade to create more projects.",
+            isLoading: false,
+          }));
+          return;
+        }
+
+        throw new Error(errorData.detail || `API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      // Success - redirect to dashboard
+      setState((s) => ({ ...s, isLoading: false }));
+
+      // Redirect to dashboard (or project page when available)
+      window.location.href = "/dashboard";
+    } catch (err) {
+      setState((s) => ({
+        ...s,
+        phase: "error",
+        error: (err as Error).message,
+        isLoading: false,
+      }));
+    }
+  }, [getToken, state.sessionId]);
 
   /**
    * Reset to initial state.
@@ -382,6 +484,9 @@ export function useOnboarding() {
     finalize,
     editThesisField,
     resumeSession,
+    createProject,
+    fetchActiveSessions,
+    startFresh,
     reset,
   };
 }

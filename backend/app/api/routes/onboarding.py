@@ -15,6 +15,7 @@ from app.schemas.onboarding import (
     ThesisSnapshot,
     ThesisSnapshotEditRequest,
 )
+from pydantic import BaseModel
 from app.services.onboarding_service import OnboardingService
 
 router = APIRouter()
@@ -278,3 +279,48 @@ async def abandon_session(
     await service.abandon_session(user.user_id, session_id)
 
     return {"status": "abandoned"}
+
+
+class CreateProjectResponse(BaseModel):
+    """Response model for create-project endpoint."""
+    project_id: str
+    project_name: str
+    status: str
+
+
+@router.post("/{session_id}/create-project", response_model=CreateProjectResponse)
+async def create_project_from_session(
+    session_id: str,
+    user: ClerkUser = Depends(require_auth),
+    runner: Runner = Depends(get_runner),
+):
+    """Create a Project from a completed onboarding session.
+
+    Args:
+        session_id: Onboarding session UUID
+        user: Authenticated user from JWT
+        runner: Runner instance (injected)
+
+    Returns:
+        CreateProjectResponse with project_id, project_name, and status
+
+    Raises:
+        HTTPException(404): If session not found or user mismatch
+        HTTPException(400): If session not completed or project already created
+        HTTPException(403): If user has reached tier project limit
+    """
+    # Get user's tier
+    user_settings = await get_or_create_user_settings(user.user_id)
+    tier_slug = user_settings.plan_tier.slug
+
+    session_factory = get_session_factory()
+    service = OnboardingService(runner, session_factory)
+    onboarding_session, project = await service.create_project_from_session(
+        user.user_id, session_id, tier_slug
+    )
+
+    return CreateProjectResponse(
+        project_id=str(project.id),
+        project_name=project.name,
+        status=project.status,
+    )
