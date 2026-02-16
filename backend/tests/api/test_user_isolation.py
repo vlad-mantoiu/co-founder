@@ -20,7 +20,7 @@ import jwt as pyjwt
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 
-from app.core.auth import ClerkUser
+from app.core.auth import ClerkUser, require_auth, require_subscription
 
 
 # ---------------------------------------------------------------------------
@@ -77,6 +77,19 @@ def _make_token(user_id: str) -> str:
     })
 
 
+async def _mock_user_settings_for_projects(*args, **kwargs):
+    """Mock UserSettings for project creation with subscription and plan limits."""
+    mock_settings = Mock()
+    mock_settings.stripe_subscription_status = "trialing"
+    mock_settings.is_admin = False
+    mock_settings.override_max_projects = None
+    # Mock plan_tier with max_projects
+    mock_plan_tier = Mock()
+    mock_plan_tier.max_projects = 10
+    mock_settings.plan_tier = mock_plan_tier
+    return mock_settings
+
+
 # ---------------------------------------------------------------------------
 # Test class for user isolation
 # ---------------------------------------------------------------------------
@@ -94,35 +107,35 @@ class TestUserIsolation:
         async def mock_provision(*args, **kwargs):
             return Mock()
 
-        # Mock UserSettings query to return a trialing subscription
-        async def mock_user_settings(*args, **kwargs):
-            mock_settings = Mock()
-            mock_settings.stripe_subscription_status = "trialing"
-            mock_settings.is_admin = False
-            return mock_settings
+        # Override require_subscription to bypass DB query (just pass through user from require_auth)
+        api_client.app.dependency_overrides[require_subscription] = require_auth
 
-        with (
-            patch("app.core.auth.get_jwks_client", _mock_jwks_client),
-            patch("app.core.auth.get_settings", _mock_settings),
-            patch("app.core.provisioning.provision_user_on_first_login", mock_provision),
-            patch("app.core.llm_config.get_or_create_user_settings", mock_user_settings),
-        ):
-            # Create a project as owner_user
-            create_response = api_client.post(
-                "/api/projects",
-                json={"name": "My Project", "description": "Test project"},
-                headers={"Authorization": f"Bearer {token}"},
-            )
-            assert create_response.status_code == 200
-            project_id = create_response.json()["id"]
+        try:
+            with (
+                patch("app.core.auth.get_jwks_client", _mock_jwks_client),
+                patch("app.core.auth.get_settings", _mock_settings),
+                patch("app.core.provisioning.provision_user_on_first_login", mock_provision),
+                patch("app.core.llm_config.get_or_create_user_settings", _mock_user_settings_for_projects),
+            ):
+                # Create a project as owner_user
+                create_response = api_client.post(
+                    "/api/projects",
+                    json={"name": "My Project", "description": "Test project"},
+                    headers={"Authorization": f"Bearer {token}"},
+                )
+                assert create_response.status_code == 200
+                project_id = create_response.json()["id"]
 
-            # Access the project as owner_user
-            get_response = api_client.get(
-                f"/api/projects/{project_id}",
-                headers={"Authorization": f"Bearer {token}"},
-            )
-            assert get_response.status_code == 200
-            assert get_response.json()["id"] == project_id
+                # Access the project as owner_user
+                get_response = api_client.get(
+                    f"/api/projects/{project_id}",
+                    headers={"Authorization": f"Bearer {token}"},
+                )
+                assert get_response.status_code == 200
+                assert get_response.json()["id"] == project_id
+        finally:
+            # Clean up dependency override
+            api_client.app.dependency_overrides.clear()
 
     def test_other_user_gets_404_on_foreign_project(self, api_client):
         """Test that user_b gets 404 when trying to access user_a's project."""
@@ -132,27 +145,34 @@ class TestUserIsolation:
         async def mock_provision(*args, **kwargs):
             return Mock()
 
-        with (
-            patch("app.core.auth.get_jwks_client", _mock_jwks_client),
-            patch("app.core.auth.get_settings", _mock_settings),
-            patch("app.core.provisioning.provision_user_on_first_login", mock_provision),
-        ):
-            # user_a creates a project
-            create_response = api_client.post(
-                "/api/projects",
-                json={"name": "User A Project", "description": "A's project"},
-                headers={"Authorization": f"Bearer {user_a_token}"},
-            )
-            assert create_response.status_code == 200
-            project_id = create_response.json()["id"]
+        # Override require_subscription to bypass DB query
+        api_client.app.dependency_overrides[require_subscription] = require_auth
 
-            # user_b tries to access it - should get 404 (not 403)
-            get_response = api_client.get(
-                f"/api/projects/{project_id}",
-                headers={"Authorization": f"Bearer {user_b_token}"},
-            )
-            assert get_response.status_code == 404
-            assert get_response.json()["detail"] == "Project not found"
+        try:
+            with (
+                patch("app.core.auth.get_jwks_client", _mock_jwks_client),
+                patch("app.core.auth.get_settings", _mock_settings),
+                patch("app.core.provisioning.provision_user_on_first_login", mock_provision),
+                patch("app.core.llm_config.get_or_create_user_settings", _mock_user_settings_for_projects),
+            ):
+                # user_a creates a project
+                create_response = api_client.post(
+                    "/api/projects",
+                    json={"name": "User A Project", "description": "A's project"},
+                    headers={"Authorization": f"Bearer {user_a_token}"},
+                )
+                assert create_response.status_code == 200
+                project_id = create_response.json()["id"]
+
+                # user_b tries to access it - should get 404 (not 403)
+                get_response = api_client.get(
+                    f"/api/projects/{project_id}",
+                    headers={"Authorization": f"Bearer {user_b_token}"},
+                )
+                assert get_response.status_code == 404
+                assert get_response.json()["detail"] == "Project not found"
+        finally:
+            api_client.app.dependency_overrides.clear()
 
     def test_other_user_cannot_list_foreign_projects(self, api_client):
         """Test that user_b doesn't see user_a's projects in list."""
@@ -162,27 +182,36 @@ class TestUserIsolation:
         async def mock_provision(*args, **kwargs):
             return Mock()
 
-        with (
-            patch("app.core.auth.get_jwks_client", _mock_jwks_client),
-            patch("app.core.auth.get_settings", _mock_settings),
-            patch("app.core.provisioning.provision_user_on_first_login", mock_provision),
-        ):
-            # user_a creates a project
-            api_client.post(
-                "/api/projects",
-                json={"name": "User A Project", "description": "A's project"},
-                headers={"Authorization": f"Bearer {user_a_token}"},
-            )
+        # Override require_subscription to bypass DB query
+        api_client.app.dependency_overrides[require_subscription] = require_auth
 
-            # user_b lists projects - should see empty list
-            list_response = api_client.get(
-                "/api/projects",
-                headers={"Authorization": f"Bearer {user_b_token}"},
-            )
-            assert list_response.status_code == 200
-            projects = list_response.json()
-            assert isinstance(projects, list)
-            assert len(projects) == 0  # user_b should not see user_a's project
+        try:
+            with (
+                patch("app.core.auth.get_jwks_client", _mock_jwks_client),
+                patch("app.core.auth.get_settings", _mock_settings),
+                patch("app.core.provisioning.provision_user_on_first_login", mock_provision),
+                patch("app.core.llm_config.get_or_create_user_settings", _mock_user_settings_for_projects),
+            ):
+                # user_a creates a project
+                create_response = api_client.post(
+                    "/api/projects",
+                    json={"name": "User A Project", "description": "A's project"},
+                    headers={"Authorization": f"Bearer {user_a_token}"},
+                )
+                # Verify project was actually created
+                assert create_response.status_code == 200
+
+                # user_b lists projects - should see empty list
+                list_response = api_client.get(
+                    "/api/projects",
+                    headers={"Authorization": f"Bearer {user_b_token}"},
+                )
+                assert list_response.status_code == 200
+                projects = list_response.json()
+                assert isinstance(projects, list)
+                assert len(projects) == 0  # user_b should not see user_a's project
+        finally:
+            api_client.app.dependency_overrides.clear()
 
     def test_other_user_gets_404_on_delete(self, api_client):
         """Test that user_b gets 404 when trying to delete user_a's project."""
@@ -192,26 +221,34 @@ class TestUserIsolation:
         async def mock_provision(*args, **kwargs):
             return Mock()
 
-        with (
-            patch("app.core.auth.get_jwks_client", _mock_jwks_client),
-            patch("app.core.auth.get_settings", _mock_settings),
-            patch("app.core.provisioning.provision_user_on_first_login", mock_provision),
-        ):
-            # user_a creates a project
-            create_response = api_client.post(
-                "/api/projects",
-                json={"name": "User A Project", "description": "A's project"},
-                headers={"Authorization": f"Bearer {user_a_token}"},
-            )
-            project_id = create_response.json()["id"]
+        # Override require_subscription to bypass DB query
+        api_client.app.dependency_overrides[require_subscription] = require_auth
 
-            # user_b tries to delete it - should get 404
-            delete_response = api_client.delete(
-                f"/api/projects/{project_id}",
-                headers={"Authorization": f"Bearer {user_b_token}"},
-            )
-            assert delete_response.status_code == 404
-            assert delete_response.json()["detail"] == "Project not found"
+        try:
+            with (
+                patch("app.core.auth.get_jwks_client", _mock_jwks_client),
+                patch("app.core.auth.get_settings", _mock_settings),
+                patch("app.core.provisioning.provision_user_on_first_login", mock_provision),
+                patch("app.core.llm_config.get_or_create_user_settings", _mock_user_settings_for_projects),
+            ):
+                # user_a creates a project
+                create_response = api_client.post(
+                    "/api/projects",
+                    json={"name": "User A Project", "description": "A's project"},
+                    headers={"Authorization": f"Bearer {user_a_token}"},
+                )
+                assert create_response.status_code == 200
+                project_id = create_response.json()["id"]
+
+                # user_b tries to delete it - should get 404
+                delete_response = api_client.delete(
+                    f"/api/projects/{project_id}",
+                    headers={"Authorization": f"Bearer {user_b_token}"},
+                )
+                assert delete_response.status_code == 404
+                assert delete_response.json()["detail"] == "Project not found"
+        finally:
+            api_client.app.dependency_overrides.clear()
 
     def test_other_user_gets_404_on_link_github(self, api_client):
         """Test that user_b gets 404 when trying to link GitHub to user_a's project."""
@@ -221,27 +258,34 @@ class TestUserIsolation:
         async def mock_provision(*args, **kwargs):
             return Mock()
 
-        with (
-            patch("app.core.auth.get_jwks_client", _mock_jwks_client),
-            patch("app.core.auth.get_settings", _mock_settings),
-            patch("app.core.provisioning.provision_user_on_first_login", mock_provision),
-        ):
-            # user_a creates a project
-            create_response = api_client.post(
-                "/api/projects",
-                json={"name": "User A Project", "description": "A's project"},
-                headers={"Authorization": f"Bearer {user_a_token}"},
-            )
-            project_id = create_response.json()["id"]
+        # Override require_subscription to bypass DB query
+        api_client.app.dependency_overrides[require_subscription] = require_auth
 
-            # user_b tries to link GitHub - should get 404
-            link_response = api_client.post(
-                f"/api/projects/{project_id}/link-github",
-                json={"github_repo": "https://github.com/test/repo"},
-                headers={"Authorization": f"Bearer {user_b_token}"},
-            )
-            assert link_response.status_code == 404
-            assert link_response.json()["detail"] == "Project not found"
+        try:
+            with (
+                patch("app.core.auth.get_jwks_client", _mock_jwks_client),
+                patch("app.core.auth.get_settings", _mock_settings),
+                patch("app.core.provisioning.provision_user_on_first_login", mock_provision),
+                patch("app.core.llm_config.get_or_create_user_settings", _mock_user_settings_for_projects),
+            ):
+                # user_a creates a project
+                create_response = api_client.post(
+                    "/api/projects",
+                    json={"name": "User A Project", "description": "A's project"},
+                    headers={"Authorization": f"Bearer {user_a_token}"},
+                )
+                assert create_response.status_code == 200
+                project_id = create_response.json()["id"]
+
+                # user_b tries to link GitHub - should get 404
+                link_response = api_client.post(
+                    f"/api/projects/{project_id}/link-github?github_repo=https://github.com/test/repo",
+                    headers={"Authorization": f"Bearer {user_b_token}"},
+                )
+                assert link_response.status_code == 404
+                assert link_response.json()["detail"] == "Project not found"
+        finally:
+            api_client.app.dependency_overrides.clear()
 
     def test_admin_can_access_any_project(self):
         """Test that is_admin_user helper correctly identifies admin users.
@@ -298,43 +342,51 @@ class TestUserIsolation:
         async def mock_provision(*args, **kwargs):
             return Mock()
 
-        with (
-            patch("app.core.auth.get_jwks_client", _mock_jwks_client),
-            patch("app.core.auth.get_settings", _mock_settings),
-            patch("app.core.provisioning.provision_user_on_first_login", mock_provision),
-        ):
-            # user_a creates a project
-            create_response = api_client.post(
-                "/api/projects",
-                json={"name": "User A Project", "description": "A's project"},
-                headers={"Authorization": f"Bearer {user_a_token}"},
-            )
-            project_id = create_response.json()["id"]
+        # Override require_subscription to bypass DB query
+        api_client.app.dependency_overrides[require_subscription] = require_auth
 
-            # user_b tries to access foreign project
-            response_foreign = api_client.get(
-                f"/api/projects/{project_id}",
-                headers={"Authorization": f"Bearer {user_b_token}"},
-            )
+        try:
+            with (
+                patch("app.core.auth.get_jwks_client", _mock_jwks_client),
+                patch("app.core.auth.get_settings", _mock_settings),
+                patch("app.core.provisioning.provision_user_on_first_login", mock_provision),
+                patch("app.core.llm_config.get_or_create_user_settings", _mock_user_settings_for_projects),
+            ):
+                # user_a creates a project
+                create_response = api_client.post(
+                    "/api/projects",
+                    json={"name": "User A Project", "description": "A's project"},
+                    headers={"Authorization": f"Bearer {user_a_token}"},
+                )
+                assert create_response.status_code == 200
+                project_id = create_response.json()["id"]
 
-            # user_b tries to access nonexistent project
-            nonexistent_uuid = str(uuid.uuid4())
-            response_nonexistent = api_client.get(
-                f"/api/projects/{nonexistent_uuid}",
-                headers={"Authorization": f"Bearer {user_b_token}"},
-            )
+                # user_b tries to access foreign project
+                response_foreign = api_client.get(
+                    f"/api/projects/{project_id}",
+                    headers={"Authorization": f"Bearer {user_b_token}"},
+                )
 
-        # Both should return 404 with same message
-        assert response_foreign.status_code == 404
-        assert response_nonexistent.status_code == 404
+                # user_b tries to access nonexistent project
+                nonexistent_uuid = str(uuid.uuid4())
+                response_nonexistent = api_client.get(
+                    f"/api/projects/{nonexistent_uuid}",
+                    headers={"Authorization": f"Bearer {user_b_token}"},
+                )
 
-        data_foreign = response_foreign.json()
-        data_nonexistent = response_nonexistent.json()
+            # Both should return 404 with same message
+            assert response_foreign.status_code == 404
+            assert response_nonexistent.status_code == 404
 
-        # Same error message (no info leakage)
-        assert data_foreign["detail"] == data_nonexistent["detail"]
-        assert data_foreign["detail"] == "Project not found"
+            data_foreign = response_foreign.json()
+            data_nonexistent = response_nonexistent.json()
 
-        # Both have debug_id
-        assert "debug_id" in data_foreign
-        assert "debug_id" in data_nonexistent
+            # Same error message (no info leakage)
+            assert data_foreign["detail"] == data_nonexistent["detail"]
+            assert data_foreign["detail"] == "Project not found"
+
+            # Both have debug_id
+            assert "debug_id" in data_foreign
+            assert "debug_id" in data_nonexistent
+        finally:
+            api_client.app.dependency_overrides.clear()
