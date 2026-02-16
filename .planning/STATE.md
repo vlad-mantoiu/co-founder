@@ -10,34 +10,35 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 ## Current Position
 
 Phase: 1 of 10 (Runner Interface & Test Foundation)
-Plan: 1 of 3 completed
+Plan: 2 of 3 completed
 Status: In progress
-Last activity: 2026-02-16 — Completed 01-01-PLAN.md (Runner Protocol & RunnerReal)
+Last activity: 2026-02-16 — Completed 01-02-PLAN.md (RunnerFake with 4 scenarios)
 
-Progress: [█░░░░░░░░░] 10%
+Progress: [██░░░░░░░░] 20%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
-- Average duration: 2 min
-- Total execution time: 0.03 hours
+- Total plans completed: 2
+- Average duration: 2.5 min
+- Total execution time: 0.08 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01    | 1     | 2 min | 2 min    |
+| 01    | 2     | 5 min | 2.5 min  |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (2 min)
-- Trend: Starting execution
+- Last 5 plans: 01-01 (2 min), 01-02 (3 min)
+- Trend: Consistent velocity
 
 *Updated after each plan completion*
 
 | Plan      | Duration | Details     | Files   |
 |-----------|----------|-------------|---------|
 | 01-01     | 2 min    | 2 tasks     | 4 files |
+| 01-02     | 3 min    | 2 tasks     | 2 files |
 
 ## Accumulated Context
 
@@ -52,6 +53,9 @@ Recent decisions affecting current work:
 - Dynamic LLM questioning tailored to each unique idea (not static forms)
 - [Phase 01]: Runner protocol uses @runtime_checkable for isinstance checks (enables test doubles)
 - [Phase 01]: RunnerReal wraps LangGraph via adapter pattern (zero modification to existing pipeline)
+- [Phase 01]: RunnerFake uses instant returns (no delays) for fastest CI execution
+- [Phase 01]: RunnerFake provides fully deterministic responses (same scenario = identical output)
+- [Phase 01]: RunnerFake returns pre-built data directly (no GenericFakeChatModel dependency)
 
 ### Pending Todos
 
@@ -87,8 +91,8 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-16 (plan execution)
-Stopped at: Completed 01-01-PLAN.md
-Resume file: .planning/phases/01-runner-interface-test-foundation/01-01-SUMMARY.md
+Stopped at: Completed 01-02-PLAN.md
+Resume file: .planning/phases/01-runner-interface-test-foundation/01-02-SUMMARY.md
 
 ---
-*Next: Execute 01-02-PLAN.md (RunnerFake implementation)*
+*Next: Execute 01-03-PLAN.md (Test harness + CI pipeline)*
