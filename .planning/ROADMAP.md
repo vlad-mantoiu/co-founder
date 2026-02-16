@@ -88,13 +88,13 @@ Plans:
   4. Required fields enforced (target user, problem, constraint)
   5. Create project from idea returns project_id and persists idea message
   6. Empty idea rejected with 400 validation error
-**Plans**: TBD
+**Plans:** 4 plans
 
 Plans:
-- [ ] 04-01: Onboarding session model with LLM question generation
-- [ ] 04-02: Thesis Snapshot extraction from answers
-- [ ] 04-03: Project creation API with validation
-- [ ] 04-04: Onboarding resumption logic
+- [ ] 04-01-PLAN.md -- Onboarding domain models, Pydantic schemas, RunnerFake extensions (TDD)
+- [ ] 04-02-PLAN.md -- Onboarding service layer and API routes with integration tests (TDD)
+- [ ] 04-03-PLAN.md -- Frontend onboarding page: idea input, questions, progress, ThesisSnapshot
+- [ ] 04-04-PLAN.md -- Project creation from onboarding, resumption logic, integration tests (TDD)
 
 ### Phase 5: Capacity Queue & Worker Model
 **Goal**: Queue-based throughput limiting with tier enforcement preventing cost explosion
