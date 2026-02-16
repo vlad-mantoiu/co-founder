@@ -3,6 +3,9 @@
 import { useEffect } from "react";
 import { useOnboarding } from "@/hooks/useOnboarding";
 import { IdeaInput } from "@/components/onboarding/IdeaInput";
+import { ConversationalQuestion } from "@/components/onboarding/ConversationalQuestion";
+import { QuestionHistory } from "@/components/onboarding/QuestionHistory";
+import { ProgressBar } from "@/components/onboarding/ProgressBar";
 
 /**
  * Onboarding page: Main entry point for the onboarding flow.
@@ -20,6 +23,8 @@ export default function OnboardingPage() {
     state,
     submitIdea,
     continueAnyway,
+    submitAnswer,
+    editAnswer,
     resumeSession,
     reset,
   } = useOnboarding();
@@ -87,19 +92,38 @@ export default function OnboardingPage() {
     );
   }
 
-  // Questioning state (placeholder for Task 2)
+  // Questioning state
   if (state.phase === "questioning" || state.phase === "loading_question") {
+    const currentQuestion = state.questions[state.currentQuestionIndex];
+    const isLastQuestion = state.currentQuestionIndex === state.totalQuestions - 1;
+
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen px-4">
-        <div className="w-full max-w-2xl space-y-6">
-          <h2 className="text-2xl font-display font-bold text-white text-center">
-            Let's dig deeper
-          </h2>
-          <div className="p-6 bg-white/5 border border-white/10 rounded-xl">
-            <p className="text-muted-foreground text-center">
-              Question components will be added in Task 2
-            </p>
-          </div>
+      <div className="flex flex-col items-center justify-center min-h-screen px-4 py-8">
+        <div className="w-full max-w-2xl">
+          <ProgressBar current={state.currentQuestionIndex + 1} total={state.totalQuestions} />
+
+          <QuestionHistory
+            questions={state.questions}
+            answers={state.answers}
+            currentIndex={state.currentQuestionIndex}
+            onEdit={editAnswer}
+          />
+
+          {state.phase === "loading_question" ? (
+            <div className="space-y-4 animate-pulse">
+              <div className="h-8 bg-white/10 rounded w-3/4" />
+              <div className="h-24 bg-white/10 rounded" />
+            </div>
+          ) : currentQuestion ? (
+            <ConversationalQuestion
+              question={currentQuestion}
+              currentAnswer={state.answers[currentQuestion.id]}
+              onSubmit={(answer) => submitAnswer(currentQuestion.id, answer)}
+              isLastQuestion={isLastQuestion}
+              disabled={state.isLoading}
+              isLoading={false}
+            />
+          ) : null}
         </div>
       </div>
     );
