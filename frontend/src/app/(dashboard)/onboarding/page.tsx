@@ -6,6 +6,7 @@ import { IdeaInput } from "@/components/onboarding/IdeaInput";
 import { ConversationalQuestion } from "@/components/onboarding/ConversationalQuestion";
 import { QuestionHistory } from "@/components/onboarding/QuestionHistory";
 import { ProgressBar } from "@/components/onboarding/ProgressBar";
+import { ThesisSnapshot } from "@/components/onboarding/ThesisSnapshot";
 
 /**
  * Onboarding page: Main entry point for the onboarding flow.
@@ -25,6 +26,7 @@ export default function OnboardingPage() {
     continueAnyway,
     submitAnswer,
     editAnswer,
+    editThesisField,
     resumeSession,
     reset,
   } = useOnboarding();
@@ -74,19 +76,20 @@ export default function OnboardingPage() {
     );
   }
 
-  // Viewing snapshot (placeholder for Task 3)
-  if (state.phase === "viewing_snapshot") {
+  // Viewing snapshot
+  if (state.phase === "viewing_snapshot" && state.thesisSnapshot) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen px-4">
-        <div className="w-full max-w-4xl space-y-6">
-          <h2 className="text-3xl font-display font-bold text-white text-center">
-            Your Thesis Snapshot
-          </h2>
-          <div className="p-6 bg-white/5 border border-white/10 rounded-xl">
-            <p className="text-muted-foreground text-center">
-              ThesisSnapshot component will be added in Task 3
-            </p>
-          </div>
+      <div className="flex flex-col items-center justify-center min-h-screen px-4 py-8">
+        <div className="w-full max-w-4xl">
+          <ThesisSnapshot
+            snapshot={state.thesisSnapshot}
+            onEdit={editThesisField}
+            onCreateProject={() => {
+              // TODO: Wire up project creation in Plan 04-04
+              console.log("Create project");
+            }}
+            onStartFresh={reset}
+          />
         </div>
       </div>
     );
