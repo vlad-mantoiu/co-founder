@@ -234,13 +234,112 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| — | — | Populated by roadmapper |
+| AUTH-01 | Phase 3 | Pending |
+| AUTH-02 | Phase 3 | Pending |
+| AUTH-03 | Phase 3 | Pending |
+| AUTH-04 | Phase 3 | Pending |
+| ONBD-01 | Phase 4 | Pending |
+| ONBD-02 | Phase 4 | Pending |
+| ONBD-03 | Phase 4 | Pending |
+| ONBD-04 | Phase 4 | Pending |
+| ONBD-05 | Phase 4 | Pending |
+| PROJ-01 | Phase 4 | Pending |
+| PROJ-02 | Phase 4 | Pending |
+| PROJ-03 | Phase 4 | Pending |
+| PROJ-04 | Phase 4 | Pending |
+| UNDR-01 | Phase 8 | Pending |
+| UNDR-02 | Phase 8 | Pending |
+| UNDR-03 | Phase 8 | Pending |
+| UNDR-04 | Phase 8 | Pending |
+| UNDR-05 | Phase 8 | Pending |
+| UNDR-06 | Phase 8 | Pending |
+| GATE-01 | Phase 8 | Pending |
+| GATE-02 | Phase 8 | Pending |
+| GATE-03 | Phase 8 | Pending |
+| GATE-04 | Phase 8 | Pending |
+| GATE-05 | Phase 8 | Pending |
+| DOCS-01 | Phase 6 | Pending |
+| DOCS-02 | Phase 6 | Pending |
+| DOCS-03 | Phase 6 | Pending |
+| DOCS-04 | Phase 6 | Pending |
+| DOCS-05 | Phase 6 | Pending |
+| DOCS-06 | Phase 6 | Pending |
+| DOCS-07 | Phase 6 | Pending |
+| PLAN-01 | Phase 8 | Pending |
+| PLAN-02 | Phase 8 | Pending |
+| PLAN-03 | Phase 8 | Pending |
+| PLAN-04 | Phase 8 | Pending |
+| GENR-01 | Phase 10 | Pending |
+| GENR-02 | Phase 10 | Pending |
+| GENR-03 | Phase 10 | Pending |
+| GENR-04 | Phase 10 | Pending |
+| GENR-05 | Phase 10 | Pending |
+| GENR-06 | Phase 10 | Pending |
+| GENR-07 | Phase 10 | Pending |
+| MVPS-01 | Phase 10 | Pending |
+| MVPS-02 | Phase 10 | Pending |
+| MVPS-03 | Phase 10 | Pending |
+| MVPS-04 | Phase 10 | Pending |
+| SOLD-01 | Phase 10 | Pending |
+| SOLD-02 | Phase 10 | Pending |
+| SOLD-03 | Phase 10 | Pending |
+| ITER-01 | Phase 10 | Pending |
+| ITER-02 | Phase 10 | Pending |
+| ITER-03 | Phase 10 | Pending |
+| GENL-01 | Phase 10 | Pending |
+| GENL-02 | Phase 10 | Pending |
+| GENL-03 | Phase 10 | Pending |
+| GENL-04 | Phase 10 | Pending |
+| GENL-05 | Phase 10 | Pending |
+| GENL-06 | Phase 10 | Pending |
+| DEPL-01 | Phase 10 | Pending |
+| DEPL-02 | Phase 10 | Pending |
+| DEPL-03 | Phase 10 | Pending |
+| DASH-01 | Phase 7 | Pending |
+| DASH-02 | Phase 7 | Pending |
+| DASH-03 | Phase 7 | Pending |
+| DASH-04 | Phase 7 | Pending |
+| GRPH-01 | Phase 9 | Pending |
+| GRPH-02 | Phase 9 | Pending |
+| GRPH-03 | Phase 9 | Pending |
+| GRPH-04 | Phase 9 | Pending |
+| GRPH-05 | Phase 9 | Pending |
+| TIME-01 | Phase 9 | Pending |
+| TIME-02 | Phase 9 | Pending |
+| TIME-03 | Phase 9 | Pending |
+| DCSN-01 | Phase 8 | Pending |
+| DCSN-02 | Phase 8 | Pending |
+| DCSN-03 | Phase 8 | Pending |
+| STMC-01 | Phase 2 | Pending |
+| STMC-02 | Phase 2 | Pending |
+| STMC-03 | Phase 2 | Pending |
+| STMC-04 | Phase 2 | Pending |
+| WORK-01 | Phase 5 | Pending |
+| WORK-02 | Phase 5 | Pending |
+| WORK-03 | Phase 5 | Pending |
+| WORK-04 | Phase 5 | Pending |
+| WORK-05 | Phase 5 | Pending |
+| WORK-06 | Phase 5 | Pending |
+| OBSV-01 | Phase 7 | Pending |
+| OBSV-02 | Phase 7 | Pending |
+| OBSV-03 | Phase 7 | Pending |
+| BETA-01 | Phase 10 | Pending |
+| BETA-02 | Phase 10 | Pending |
+| CNTR-01 | Phase 10 | Pending |
+| CNTR-02 | Phase 10 | Pending |
+| RUNR-01 | Phase 1 | Pending |
+| RUNR-02 | Phase 1 | Pending |
+| RUNR-03 | Phase 1 | Pending |
+| CHAT-01 | Phase 10 | Pending |
+| CHAT-02 | Phase 10 | Pending |
 
 **Coverage:**
 - v1 requirements: 76 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 76
+- Mapped to phases: 76
+- Unmapped: 0
+
+**Coverage validation:** ✓ 100% requirement coverage achieved
 
 ---
 *Requirements defined: 2026-02-16*
-*Last updated: 2026-02-16 after initial definition*
+*Last updated: 2026-02-16 with phase mappings*
