@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-16)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** Phase 5 (Capacity Queue Worker Model)
+**Current focus:** Phase 6 (Artifact Generation Pipeline)
 
 ## Current Position
 
-Phase: 5 of 10 (Capacity Queue Worker Model)
-Plan: 5 of 5 completed
-Status: Complete
-Last activity: 2026-02-17 — Completed 05-05-PLAN.md (Integration tests and midnight scheduler)
+Phase: 6 of 10 (Artifact Generation Pipeline)
+Plan: 1 of 5 completed
+Status: In Progress
+Last activity: 2026-02-17 — Completed 06-01-PLAN.md (Artifact model, Pydantic schemas, RunnerFake extension)
 
-Progress: [█████████▓] 90%
+Progress: [█████████▓] 92%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 20
-- Average duration: 4.7 min
-- Total execution time: 1.57 hours
+- Total plans completed: 21
+- Average duration: 4.8 min
+- Total execution time: 1.68 hours
 
 **By Phase:**
 
@@ -32,10 +32,11 @@ Progress: [█████████▓] 90%
 | 03    | 4     | 20 min | 5.0 min  |
 | 04    | 4     | 14 min | 3.5 min  |
 | 05    | 5     | 31 min | 6.2 min  |
+| 06    | 1     | 6 min  | 6.0 min  |
 
 **Recent Trend:**
-- Last 5 plans: 05-01 (3 min), 05-02 (3 min), 05-03 (5 min), 05-04 (13 min), 05-05 (7 min)
-- Trend: Phase 5 complete - integration tests took 7 min (faster than API plan)
+- Last 5 plans: 05-02 (3 min), 05-03 (5 min), 05-04 (13 min), 05-05 (7 min), 06-01 (6 min)
+- Trend: Phase 6 started - artifact model and schemas took 6 min (consistent with Phase 5 average)
 
 *Updated after each plan completion*
 
@@ -64,6 +65,7 @@ Progress: [█████████▓] 90%
 | 05-03     | 5 min    | 2 tasks     | 6 files  |
 | 05-04     | 13 min   | 2 tasks     | 5 files  |
 | 05-05     | 7 min    | 2 tasks     | 2 files  |
+| 06-01     | 6 min    | 2 tasks     | 6 files  |
 
 ## Accumulated Context
 
@@ -133,6 +135,11 @@ Recent decisions affecting current work:
 - [Phase 05-04]: BackgroundTasks for MVP worker (simplest async execution pattern)
 - [Phase 05-04]: SSE testing skipped with TestClient (fakeredis pubsub blocks - manual/E2E only)
 - [Phase 05-04]: Non-blocking Postgres persistence (logs error, doesn't fail job)
+- [Phase 06-01]: JSONB versioning with current_content + previous_content columns (avoids joins, 2-version comparison)
+- [Phase 06-01]: Annotations stored separately from content JSONB (preserves schema validation, enables show/hide)
+- [Phase 06-01]: Tier-gating via optional Pydantic fields with service layer filtering (avoids schema proliferation)
+- [Phase 06-01]: generation_status column (idle/generating/failed) prevents concurrent write race conditions
+- [Phase 06-01]: _schema_version field in all JSONB content for future migration safety
 
 ### Pending Todos
 
@@ -168,8 +175,8 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17 (execute-phase)
-Stopped at: Completed 05-05-PLAN.md
-Resume file: .planning/phases/05-capacity-queue-worker-model/05-05-SUMMARY.md
+Stopped at: Completed 06-01-PLAN.md
+Resume file: .planning/phases/06-artifact-generation-pipeline/06-01-SUMMARY.md
 
 ---
-*Phase 05 COMPLETE — All 5 plans delivered: Queue foundation through integration tests and scheduler*
+*Phase 06 IN PROGRESS — Plan 1 of 5 complete: Artifact model and schemas*
