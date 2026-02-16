@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-16)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** Phase 3 (Workspace Authentication)
+**Current focus:** Phase 4 (Onboarding & Idea Capture)
 
 ## Current Position
 
-Phase: 3 of 10 (Workspace Authentication)
-Plan: 4 of 4 completed
-Status: Complete
-Last activity: 2026-02-16 — Completed 03-04-PLAN.md (User isolation test fixes - gap closure)
+Phase: 4 of 10 (Onboarding & Idea Capture)
+Plan: 1 of 4 completed
+Status: In Progress
+Last activity: 2026-02-16 — Completed 04-01-PLAN.md (Onboarding domain models, schemas, and RunnerFake extensions)
 
-Progress: [██████████] 100%
+Progress: [██▒▒▒▒▒▒▒▒] 25%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 11
+- Total plans completed: 12
 - Average duration: 3.3 min
-- Total execution time: 0.60 hours
+- Total execution time: 0.65 hours
 
 **By Phase:**
 
@@ -30,10 +30,11 @@ Progress: [██████████] 100%
 | 01    | 3     | 10 min | 3.3 min  |
 | 02    | 4     | 12 min | 3.0 min  |
 | 03    | 4     | 20 min | 5.0 min  |
+| 04    | 1     | 3 min  | 3.0 min  |
 
 **Recent Trend:**
-- Last 5 plans: 03-01 (5 min), 03-02 (2 min), 03-03 (9 min), 03-04 (4 min)
-- Trend: Phase 3 complete - auth integration with comprehensive testing + gap closure
+- Last 5 plans: 03-02 (2 min), 03-03 (9 min), 03-04 (4 min), 04-01 (3 min)
+- Trend: Phase 4 started - onboarding domain layer with JSONB state storage
 
 *Updated after each plan completion*
 
@@ -50,6 +51,7 @@ Progress: [██████████] 100%
 | 03-02     | 2 min    | 2 tasks     | 4 files  |
 | 03-03     | 9 min    | 2 tasks     | 4 files  |
 | 03-04     | 4 min    | 1 task      | 1 file   |
+| 04-01     | 3 min    | 2 tasks     | 6 files  |
 
 ## Accumulated Context
 
@@ -87,6 +89,9 @@ Recent decisions affecting current work:
 - [Phase 03]: Use in-memory cache for provisioned user_ids in require_auth (avoids DB query on every request)
 - [Phase 03]: Mock provisioning in integration tests (simplifies test setup, focuses on auth middleware behavior)
 - [Phase 03-04]: Use app.dependency_overrides to bypass require_subscription in tests (cleanest approach for route-bound dependencies)
+- [Phase 04]: Store onboarding state as JSONB (questions, answers, thesis_snapshot, thesis_edits) for infinite resumption
+- [Phase 04]: ThesisSnapshot has tier-dependent sections: core (always), business (Partner+), strategic (CTO)
+- [Phase 04]: Use 'we' language in onboarding questions for collaborative feel (AI as co-founder)
 
 ### Pending Todos
 
@@ -121,9 +126,9 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-16 (discuss-phase)
-Stopped at: Phase 4 context gathered
-Resume file: .planning/phases/04-onboarding-idea-capture/04-CONTEXT.md
+Last session: 2026-02-16 (execute-phase)
+Stopped at: Completed 04-01-PLAN.md
+Resume file: .planning/phases/04-onboarding-idea-capture/04-01-SUMMARY.md
 
 ---
-*Phase 04 (Onboarding & Idea Capture) context gathered — ready for planning*
+*Phase 04 Plan 01 complete — onboarding domain models and schemas ready*
