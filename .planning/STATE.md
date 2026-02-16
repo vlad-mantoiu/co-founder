@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 ## Current Position
 
 Phase: 6 of 10 (Artifact Generation Pipeline)
-Plan: 3 of 5 completed
+Plan: 4 of 5 completed
 Status: In Progress
-Last activity: 2026-02-16 — Completed 06-03-PLAN.md (Artifact API routes with background generation)
+Last activity: 2026-02-16 — Completed 06-05-PLAN.md (Markdown export with readable and technical variants)
 
-Progress: [█████████▓] 94%
+Progress: [█████████▓] 95%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 23
-- Average duration: 5.0 min
-- Total execution time: 1.90 hours
+- Total plans completed: 24
+- Average duration: 5.1 min
+- Total execution time: 2.02 hours
 
 **By Phase:**
 
@@ -32,11 +32,11 @@ Progress: [█████████▓] 94%
 | 03    | 4     | 20 min | 5.0 min  |
 | 04    | 4     | 14 min | 3.5 min  |
 | 05    | 5     | 31 min | 6.2 min  |
-| 06    | 3     | 19 min | 6.3 min  |
+| 06    | 4     | 26 min | 6.5 min  |
 
 **Recent Trend:**
-- Last 5 plans: 05-04 (13 min), 05-05 (7 min), 06-01 (6 min), 06-02 (7 min), 06-03 (6 min)
-- Trend: Phase 6 averaging 6.3 min/plan - consistent with complex domain+service+API patterns
+- Last 5 plans: 05-05 (7 min), 06-01 (6 min), 06-02 (7 min), 06-03 (6 min), 06-05 (7 min)
+- Trend: Phase 6 averaging 6.5 min/plan - consistent with complex domain+service+API+templating patterns
 
 *Updated after each plan completion*
 
@@ -68,7 +68,7 @@ Progress: [█████████▓] 94%
 | 06-01     | 6 min    | 2 tasks     | 6 files  |
 | 06-02     | 7 min    | 2 tasks     | 6 files  |
 | 06-03     | 6 min    | 1 task      | 4 files  |
-| Phase 06 P03 | 6 | 1 tasks | 4 files |
+| 06-05     | 7 min    | 2 tasks     | 7 files  |
 
 ## Accumulated Context
 
@@ -154,6 +154,8 @@ Recent decisions affecting current work:
 - [Phase 06]: OnboardingSession has project_id FK to Project (not inverse)
 - [Phase 06]: Use FastAPI BackgroundTasks for MVP artifact generation (simplest async pattern)
 - [Phase 06]: OnboardingSession has project_id FK to Project (not inverse)
+- [Phase 06-05]: Jinja2 for markdown templating - mature engine with markdown-friendly syntax
+- [Phase 06-05]: Two variants (readable/technical) for different audiences - founders want Notion-pasteable, devs want structured handoff
 
 ### Pending Todos
 
@@ -190,8 +192,8 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-16 (execute-phase)
-Stopped at: Completed 06-03-PLAN.md
-Resume file: .planning/phases/06-artifact-generation-pipeline/06-03-SUMMARY.md
+Stopped at: Completed 06-05-PLAN.md
+Resume file: .planning/phases/06-artifact-generation-pipeline/06-05-SUMMARY.md
 
 ---
-*Phase 06 IN PROGRESS — Plan 3 of 5 complete: Artifact API routes with background generation*
+*Phase 06 IN PROGRESS — Plan 4 of 5 complete: Markdown export with readable and technical variants*
