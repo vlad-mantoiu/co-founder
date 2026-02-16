@@ -10,35 +10,36 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 ## Current Position
 
 Phase: 1 of 10 (Runner Interface & Test Foundation)
-Plan: 2 of 3 completed
-Status: In progress
-Last activity: 2026-02-16 — Completed 01-02-PLAN.md (RunnerFake with 4 scenarios)
+Plan: 3 of 3 completed
+Status: Phase complete
+Last activity: 2026-02-16 — Completed 01-03-PLAN.md (Test harness + tech debt fixes)
 
-Progress: [██░░░░░░░░] 20%
+Progress: [███░░░░░░░] 30%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 2
-- Average duration: 2.5 min
-- Total execution time: 0.08 hours
+- Total plans completed: 3
+- Average duration: 3.3 min
+- Total execution time: 0.17 hours
 
 **By Phase:**
 
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 01    | 2     | 5 min | 2.5 min  |
+| Phase | Plans | Total  | Avg/Plan |
+|-------|-------|--------|----------|
+| 01    | 3     | 10 min | 3.3 min  |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (2 min), 01-02 (3 min)
-- Trend: Consistent velocity
+- Last 5 plans: 01-01 (2 min), 01-02 (3 min), 01-03 (5 min)
+- Trend: Steady velocity, phase complete
 
 *Updated after each plan completion*
 
-| Plan      | Duration | Details     | Files   |
-|-----------|----------|-------------|---------|
-| 01-01     | 2 min    | 2 tasks     | 4 files |
-| 01-02     | 3 min    | 2 tasks     | 2 files |
+| Plan      | Duration | Details     | Files    |
+|-----------|----------|-------------|----------|
+| 01-01     | 2 min    | 2 tasks     | 4 files  |
+| 01-02     | 3 min    | 2 tasks     | 2 files  |
+| 01-03     | 5 min    | 2 tasks     | 17 files |
 
 ## Accumulated Context
 
@@ -56,6 +57,9 @@ Recent decisions affecting current work:
 - [Phase 01]: RunnerFake uses instant returns (no delays) for fastest CI execution
 - [Phase 01]: RunnerFake provides fully deterministic responses (same scenario = identical output)
 - [Phase 01]: RunnerFake returns pre-built data directly (no GenericFakeChatModel dependency)
+- [Phase 01]: Lambda wrappers for SQLAlchemy datetime defaults (deferred evaluation)
+- [Phase 01]: Health check returns 503 when dependencies down (k8s/ECS readiness standard)
+- [Phase 01]: Non-blocking exception logging (visibility without re-raise)
 
 ### Pending Todos
 
@@ -83,16 +87,16 @@ None yet.
 - TO: State-first (structured state machine → decisions recorded → generation in background → dashboard reflects progress)
 
 **Known Tech Debt (address during implementation):**
-- Silent exception swallowing
-- Datetime timezone issues (use datetime.now(timezone.utc), not deprecated utcnow())
-- Non-atomic distributed locks
-- Mem0 sync-in-async calls (wrap with asyncio.to_thread())
+- ~~Silent exception swallowing~~ FIXED in 01-03
+- ~~Datetime timezone issues (use datetime.now(timezone.utc), not deprecated utcnow())~~ FIXED in 01-03
+- Non-atomic distributed locks (Phase 7)
+- Mem0 sync-in-async calls (Phase 2)
 
 ## Session Continuity
 
 Last session: 2026-02-16 (plan execution)
-Stopped at: Completed 01-02-PLAN.md
-Resume file: .planning/phases/01-runner-interface-test-foundation/01-02-SUMMARY.md
+Stopped at: Completed 01-03-PLAN.md (Phase 01 complete)
+Resume file: .planning/phases/01-runner-interface-test-foundation/01-03-SUMMARY.md
 
 ---
-*Next: Execute 01-03-PLAN.md (Test harness + CI pipeline)*
+*Next: Phase 02 - Onboarding Flow (Research → Plan → Execute)*
