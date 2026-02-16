@@ -46,11 +46,32 @@ class Settings(BaseSettings):
         "https://www.getinsourced.ai",
     ]
 
+    # Stripe
+    stripe_secret_key: str = ""
+    stripe_webhook_secret: str = ""
+    stripe_price_bootstrapper_monthly: str = ""
+    stripe_price_bootstrapper_annual: str = ""
+    stripe_price_partner_monthly: str = ""
+    stripe_price_partner_annual: str = ""
+    stripe_price_cto_monthly: str = ""
+    stripe_price_cto_annual: str = ""
+
     # LLM Models
     architect_model: str = "claude-opus-4-20250514"
     reviewer_model: str = "claude-opus-4-20250514"
     coder_model: str = "claude-sonnet-4-20250514"
     debugger_model: str = "claude-sonnet-4-20250514"
+
+    # Feature flags and routing
+    default_feature_flags: dict[str, bool] = {
+        "deep_research": False,
+        "strategy_graph": False,
+    }
+    public_routes: list[str] = [
+        "/api/health",
+        "/api/ready",
+        "/api/plans",
+    ]
 
 
 @lru_cache

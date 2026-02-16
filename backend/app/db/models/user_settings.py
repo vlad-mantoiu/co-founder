@@ -33,5 +33,15 @@ class UserSettings(Base):
     is_admin = Column(Boolean, nullable=False, default=False)
     is_suspended = Column(Boolean, nullable=False, default=False)
 
+    # Profile fields (from JWT claims and user-provided)
+    email = Column(String(255), nullable=True)
+    name = Column(String(255), nullable=True)
+    avatar_url = Column(String(500), nullable=True)
+    company_name = Column(String(255), nullable=True)
+    role = Column(String(100), nullable=True)
+    timezone = Column(String(100), nullable=True, default="UTC")
+    onboarding_completed = Column(Boolean, nullable=False, default=False)
+    beta_features = Column(JSON, nullable=True)  # JSONB for per-user feature flag overrides
+
     created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
