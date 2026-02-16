@@ -5,33 +5,34 @@
 See: .planning/PROJECT.md (updated 2026-02-16)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** Phase 1 (Runner Interface & Test Foundation)
+**Current focus:** Phase 2 (State Machine Core)
 
 ## Current Position
 
-Phase: 1 of 10 (Runner Interface & Test Foundation)
-Plan: 3 of 3 completed
-Status: Phase complete
-Last activity: 2026-02-16 — Completed 01-03-PLAN.md (Test harness + tech debt fixes)
+Phase: 2 of 10 (State Machine Core)
+Plan: 1 of 4 completed
+Status: In progress
+Last activity: 2026-02-16 — Completed 02-01-PLAN.md (Domain types and pure functions)
 
-Progress: [███░░░░░░░] 30%
+Progress: [███░░░░░░░] 33%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
-- Average duration: 3.3 min
-- Total execution time: 0.17 hours
+- Total plans completed: 4
+- Average duration: 3.0 min
+- Total execution time: 0.20 hours
 
 **By Phase:**
 
 | Phase | Plans | Total  | Avg/Plan |
 |-------|-------|--------|----------|
 | 01    | 3     | 10 min | 3.3 min  |
+| 02    | 1     | 2 min  | 2.0 min  |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (2 min), 01-02 (3 min), 01-03 (5 min)
-- Trend: Steady velocity, phase complete
+- Last 5 plans: 01-01 (2 min), 01-02 (3 min), 01-03 (5 min), 02-01 (2 min)
+- Trend: Consistent velocity, Phase 2 started
 
 *Updated after each plan completion*
 
@@ -40,6 +41,7 @@ Progress: [███░░░░░░░] 30%
 | 01-01     | 2 min    | 2 tasks     | 4 files  |
 | 01-02     | 3 min    | 2 tasks     | 2 files  |
 | 01-03     | 5 min    | 2 tasks     | 17 files |
+| 02-01     | 2 min    | 2 tasks     | 5 files  |
 
 ## Accumulated Context
 
@@ -60,6 +62,10 @@ Recent decisions affecting current work:
 - [Phase 01]: Lambda wrappers for SQLAlchemy datetime defaults (deferred evaluation)
 - [Phase 01]: Health check returns 503 when dependencies down (k8s/ECS readiness standard)
 - [Phase 01]: Non-blocking exception logging (visibility without re-raise)
+- [Phase 02]: Custom FSM over transitions library (6-state machine, pure functions, zero dependencies)
+- [Phase 02]: Integer truncation for progress computation (deterministic, no rounding edge cases)
+- [Phase 02]: Stage as int Enum for comparability (enables forward/backward detection)
+- [Phase 02]: ProjectStatus as str Enum for DB compatibility (maps to existing status column)
 
 ### Pending Todos
 
@@ -95,8 +101,8 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-16 (plan execution)
-Stopped at: Completed 01-03-PLAN.md (Phase 01 complete)
-Resume file: .planning/phases/01-runner-interface-test-foundation/01-03-SUMMARY.md
+Stopped at: Completed 02-01-PLAN.md (Domain types and pure functions)
+Resume file: .planning/phases/02-state-machine-core/02-01-SUMMARY.md
 
 ---
-*Next: Phase 02 - Onboarding Flow (Research → Plan → Execute)*
+*Next: 02-02-PLAN.md - DB models for state machine persistence*
