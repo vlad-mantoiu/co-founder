@@ -31,6 +31,7 @@ class Job(Base):
 
     # Usage tracking
     iterations_used = Column(Integer, nullable=False, default=0)
+    duration_seconds = Column(Integer, nullable=True)  # Job execution duration for analytics
 
     # Audit
     created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))

@@ -147,7 +147,7 @@ async def submit_job(
 
     # Trigger background worker to process queue
     from app.queue.worker import process_next_job
-    background_tasks.add_task(process_next_job)
+    background_tasks.add_task(process_next_job, redis=redis)
 
     return SubmitJobResponse(
         job_id=job_id,
