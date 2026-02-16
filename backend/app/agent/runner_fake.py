@@ -131,33 +131,51 @@ class RunnerFake:
         return [
             {
                 "id": "q1",
-                "text": "Who is your target customer? Be as specific as possible.",
+                "text": "Who are we building this for? Be as specific as possible about our target customer.",
+                "input_type": "text",
                 "required": True,
+                "options": None,
+                "follow_up_hint": None,
             },
             {
                 "id": "q2",
-                "text": "What is the core problem you're solving for them?",
+                "text": "What core problem are we solving for them?",
+                "input_type": "textarea",
                 "required": True,
+                "options": None,
+                "follow_up_hint": "Think about the pain point that keeps them up at night",
             },
             {
                 "id": "q3",
                 "text": "How are they solving this problem today?",
+                "input_type": "textarea",
                 "required": True,
+                "options": None,
+                "follow_up_hint": None,
             },
             {
                 "id": "q4",
-                "text": "What makes your solution different or better?",
-                "required": False,
+                "text": "What stage is our idea at?",
+                "input_type": "multiple_choice",
+                "required": True,
+                "options": ["Just an idea", "Validated with customers", "Early prototype", "Have paying users"],
+                "follow_up_hint": None,
             },
             {
                 "id": "q5",
-                "text": "How will you validate that people actually want this?",
+                "text": "How will we validate that people actually want this?",
+                "input_type": "textarea",
                 "required": True,
+                "options": None,
+                "follow_up_hint": None,
             },
             {
                 "id": "q6",
-                "text": "What's your monetization strategy (if any)?",
+                "text": "What's our monetization strategy (if any)?",
+                "input_type": "text",
                 "required": False,
+                "options": None,
+                "follow_up_hint": None,
             },
         ]
 
@@ -182,13 +200,25 @@ class RunnerFake:
             )
 
         return {
-            "problem_statement": "Small business owners lack a simple, reliable way to track inventory across multiple locations without expensive enterprise software.",
+            # Core fields (always present)
+            "problem": "Small business owners lack a simple, reliable way to track inventory across multiple locations without expensive enterprise software.",
             "target_user": "Retail shop owners with 1-10 employees managing physical products across 1-3 locations",
             "value_prop": "Dead-simple inventory tracking with barcode scanning, real-time sync, and automatic reorder alerts - no training required",
+            "key_constraint": "Must work offline with background sync when connectivity is restored",
+            # Business fields (Partner+)
             "differentiation": "Unlike Shopify or Square POS (which bundle inventory with payments), we're inventory-first with deeper tracking features. Unlike enterprise ERPs, we're affordable ($49/mo) and setup takes 10 minutes.",
             "monetization_hypothesis": "SaaS subscription at $49/mo per location. Target 100 paying customers in first 6 months. Average customer value: $588/year.",
-            "assumptions": "Shop owners will pay for inventory software if it saves >2 hours/week. Barcode scanning is a must-have. Mobile app is critical (owners check inventory on-the-go).",
-            "risks": "Competition from POS systems adding inventory features. Customer acquisition cost may exceed LTV if we rely on paid ads. Integration complexity with existing systems.",
+            # Strategic fields (CTO) - as lists
+            "assumptions": [
+                "Shop owners will pay for inventory software if it saves >2 hours/week",
+                "Barcode scanning is a must-have feature",
+                "Mobile app is critical (owners check inventory on-the-go)",
+            ],
+            "risks": [
+                "Competition from POS systems adding inventory features",
+                "Customer acquisition cost may exceed LTV if we rely on paid ads",
+                "Integration complexity with existing systems",
+            ],
             "smallest_viable_experiment": "Single-location inventory tracker with manual entry and CSV export. Test with 10 local shop owners for 2 weeks. Success = 7/10 would pay $49/mo.",
         }
 
