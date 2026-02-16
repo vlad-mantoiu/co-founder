@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, DateTime, String, Text
+from sqlalchemy import Column, DateTime, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.db.base import Base
@@ -18,7 +18,12 @@ class Project(Base):
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=False, default="")
     github_repo = Column(String(255), nullable=True)
-    status = Column(String(50), nullable=False, default="active")
+    status = Column(String(50), nullable=False, default="active")  # active, parked
 
-    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    # Journey state
+    stage_number = Column(Integer, nullable=True, default=None)  # None = pre-stage
+    stage_entered_at = Column(DateTime(timezone=True), nullable=True)
+    progress_percent = Column(Integer, nullable=False, default=0)  # Cached for query convenience, recomputed
+
+    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
