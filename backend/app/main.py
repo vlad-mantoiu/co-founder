@@ -1,14 +1,19 @@
 """AI Co-Founder Backend: FastAPI application entry point."""
 
+import logging
+import uuid
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.api.routes import api_router
 from app.core.config import get_settings
 from app.db import init_db, close_db, init_redis, close_redis
 from app.db.seed import seed_plan_tiers
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -34,6 +39,55 @@ async def lifespan(app: FastAPI):
     print("Shutting down...")
     await close_redis()
     await close_db()
+
+
+async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+    """Global exception handler for HTTPException with debug_id tracking.
+
+    Logs errors server-side with full context, returns sanitized response to client.
+    """
+    debug_id = str(uuid.uuid4())
+
+    # Extract user_id if available
+    user_id = getattr(request.state, "user_id", None)
+
+    # Log error with full context
+    logger.error(
+        f"HTTP {exc.status_code} | debug_id={debug_id} | "
+        f"path={request.url.path} | method={request.method} | "
+        f"user_id={user_id} | detail={exc.detail}"
+    )
+
+    # Return sanitized response (no stack traces, no secrets)
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail, "debug_id": debug_id},
+    )
+
+
+async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Global exception handler for unhandled errors with debug_id tracking.
+
+    Logs full exception with traceback, returns generic 500 to client.
+    """
+    debug_id = str(uuid.uuid4())
+
+    # Extract user_id if available
+    user_id = getattr(request.state, "user_id", None)
+
+    # Log full exception with traceback
+    logger.error(
+        f"Unhandled exception | debug_id={debug_id} | "
+        f"path={request.url.path} | method={request.method} | "
+        f"user_id={user_id}",
+        exc_info=exc,
+    )
+
+    # Return generic 500 (no internal details leaked)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error", "debug_id": debug_id},
+    )
 
 
 def create_app() -> FastAPI:
@@ -63,6 +117,10 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Exception handlers
+    app.exception_handler(HTTPException)(http_exception_handler)
+    app.exception_handler(Exception)(generic_exception_handler)
 
     # Include API routes
     app.include_router(api_router, prefix="/api")
