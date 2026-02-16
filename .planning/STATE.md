@@ -10,29 +10,29 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 ## Current Position
 
 Phase: 2 of 10 (State Machine Core)
-Plan: 1 of 4 completed
+Plan: 2 of 4 completed
 Status: In progress
-Last activity: 2026-02-16 — Completed 02-01-PLAN.md (Domain types and pure functions)
+Last activity: 2026-02-16 — Completed 02-02-PLAN.md (Decision gates and risk detection)
 
-Progress: [███░░░░░░░] 33%
+Progress: [█████░░░░░] 50%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4
+- Total plans completed: 5
 - Average duration: 3.0 min
-- Total execution time: 0.20 hours
+- Total execution time: 0.22 hours
 
 **By Phase:**
 
 | Phase | Plans | Total  | Avg/Plan |
 |-------|-------|--------|----------|
 | 01    | 3     | 10 min | 3.3 min  |
-| 02    | 1     | 2 min  | 2.0 min  |
+| 02    | 2     | 5 min  | 2.5 min  |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (2 min), 01-02 (3 min), 01-03 (5 min), 02-01 (2 min)
-- Trend: Consistent velocity, Phase 2 started
+- Last 5 plans: 01-02 (3 min), 01-03 (5 min), 02-01 (2 min), 02-02 (3 min)
+- Trend: Consistent velocity, Phase 2 progressing
 
 *Updated after each plan completion*
 
@@ -42,6 +42,7 @@ Progress: [███░░░░░░░] 33%
 | 01-02     | 3 min    | 2 tasks     | 2 files  |
 | 01-03     | 5 min    | 2 tasks     | 17 files |
 | 02-01     | 2 min    | 2 tasks     | 5 files  |
+| 02-02     | 3 min    | 2 tasks     | 4 files  |
 
 ## Accumulated Context
 
@@ -66,6 +67,9 @@ Recent decisions affecting current work:
 - [Phase 02]: Integer truncation for progress computation (deterministic, no rounding edge cases)
 - [Phase 02]: Stage as int Enum for comparability (enables forward/backward detection)
 - [Phase 02]: ProjectStatus as str Enum for DB compatibility (maps to existing status column)
+- [Phase 02]: Gate resolution is pure function logic (no DB access in domain layer)
+- [Phase 02]: Risk thresholds: 7 days stale decision, 3 build failures, 14 days inactive
+- [Phase 02]: Injectable 'now' parameter for deterministic time-based testing
 
 ### Pending Todos
 
@@ -101,8 +105,8 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-16 (plan execution)
-Stopped at: Completed 02-01-PLAN.md (Domain types and pure functions)
-Resume file: .planning/phases/02-state-machine-core/02-01-SUMMARY.md
+Stopped at: Completed 02-02-PLAN.md (Decision gates and risk detection)
+Resume file: .planning/phases/02-state-machine-core/02-02-SUMMARY.md
 
 ---
-*Next: 02-02-PLAN.md - DB models for state machine persistence*
+*Next: 02-03-PLAN.md - DB models for state machine persistence*
