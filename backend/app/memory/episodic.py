@@ -6,7 +6,7 @@ This module provides:
 - Successful approaches for similar tasks
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import Column, DateTime, Integer, String, Text, JSON, select
@@ -45,7 +45,7 @@ class Episode(Base):
     pr_url = Column(String(512), nullable=True)
 
     # Timestamps
-    started_at = Column(DateTime, default=datetime.utcnow)
+    started_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     completed_at = Column(DateTime, nullable=True)
 
     # Extra data
@@ -134,7 +134,7 @@ class EpisodicMemory:
             if status is not None:
                 episode.status = status
                 if status in ("success", "failed", "aborted"):
-                    episode.completed_at = datetime.utcnow()
+                    episode.completed_at = datetime.now(timezone.utc)
             if files_created is not None:
                 episode.files_created = files_created
             if commit_sha is not None:
@@ -175,7 +175,7 @@ class EpisodicMemory:
                 return
 
             episode.status = status
-            episode.completed_at = datetime.utcnow()
+            episode.completed_at = datetime.now(timezone.utc)
             if final_error:
                 episode.final_error = final_error
             if files_created:

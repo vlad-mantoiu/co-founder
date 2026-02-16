@@ -9,7 +9,7 @@ This module provides:
 
 import asyncio
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import AsyncGenerator
 
 import redis.asyncio as redis
@@ -55,7 +55,7 @@ class FileLock:
         ttl = ttl or self.DEFAULT_TTL
 
         # Try to set the lock with NX (only if not exists)
-        lock_value = f"{owner}:{datetime.utcnow().isoformat()}"
+        lock_value = f"{owner}:{datetime.now(timezone.utc).isoformat()}"
         result = await r.set(key, lock_value, nx=True, ex=ttl)
 
         if result:
@@ -253,8 +253,8 @@ class FileLock:
         try:
             if wait:
                 # Wait for lock availability
-                start = datetime.utcnow()
-                while (datetime.utcnow() - start).seconds < wait_timeout:
+                start = datetime.now(timezone.utc)
+                while (datetime.now(timezone.utc) - start).total_seconds() < wait_timeout:
                     acquired = await self.acquire(project_id, file_path, owner, ttl)
                     if acquired:
                         break

@@ -1,6 +1,6 @@
 """UsageLog model — per-request LLM usage tracking."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import Column, DateTime, Integer, String
 
@@ -22,4 +22,4 @@ class UsageLog(Base):
     total_tokens = Column(Integer, nullable=False, default=0)
     cost_microdollars = Column(Integer, nullable=False, default=0)
 
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True)

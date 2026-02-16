@@ -1,6 +1,6 @@
 """UserSettings model — per-user plan, overrides, and flags."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, JSON, String
 from sqlalchemy.orm import relationship
@@ -18,6 +18,11 @@ class UserSettings(Base):
     plan_tier_id = Column(Integer, ForeignKey("plan_tiers.id"), nullable=False)
     plan_tier = relationship("PlanTier", back_populates="users")
 
+    # Stripe
+    stripe_customer_id = Column(String(255), unique=True, nullable=True, index=True)
+    stripe_subscription_id = Column(String(255), nullable=True)
+    stripe_subscription_status = Column(String(50), nullable=True)
+
     # Admin overrides (nullable = use plan default)
     override_models = Column(JSON, nullable=True)  # {"architect": "...", "coder": "..."}
     override_max_projects = Column(Integer, nullable=True)
@@ -28,5 +33,5 @@ class UserSettings(Base):
     is_admin = Column(Boolean, nullable=False, default=False)
     is_suspended = Column(Boolean, nullable=False, default=False)
 
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))

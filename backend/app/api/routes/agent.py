@@ -1,6 +1,7 @@
 """Agent API routes for interacting with the AI Co-Founder."""
 
 import json
+import logging
 import uuid
 from datetime import date
 from typing import AsyncGenerator
@@ -11,11 +12,13 @@ from pydantic import BaseModel
 
 from app.agent.graph import create_cofounder_graph, create_production_graph
 from app.agent.state import create_initial_state
-from app.core.auth import ClerkUser, require_auth
+from app.core.auth import ClerkUser, require_auth, require_subscription
 from app.core.llm_config import get_or_create_user_settings
 from app.db.redis import get_redis
 from app.memory.episodic import get_episodic_memory
 from app.memory.mem0_client import get_semantic_memory
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -102,7 +105,7 @@ class ChatResponse(BaseModel):
 
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest, user: ClerkUser = Depends(require_auth)):
+async def chat(request: ChatRequest, user: ClerkUser = Depends(require_subscription)):
     """Send a message to the AI Co-Founder agent."""
     session_id = request.session_id or str(uuid.uuid4())
     user_id = user.user_id
@@ -135,8 +138,8 @@ async def chat(request: ChatRequest, user: ClerkUser = Depends(require_auth)):
                 goal=request.message,
             )
             session["episode_id"] = episode_id
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to start episodic memory episode (non-blocking): {e}")
     else:
         state = session["state"]
         episode_id = session.get("episode_id")
@@ -162,8 +165,8 @@ async def chat(request: ChatRequest, user: ClerkUser = Depends(require_auth)):
                     status="success" if result.get("is_complete") else "in_progress",
                     files_created=list(result.get("working_files", {}).keys()),
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to update episodic memory (non-blocking): {e}")
 
         # Store in semantic memory
         try:
@@ -173,8 +176,8 @@ async def chat(request: ChatRequest, user: ClerkUser = Depends(require_auth)):
                 user_id=user_id,
                 project_id=request.project_id,
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to store in semantic memory (non-blocking): {e}")
 
         return ChatResponse(
             session_id=session_id,
@@ -192,13 +195,13 @@ async def chat(request: ChatRequest, user: ClerkUser = Depends(require_auth)):
                     status="failed",
                     final_error=str(e),
                 )
-            except Exception:
-                pass
+            except Exception as ex:
+                logger.warning(f"Failed to mark episode as failed (non-blocking): {ex}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/chat/stream")
-async def chat_stream(request: ChatRequest, user: ClerkUser = Depends(require_auth)):
+async def chat_stream(request: ChatRequest, user: ClerkUser = Depends(require_subscription)):
     """Stream agent responses via SSE."""
     session_id = request.session_id or str(uuid.uuid4())
     session = await _get_session(session_id)
@@ -253,7 +256,7 @@ async def chat_stream(request: ChatRequest, user: ClerkUser = Depends(require_au
 
 @router.post("/sessions/{session_id}/resume")
 async def resume_session(
-    session_id: str, action: str = "continue", user: ClerkUser = Depends(require_auth)
+    session_id: str, action: str = "continue", user: ClerkUser = Depends(require_subscription)
 ):
     """Resume a paused session after human review."""
     session = await _get_session(session_id)

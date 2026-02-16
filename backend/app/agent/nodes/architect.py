@@ -3,11 +3,15 @@
 Uses Claude Opus for complex reasoning and planning.
 """
 
+import logging
+
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.agent.state import CoFounderState, PlanStep
 from app.core.llm_config import create_tracked_llm
 from app.memory.mem0_client import get_semantic_memory
+
+logger = logging.getLogger(__name__)
 
 ARCHITECT_SYSTEM_PROMPT = """You are the Architect of an AI Technical Co-Founder system.
 Your role is to analyze the user's goal and create a detailed, step-by-step execution plan.
@@ -62,8 +66,8 @@ async def architect_node(state: CoFounderState) -> dict:
             project_id=state["project_id"],
             task_context=state["current_goal"],
         )
-    except Exception:
-        pass  # Memory is optional
+    except Exception as e:
+        logger.warning(f"Semantic memory context retrieval failed (non-blocking): {e}")
 
     # Build context from messages and goal
     context = f"""

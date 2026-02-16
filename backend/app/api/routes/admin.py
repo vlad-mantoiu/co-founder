@@ -277,9 +277,9 @@ def _tier_to_response(tier: PlanTier) -> PlanTierResponse:
 
 def _apply_period_filter(query, period: str):
     """Apply a date filter based on period string."""
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     if period == "today":
         start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     elif period == "week":
