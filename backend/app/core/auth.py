@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 
 import jwt as pyjwt
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt import PyJWKClient
 from sqlalchemy import select
@@ -13,6 +13,9 @@ from sqlalchemy import select
 from app.core.config import get_settings
 
 _bearer_scheme = HTTPBearer(auto_error=False)
+
+# In-memory cache of provisioned user IDs to avoid DB queries on every request
+_provisioned_cache: set[str] = set()
 
 
 def _extract_frontend_api_domain(pk: str) -> str:
@@ -90,10 +93,24 @@ def decode_clerk_jwt(token: str) -> ClerkUser:
     return ClerkUser(user_id=sub, claims=payload)
 
 
+def is_admin_user(user: ClerkUser) -> bool:
+    """Check if user has admin role via Clerk JWT metadata.
+
+    This is a lightweight JWT-only check for use in route handlers
+    when they need to conditionally bypass user filtering.
+    Does not check the database.
+    """
+    public_metadata = user.claims.get("public_metadata", {})
+    return public_metadata.get("admin") is True
+
+
 async def require_auth(
+    request: Request,
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
 ) -> ClerkUser:
     """FastAPI dependency that extracts and validates the Clerk JWT.
+
+    Also handles auto-provisioning of new users on first API call.
 
     Usage::
 
@@ -112,6 +129,46 @@ async def require_auth(
         settings = get_settings()
         if azp not in settings.clerk_allowed_origins:
             raise HTTPException(status_code=401, detail="Unauthorized origin (azp mismatch)")
+
+    # Auto-provision new users (with in-memory cache to avoid DB query on every request)
+    if user.user_id not in _provisioned_cache:
+        from app.core.provisioning import provision_user_on_first_login
+        await provision_user_on_first_login(user.user_id, user.claims)
+        _provisioned_cache.add(user.user_id)
+
+    # Set user_id on request state for downstream use (error handlers, audit logging)
+    request.state.user_id = user.user_id
+
+    return user
+
+
+async def require_subscription(user: ClerkUser = Depends(require_auth)) -> ClerkUser:
+    """FastAPI dependency that requires an active Stripe subscription.
+
+    Allows access if the user has stripe_subscription_status of 'active' or 'trialing',
+    or if the user is an admin.
+    """
+    from app.db.base import get_session_factory
+    from app.db.models.user_settings import UserSettings
+
+    factory = get_session_factory()
+    async with factory() as session:
+        result = await session.execute(
+            select(UserSettings).where(
+                UserSettings.clerk_user_id == user.user_id,
+            )
+        )
+        settings = result.scalar_one_or_none()
+
+        # Admins bypass subscription check
+        if settings and settings.is_admin:
+            return user
+
+        if settings is None or settings.stripe_subscription_status not in ("active", "trialing"):
+            raise HTTPException(
+                status_code=403,
+                detail="Active subscription required. Please subscribe to a plan at /pricing.",
+            )
 
     return user
 
