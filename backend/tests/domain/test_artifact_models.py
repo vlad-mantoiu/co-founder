@@ -15,6 +15,7 @@ from app.schemas.artifacts import (
     ArtifactAnnotation,
     GENERATION_ORDER,
 )
+from app.agent.runner_fake import RunnerFake
 
 
 class TestArtifactTypeEnum:
@@ -255,3 +256,92 @@ class TestAnnotationSchema:
         assert annotation.section_id == "problem_statement"
         assert "more detail" in annotation.note
         assert isinstance(annotation.created_at, datetime)
+
+
+class TestRunnerFakeArtifactGeneration:
+    """Test RunnerFake generates structured artifacts matching Pydantic schemas."""
+
+    @pytest.mark.asyncio
+    async def test_runner_fake_generate_artifacts_returns_all_five_types(self):
+        """RunnerFake.generate_artifacts returns dict with keys matching all 5 ArtifactType values."""
+        runner = RunnerFake(scenario="happy_path")
+        result = await runner.generate_artifacts({"problem": "test inventory tracking"})
+
+        assert isinstance(result, dict)
+        assert len(result) == 5
+        assert "brief" in result
+        assert "mvp_scope" in result
+        assert "milestones" in result
+        assert "risk_log" in result
+        assert "how_it_works" in result
+
+    @pytest.mark.asyncio
+    async def test_runner_fake_generate_artifacts_brief_matches_schema(self):
+        """ProductBriefContent.model_validate(result['brief']) succeeds."""
+        runner = RunnerFake(scenario="happy_path")
+        result = await runner.generate_artifacts({"problem": "test inventory tracking"})
+
+        # Should validate without errors
+        brief = ProductBriefContent.model_validate(result["brief"])
+        assert brief.problem_statement is not None
+        assert brief.target_user is not None
+        assert brief.value_proposition is not None
+        assert brief.key_constraint is not None
+        assert len(brief.differentiation_points) > 0
+        assert brief._schema_version == 1
+
+    @pytest.mark.asyncio
+    async def test_runner_fake_generate_artifacts_mvp_matches_schema(self):
+        """MvpScopeContent.model_validate(result['mvp_scope']) succeeds."""
+        runner = RunnerFake(scenario="happy_path")
+        result = await runner.generate_artifacts({"problem": "test inventory tracking"})
+
+        mvp = MvpScopeContent.model_validate(result["mvp_scope"])
+        assert len(mvp.core_features) > 0
+        assert len(mvp.out_of_scope) > 0
+        assert len(mvp.success_metrics) > 0
+        assert mvp._schema_version == 1
+
+    @pytest.mark.asyncio
+    async def test_runner_fake_generate_artifacts_milestones_matches_schema(self):
+        """MilestonesContent.model_validate(result['milestones']) succeeds."""
+        runner = RunnerFake(scenario="happy_path")
+        result = await runner.generate_artifacts({"problem": "test inventory tracking"})
+
+        milestones = MilestonesContent.model_validate(result["milestones"])
+        assert len(milestones.milestones) > 0
+        assert len(milestones.critical_path) > 0
+        assert milestones.total_duration_weeks > 0
+        assert milestones._schema_version == 1
+
+    @pytest.mark.asyncio
+    async def test_runner_fake_generate_artifacts_risks_matches_schema(self):
+        """RiskLogContent.model_validate(result['risk_log']) succeeds."""
+        runner = RunnerFake(scenario="happy_path")
+        result = await runner.generate_artifacts({"problem": "test inventory tracking"})
+
+        risks = RiskLogContent.model_validate(result["risk_log"])
+        assert len(risks.technical_risks) > 0
+        assert len(risks.market_risks) > 0
+        assert len(risks.execution_risks) > 0
+        assert risks._schema_version == 1
+
+    @pytest.mark.asyncio
+    async def test_runner_fake_generate_artifacts_how_it_works_matches_schema(self):
+        """HowItWorksContent.model_validate(result['how_it_works']) succeeds."""
+        runner = RunnerFake(scenario="happy_path")
+        result = await runner.generate_artifacts({"problem": "test inventory tracking"})
+
+        how_it_works = HowItWorksContent.model_validate(result["how_it_works"])
+        assert len(how_it_works.user_journey) > 0
+        assert how_it_works.architecture is not None
+        assert how_it_works.data_flow is not None
+        assert how_it_works._schema_version == 1
+
+    @pytest.mark.asyncio
+    async def test_runner_fake_generate_artifacts_llm_failure(self):
+        """Raises RuntimeError for llm_failure scenario."""
+        runner = RunnerFake(scenario="llm_failure")
+
+        with pytest.raises(RuntimeError, match="Anthropic API rate limit exceeded"):
+            await runner.generate_artifacts({"problem": "test"})
