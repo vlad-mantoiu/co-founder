@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-16)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** Phase 4 (Onboarding & Idea Capture)
+**Current focus:** Phase 5 (Capacity Queue Worker Model)
 
 ## Current Position
 
-Phase: 4 of 10 (Onboarding & Idea Capture)
-Plan: 4 of 4 completed
-Status: Complete
-Last activity: 2026-02-16 — Completed 04-04-PLAN.md (Project creation from onboarding with resumption UI and integration tests)
+Phase: 5 of 10 (Capacity Queue Worker Model)
+Plan: 1 of 5 completed
+Status: In Progress
+Last activity: 2026-02-16 — Completed 05-01-PLAN.md (Job queue foundation with Redis priority queue and Job model)
 
-Progress: [████████▒▒] 100%
+Progress: [████████▓▒] 20%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 15
-- Average duration: 3.3 min
-- Total execution time: 0.83 hours
+- Total plans completed: 16
+- Average duration: 3.4 min
+- Total execution time: 0.88 hours
 
 **By Phase:**
 
@@ -31,10 +31,11 @@ Progress: [████████▒▒] 100%
 | 02    | 4     | 12 min | 3.0 min  |
 | 03    | 4     | 20 min | 5.0 min  |
 | 04    | 4     | 14 min | 3.5 min  |
+| 05    | 1     | 3 min  | 3.0 min  |
 
 **Recent Trend:**
-- Last 5 plans: 04-01 (3 min), 04-02 (4 min), 04-03 (2 min), 04-04 (5 min)
-- Trend: Phase 4 COMPLETE - onboarding flow, project creation, and resumption all functional
+- Last 5 plans: 04-02 (4 min), 04-03 (2 min), 04-04 (5 min), 05-01 (3 min)
+- Trend: Phase 5 started - queue foundation with Redis priority queue complete
 
 *Updated after each plan completion*
 
@@ -55,6 +56,7 @@ Progress: [████████▒▒] 100%
 | 04-02     | 4 min    | 2 tasks     | 4 files  |
 | 04-03     | 2 min    | 4 tasks     | 8 files  |
 | 04-04     | 5 min    | 2 tasks     | 6 files  |
+| 05-01     | 3 min    | 1 task      | 6 files  |
 
 ## Accumulated Context
 
@@ -109,6 +111,10 @@ Recent decisions affecting current work:
 - [Phase 04-03]: Optimistic updates for thesis field editing with immediate UI response
 - [Phase 04]: Project names truncated to 50 chars with ellipsis, full idea_text in description
 - [Phase 04]: Welcome back screen fetches active sessions on mount, shows continue/start fresh choice
+- [Phase 05-01]: Redis sorted set for O(log N) priority queue operations (ZADD/ZPOPMIN/ZRANK)
+- [Phase 05-01]: Composite score formula (1000-boost)*1e12+counter for tier priority with FIFO tiebreaker
+- [Phase 05-01]: Global cap of 100 jobs with retry estimation (2min/job / avg concurrency)
+- [Phase 05-01]: fakeredis for isolated async testing without Docker dependency
 
 ### Pending Todos
 
@@ -144,8 +150,8 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-16 (execute-phase)
-Stopped at: Completed 04-04-PLAN.md
-Resume file: .planning/phases/04-onboarding-idea-capture/04-04-SUMMARY.md
+Stopped at: Completed 05-01-PLAN.md
+Resume file: .planning/phases/05-capacity-queue-worker-model/05-01-SUMMARY.md
 
 ---
-*Phase 04 COMPLETE — onboarding flow end-to-end: idea capture → questions → thesis generation → project creation → resumption*
+*Phase 05 IN PROGRESS — Plan 01 complete: Redis priority queue foundation with tier boost and Job model*
