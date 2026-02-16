@@ -161,9 +161,9 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-16 (execute-phase)
-Stopped at: Completed 05-03-PLAN.md
-Resume file: .planning/phases/05-capacity-queue-worker-model/05-03-SUMMARY.md
+Last session: 2026-02-17 (execute-phase)
+Stopped at: Completed 05-02-PLAN.md
+Resume file: .planning/phases/05-capacity-queue-worker-model/05-02-SUMMARY.md
 
 ---
-*Phase 05 IN PROGRESS — Plan 01 complete: Redis priority queue foundation with tier boost and Job model*
+*Phase 05 IN PROGRESS — Plan 02 complete: Distributed concurrency primitives (semaphore + estimator)*
