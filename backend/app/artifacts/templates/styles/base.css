@@ -1,0 +1,321 @@
+/* Base PDF styles for Co-Founder artifact PDFs */
+
+/* Page setup with headers and footers */
+@page {
+  size: Letter;
+  margin: 2cm;
+
+  /* Header with document title */
+  @top-center {
+    content: string(doc-title);
+    font-size: 9pt;
+    color: #64748b;
+    padding-bottom: 0.5cm;
+    border-bottom: 1pt solid #e2e8f0;
+  }
+
+  /* Footer with page numbers */
+  @bottom-right {
+    content: "Page " counter(page) " of " counter(pages);
+    font-size: 9pt;
+    color: #64748b;
+  }
+
+  /* Footer with branding */
+  @bottom-left {
+    content: string(branding-text);
+    font-size: 9pt;
+    color: #64748b;
+  }
+}
+
+/* Cover page has no header/footer */
+@page cover {
+  @top-center {
+    content: none;
+  }
+  @bottom-left {
+    content: none;
+  }
+  @bottom-right {
+    content: none;
+  }
+}
+
+/* Chapter pages for combined PDF */
+@page chapter {
+  @top-center {
+    content: string(chapter-title);
+    font-size: 9pt;
+    color: #64748b;
+    padding-bottom: 0.5cm;
+    border-bottom: 1pt solid #e2e8f0;
+  }
+}
+
+/* Typography */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", "Noto Sans", sans-serif;
+  font-size: 11pt;
+  line-height: 1.6;
+  color: #1e293b;
+}
+
+/* Cover page */
+.cover {
+  page: cover;
+  height: 100vh;
+  display: table;
+  width: 100%;
+}
+
+.cover-content {
+  display: table-cell;
+  vertical-align: middle;
+  text-align: center;
+}
+
+.cover h1 {
+  font-size: 32pt;
+  font-weight: 700;
+  color: var(--brand-primary, #2563eb);
+  margin-bottom: 1cm;
+  line-height: 1.2;
+}
+
+.cover h2 {
+  font-size: 18pt;
+  font-weight: 400;
+  color: #64748b;
+  margin-bottom: 2cm;
+}
+
+.cover .meta {
+  font-size: 10pt;
+  color: #94a3b8;
+  margin-top: 3cm;
+}
+
+.cover .branding {
+  font-size: 12pt;
+  color: var(--brand-accent, #2563eb);
+  margin-top: 1cm;
+  font-weight: 500;
+}
+
+/* Headings */
+h1 {
+  font-size: 22pt;
+  font-weight: 700;
+  color: var(--brand-primary, #2563eb);
+  margin-bottom: 0.5cm;
+  margin-top: 1cm;
+  page-break-after: avoid;
+  string-set: doc-title content();
+}
+
+h2 {
+  font-size: 16pt;
+  font-weight: 700;
+  color: #1e293b;
+  margin-top: 0.8cm;
+  margin-bottom: 0.4cm;
+  page-break-after: avoid;
+  border-bottom: 2pt solid var(--brand-accent, #2563eb);
+  padding-bottom: 0.2cm;
+}
+
+h3 {
+  font-size: 13pt;
+  font-weight: 600;
+  color: #334155;
+  margin-top: 0.6cm;
+  margin-bottom: 0.3cm;
+  page-break-after: avoid;
+}
+
+h4 {
+  font-size: 11pt;
+  font-weight: 600;
+  color: #475569;
+  margin-top: 0.4cm;
+  margin-bottom: 0.2cm;
+  page-break-after: avoid;
+}
+
+/* Paragraphs and lists */
+p {
+  margin-bottom: 0.4cm;
+  text-align: justify;
+}
+
+ul, ol {
+  margin-left: 0.8cm;
+  margin-bottom: 0.4cm;
+}
+
+li {
+  margin-bottom: 0.2cm;
+}
+
+/* Tables */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0.6cm;
+  page-break-inside: avoid;
+}
+
+thead {
+  background-color: var(--brand-primary, #2563eb);
+  color: white;
+}
+
+th {
+  padding: 0.3cm;
+  text-align: left;
+  font-weight: 600;
+  font-size: 10pt;
+}
+
+td {
+  padding: 0.3cm;
+  border-bottom: 1pt solid #e2e8f0;
+  font-size: 10pt;
+}
+
+tbody tr:nth-child(even) {
+  background-color: #f8fafc;
+}
+
+/* Section dividers */
+.section-divider {
+  width: 100%;
+  height: 3pt;
+  background: linear-gradient(to right, var(--brand-primary, #2563eb), var(--brand-accent, #2563eb));
+  margin: 0.8cm 0;
+}
+
+/* Risk severity badges */
+.risk-badge {
+  display: inline-block;
+  padding: 0.1cm 0.3cm;
+  border-radius: 0.1cm;
+  font-size: 9pt;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.risk-high {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+.risk-medium {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.risk-low {
+  background-color: #dcfce7;
+  color: #166534;
+}
+
+/* Milestone timeline */
+.milestone-list {
+  list-style: none;
+  margin-left: 0;
+}
+
+.milestone-item {
+  padding-left: 1cm;
+  margin-bottom: 0.4cm;
+  position: relative;
+  page-break-inside: avoid;
+}
+
+.milestone-item::before {
+  content: "◆";
+  color: var(--brand-primary, #2563eb);
+  font-size: 14pt;
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.milestone-week {
+  font-weight: 600;
+  color: var(--brand-primary, #2563eb);
+  font-size: 10pt;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Cross-reference callouts */
+.callout {
+  background-color: #f1f5f9;
+  border-left: 4pt solid var(--brand-accent, #2563eb);
+  padding: 0.4cm;
+  margin: 0.6cm 0;
+  page-break-inside: avoid;
+}
+
+.callout-title {
+  font-weight: 600;
+  color: var(--brand-primary, #2563eb);
+  margin-bottom: 0.2cm;
+}
+
+/* Page breaks */
+.page-break {
+  page-break-before: always;
+}
+
+section {
+  page-break-inside: avoid;
+}
+
+/* Table of contents */
+.toc {
+  margin-bottom: 1cm;
+}
+
+.toc-entry {
+  margin-bottom: 0.3cm;
+  display: block;
+  text-decoration: none;
+  color: #1e293b;
+  position: relative;
+}
+
+.toc-entry::after {
+  content: target-counter(attr(href), page);
+  float: right;
+  color: #64748b;
+}
+
+.toc-entry:hover {
+  color: var(--brand-primary, #2563eb);
+}
+
+/* Chapter structure for combined PDF */
+.chapter {
+  page: chapter;
+  page-break-before: always;
+  string-set: chapter-title attr(data-chapter-title);
+}
+
+/* String sets for headers */
+.doc-title {
+  string-set: doc-title content();
+}
+
+.branding-text {
+  string-set: branding-text content();
+}

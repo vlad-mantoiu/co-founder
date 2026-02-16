@@ -1,0 +1,271 @@
+---
+artifact_type: {{ artifact_type "></a>"></a>
+startup: {{ startup_name "></a>"></a>
+generated: {{ generated_date "></a>"></a>
+tier: {{ tier "></a>"></a>
+---
+
+# {% if artifact_type == "brief" %"></a>Product Brief{% elif artifact_type == "mvp_scope" %"></a>MVP Scope{% elif artifact_type == "milestones" %"></a>Milestones{% elif artifact_type == "risk_log" %"></a>Risk Log{% elif artifact_type == "how_it_works" %"></a>How It Works{% endif %"></a>
+
+## Technical Specifications
+
+{% if artifact_type == "brief" %"></a>
+### Problem Statement
+
+{{ artifact.problem_statement "></a>"></a>
+
+### Target User
+
+{{ artifact.target_user "></a>"></a>
+
+### Value Proposition
+
+{{ artifact.value_proposition "></a>"></a>
+
+### Key Constraint
+
+{{ artifact.key_constraint "></a>"></a>
+
+### Differentiation Points
+
+{% for point in artifact.differentiation_points %"></a>
+- {{ point "></a>"></a>
+{% endfor %"></a>
+
+{% if tier in ["partner", "cto"] and artifact.market_analysis %"></a>
+### Market Analysis
+
+{{ artifact.market_analysis "></a>"></a>
+{% endif %"></a>
+
+{% if tier == "cto" and artifact.competitive_strategy %"></a>
+### Competitive Strategy
+
+{{ artifact.competitive_strategy "></a>"></a>
+{% endif %"></a>
+
+{% elif artifact_type == "mvp_scope" %"></a>
+### Core Features <a name="core-features"></a>
+
+{% for feature in artifact.core_features %"></a>
+#### {{ feature.name "></a>"></a>
+
+```
+Feature: {{ feature.name "></a>"></a>
+Description: {{ feature.description "></a>"></a>
+{% if feature.get("priority") %"></a>Priority: {{ feature.priority "></a>"></a>{% endif %"></a>
+{% if feature.get("effort") %"></a>Effort: {{ feature.effort "></a>"></a>{% endif %"></a>
+```
+
+{{ feature.description "></a>"></a>
+
+{% if feature.get("acceptance_criteria") %"></a>
+**Acceptance Criteria:**
+{% for criterion in feature.acceptance_criteria %"></a>
+- [ ] {{ criterion "></a>"></a>
+{% endfor %"></a>
+{% endif %"></a>
+{% endfor %"></a>
+
+### Out of Scope <a name="out-of-scope"></a>
+
+{% for item in artifact.out_of_scope %"></a>
+- {{ item "></a>"></a>
+{% endfor %"></a>
+
+### Success Metrics <a name="success-metrics"></a>
+
+{% for metric in artifact.success_metrics %"></a>
+- {{ metric "></a>"></a>
+{% endfor %"></a>
+
+{% if tier in ["partner", "cto"] and artifact.technical_architecture %"></a>
+### Technical Architecture <a name="technical-architecture"></a>
+
+```
+Architecture Overview:
+{{ artifact.technical_architecture "></a>"></a>
+```
+{% endif %"></a>
+
+{% if tier == "cto" and artifact.scalability_plan %"></a>
+### Scalability Plan <a name="scalability-plan"></a>
+
+{{ artifact.scalability_plan "></a>"></a>
+{% endif %"></a>
+
+{% elif artifact_type == "milestones" %"></a>
+### Timeline <a name="timeline"></a>
+
+{% for milestone in artifact.milestones %"></a>
+#### {{ milestone.name "></a>"></a> - Week {{ milestone.week "></a>"></a> <a name="milestone-{{ loop.index "></a>"></a>"></a>
+
+{{ milestone.description "></a>"></a>
+
+**Deliverables:**
+{% for deliverable in milestone.deliverables %"></a>
+- [ ] {{ deliverable "></a>"></a>
+{% endfor %"></a>
+{% endfor %"></a>
+
+### Critical Path <a name="critical-path"></a>
+
+{% for item in artifact.critical_path %"></a>
+- {{ item "></a>"></a>
+{% endfor %"></a>
+
+**Total Duration:** {{ artifact.total_duration_weeks "></a>"></a> weeks
+
+{% if tier in ["partner", "cto"] and artifact.resource_plan %"></a>
+### Resource Plan <a name="resource-plan"></a>
+
+{{ artifact.resource_plan "></a>"></a>
+{% endif %"></a>
+
+{% if tier == "cto" and artifact.risk_mitigation_timeline %"></a>
+### Risk Mitigation Timeline <a name="risk-mitigation-timeline"></a>
+
+{{ artifact.risk_mitigation_timeline "></a>"></a>
+{% endif %"></a>
+
+{% elif artifact_type == "risk_log" %"></a>
+### Technical Risks <a name="technical-risks"></a>
+
+{% for risk in artifact.technical_risks %"></a>
+#### **[{{ risk.severity|upper "></a>"></a>]** {{ risk.title "></a>"></a> <a name="tech-risk-{{ loop.index "></a>"></a>"></a>
+
+{{ risk.description "></a>"></a>
+
+**Mitigation Strategy:**
+{{ risk.mitigation "></a>"></a>
+
+{% if risk.get("likelihood") %"></a>**Likelihood:** {{ risk.likelihood "></a>"></a>{% endif %"></a>
+{% if risk.get("impact") %"></a>**Impact:** {{ risk.impact "></a>"></a>{% endif %"></a>
+
+---
+{% endfor %"></a>
+
+### Market Risks <a name="market-risks"></a>
+
+{% for risk in artifact.market_risks %"></a>
+#### **[{{ risk.severity|upper "></a>"></a>]** {{ risk.title "></a>"></a> <a name="market-risk-{{ loop.index "></a>"></a>"></a>
+
+{{ risk.description "></a>"></a>
+
+**Mitigation Strategy:**
+{{ risk.mitigation "></a>"></a>
+
+{% if risk.get("likelihood") %"></a>**Likelihood:** {{ risk.likelihood "></a>"></a>{% endif %"></a>
+{% if risk.get("impact") %"></a>**Impact:** {{ risk.impact "></a>"></a>{% endif %"></a>
+
+---
+{% endfor %"></a>
+
+### Execution Risks <a name="execution-risks"></a>
+
+{% for risk in artifact.execution_risks %"></a>
+#### **[{{ risk.severity|upper "></a>"></a>]** {{ risk.title "></a>"></a> <a name="exec-risk-{{ loop.index "></a>"></a>"></a>
+
+{{ risk.description "></a>"></a>
+
+**Mitigation Strategy:**
+{{ risk.mitigation "></a>"></a>
+
+{% if risk.get("likelihood") %"></a>**Likelihood:** {{ risk.likelihood "></a>"></a>{% endif %"></a>
+{% if risk.get("impact") %"></a>**Impact:** {{ risk.impact "></a>"></a>{% endif %"></a>
+
+---
+{% endfor %"></a>
+
+{% if tier in ["partner", "cto"] and artifact.financial_risks %"></a>
+### Financial Risks <a name="financial-risks"></a>
+
+{% for risk in artifact.financial_risks %"></a>
+#### **[{{ risk.severity|upper "></a>"></a>]** {{ risk.title "></a>"></a> <a name="fin-risk-{{ loop.index "></a>"></a>"></a>
+
+{{ risk.description "></a>"></a>
+
+**Mitigation Strategy:**
+{{ risk.mitigation "></a>"></a>
+
+---
+{% endfor %"></a>
+{% endif %"></a>
+
+{% if tier == "cto" and artifact.strategic_risks %"></a>
+### Strategic Risks <a name="strategic-risks"></a>
+
+{% for risk in artifact.strategic_risks %"></a>
+#### **[{{ risk.severity|upper "></a>"></a>]** {{ risk.title "></a>"></a> <a name="strat-risk-{{ loop.index "></a>"></a>"></a>
+
+{{ risk.description "></a>"></a>
+
+**Mitigation Strategy:**
+{{ risk.mitigation "></a>"></a>
+
+---
+{% endfor %"></a>
+{% endif %"></a>
+
+{% elif artifact_type == "how_it_works" %"></a>
+### User Journey <a name="user-journey"></a>
+
+```mermaid
+graph TD
+{% for step in artifact.user_journey %"></a>
+    Step{{ step.step_number "></a>"></a>[{{ step.title "></a>"></a>]
+{% endfor %"></a>
+{% for step in artifact.user_journey %"></a>
+{% if not loop.last %"></a>
+    Step{{ step.step_number "></a>"></a> --> Step{{ step.step_number + 1 "></a>"></a>
+{% endif %"></a>
+{% endfor %"></a>
+```
+
+{% for step in artifact.user_journey %"></a>
+#### Step {{ step.step_number "></a>"></a>: {{ step.title "></a>"></a> <a name="step-{{ step.step_number "></a>"></a>"></a>
+
+{{ step.description "></a>"></a>
+
+{% if step.get("user_actions") %"></a>
+**User Actions:**
+{% for action in step.user_actions %"></a>
+- {{ action "></a>"></a>
+{% endfor %"></a>
+{% endif %"></a>
+
+{% if step.get("system_response") %"></a>
+**System Response:**
+```
+{{ step.system_response "></a>"></a>
+```
+{% endif %"></a>
+
+---
+{% endfor %"></a>
+
+### Architecture <a name="architecture"></a>
+
+```
+{{ artifact.architecture "></a>"></a>
+```
+
+### Data Flow <a name="data-flow"></a>
+
+```
+{{ artifact.data_flow "></a>"></a>
+```
+
+{% if tier in ["partner", "cto"] and artifact.integration_points %"></a>
+### Integration Points <a name="integration-points"></a>
+
+{{ artifact.integration_points "></a>"></a>
+{% endif %"></a>
+
+{% if tier == "cto" and artifact.security_compliance %"></a>
+### Security & Compliance <a name="security-compliance"></a>
+
+{{ artifact.security_compliance "></a>"></a>
+{% endif %"></a>
+
+{% endif %"></a>

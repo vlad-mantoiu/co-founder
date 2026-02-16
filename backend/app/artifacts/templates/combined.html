@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>{{ startup_name }} - Strategy Package</title>
+    <link rel="stylesheet" href="styles/base.css">
+    <link rel="stylesheet" href="styles/brand.css">
+</head>
+<body class="tier-{{ tier }}">
+    <!-- Cover page -->
+    <div class="cover">
+        <div class="cover-content">
+            {% if tier == 'bootstrapper' %}
+            <div class="cover-logo"></div>
+            {% endif %}
+
+            <h1>{{ startup_name }}</h1>
+            <h2>Strategy Package</h2>
+
+            <div class="meta">
+                Generated {{ generated_date }}
+            </div>
+
+            {% if branding %}
+            <div class="branding">{{ branding }}</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Table of Contents -->
+    <div class="page-break"></div>
+    <h1>Table of Contents</h1>
+    <div class="toc">
+        <a href="#chapter-brief" class="toc-entry">1. Product Brief</a>
+        <a href="#chapter-mvp" class="toc-entry">2. MVP Scope</a>
+        <a href="#chapter-milestones" class="toc-entry">3. Milestones & Timeline</a>
+        <a href="#chapter-risks" class="toc-entry">4. Risk Log</a>
+        <a href="#chapter-how" class="toc-entry">5. How It Works</a>
+    </div>
+
+    <!-- Chapter 1: Product Brief -->
+    <section class="chapter" id="chapter-brief" data-chapter-title="{{ startup_name }} - Product Brief">
+        <h1>1. Product Brief</h1>
+
+        <h2>Problem Statement</h2>
+        <p>{{ brief.problem_statement }}</p>
+
+        <h2>Target User</h2>
+        <p>{{ brief.target_user }}</p>
+
+        <h2>Value Proposition</h2>
+        <p>{{ brief.value_proposition }}</p>
+
+        <h2>Key Constraint</h2>
+        <p>{{ brief.key_constraint }}</p>
+
+        <h2>Differentiation</h2>
+        <p>What makes us different from existing alternatives:</p>
+        <ul>
+        {% for point in brief.differentiation_points %}
+            <li>{{ point }}</li>
+        {% endfor %}
+        </ul>
+
+        {% if brief.market_analysis %}
+        <div class="section-divider"></div>
+        <h2>Market Analysis</h2>
+        <p>{{ brief.market_analysis }}</p>
+        {% endif %}
+
+        {% if brief.competitive_strategy %}
+        <div class="section-divider"></div>
+        <h2>Competitive Strategy</h2>
+        <p>{{ brief.competitive_strategy }}</p>
+        {% endif %}
+    </section>
+
+    <!-- Chapter 2: MVP Scope -->
+    <section class="chapter" id="chapter-mvp" data-chapter-title="{{ startup_name }} - MVP Scope">
+        <h1>2. MVP Scope</h1>
+
+        <h2>Core Features</h2>
+        <p>We're building these features for our MVP:</p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Feature</th>
+                    <th>Description</th>
+                    <th>Priority</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for feature in mvp_scope.core_features %}
+                <tr>
+                    <td><strong>{{ feature.name }}</strong></td>
+                    <td>{{ feature.description }}</td>
+                    <td>{{ feature.priority }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+
+        <h2>Out of Scope</h2>
+        <p>What we're <strong>NOT</strong> building in this MVP:</p>
+        <ul>
+        {% for item in mvp_scope.out_of_scope %}
+            <li>{{ item }}</li>
+        {% endfor %}
+        </ul>
+
+        <h2>Success Metrics</h2>
+        <ul>
+        {% for metric in mvp_scope.success_metrics %}
+            <li>{{ metric }}</li>
+        {% endfor %}
+        </ul>
+
+        {% if mvp_scope.technical_architecture %}
+        <div class="section-divider"></div>
+        <h2>Technical Architecture</h2>
+        <p>{{ mvp_scope.technical_architecture }}</p>
+        {% endif %}
+
+        {% if mvp_scope.scalability_plan %}
+        <div class="section-divider"></div>
+        <h2>Scalability Plan</h2>
+        <p>{{ mvp_scope.scalability_plan }}</p>
+        {% endif %}
+    </section>
+
+    <!-- Chapter 3: Milestones -->
+    <section class="chapter" id="chapter-milestones" data-chapter-title="{{ startup_name }} - Milestones">
+        <h1>3. Milestones & Timeline</h1>
+
+        <div class="callout">
+            <div class="callout-title">Overview</div>
+            <p>Our path to MVP spans <strong>{{ milestones.total_duration_weeks }} weeks</strong>.</p>
+        </div>
+
+        <h2>Execution Timeline</h2>
+
+        <ul class="milestone-list">
+        {% for milestone in milestones.milestones %}
+            <li class="milestone-item">
+                <div class="milestone-week">Week {{ milestone.week }}</div>
+                <h3>{{ milestone.name }}</h3>
+                <p>{{ milestone.description }}</p>
+
+                {% if milestone.deliverables %}
+                <strong>Deliverables:</strong>
+                <ul>
+                {% for deliverable in milestone.deliverables %}
+                    <li>{{ deliverable }}</li>
+                {% endfor %}
+                </ul>
+                {% endif %}
+            </li>
+        {% endfor %}
+        </ul>
+
+        <h2>Critical Path</h2>
+        <ol>
+        {% for item in milestones.critical_path %}
+            <li>{{ item }}</li>
+        {% endfor %}
+        </ol>
+
+        {% if milestones.resource_plan %}
+        <div class="section-divider"></div>
+        <h2>Resource Plan</h2>
+        <p>{{ milestones.resource_plan }}</p>
+        {% endif %}
+
+        {% if milestones.risk_mitigation_timeline %}
+        <div class="section-divider"></div>
+        <h2>Risk Mitigation Timeline</h2>
+        <p>{{ milestones.risk_mitigation_timeline }}</p>
+        {% endif %}
+    </section>
+
+    <!-- Chapter 4: Risk Log -->
+    <section class="chapter" id="chapter-risks" data-chapter-title="{{ startup_name }} - Risk Log">
+        <h1>4. Risk Log</h1>
+
+        <h2>Technical Risks</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Risk</th>
+                    <th>Severity</th>
+                    <th>Mitigation</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for risk in risk_log.technical_risks %}
+                <tr>
+                    <td>{{ risk.risk }}</td>
+                    <td><span class="risk-badge risk-{{ risk.severity }}">{{ risk.severity }}</span></td>
+                    <td>{{ risk.mitigation }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+
+        <h2>Market Risks</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Risk</th>
+                    <th>Severity</th>
+                    <th>Mitigation</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for risk in risk_log.market_risks %}
+                <tr>
+                    <td>{{ risk.risk }}</td>
+                    <td><span class="risk-badge risk-{{ risk.severity }}">{{ risk.severity }}</span></td>
+                    <td>{{ risk.mitigation }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+
+        <h2>Execution Risks</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Risk</th>
+                    <th>Severity</th>
+                    <th>Mitigation</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for risk in risk_log.execution_risks %}
+                <tr>
+                    <td>{{ risk.risk }}</td>
+                    <td><span class="risk-badge risk-{{ risk.severity }}">{{ risk.severity }}</span></td>
+                    <td>{{ risk.mitigation }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+
+        {% if risk_log.financial_risks %}
+        <div class="section-divider"></div>
+        <h2>Financial Risks</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Risk</th>
+                    <th>Severity</th>
+                    <th>Mitigation</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for risk in risk_log.financial_risks %}
+                <tr>
+                    <td>{{ risk.risk }}</td>
+                    <td><span class="risk-badge risk-{{ risk.severity }}">{{ risk.severity }}</span></td>
+                    <td>{{ risk.mitigation }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
+        {% if risk_log.strategic_risks %}
+        <div class="section-divider"></div>
+        <h2>Strategic Risks</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Risk</th>
+                    <th>Severity</th>
+                    <th>Mitigation</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for risk in risk_log.strategic_risks %}
+                <tr>
+                    <td>{{ risk.risk }}</td>
+                    <td><span class="risk-badge risk-{{ risk.severity }}">{{ risk.severity }}</span></td>
+                    <td>{{ risk.mitigation }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+    </section>
+
+    <!-- Chapter 5: How It Works -->
+    <section class="chapter" id="chapter-how" data-chapter-title="{{ startup_name }} - How It Works">
+        <h1>5. How It Works</h1>
+
+        <h2>User Journey</h2>
+        <ol>
+        {% for step in how_it_works.user_journey %}
+            <li>
+                <h3>{{ step.step }}</h3>
+                <p><strong>Action:</strong> {{ step.action }}</p>
+                <p><strong>Outcome:</strong> {{ step.outcome }}</p>
+            </li>
+        {% endfor %}
+        </ol>
+
+        <h2>Technical Architecture</h2>
+        <p>{{ how_it_works.architecture }}</p>
+
+        <h2>Data Flow</h2>
+        <p>{{ how_it_works.data_flow }}</p>
+
+        {% if how_it_works.integration_points %}
+        <div class="section-divider"></div>
+        <h2>Integration Points</h2>
+        <p>{{ how_it_works.integration_points }}</p>
+        {% endif %}
+
+        {% if how_it_works.security_compliance %}
+        <div class="section-divider"></div>
+        <h2>Security & Compliance</h2>
+        <p>{{ how_it_works.security_compliance }}</p>
+        {% endif %}
+    </section>
+
+</body>
+</html>

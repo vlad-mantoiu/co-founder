@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block document_title %}Milestones & Timeline{% endblock %}
+{% block document_title_short %}Milestones{% endblock %}
+
+{% block content %}
+<h1>Milestones & Timeline</h1>
+
+<div class="callout">
+    <div class="callout-title">Overview</div>
+    <p>Our path to MVP spans <strong>{{ artifact.total_duration_weeks }} weeks</strong>, organized into focused milestones.</p>
+</div>
+
+<h2>Execution Timeline</h2>
+
+<ul class="milestone-list">
+{% for milestone in artifact.milestones %}
+    <li class="milestone-item">
+        <div class="milestone-week">Week {{ milestone.week }}</div>
+        <h3>{{ milestone.name }}</h3>
+        <p>{{ milestone.description }}</p>
+
+        {% if milestone.deliverables %}
+        <strong>Deliverables:</strong>
+        <ul>
+        {% for deliverable in milestone.deliverables %}
+            <li>{{ deliverable }}</li>
+        {% endfor %}
+        </ul>
+        {% endif %}
+    </li>
+{% endfor %}
+</ul>
+
+<h2>Critical Path</h2>
+<p>These items are on the critical path — any delay here delays the whole MVP:</p>
+<ol>
+{% for item in artifact.critical_path %}
+    <li>{{ item }}</li>
+{% endfor %}
+</ol>
+
+{% if artifact.resource_plan %}
+<div class="section-divider"></div>
+<h2>Resource Plan</h2>
+<p>{{ artifact.resource_plan }}</p>
+{% endif %}
+
+{% if artifact.risk_mitigation_timeline %}
+<div class="section-divider"></div>
+<h2>Risk Mitigation Timeline</h2>
+<p>{{ artifact.risk_mitigation_timeline }}</p>
+
+<div class="callout">
+    <div class="callout-title">Cross-Reference</div>
+    <p>Detailed risk analysis and mitigation strategies are documented in our <strong>Risk Log</strong>.</p>
+</div>
+{% endif %}
+{% endblock %}

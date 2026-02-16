@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block document_title %}Risk Log{% endblock %}
+{% block document_title_short %}Risk Log{% endblock %}
+
+{% block content %}
+<h1>Risk Log</h1>
+
+<div class="callout">
+    <div class="callout-title">Purpose</div>
+    <p>We're tracking risks proactively so we can mitigate them before they become blockers. This is a living document that guides our execution decisions.</p>
+</div>
+
+<h2>Technical Risks</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Risk</th>
+            <th>Severity</th>
+            <th>Mitigation</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for risk in artifact.technical_risks %}
+        <tr>
+            <td>{{ risk.risk }}</td>
+            <td><span class="risk-badge risk-{{ risk.severity }}">{{ risk.severity }}</span></td>
+            <td>{{ risk.mitigation }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<h2>Market Risks</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Risk</th>
+            <th>Severity</th>
+            <th>Mitigation</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for risk in artifact.market_risks %}
+        <tr>
+            <td>{{ risk.risk }}</td>
+            <td><span class="risk-badge risk-{{ risk.severity }}">{{ risk.severity }}</span></td>
+            <td>{{ risk.mitigation }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<h2>Execution Risks</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Risk</th>
+            <th>Severity</th>
+            <th>Mitigation</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for risk in artifact.execution_risks %}
+        <tr>
+            <td>{{ risk.risk }}</td>
+            <td><span class="risk-badge risk-{{ risk.severity }}">{{ risk.severity }}</span></td>
+            <td>{{ risk.mitigation }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+{% if artifact.financial_risks %}
+<div class="section-divider"></div>
+<h2>Financial Risks</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Risk</th>
+            <th>Severity</th>
+            <th>Mitigation</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for risk in artifact.financial_risks %}
+        <tr>
+            <td>{{ risk.risk }}</td>
+            <td><span class="risk-badge risk-{{ risk.severity }}">{{ risk.severity }}</span></td>
+            <td>{{ risk.mitigation }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+{% if artifact.strategic_risks %}
+<div class="section-divider"></div>
+<h2>Strategic Risks</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Risk</th>
+            <th>Severity</th>
+            <th>Mitigation</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for risk in artifact.strategic_risks %}
+        <tr>
+            <td>{{ risk.risk }}</td>
+            <td><span class="risk-badge risk-{{ risk.severity }}">{{ risk.severity }}</span></td>
+            <td>{{ risk.mitigation }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<div class="callout">
+    <div class="callout-title">Cross-Reference</div>
+    <p>Our <strong>Milestones</strong> document includes risk mitigation activities scheduled throughout the timeline.</p>
+</div>
+{% endif %}
+{% endblock %}

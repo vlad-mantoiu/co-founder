@@ -1,0 +1,256 @@
+# {{ startup_name }} - Product Documentation
+
+*Generated: {{ generated_date }}*
+
+## Table of Contents
+
+1. [Product Brief](#product-brief)
+2. [MVP Scope](#mvp-scope)
+3. [Milestones](#milestones)
+4. [Risk Log](#risk-log)
+5. [How It Works](#how-it-works)
+
+---
+
+# Product Brief
+
+{% if brief %}
+## Problem Statement
+
+{{ brief.problem_statement }}
+
+## Target User
+
+{{ brief.target_user }}
+
+## Value Proposition
+
+{{ brief.value_proposition }}
+
+## Key Constraint
+
+{{ brief.key_constraint }}
+
+## Differentiation Points
+
+{% for point in brief.differentiation_points %}
+- {{ point }}
+{% endfor %}
+
+{% if tier in ["partner", "cto"] and brief.market_analysis %}
+## Market Analysis
+
+{{ brief.market_analysis }}
+{% endif %}
+
+{% if tier == "cto" and brief.competitive_strategy %}
+## Competitive Strategy
+
+{{ brief.competitive_strategy }}
+{% endif %}
+{% endif %}
+
+---
+
+# MVP Scope
+
+{% if mvp_scope %}
+## Core Features
+
+{% for feature in mvp_scope.core_features %}
+### {{ feature.name }}
+
+{{ feature.description }}
+
+{% if feature.get("acceptance_criteria") %}
+**Acceptance Criteria:**
+{% for criterion in feature.acceptance_criteria %}
+- {{ criterion }}
+{% endfor %}
+{% endif %}
+{% endfor %}
+
+## Out of Scope
+
+{% for item in mvp_scope.out_of_scope %}
+- {{ item }}
+{% endfor %}
+
+## Success Metrics
+
+{% for metric in mvp_scope.success_metrics %}
+- {{ metric }}
+{% endfor %}
+
+{% if tier in ["partner", "cto"] and mvp_scope.technical_architecture %}
+## Technical Architecture
+
+{{ mvp_scope.technical_architecture }}
+{% endif %}
+
+{% if tier == "cto" and mvp_scope.scalability_plan %}
+## Scalability Plan
+
+{{ mvp_scope.scalability_plan }}
+{% endif %}
+{% endif %}
+
+---
+
+# Milestones
+
+{% if milestones %}
+## Timeline
+
+{% for milestone in milestones.milestones %}
+### {{ milestone.name }} (Week {{ milestone.week }})
+
+{{ milestone.description }}
+
+**Deliverables:**
+{% for deliverable in milestone.deliverables %}
+- {{ deliverable }}
+{% endfor %}
+{% endfor %}
+
+## Critical Path
+
+{% for item in milestones.critical_path %}
+- {{ item }}
+{% endfor %}
+
+**Total Duration:** {{ milestones.total_duration_weeks }} weeks
+
+{% if tier in ["partner", "cto"] and milestones.resource_plan %}
+## Resource Plan
+
+{{ milestones.resource_plan }}
+{% endif %}
+
+{% if tier == "cto" and milestones.risk_mitigation_timeline %}
+## Risk Mitigation Timeline
+
+{{ milestones.risk_mitigation_timeline }}
+{% endif %}
+{% endif %}
+
+---
+
+# Risk Log
+
+{% if risk_log %}
+## Technical Risks
+
+{% for risk in risk_log.technical_risks %}
+### {{ risk.title }}
+
+**Severity:** {{ risk.severity }}
+
+{{ risk.description }}
+
+**Mitigation:**
+{{ risk.mitigation }}
+{% endfor %}
+
+## Market Risks
+
+{% for risk in risk_log.market_risks %}
+### {{ risk.title }}
+
+**Severity:** {{ risk.severity }}
+
+{{ risk.description }}
+
+**Mitigation:**
+{{ risk.mitigation }}
+{% endfor %}
+
+## Execution Risks
+
+{% for risk in risk_log.execution_risks %}
+### {{ risk.title }}
+
+**Severity:** {{ risk.severity }}
+
+{{ risk.description }}
+
+**Mitigation:**
+{{ risk.mitigation }}
+{% endfor %}
+
+{% if tier in ["partner", "cto"] and risk_log.financial_risks %}
+## Financial Risks
+
+{% for risk in risk_log.financial_risks %}
+### {{ risk.title }}
+
+**Severity:** {{ risk.severity }}
+
+{{ risk.description }}
+
+**Mitigation:**
+{{ risk.mitigation }}
+{% endfor %}
+{% endif %}
+
+{% if tier == "cto" and risk_log.strategic_risks %}
+## Strategic Risks
+
+{% for risk in risk_log.strategic_risks %}
+### {{ risk.title }}
+
+**Severity:** {{ risk.severity }}
+
+{{ risk.description }}
+
+**Mitigation:**
+{{ risk.mitigation }}
+{% endfor %}
+{% endif %}
+{% endif %}
+
+---
+
+# How It Works
+
+{% if how_it_works %}
+## User Journey
+
+{% for step in how_it_works.user_journey %}
+### Step {{ step.step_number }}: {{ step.title }}
+
+{{ step.description }}
+
+{% if step.get("user_actions") %}
+**User Actions:**
+{% for action in step.user_actions %}
+- {{ action }}
+{% endfor %}
+{% endif %}
+
+{% if step.get("system_response") %}
+**System Response:**
+{{ step.system_response }}
+{% endif %}
+{% endfor %}
+
+## Architecture
+
+{{ how_it_works.architecture }}
+
+## Data Flow
+
+{{ how_it_works.data_flow }}
+
+{% if tier in ["partner", "cto"] and how_it_works.integration_points %}
+## Integration Points
+
+{{ how_it_works.integration_points }}
+{% endif %}
+
+{% if tier == "cto" and how_it_works.security_compliance %}
+## Security & Compliance
+
+{{ how_it_works.security_compliance }}
+{% endif %}
+{% endif %}

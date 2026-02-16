@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block document_title %}MVP Scope{% endblock %}
+{% block document_title_short %}MVP Scope{% endblock %}
+
+{% block content %}
+<h1>MVP Scope</h1>
+
+<div class="callout">
+    <div class="callout-title">Note</div>
+    <p>This scope is informed by our <strong>Product Brief</strong> and execution timeline in <strong>Milestones</strong>.</p>
+</div>
+
+<h2>Core Features</h2>
+<p>We're building these features for our MVP:</p>
+
+<table>
+    <thead>
+        <tr>
+            <th>Feature</th>
+            <th>Description</th>
+            <th>Priority</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for feature in artifact.core_features %}
+        <tr>
+            <td><strong>{{ feature.name }}</strong></td>
+            <td>{{ feature.description }}</td>
+            <td>{{ feature.priority }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<h2>Out of Scope</h2>
+<p>What we're <strong>NOT</strong> building in this MVP (to keep us focused):</p>
+<ul>
+{% for item in artifact.out_of_scope %}
+    <li>{{ item }}</li>
+{% endfor %}
+</ul>
+
+<h2>Success Metrics</h2>
+<p>We'll measure MVP success by:</p>
+<ul>
+{% for metric in artifact.success_metrics %}
+    <li>{{ metric }}</li>
+{% endfor %}
+</ul>
+
+{% if artifact.technical_architecture %}
+<div class="section-divider"></div>
+<h2>Technical Architecture</h2>
+<p>{{ artifact.technical_architecture }}</p>
+{% endif %}
+
+{% if artifact.scalability_plan %}
+<div class="section-divider"></div>
+<h2>Scalability Plan</h2>
+<p>{{ artifact.scalability_plan }}</p>
+
+<div class="callout">
+    <div class="callout-title">Cross-Reference</div>
+    <p>See <strong>Risk Log</strong> for scalability risks and mitigation strategies.</p>
+</div>
+{% endif %}
+{% endblock %}

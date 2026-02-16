@@ -1,0 +1,310 @@
+---
+artifact_type: combined
+startup: {{ startup_name }}
+generated: {{ generated_date }}
+tier: {{ tier }}
+---
+
+# {{ startup_name }} - Technical Documentation
+
+## Table of Contents
+
+1. [Product Brief](#product-brief)
+2. [MVP Scope](#mvp-scope)
+3. [Milestones](#milestones)
+4. [Risk Log](#risk-log)
+5. [How It Works](#how-it-works)
+
+---
+
+# Product Brief
+
+{% if brief %}
+## Technical Specifications
+
+### Problem Statement {#problem-statement}
+
+{{ brief.problem_statement }}
+
+### Target User {#target-user}
+
+{{ brief.target_user }}
+
+### Value Proposition {#value-proposition}
+
+{{ brief.value_proposition }}
+
+### Key Constraint {#key-constraint}
+
+{{ brief.key_constraint }}
+
+### Differentiation Points {#differentiation-points}
+
+{% for point in brief.differentiation_points %}
+- {{ point }}
+{% endfor %}
+
+{% if tier in ["partner", "cto"] and brief.market_analysis %}
+### Market Analysis {#market-analysis}
+
+{{ brief.market_analysis }}
+{% endif %}
+
+{% if tier == "cto" and brief.competitive_strategy %}
+### Competitive Strategy {#competitive-strategy}
+
+{{ brief.competitive_strategy }}
+{% endif %}
+{% endif %}
+
+---
+
+# MVP Scope
+
+{% if mvp_scope %}
+## Technical Specifications
+
+### Core Features {#core-features}
+
+{% for feature in mvp_scope.core_features %}
+#### {{ feature.name }}
+
+```
+Feature: {{ feature.name }}
+Description: {{ feature.description }}
+{% if feature.get("priority") %}Priority: {{ feature.priority }}{% endif %}
+{% if feature.get("effort") %}Effort: {{ feature.effort }}{% endif %}
+```
+
+{{ feature.description }}
+
+{% if feature.get("acceptance_criteria") %}
+**Acceptance Criteria:**
+{% for criterion in feature.acceptance_criteria %}
+- [ ] {{ criterion }}
+{% endfor %}
+{% endif %}
+{% endfor %}
+
+### Out of Scope {#out-of-scope}
+
+{% for item in mvp_scope.out_of_scope %}
+- {{ item }}
+{% endfor %}
+
+### Success Metrics {#success-metrics}
+
+{% for metric in mvp_scope.success_metrics %}
+- {{ metric }}
+{% endfor %}
+
+{% if tier in ["partner", "cto"] and mvp_scope.technical_architecture %}
+### Technical Architecture {#technical-architecture}
+
+```
+Architecture Overview:
+{{ mvp_scope.technical_architecture }}
+```
+{% endif %}
+
+{% if tier == "cto" and mvp_scope.scalability_plan %}
+### Scalability Plan {#scalability-plan}
+
+{{ mvp_scope.scalability_plan }}
+{% endif %}
+{% endif %}
+
+---
+
+# Milestones
+
+{% if milestones %}
+## Technical Specifications
+
+### Timeline {#timeline}
+
+{% for milestone in milestones.milestones %}
+#### {{ milestone.name }} - Week {{ milestone.week }}
+
+{{ milestone.description }}
+
+**Deliverables:**
+{% for deliverable in milestone.deliverables %}
+- [ ] {{ deliverable }}
+{% endfor %}
+{% endfor %}
+
+### Critical Path {#critical-path}
+
+{% for item in milestones.critical_path %}
+- {{ item }}
+{% endfor %}
+
+**Total Duration:** {{ milestones.total_duration_weeks }} weeks
+
+{% if tier in ["partner", "cto"] and milestones.resource_plan %}
+### Resource Plan {#resource-plan}
+
+{{ milestones.resource_plan }}
+{% endif %}
+
+{% if tier == "cto" and milestones.risk_mitigation_timeline %}
+### Risk Mitigation Timeline {#risk-mitigation-timeline}
+
+{{ milestones.risk_mitigation_timeline }}
+{% endif %}
+{% endif %}
+
+---
+
+# Risk Log
+
+{% if risk_log %}
+## Technical Specifications
+
+### Technical Risks {#technical-risks}
+
+{% for risk in risk_log.technical_risks %}
+#### **[{{ risk.severity|upper }}]** {{ risk.title }}
+
+{{ risk.description }}
+
+**Mitigation Strategy:**
+{{ risk.mitigation }}
+
+{% if risk.get("likelihood") %}**Likelihood:** {{ risk.likelihood }}{% endif %}
+{% if risk.get("impact") %}**Impact:** {{ risk.impact }}{% endif %}
+
+---
+{% endfor %}
+
+### Market Risks {#market-risks}
+
+{% for risk in risk_log.market_risks %}
+#### **[{{ risk.severity|upper }}]** {{ risk.title }}
+
+{{ risk.description }}
+
+**Mitigation Strategy:**
+{{ risk.mitigation }}
+
+{% if risk.get("likelihood") %}**Likelihood:** {{ risk.likelihood }}{% endif %}
+{% if risk.get("impact") %}**Impact:** {{ risk.impact }}{% endif %}
+
+---
+{% endfor %}
+
+### Execution Risks {#execution-risks}
+
+{% for risk in risk_log.execution_risks %}
+#### **[{{ risk.severity|upper }}]** {{ risk.title }}
+
+{{ risk.description }}
+
+**Mitigation Strategy:**
+{{ risk.mitigation }}
+
+{% if risk.get("likelihood") %}**Likelihood:** {{ risk.likelihood }}{% endif %}
+{% if risk.get("impact") %}**Impact:** {{ risk.impact }}{% endif %}
+
+---
+{% endfor %}
+
+{% if tier in ["partner", "cto"] and risk_log.financial_risks %}
+### Financial Risks {#financial-risks}
+
+{% for risk in risk_log.financial_risks %}
+#### **[{{ risk.severity|upper }}]** {{ risk.title }}
+
+{{ risk.description }}
+
+**Mitigation Strategy:**
+{{ risk.mitigation }}
+
+---
+{% endfor %}
+{% endif %}
+
+{% if tier == "cto" and risk_log.strategic_risks %}
+### Strategic Risks {#strategic-risks}
+
+{% for risk in risk_log.strategic_risks %}
+#### **[{{ risk.severity|upper }}]** {{ risk.title }}
+
+{{ risk.description }}
+
+**Mitigation Strategy:**
+{{ risk.mitigation }}
+
+---
+{% endfor %}
+{% endif %}
+{% endif %}
+
+---
+
+# How It Works
+
+{% if how_it_works %}
+## Technical Specifications
+
+### User Journey {#user-journey}
+
+```mermaid
+graph TD
+{% for step in how_it_works.user_journey %}
+    Step{{ step.step_number }}[{{ step.title }}]
+{% endfor %}
+{% for step in how_it_works.user_journey %}
+{% if not loop.last %}
+    Step{{ step.step_number }} --> Step{{ step.step_number + 1 }}
+{% endif %}
+{% endfor %}
+```
+
+{% for step in how_it_works.user_journey %}
+#### Step {{ step.step_number }}: {{ step.title }}
+
+{{ step.description }}
+
+{% if step.get("user_actions") %}
+**User Actions:**
+{% for action in step.user_actions %}
+- {{ action }}
+{% endfor %}
+{% endif %}
+
+{% if step.get("system_response") %}
+**System Response:**
+```
+{{ step.system_response }}
+```
+{% endif %}
+
+---
+{% endfor %}
+
+### Architecture {#architecture}
+
+```
+{{ how_it_works.architecture }}
+```
+
+### Data Flow {#data-flow}
+
+```
+{{ how_it_works.data_flow }}
+```
+
+{% if tier in ["partner", "cto"] and how_it_works.integration_points %}
+### Integration Points {#integration-points}
+
+{{ how_it_works.integration_points }}
+{% endif %}
+
+{% if tier == "cto" and how_it_works.security_compliance %}
+### Security & Compliance {#security-compliance}
+
+{{ how_it_works.security_compliance }}
+{% endif %}
+{% endif %}

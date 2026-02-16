@@ -1,0 +1,65 @@
+/* Tier-dependent brand styling */
+
+/* Default (Bootstrapper tier) - Co-Founder branded */
+:root {
+  --brand-primary: #2563eb;
+  --brand-accent: #3b82f6;
+  --brand-footer: "Powered by Co-Founder";
+}
+
+/* Bootstrapper tier - Co-Founder branding */
+body.tier-bootstrapper {
+  --brand-primary: #2563eb;
+  --brand-accent: #3b82f6;
+}
+
+body.tier-bootstrapper .cover .branding::before {
+  content: "Powered by Co-Founder";
+}
+
+/* Partner tier - White-label, neutral professional */
+body.tier-partner {
+  --brand-primary: #1e293b;
+  --brand-accent: #334155;
+}
+
+body.tier-partner .cover .branding {
+  display: none;
+}
+
+/* CTO tier - White-label, premium dark */
+body.tier-cto_scale {
+  --brand-primary: #0f172a;
+  --brand-accent: #1e293b;
+}
+
+body.tier-cto_scale .cover .branding {
+  display: none;
+}
+
+/* Cover page tier-specific styling */
+body.tier-bootstrapper .cover h1 {
+  color: #2563eb;
+}
+
+body.tier-partner .cover h1 {
+  color: #1e293b;
+}
+
+body.tier-cto_scale .cover h1 {
+  color: #0f172a;
+}
+
+/* Logo area for bootstrapper (placeholder for future logo) */
+body.tier-bootstrapper .cover-logo {
+  margin-bottom: 1cm;
+  height: 2cm;
+  display: block;
+}
+
+/* Partner and CTO emphasize startup name */
+body.tier-partner .cover h1,
+body.tier-cto_scale .cover h1 {
+  font-size: 36pt;
+  margin-top: 2cm;
+}

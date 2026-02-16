@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block document_title %}How It Works{% endblock %}
+{% block document_title_short %}How It Works{% endblock %}
+
+{% block content %}
+<h1>How It Works</h1>
+
+<div class="callout">
+    <div class="callout-title">Overview</div>
+    <p>This document explains how our product works from both user and technical perspectives, connecting our <strong>Product Brief</strong> to implementation.</p>
+</div>
+
+<h2>User Journey</h2>
+<p>Here's how users interact with our product:</p>
+
+<ol>
+{% for step in artifact.user_journey %}
+    <li>
+        <h3>{{ step.step }}</h3>
+        <p><strong>Action:</strong> {{ step.action }}</p>
+        <p><strong>Outcome:</strong> {{ step.outcome }}</p>
+    </li>
+{% endfor %}
+</ol>
+
+<h2>Technical Architecture</h2>
+<p>{{ artifact.architecture }}</p>
+
+<h2>Data Flow</h2>
+<p>{{ artifact.data_flow }}</p>
+
+{% if artifact.integration_points %}
+<div class="section-divider"></div>
+<h2>Integration Points</h2>
+<p>{{ artifact.integration_points }}</p>
+
+<div class="callout">
+    <div class="callout-title">Cross-Reference</div>
+    <p>See <strong>MVP Scope</strong> for the complete technical architecture and feature breakdown.</p>
+</div>
+{% endif %}
+
+{% if artifact.security_compliance %}
+<div class="section-divider"></div>
+<h2>Security & Compliance</h2>
+<p>{{ artifact.security_compliance }}</p>
+
+<div class="callout">
+    <div class="callout-title">Cross-Reference</div>
+    <p>Security risks and mitigation strategies are documented in our <strong>Risk Log</strong>.</p>
+</div>
+{% endif %}
+{% endblock %}

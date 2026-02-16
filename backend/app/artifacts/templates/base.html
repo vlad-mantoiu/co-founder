@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>{% block title %}{{ document_title }}{% endblock %}</title>
+    <link rel="stylesheet" href="styles/base.css">
+    <link rel="stylesheet" href="styles/brand.css">
+</head>
+<body class="tier-{{ tier }}">
+    <!-- Cover page -->
+    <div class="cover">
+        <div class="cover-content">
+            {% if tier == 'bootstrapper' %}
+            <div class="cover-logo"></div>
+            {% endif %}
+
+            <h1>{{ startup_name }}</h1>
+            <h2>{% block document_title %}{% endblock %}</h2>
+
+            <div class="meta">
+                Generated {{ generated_date }}
+            </div>
+
+            {% if branding %}
+            <div class="branding">{{ branding }}</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Hidden elements for PDF header/footer string-set -->
+    <div style="display: none;">
+        <span class="doc-title">{% block doc_title_header %}{{ startup_name }} - {% block document_title_short %}{{ document_title }}{% endblock %}{% endblock %}</span>
+        <span class="branding-text">{{ branding }}</span>
+    </div>
+
+    <!-- Main content -->
+    <div class="page-break"></div>
+    {% block content %}{% endblock %}
+</body>
+</html>

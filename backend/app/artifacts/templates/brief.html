@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block document_title %}Product Brief{% endblock %}
+{% block document_title_short %}Product Brief{% endblock %}
+
+{% block content %}
+<h1>Product Brief</h1>
+
+<h2>Problem Statement</h2>
+<p>{{ artifact.problem_statement }}</p>
+
+<h2>Target User</h2>
+<p>{{ artifact.target_user }}</p>
+
+<h2>Value Proposition</h2>
+<p>{{ artifact.value_proposition }}</p>
+
+<h2>Key Constraint</h2>
+<p>{{ artifact.key_constraint }}</p>
+
+<h2>Differentiation</h2>
+<p>What makes us different from existing alternatives:</p>
+<ul>
+{% for point in artifact.differentiation_points %}
+    <li>{{ point }}</li>
+{% endfor %}
+</ul>
+
+{% if artifact.market_analysis %}
+<div class="section-divider"></div>
+<h2>Market Analysis</h2>
+<p>{{ artifact.market_analysis }}</p>
+{% endif %}
+
+{% if artifact.competitive_strategy %}
+<div class="section-divider"></div>
+<h2>Competitive Strategy</h2>
+<p>{{ artifact.competitive_strategy }}</p>
+
+<div class="callout">
+    <div class="callout-title">Cross-Reference</div>
+    <p>Our technical implementation of this strategy is detailed in the <strong>How It Works</strong> document.</p>
+</div>
+{% endif %}
+{% endblock %}
