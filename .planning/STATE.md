@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 ## Current Position
 
 Phase: 5 of 10 (Capacity Queue Worker Model)
-Plan: 1 of 5 completed
+Plan: 3 of 5 completed
 Status: In Progress
-Last activity: 2026-02-16 — Completed 05-01-PLAN.md (Job queue foundation with Redis priority queue and Job model)
+Last activity: 2026-02-16 — Completed 05-03-PLAN.md (Job state machine and usage counters with tier-based limits)
 
-Progress: [████████▓▒] 20%
+Progress: [████████▓▓] 60%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 16
+- Total plans completed: 18
 - Average duration: 3.4 min
-- Total execution time: 0.88 hours
+- Total execution time: 1.02 hours
 
 **By Phase:**
 
@@ -31,11 +31,11 @@ Progress: [████████▓▒] 20%
 | 02    | 4     | 12 min | 3.0 min  |
 | 03    | 4     | 20 min | 5.0 min  |
 | 04    | 4     | 14 min | 3.5 min  |
-| 05    | 1     | 3 min  | 3.0 min  |
+| 05    | 3     | 11 min | 3.7 min  |
 
 **Recent Trend:**
-- Last 5 plans: 04-02 (4 min), 04-03 (2 min), 04-04 (5 min), 05-01 (3 min)
-- Trend: Phase 5 started - queue foundation with Redis priority queue complete
+- Last 5 plans: 04-04 (5 min), 05-01 (3 min), 05-02 (3 min), 05-03 (5 min)
+- Trend: Phase 5 progressing - state machine & usage counters with tier-based limits complete
 
 *Updated after each plan completion*
 
@@ -56,7 +56,12 @@ Progress: [████████▓▒] 20%
 | 04-02     | 4 min    | 2 tasks     | 4 files  |
 | 04-03     | 2 min    | 4 tasks     | 8 files  |
 | 04-04     | 5 min    | 2 tasks     | 6 files  |
+| 05-01     | 3 min    | 2 tasks     | 8 files  |
+| 05-02     | 3 min    | 2 tasks     | 6 files  |
+| 05-03     | 5 min    | 2 tasks     | 6 files  |
 | 05-01     | 3 min    | 1 task      | 6 files  |
+| 05-02     | 3 min    | 2 tasks     | 5 files  |
+| Phase 05 P03 | 5 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -113,8 +118,15 @@ Recent decisions affecting current work:
 - [Phase 04]: Welcome back screen fetches active sessions on mount, shows continue/start fresh choice
 - [Phase 05-01]: Redis sorted set for O(log N) priority queue operations (ZADD/ZPOPMIN/ZRANK)
 - [Phase 05-01]: Composite score formula (1000-boost)*1e12+counter for tier priority with FIFO tiebreaker
+- [Phase 05-02]: Redis SADD/SREM with TTL for distributed semaphore (prevents deadlock on crash)
+- [Phase 05-02]: Track separate EMA averages per tier (different complexity: 480s/600s/900s)
+- [Phase 05-02]: Confidence intervals at ±30% for realistic user expectations
+- [Phase 05-02]: On-demand cleanup for stale slots (simpler than background job)
 - [Phase 05-01]: Global cap of 100 jobs with retry estimation (2min/job / avg concurrency)
 - [Phase 05-01]: fakeredis for isolated async testing without Docker dependency
+- [Phase 05-03]: JobStateMachine validates all transitions - terminal states (READY, FAILED) reject all transitions
+- [Phase 05-03]: Iteration tracking with tier-based depth (2/3/5) and 3x hard cap prevents runaway costs
+- [Phase 05-03]: Daily job limits with midnight UTC reset via Redis EXPIREAT (5/50/200 per tier)
 
 ### Pending Todos
 
@@ -150,8 +162,8 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-16 (execute-phase)
-Stopped at: Completed 05-01-PLAN.md
-Resume file: .planning/phases/05-capacity-queue-worker-model/05-01-SUMMARY.md
+Stopped at: Completed 05-03-PLAN.md
+Resume file: .planning/phases/05-capacity-queue-worker-model/05-03-SUMMARY.md
 
 ---
 *Phase 05 IN PROGRESS — Plan 01 complete: Redis priority queue foundation with tier boost and Job model*
