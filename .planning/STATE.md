@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 ## Current Position
 
 Phase: 4 of 10 (Onboarding & Idea Capture)
-Plan: 1 of 4 completed
+Plan: 2 of 4 completed
 Status: In Progress
-Last activity: 2026-02-16 — Completed 04-01-PLAN.md (Onboarding domain models, schemas, and RunnerFake extensions)
+Last activity: 2026-02-16 — Completed 04-02-PLAN.md (Onboarding service layer and API routes with integration tests)
 
-Progress: [██▒▒▒▒▒▒▒▒] 25%
+Progress: [████▒▒▒▒▒▒] 50%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 12
-- Average duration: 3.3 min
-- Total execution time: 0.65 hours
+- Total plans completed: 13
+- Average duration: 3.4 min
+- Total execution time: 0.72 hours
 
 **By Phase:**
 
@@ -30,11 +30,11 @@ Progress: [██▒▒▒▒▒▒▒▒] 25%
 | 01    | 3     | 10 min | 3.3 min  |
 | 02    | 4     | 12 min | 3.0 min  |
 | 03    | 4     | 20 min | 5.0 min  |
-| 04    | 1     | 3 min  | 3.0 min  |
+| 04    | 2     | 7 min  | 3.5 min  |
 
 **Recent Trend:**
-- Last 5 plans: 03-02 (2 min), 03-03 (9 min), 03-04 (4 min), 04-01 (3 min)
-- Trend: Phase 4 started - onboarding domain layer with JSONB state storage
+- Last 5 plans: 03-03 (9 min), 03-04 (4 min), 04-01 (3 min), 04-02 (4 min)
+- Trend: Phase 4 progressing - onboarding service and API layer complete
 
 *Updated after each plan completion*
 
@@ -52,6 +52,7 @@ Progress: [██▒▒▒▒▒▒▒▒] 25%
 | 03-03     | 9 min    | 2 tasks     | 4 files  |
 | 03-04     | 4 min    | 1 task      | 1 file   |
 | 04-01     | 3 min    | 2 tasks     | 6 files  |
+| 04-02     | 4 min    | 2 tasks     | 4 files  |
 
 ## Accumulated Context
 
@@ -92,6 +93,10 @@ Recent decisions affecting current work:
 - [Phase 04]: Store onboarding state as JSONB (questions, answers, thesis_snapshot, thesis_edits) for infinite resumption
 - [Phase 04]: ThesisSnapshot has tier-dependent sections: core (always), business (Partner+), strategic (CTO)
 - [Phase 04]: Use 'we' language in onboarding questions for collaborative feel (AI as co-founder)
+- [Phase 04-02]: Dependency injection for Runner in OnboardingService (constructor takes runner and session_factory for testability)
+- [Phase 04-02]: Tier session limits enforced at service layer (bootstrapper: 1, partner: 3, cto: unlimited)
+- [Phase 04-02]: User isolation via 404 pattern (same response for not found and unauthorized)
+- [Phase 04-02]: ThesisSnapshot tier filtering in service layer before persistence (bootstrapper=core, partner=+business, cto=+strategic)
 
 ### Pending Todos
 
@@ -127,8 +132,8 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-16 (execute-phase)
-Stopped at: Completed 04-01-PLAN.md
-Resume file: .planning/phases/04-onboarding-idea-capture/04-01-SUMMARY.md
+Stopped at: Completed 04-02-PLAN.md
+Resume file: .planning/phases/04-onboarding-idea-capture/04-02-SUMMARY.md
 
 ---
-*Phase 04 Plan 01 complete — onboarding domain models and schemas ready*
+*Phase 04 Plan 02 complete — onboarding service and API layer ready with 12 integration tests*
