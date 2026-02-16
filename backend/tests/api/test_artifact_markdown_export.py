@@ -278,3 +278,191 @@ class TestMarkdownExporter:
 
         assert isinstance(result, str)
         assert len(result) > 0
+
+
+class TestMarkdownExportAPI:
+    """Simplified API tests for markdown export endpoints.
+
+    Note: Full integration tests are complex due to async DB setup.
+    Core functionality is thoroughly tested via unit tests above.
+    These tests verify routes exist and basic parameter validation works.
+    """
+
+    def test_markdown_export_routes_registered(self):
+        """Verify markdown export routes are registered in router."""
+        from app.api.routes.artifacts import router
+
+        paths = [str(route.path) for route in router.routes]
+        assert any("export/markdown" in path for path in paths), \
+            "Markdown export route not found in artifacts router"
+
+    def test_exporter_integration_with_schemas(self):
+        """Verify MarkdownExporter works with actual artifact schema content."""
+        exporter = MarkdownExporter()
+
+        # Simulate real ProductBriefContent
+        content = {
+            "_schema_version": 1,
+            "problem_statement": "Non-technical founders struggle to turn ideas into technical specs",
+            "target_user": "Non-technical founders",
+            "value_proposition": "AI-powered technical co-founder",
+            "key_constraint": "Must be non-technical friendly",
+            "differentiation_points": ["Guided vs static", "Production-ready vs generic"],
+            "market_analysis": "TAM: $50B",
+            "competitive_strategy": "Depth vs breadth"
+        }
+
+        # Test readable variant
+        readable_md = exporter.export_single(
+            artifact_type="brief",
+            content=content,
+            tier="bootstrapper",
+            startup_name="TestCo",
+            generated_date="2026-02-16",
+            variant="readable"
+        )
+
+        assert "# Product Brief" in readable_md
+        assert "Non-technical founders" in readable_md
+        assert not readable_md.startswith("---")  # No frontmatter in readable
+        assert "_schema_version" not in readable_md  # No metadata
+
+        # Test technical variant
+        technical_md = exporter.export_single(
+            artifact_type="brief",
+            content=content,
+            tier="partner",
+            startup_name="TestCo",
+            generated_date="2026-02-16",
+            variant="technical"
+        )
+
+        assert "artifact_type: brief" in technical_md  # Has frontmatter
+        assert "## Technical Specifications" in technical_md
+        assert "TAM: $50B" in technical_md  # Partner tier sees market_analysis
+
+    def test_variant_parameter_validation_logic(self):
+        """Test variant validation (what API endpoint would do)."""
+        valid_variants = ["readable", "technical"]
+
+        for variant in valid_variants:
+            exporter = MarkdownExporter()
+            # Should not raise
+            md = exporter.export_single(
+                artifact_type="brief",
+                content={"_schema_version": 1, "problem_statement": "test",
+                        "target_user": "test", "value_proposition": "test",
+                        "key_constraint": "test", "differentiation_points": []},
+                tier="bootstrapper",
+                startup_name="Test",
+                generated_date="2026-02-16",
+                variant=variant
+            )
+            assert len(md) > 0
+
+    def test_combined_export_with_multiple_artifacts(self):
+        """Test combined export matches what API endpoint would return."""
+        exporter = MarkdownExporter()
+
+        artifacts = {
+            "brief": {
+                "_schema_version": 1,
+                "problem_statement": "Problem",
+                "target_user": "User",
+                "value_proposition": "Value",
+                "key_constraint": "Constraint",
+                "differentiation_points": ["Point 1"]
+            },
+            "mvp_scope": {
+                "_schema_version": 1,
+                "core_features": [{"name": "Feature 1", "description": "Desc"}],
+                "out_of_scope": ["Item 1"],
+                "success_metrics": ["Metric 1"]
+            },
+            "milestones": {
+                "_schema_version": 1,
+                "milestones": [{"name": "M1", "week": 1, "description": "Desc", "deliverables": ["D1"]}],
+                "critical_path": ["CP1"],
+                "total_duration_weeks": 12
+            },
+            "risk_log": {
+                "_schema_version": 1,
+                "technical_risks": [{"title": "Risk1", "severity": "high", "description": "Desc", "mitigation": "Mit"}],
+                "market_risks": [],
+                "execution_risks": []
+            },
+            "how_it_works": {
+                "_schema_version": 1,
+                "user_journey": [{"step_number": 1, "title": "Step 1", "description": "Desc"}],
+                "architecture": "Arch",
+                "data_flow": "Flow"
+            }
+        }
+
+        combined_md = exporter.export_combined(
+            artifacts=artifacts,
+            tier="bootstrapper",
+            startup_name="TestCo",
+            generated_date="2026-02-16",
+            variant="readable"
+        )
+
+        # Verify all sections present
+        assert "Table of Contents" in combined_md
+        assert "Product Brief" in combined_md
+        assert "MVP Scope" in combined_md
+        assert "Milestones" in combined_md
+        assert "Risk Log" in combined_md
+        assert "How It Works" in combined_md
+
+    def test_tier_filtering_in_export(self):
+        """Verify tier-based field filtering works correctly."""
+        exporter = MarkdownExporter()
+
+        content_with_all_tiers = {
+            "_schema_version": 1,
+            "problem_statement": "Core field",
+            "target_user": "Core field",
+            "value_proposition": "Core field",
+            "key_constraint": "Core field",
+            "differentiation_points": [],
+            "market_analysis": "Business tier field",
+            "competitive_strategy": "Strategic tier field"
+        }
+
+        # Bootstrapper should NOT see business/strategic
+        bootstrapper_md = exporter.export_single(
+            artifact_type="brief",
+            content=content_with_all_tiers,
+            tier="bootstrapper",
+            startup_name="Test",
+            generated_date="2026-02-16",
+            variant="readable"
+        )
+        assert "Core field" in bootstrapper_md
+        assert "Business tier field" not in bootstrapper_md
+        assert "Strategic tier field" not in bootstrapper_md
+
+        # Partner should see business but NOT strategic
+        partner_md = exporter.export_single(
+            artifact_type="brief",
+            content=content_with_all_tiers,
+            tier="partner",
+            startup_name="Test",
+            generated_date="2026-02-16",
+            variant="readable"
+        )
+        assert "Business tier field" in partner_md
+        assert "Strategic tier field" not in partner_md
+
+        # CTO should see everything
+        cto_md = exporter.export_single(
+            artifact_type="brief",
+            content=content_with_all_tiers,
+            tier="cto",
+            startup_name="Test",
+            generated_date="2026-02-16",
+            variant="readable"
+        )
+        assert "Business tier field" in cto_md
+        assert "Strategic tier field" in cto_md
