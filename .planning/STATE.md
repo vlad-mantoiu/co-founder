@@ -121,10 +121,9 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-16 (plan execution)
-Stopped at: Completed 03-04-PLAN.md (User isolation test fixes - gap closure)
-Resume file: .planning/phases/03-workspace-authentication/03-04-SUMMARY.md
+Last session: 2026-02-16 (discuss-phase)
+Stopped at: Phase 4 context gathered
+Resume file: .planning/phases/04-onboarding-idea-capture/04-CONTEXT.md
 
 ---
-*Phase 03 (Workspace Authentication) COMPLETE - 4/4 plans executed (includes 1 gap closure)*
-*Next: Begin Phase 04*
+*Phase 04 (Onboarding & Idea Capture) context gathered — ready for planning*
