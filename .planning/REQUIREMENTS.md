@@ -1,0 +1,246 @@
+# Requirements: AI Co-Founder
+
+**Defined:** 2026-02-16
+**Core Value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
+
+## v1 Requirements
+
+Requirements for initial release. Each maps to roadmap phases.
+
+### Authentication & Workspace
+
+- [ ] **AUTH-01**: Unauthenticated access blocked on all protected routes
+- [ ] **AUTH-02**: Authenticated request returns dashboard shell (even if empty)
+- [ ] **AUTH-03**: First login provisions user profile + workspace idempotently
+- [ ] **AUTH-04**: Feature flags include `beta_features[]` with default gating
+
+### Onboarding
+
+- [ ] **ONBD-01**: Start onboarding session returns dynamic question set (LLM-tailored to founder's idea, stable schema)
+- [ ] **ONBD-02**: Submit onboarding answers persists them and returns Thesis Snapshot
+- [ ] **ONBD-03**: Onboarding can be resumed and is idempotent
+- [ ] **ONBD-04**: Required fields enforced (target user, problem, constraint)
+- [ ] **ONBD-05**: User isolation — users cannot access others' onboarding data
+
+### Project & Idea Capture
+
+- [ ] **PROJ-01**: Create project from idea returns `project_id`
+- [ ] **PROJ-02**: Idea message is persisted and linked to project
+- [ ] **PROJ-03**: Empty idea rejected with validation error
+- [ ] **PROJ-04**: User isolation enforced (404/403 for other users' projects)
+
+### Understanding Interview
+
+- [ ] **UNDR-01**: Start understanding session returns structured questions (5–7, LLM-tailored)
+- [ ] **UNDR-02**: Submitting answers produces Rationalised Idea Brief with stable schema (problem_statement, target_user, value_prop, differentiation, monetization_hypothesis, assumptions[], risks[], smallest_viable_experiment)
+- [ ] **UNDR-03**: LLM failures handled with friendly error and debug_id
+- [ ] **UNDR-04**: Brief is persisted and appears in project context/dashboard
+- [ ] **UNDR-05**: User isolation enforced
+- [ ] **UNDR-06**: Deep Research button stub returns 402/locked if not enabled
+
+### Decision Gate 1
+
+- [ ] **GATE-01**: Creating gate returns `decision_id` and options (Proceed/Narrow/Pivot/Park)
+- [ ] **GATE-02**: Attempting to generate plan/build before decision returns 409 with message
+- [ ] **GATE-03**: Choosing "Narrow" updates brief scope and logs decision
+- [ ] **GATE-04**: Choosing "Pivot" creates new brief version and logs the pivot
+- [ ] **GATE-05**: Choosing "Park" freezes project and blocks execution
+
+### Supporting Documents
+
+- [ ] **DOCS-01**: Generate docs returns artifact IDs and stable schema
+- [ ] **DOCS-02**: Each artifact retrievable by ID (Product Brief, MVP Scope, Milestones, Risk Log, How It Works)
+- [ ] **DOCS-03**: Artifacts are versioned (v1, v2)
+- [ ] **DOCS-04**: Regeneration updates versions, not duplicates
+- [ ] **DOCS-05**: User isolation enforced
+- [ ] **DOCS-06**: Artifacts exportable as PDF
+- [ ] **DOCS-07**: Artifacts exportable as Markdown
+
+### Execution Plan
+
+- [ ] **PLAN-01**: Execution plan generation returns 2–3 options with stable fields (name, time_to_ship, complexity, cost_note, tradeoffs[], recommended boolean)
+- [ ] **PLAN-02**: Selection required before build starts (409 if missing)
+- [ ] **PLAN-03**: Selection persisted and visible in Strategy Graph and Timeline
+- [ ] **PLAN-04**: Beta gating for advanced options
+
+### Generation Loop v0.1
+
+- [ ] **GENR-01**: Start generation returns `job_id` and status queued/running
+- [ ] **GENR-02**: Job progresses deterministically (scaffold → code → deps → checks → ready)
+- [ ] **GENR-03**: Workspace contains expected files (README, env example, start script)
+- [ ] **GENR-04**: E2B-hosted preview URL exists for running app
+- [ ] **GENR-05**: Builds are versioned: build_v0_1, build_v0_2
+- [ ] **GENR-06**: Failure sets job failed with helpful message and debug_id
+- [ ] **GENR-07**: Idempotency: rerun creates new version without corrupting prior build
+
+### MVP Built State
+
+- [ ] **MVPS-01**: When build_v0_1 is ready, stage transitions to MVP Built
+- [ ] **MVPS-02**: Dashboard shows product_version v0.1, MVP completion percent > 0, next milestone suggested
+- [ ] **MVPS-03**: Timeline includes "MVP built" entry
+- [ ] **MVPS-04**: Strategy graph marks MVP node completed
+
+### Solidification Gate 2
+
+- [ ] **SOLD-01**: Solidification gate requires decision before iteration plan
+- [ ] **SOLD-02**: Gate output includes alignment check summary, scope creep detection (boolean), recommended action (stabilize/simplify/add feature/begin testing)
+- [ ] **SOLD-03**: Decision recorded and visible in timeline
+
+### Iteration Plan
+
+- [ ] **ITER-01**: Iteration plan references MVP build version and chosen goal
+- [ ] **ITER-02**: Plan limits are explicit (max iterations, expected changes)
+- [ ] **ITER-03**: Plan is recorded and appears in context
+
+### Generation Loop v0.2
+
+- [ ] **GENL-01**: Submit iteration request creates a Change Request artifact
+- [ ] **GENL-02**: Patch applied to workspace deterministically
+- [ ] **GENL-03**: Minimal check step runs; on fail, rollback or mark as needs-review
+- [ ] **GENL-04**: build_v0_2 created; preview updated
+- [ ] **GENL-05**: Timeline narrates change in plain English
+- [ ] **GENL-06**: User isolation enforced
+
+### Deploy Readiness
+
+- [ ] **DEPL-01**: Deploy readiness endpoint returns readiness boolean, blocking issues list, recommended deploy path
+- [ ] **DEPL-02**: Deploy action returns hosted deploy job ID OR precise deploy steps with secrets checklist
+- [ ] **DEPL-03**: Access control enforced
+
+### Company Dashboard
+
+- [ ] **DASH-01**: Dashboard displays project_id, stage, product_version, mvp_completion_percent, next_milestone, risk_flags[], suggested_focus, latest_build_status, preview URL
+- [ ] **DASH-02**: Dashboard renders as hybrid PM view (cards that drill down into rich documents)
+- [ ] **DASH-03**: Empty states return empty arrays (not null)
+- [ ] **DASH-04**: Dashboard updates reflect state machine transitions in real-time
+
+### Strategy Graph
+
+- [ ] **GRPH-01**: Graph nodes have id, type, title, status, created_at
+- [ ] **GRPH-02**: Graph edges have from, to, relation
+- [ ] **GRPH-03**: Node detail includes why, tradeoffs[], alternatives[], impact_summary
+- [ ] **GRPH-04**: Graph backed by Neo4j with indexed queries
+- [ ] **GRPH-05**: Graph visualization interactive (clickable nodes for detail)
+
+### Execution Timeline
+
+- [ ] **TIME-01**: Timeline items have timestamp, type, title, summary, build_version?, decision_id?, debug_id?
+- [ ] **TIME-02**: Timeline rendered as Kanban board with statuses
+- [ ] **TIME-03**: Tickets expandable for information and queryable
+
+### Decision Console
+
+- [ ] **DCSN-01**: Decision templates for Monetization Model, Pricing Structure, Checkout Strategy, Scope Narrowing, Build Path, Deploy Path
+- [ ] **DCSN-02**: Each decision includes options[] with pros[], cons[], engineering_impact, time_to_ship, cost_note
+- [ ] **DCSN-03**: Decisions recorded and acknowledged before execution begins
+
+### State Machine
+
+- [ ] **STMC-01**: Five stages: Thesis Defined, Validated Direction, MVP Built, Feedback Loop Active, Scale & Optimize (last out of MVP)
+- [ ] **STMC-02**: Each stage has entered_at, exit_criteria[], progress_percent (0-100), blocking_risks[], suggested_focus
+- [ ] **STMC-03**: Stage transitions only via decision gates
+- [ ] **STMC-04**: Progress computed deterministically from completed artifacts/build status
+
+### Worker Capacity
+
+- [ ] **WORK-01**: Queue-based throughput limiting — work slows down, never halts
+- [ ] **WORK-02**: Estimated wait messaging shown to user ("Processing... estimated N minutes")
+- [ ] **WORK-03**: Max concurrent jobs per project enforced
+- [ ] **WORK-04**: Iteration beyond cap requires explicit confirmation flag
+- [ ] **WORK-05**: Per-user worker capacity tied to subscription tier
+- [ ] **WORK-06**: Usage counters returned with responses
+
+### Observability
+
+- [ ] **OBSV-01**: Every job and decision has correlation_id
+- [ ] **OBSV-02**: Errors return debug_id without secrets
+- [ ] **OBSV-03**: Timeline entries reference correlation IDs
+
+### Beta Gating
+
+- [ ] **BETA-01**: Non-MVP features return 404/403 unless beta enabled
+- [ ] **BETA-02**: API exposes beta flags for UI labeling
+
+### Response Contracts
+
+- [ ] **CNTR-01**: Dashboard/graph/timeline/decision console shapes remain stable
+- [ ] **CNTR-02**: Empty states return empty arrays (not null)
+
+### Runner Interface
+
+- [ ] **RUNR-01**: Runner protocol with RunnerReal (wraps existing LangGraph) and RunnerFake (deterministic test doubles)
+- [ ] **RUNR-02**: All tests use RunnerFake, no real LLM calls in test suite
+- [ ] **RUNR-03**: RunnerFake returns deterministic outputs for scaffold/code/deps/checks stages
+
+### Chat (Secondary)
+
+- [ ] **CHAT-01**: Chat interface preserved as secondary input method
+- [ ] **CHAT-02**: Chat de-emphasized in navigation (not primary entry point)
+
+## v2 Requirements
+
+Deferred to future release. Tracked but not in current roadmap.
+
+### Team Collaboration
+
+- **TEAM-01**: Multiple users editing and commenting on projects
+- **TEAM-02**: Branch/merge abstracted as "proposals"
+
+### Two-Way Git Sync
+
+- **SYNC-01**: Continuous sync between AI environment and GitHub
+- **SYNC-02**: Developer can work in IDE, changes reflected in platform
+
+### Scale & Optimize Stage
+
+- **SCAL-01**: Full Scale & Optimize stage implementation
+- **SCAL-02**: Performance profiling and optimization suggestions
+
+### Deep Research Integration
+
+- **DEEP-01**: Gemini Deep Research integration (currently stubbed at 402)
+- **DEEP-02**: Stripe one-time purchase for research reports
+
+### Advanced Export
+
+- **EXPT-01**: Share link (public read-only URL for artifacts)
+- **EXPT-02**: Pitch deck generation from project context
+
+### Mobile App Generation
+
+- **MOBL-01**: React Native/Flutter output generation
+- **MOBL-02**: QR code to test on device
+
+## Out of Scope
+
+Explicitly excluded. Documented to prevent scope creep.
+
+| Feature | Reason |
+|---------|--------|
+| Full code editor in dashboard | Contradicts founder-first positioning; export to git for code editing |
+| "Generate everything" button | Unfocused output; guided interview + phased generation is better |
+| Real-time collaborative editing | Single-founder tool for MVP; team features are v2 |
+| Unlimited free tier | AI generation is expensive; bounded tiers with worker capacity |
+| Multi-framework support | Opinionated AI-chosen stack per idea; quality over breadth |
+| Manual infrastructure management | Non-technical users don't want to configure AWS; abstracted hosting |
+| Blockchain/Web3 features | Niche; focus on 90% use case (web apps) |
+| 100% production-ready output | Position as MVP generator; "80% there" with handoff path |
+| Custom domains for previews | E2B sandbox URLs sufficient for MVP |
+| OAuth social login beyond Clerk | Clerk handles auth complexity already |
+
+## Traceability
+
+Which phases cover which requirements. Updated during roadmap creation.
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| — | — | Populated by roadmapper |
+
+**Coverage:**
+- v1 requirements: 76 total
+- Mapped to phases: 0 (pending roadmap)
+- Unmapped: 76
+
+---
+*Requirements defined: 2026-02-16*
+*Last updated: 2026-02-16 after initial definition*
