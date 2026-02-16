@@ -117,7 +117,7 @@ Plans:
 - [ ] 05-05-PLAN.md -- Integration tests and midnight scheduler with jitter (TDD)
 
 ### Phase 6: Artifact Generation Pipeline
-**Goal**: LLM-generated versioned documents (Product Brief, MVP Scope, Risk Log, Milestones, How It Works)
+**Goal**: LLM-generated versioned documents with cascade orchestration, inline editing, and PDF/Markdown export
 **Depends on**: Phase 4 (Project), Phase 5 (Queue)
 **Requirements**: DOCS-01, DOCS-02, DOCS-03, DOCS-04, DOCS-05, DOCS-06, DOCS-07
 **Success Criteria** (what must be TRUE):
@@ -127,15 +127,15 @@ Plans:
   4. User isolation enforced (404 on wrong project_id)
   5. Artifacts exportable as PDF via WeasyPrint
   6. Artifacts exportable as Markdown via template rendering
-  7. Artifact generation runs in background via Arq queue
-**Plans**: TBD
+  7. Artifact generation runs in background via BackgroundTasks
+**Plans:** 5 plans
 
 Plans:
-- [ ] 06-01: Artifact models (versioned, JSONB content)
-- [ ] 06-02: Jinja2 templates for each artifact type
-- [ ] 06-03: Background worker for LLM generation
-- [ ] 06-04: WeasyPrint PDF export endpoint
-- [ ] 06-05: Markdown export endpoint
+- [ ] 06-01-PLAN.md -- Artifact model, Pydantic schemas, RunnerFake extension (TDD)
+- [ ] 06-02-PLAN.md -- ArtifactGenerator with cascade orchestration and ArtifactService (TDD)
+- [ ] 06-03-PLAN.md -- API routes for generate, retrieve, regenerate, edit, annotate (TDD)
+- [ ] 06-04-PLAN.md -- WeasyPrint PDF export with Jinja2 templates and tier branding
+- [ ] 06-05-PLAN.md -- Markdown export with readable and technical variants (TDD)
 
 ### Phase 7: State Machine Integration & Dashboard
 **Goal**: Deterministic progress computation with founder-facing Company dashboard
@@ -256,7 +256,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 3. Workspace & Authentication | 3/4 | Gap closure planned | - |
 | 4. Onboarding & Idea Capture | 0/4 | Not started | - |
 | 5. Capacity Queue & Worker Model | 0/5 | Not started | - |
-| 6. Artifact Generation Pipeline | 0/5 | Not started | - |
+| 6. Artifact Generation Pipeline | 0/5 | Planned | - |
 | 7. State Machine Integration & Dashboard | 0/5 | Not started | - |
 | 8. Understanding Interview & Decision Gates | 0/6 | Not started | - |
 | 9. Strategy Graph & Timeline | 0/7 | Not started | - |
