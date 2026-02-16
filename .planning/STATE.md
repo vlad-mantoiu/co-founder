@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 ## Current Position
 
 Phase: 6 of 10 (Artifact Generation Pipeline)
-Plan: 1 of 5 completed
+Plan: 2 of 5 completed
 Status: In Progress
-Last activity: 2026-02-17 — Completed 06-01-PLAN.md (Artifact model, Pydantic schemas, RunnerFake extension)
+Last activity: 2026-02-16 — Completed 06-02-PLAN.md (ArtifactGenerator with cascade, ArtifactService with versioning)
 
-Progress: [█████████▓] 92%
+Progress: [█████████▓] 93%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 21
-- Average duration: 4.8 min
-- Total execution time: 1.68 hours
+- Total plans completed: 22
+- Average duration: 4.9 min
+- Total execution time: 1.80 hours
 
 **By Phase:**
 
@@ -32,11 +32,11 @@ Progress: [█████████▓] 92%
 | 03    | 4     | 20 min | 5.0 min  |
 | 04    | 4     | 14 min | 3.5 min  |
 | 05    | 5     | 31 min | 6.2 min  |
-| 06    | 1     | 6 min  | 6.0 min  |
+| 06    | 2     | 13 min | 6.5 min  |
 
 **Recent Trend:**
-- Last 5 plans: 05-02 (3 min), 05-03 (5 min), 05-04 (13 min), 05-05 (7 min), 06-01 (6 min)
-- Trend: Phase 6 started - artifact model and schemas took 6 min (consistent with Phase 5 average)
+- Last 5 plans: 05-03 (5 min), 05-04 (13 min), 05-05 (7 min), 06-01 (6 min), 06-02 (7 min)
+- Trend: Phase 6 averaging 6.5 min/plan - consistent with complex domain+service patterns
 
 *Updated after each plan completion*
 
@@ -66,6 +66,7 @@ Progress: [█████████▓] 92%
 | 05-04     | 13 min   | 2 tasks     | 5 files  |
 | 05-05     | 7 min    | 2 tasks     | 2 files  |
 | 06-01     | 6 min    | 2 tasks     | 6 files  |
+| 06-02     | 7 min    | 2 tasks     | 6 files  |
 
 ## Accumulated Context
 
@@ -140,6 +141,13 @@ Recent decisions affecting current work:
 - [Phase 06-01]: Tier-gating via optional Pydantic fields with service layer filtering (avoids schema proliferation)
 - [Phase 06-01]: generation_status column (idle/generating/failed) prevents concurrent write race conditions
 - [Phase 06-01]: _schema_version field in all JSONB content for future migration safety
+- [Phase 06-02]: Cascade generation follows linear order (Brief->MVP->Milestones->Risk->HowItWorks with prior context)
+- [Phase 06-02]: Partial failure preserves completed artifacts, returns failed list (no exception re-raise)
+- [Phase 06-02]: Tier filtering uses static field maps (core/business/strategic per artifact type)
+- [Phase 06-02]: System prompts use co-founder "we" voice for collaborative feel
+- [Phase 06-02]: Version rotation pattern (current_content -> previous_content, increment version_number)
+- [Phase 06-02]: Row-level locking (SELECT FOR UPDATE) prevents concurrent regeneration
+- [Phase 06-02]: Edit detection returns section names for UI regeneration warning
 
 ### Pending Todos
 
@@ -171,12 +179,13 @@ None yet.
 - ~~Datetime timezone issues (use datetime.now(timezone.utc), not deprecated utcnow())~~ FIXED in 01-03
 - Non-atomic distributed locks (Phase 7)
 - Mem0 sync-in-async calls (Phase 2)
+- Async fixture dependencies (pytest-asyncio event loop) - deferred from 06-02 (service tests written, infra blocked)
 
 ## Session Continuity
 
-Last session: 2026-02-17 (execute-phase)
-Stopped at: Completed 06-01-PLAN.md
-Resume file: .planning/phases/06-artifact-generation-pipeline/06-01-SUMMARY.md
+Last session: 2026-02-16 (execute-phase)
+Stopped at: Completed 06-02-PLAN.md
+Resume file: .planning/phases/06-artifact-generation-pipeline/06-02-SUMMARY.md
 
 ---
-*Phase 06 IN PROGRESS — Plan 1 of 5 complete: Artifact model and schemas*
+*Phase 06 IN PROGRESS — Plan 2 of 5 complete: ArtifactGenerator with cascade and ArtifactService with versioning*
