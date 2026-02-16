@@ -194,3 +194,17 @@ class RegenerateArtifactRequest(BaseModel):
     """Request to regenerate a single artifact."""
 
     force: bool = Field(False, description="If True, regenerate even with existing edits")
+
+
+class EditSectionRequest(BaseModel):
+    """Request to edit a section of artifact content."""
+
+    section_path: str = Field(..., description="Field name to edit (e.g., 'problem_statement')")
+    new_value: str | dict = Field(..., description="New value for the field")
+
+
+class AnnotateRequest(BaseModel):
+    """Request to add annotation to artifact section."""
+
+    section_id: str = Field(..., description="Section ID being annotated")
+    note: str = Field(..., description="Annotation text")
