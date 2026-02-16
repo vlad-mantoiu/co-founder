@@ -107,14 +107,14 @@ Plans:
   4. Auto-iteration beyond configured depth requires explicit confirmation flag
   5. Per-user worker capacity tied to subscription tier (CTO > Partner > Bootstrapper)
   6. Usage counters returned with all responses (jobs_used, jobs_remaining)
-**Plans**: TBD
+**Plans:** 5 plans
 
 Plans:
-- [ ] 05-01: Arq task queue setup with Redis backend
-- [ ] 05-02: Priority queue with tier-based ordering
-- [ ] 05-03: Concurrency limiting (max 3 per project)
-- [ ] 05-04: Estimated wait time calculation
-- [ ] 05-05: Usage counter tracking per user
+- [ ] 05-01-PLAN.md -- Job schemas, DB model, and QueueManager with Redis sorted set priority (TDD)
+- [ ] 05-02-PLAN.md -- Distributed concurrency semaphore and wait time estimator (TDD)
+- [ ] 05-03-PLAN.md -- Job state machine with iteration tracking and usage counters (TDD)
+- [ ] 05-04-PLAN.md -- API routes (POST/GET/stream/confirm) and background worker (TDD)
+- [ ] 05-05-PLAN.md -- Integration tests and midnight scheduler with jitter (TDD)
 
 ### Phase 6: Artifact Generation Pipeline
 **Goal**: LLM-generated versioned documents (Product Brief, MVP Scope, Risk Log, Milestones, How It Works)
