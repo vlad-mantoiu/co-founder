@@ -223,13 +223,14 @@ class RunnerFake:
         }
 
     async def generate_artifacts(self, brief: dict) -> dict:
-        """Generate documentation artifacts from brief.
+        """Generate structured artifacts matching Pydantic schemas.
 
         Args:
-            brief: Structured product brief
+            brief: Context for artifact generation
 
         Returns:
-            Artifacts dict with 5 document keys
+            Dict with 5 artifact type keys, each containing structured content
+            matching the corresponding Pydantic schema
 
         Raises:
             RuntimeError: For llm_failure and rate_limited scenarios
@@ -242,95 +243,237 @@ class RunnerFake:
                 "Worker capacity exceeded. Estimated wait: 5 minutes. Current queue depth: 12."
             )
 
+        # Return structured data matching Pydantic schemas with cross-references
         return {
-            "product_brief": """# Inventory Tracker Product Brief
+            # Product Brief (references in MVP Scope, Milestones, Risk Log, How It Works)
+            "brief": {
+                "_schema_version": 1,
+                # Core fields (all tiers)
+                "problem_statement": "Small retail business owners waste 5-10 hours per week manually tracking inventory in spreadsheets, leading to stockouts, overordering, and lost sales. We identified this problem as the #1 pain point in our customer interviews.",
+                "target_user": "Retail shop owners with 1-10 employees managing physical products across 1-3 locations. We're focusing on gift shops, boutiques, and cafes that carry 100-1000 SKUs.",
+                "value_proposition": "Dead-simple inventory tracking with barcode scanning, real-time sync, and automatic reorder alerts. We designed it so owners can start tracking in 10 minutes with zero training required.",
+                "key_constraint": "We must support offline-first operation with background sync when connectivity is restored, since many retail locations have unreliable WiFi.",
+                "differentiation_points": [
+                    "Inventory-first focus vs POS bundled solutions",
+                    "10-minute setup vs weeks of ERP configuration",
+                    "Affordable at $49/mo vs $300+ enterprise tools"
+                ],
+                # Business tier (Partner+)
+                "market_analysis": "We identified a $2B TAM in SMB inventory software. Our SAM (retail shops with <10 employees) is $400M. We're targeting a 1% market share ($4M ARR) within 3 years. The market is growing 12% annually as retailers digitize post-pandemic.",
+                # Strategic tier (CTO)
+                "competitive_strategy": "We will compete on depth of inventory features rather than breadth like POS systems. Our advantage: we can iterate faster on inventory-specific workflows (cycle counting, lot tracking, multi-location transfers) without POS baggage. We'll defend our position through network effects (supplier integrations) and switching costs (historical data)."
+            },
 
-## Problem
-Small retail businesses waste 5-10 hours/week manually tracking inventory in spreadsheets, leading to stockouts, overordering, and lost sales.
+            # MVP Scope (references Brief's value proposition)
+            "mvp_scope": {
+                "_schema_version": 1,
+                # Core fields
+                "core_features": [
+                    {
+                        "name": "Product Management",
+                        "description": "We'll let users add products with name, SKU, quantity, and reorder point. Supports manual entry and bulk CSV import.",
+                        "priority": "high"
+                    },
+                    {
+                        "name": "Stock Adjustments",
+                        "description": "We'll track every inventory change with timestamp, quantity delta, reason, and notes. Supports receiving shipments and recording sales.",
+                        "priority": "high"
+                    },
+                    {
+                        "name": "Low Stock Alerts",
+                        "description": "We'll send email notifications when product quantity falls below reorder point. Delivers on our value proposition of automatic alerts.",
+                        "priority": "high"
+                    },
+                    {
+                        "name": "Basic Reporting",
+                        "description": "We'll show current stock levels, adjustment history, and low stock summary. Filterable by product category.",
+                        "priority": "medium"
+                    },
+                    {
+                        "name": "CSV Export",
+                        "description": "We'll export current inventory and adjustment logs to CSV for offline analysis or migration.",
+                        "priority": "medium"
+                    }
+                ],
+                "out_of_scope": [
+                    "Multi-location sync (Phase 2)",
+                    "Barcode scanning hardware (Phase 2)",
+                    "Mobile native app (web-only for MVP)",
+                    "Third-party integrations (Shopify, Square)"
+                ],
+                "success_metrics": [
+                    "100 active users within 6 months",
+                    "50% retention after 30 days",
+                    "Average 3 stock adjustments per user per week"
+                ],
+                # Business tier
+                "technical_architecture": "We're building with Next.js 14 (frontend), FastAPI (backend), and PostgreSQL (database). Chosen for team expertise and rapid iteration speed. Hosting on AWS ECS for scalability.",
+                # Strategic tier
+                "scalability_plan": "We'll scale horizontally by sharding database by customer (each shop is independent). When we hit 10k users, we'll add read replicas. At 50k users, we'll migrate to managed Postgres (RDS) with automatic failover."
+            },
 
-## Solution
-Mobile-first inventory app with barcode scanning, real-time sync, and automatic reorder alerts. Setup in 10 minutes, no training required.
+            # Milestones (references MVP features and Brief constraint)
+            "milestones": {
+                "_schema_version": 1,
+                # Core fields
+                "milestones": [
+                    {
+                        "title": "Week 1: Foundation",
+                        "description": "We'll build the database schema and authentication system. Includes products, stock_adjustments tables, and email/password auth.",
+                        "success_criteria": [
+                            "Database migrations run successfully",
+                            "User can sign up and log in",
+                            "Product CRUD operations work"
+                        ],
+                        "estimated_weeks": 1
+                    },
+                    {
+                        "title": "Week 2: Core Features",
+                        "description": "We'll implement the Stock Adjustments and Low Stock Alerts features from our MVP Scope. This delivers our core value proposition.",
+                        "success_criteria": [
+                            "User can log stock adjustments",
+                            "Low stock alerts trigger correctly",
+                            "Email notifications send"
+                        ],
+                        "estimated_weeks": 1
+                    },
+                    {
+                        "title": "Week 3: Reporting & Export",
+                        "description": "We'll build the Basic Reporting and CSV Export features. Enables users to analyze trends and migrate data if needed.",
+                        "success_criteria": [
+                            "Stock level report shows accurate data",
+                            "Adjustment history is queryable",
+                            "CSV export includes all fields"
+                        ],
+                        "estimated_weeks": 1
+                    },
+                    {
+                        "title": "Week 4: Launch",
+                        "description": "We'll polish the UI, run user testing, and deploy to production. Addresses our key constraint by ensuring offline tolerance is tested.",
+                        "success_criteria": [
+                            "5 beta users complete workflows",
+                            "No critical bugs in production",
+                            "First 10 paying customers onboarded"
+                        ],
+                        "estimated_weeks": 1
+                    }
+                ],
+                "critical_path": [
+                    "Foundation (Week 1)",
+                    "Core Features (Week 2)",
+                    "Launch (Week 4)"
+                ],
+                "total_duration_weeks": 4,
+                # Business tier
+                "resource_plan": "We'll staff with 1 full-stack engineer (80h total) and 1 designer (20h for UI polish in Week 3). Founder handles user testing and onboarding. Total cost: $12k eng + $2k design = $14k.",
+                # Strategic tier
+                "risk_mitigation_timeline": "We'll address the Customer Acquisition Cost risk in Week 3 by finalizing our local outreach list. We'll mitigate Retention Risk in Week 4 by scheduling weekly check-in calls with first 10 customers."
+            },
 
-## Target Market
-Retail shops with 1-10 employees, 1-3 locations, managing 100-1000 SKUs. Initial focus: gift shops, boutiques, cafes.
+            # Risk Log (references specific Milestones and Brief assumptions)
+            "risk_log": {
+                "_schema_version": 1,
+                # Core fields
+                "technical_risks": [
+                    {
+                        "title": "Offline Sync Complexity",
+                        "description": "We identified handling conflict resolution when multiple devices sync after offline edits. References our key constraint in the Brief.",
+                        "severity": "high",
+                        "mitigation": "We'll start with last-write-wins strategy in MVP. Phase 2 adds user-driven conflict resolution if needed."
+                    },
+                    {
+                        "title": "Email Delivery Reliability",
+                        "description": "We risk low stock alerts landing in spam, reducing value proposition effectiveness. Critical for Core Features milestone (Week 2).",
+                        "severity": "medium",
+                        "mitigation": "We'll use SendGrid with DKIM/SPF setup. Test deliverability with beta users in Week 4."
+                    }
+                ],
+                "market_risks": [
+                    {
+                        "title": "Customer Acquisition Cost",
+                        "description": "We assume CAC stays below $200, but paid ads may exceed LTV ($588/year). Impacts our monetization hypothesis.",
+                        "severity": "high",
+                        "mitigation": "We'll focus on organic channels: local retail associations, word-of-mouth, content marketing. Target 50% organic mix."
+                    },
+                    {
+                        "title": "Competition from POS Systems",
+                        "description": "We risk Square/Shopify adding our inventory features before we scale. Threatens our differentiation strategy.",
+                        "severity": "medium",
+                        "mitigation": "We'll build deeper inventory workflows (lot tracking, cycle counting) that POS systems won't prioritize. Create switching costs via data history."
+                    }
+                ],
+                "execution_risks": [
+                    {
+                        "title": "Timeline Slippage",
+                        "description": "We risk the 4-week timeline extending to 6+ weeks, delaying revenue and learning. Impacts all milestones.",
+                        "severity": "medium",
+                        "mitigation": "We'll cut scope aggressively if Week 1 foundation takes longer than planned. CSV import moves to Phase 2 if needed."
+                    },
+                    {
+                        "title": "Beta User Churn",
+                        "description": "We risk losing beta users before launch (Week 4 milestone). Would invalidate product-market fit assumptions.",
+                        "severity": "low",
+                        "mitigation": "We'll offer free first 3 months to beta users. Weekly check-ins to address feedback quickly."
+                    }
+                ],
+                # Business tier
+                "financial_risks": [
+                    {
+                        "title": "Burn Rate",
+                        "description": "We risk exceeding $14k budget if engineering hours increase. Could delay follow-on funding.",
+                        "severity": "medium",
+                        "mitigation": "We'll cap hours at 80 (1 person-month). Defer nice-to-have features to Phase 2."
+                    }
+                ],
+                # Strategic tier
+                "strategic_risks": [
+                    {
+                        "title": "Market Timing",
+                        "description": "We risk launching during retail off-season (post-holiday) when budgets are tight. Could slow customer acquisition.",
+                        "severity": "low",
+                        "mitigation": "We'll target cafes and gift shops that have year-round inventory needs. Avoid seasonal retailers in initial cohort."
+                    }
+                ]
+            },
 
-## Business Model
-$49/month per location. Target: 100 paying customers in 6 months ($4,900 MRR).""",
-            "mvp_scope": """# MVP Scope
-
-## In Scope
-- Single-location inventory tracking
-- Manual product entry (name, SKU, quantity, reorder point)
-- Stock adjustment logging (with notes)
-- Low stock alerts (email notifications)
-- CSV import/export
-- Basic reporting (stock levels, adjustment history)
-
-## Out of Scope (Phase 2+)
-- Multi-location sync
-- Barcode scanning
-- Mobile app (web-only for MVP)
-- Integrations (Shopify, Square, etc.)
-- Advanced analytics
-- Supplier management""",
-            "milestones": """# Project Milestones
-
-## Week 1: Foundation
-- Database schema (products, stock_adjustments)
-- Authentication (email/password)
-- Product CRUD operations
-
-## Week 2: Core Features
-- Stock adjustment workflow
-- Low stock threshold alerts
-- Email notification system
-
-## Week 3: Polish
-- CSV import/export
-- Basic reporting views
-- Responsive design
-
-## Week 4: Launch
-- User testing with 5 beta customers
-- Bug fixes and refinements
-- Deploy to production
-- Onboard first 10 customers""",
-            "risk_log": """# Risk Log
-
-## High Priority
-1. **Customer acquisition cost** - Mitigation: Start with local outreach, partnerships with retail associations
-2. **Retention risk** - Mitigation: Weekly check-ins during first month, feature requests prioritization
-3. **Data migration complexity** - Mitigation: Robust CSV import with validation, dedicated onboarding support
-
-## Medium Priority
-4. **Competition from POS systems** - Mitigation: Focus on depth of inventory features, not breadth
-5. **Mobile dependency** - Mitigation: Ensure web app is mobile-responsive for MVP
-
-## Low Priority
-6. **Scalability concerns** - Mitigation: Start with proven stack (PostgreSQL, Redis), optimize later""",
-            "how_it_works": """# How It Works
-
-## User Flow
-1. **Sign up** → Email/password, verify email
-2. **Add products** → Name, SKU, quantity, reorder point (or bulk CSV import)
-3. **Track stock** → Log adjustments when receiving shipments or making sales
-4. **Get alerts** → Email when stock falls below reorder point
-5. **Review reports** → Check current stock levels, adjustment history
-
-## Technical Architecture
-- **Frontend**: Next.js (responsive web app)
-- **Backend**: FastAPI (async Python)
-- **Database**: PostgreSQL (products, adjustments, users)
-- **Auth**: JWT tokens with refresh rotation
-- **Notifications**: SendGrid (email alerts)
-- **Hosting**: AWS ECS (Docker containers)
-
-## Key Screens
-- Dashboard (stock overview, recent adjustments)
-- Product list (search, filter by low stock)
-- Product detail (adjustment history, edit)
-- New adjustment form (increase/decrease stock, add note)
-- Reports (stock levels by category, adjustment trends)""",
+            # How It Works (references MVP features, Milestones, architecture)
+            "how_it_works": {
+                "_schema_version": 1,
+                # Core fields
+                "user_journey": [
+                    {
+                        "step_number": 1,
+                        "title": "Sign Up",
+                        "description": "We'll guide users through email/password signup with email verification. Delivered in Foundation milestone (Week 1)."
+                    },
+                    {
+                        "step_number": 2,
+                        "title": "Add Products",
+                        "description": "We'll let users enter products manually or import via CSV. References Product Management feature from MVP Scope. Completed by Week 1."
+                    },
+                    {
+                        "step_number": 3,
+                        "title": "Track Stock Changes",
+                        "description": "We'll provide a form to log stock adjustments (receiving shipments, recording sales). Core Features milestone (Week 2). Delivers on our value proposition."
+                    },
+                    {
+                        "step_number": 4,
+                        "title": "Receive Alerts",
+                        "description": "We'll send email when stock falls below reorder point. Low Stock Alerts feature from Week 2. Automatic as promised in Brief."
+                    },
+                    {
+                        "step_number": 5,
+                        "title": "Review Reports",
+                        "description": "We'll show current stock levels and adjustment history. Basic Reporting feature from Week 3. Supports data-driven restocking decisions."
+                    }
+                ],
+                "architecture": "We're using a three-tier architecture: Next.js 14 frontend (responsive web app), FastAPI backend (async Python for high concurrency), PostgreSQL database (products, adjustments, users). Authentication via JWT tokens with refresh rotation. Email alerts via SendGrid API. Hosted on AWS ECS (Docker containers) behind ALB. References our technical architecture from MVP Scope.",
+                "data_flow": "We designed the flow as: User submits adjustment form → Frontend validates quantity → API authenticates JWT → Backend checks product exists → DB transaction updates quantity and logs adjustment → If quantity < reorder_point, queue email alert → Response confirms success. Supports our offline constraint via local form validation.",
+                # Business tier
+                "integration_points": "We're planning SendGrid (email), Stripe (payments), AWS S3 (CSV storage), and CloudWatch (monitoring) for MVP. Phase 2 adds Shopify webhook integration for automatic stock sync when orders are placed.",
+                # Strategic tier
+                "security_compliance": "We'll implement AES-256 encryption at rest (RDS), TLS 1.3 in transit, and RBAC for multi-user shops. SOC 2 Type II compliance planned for Year 2 to serve enterprise customers. Password hashing via bcrypt with 12 rounds. Session tokens expire after 7 days."
+            }
         }
 
     # =========================================================================
