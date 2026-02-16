@@ -46,18 +46,18 @@ Plans:
 **Depends on**: Phase 1
 **Requirements**: STMC-01, STMC-02, STMC-03, STMC-04
 **Success Criteria** (what must be TRUE):
-  1. Five stages defined (Thesis Defined → Validated Direction → MVP Built → Feedback Loop Active → Scale & Optimize)
+  1. Five stages defined (Thesis Defined -> Validated Direction -> MVP Built -> Feedback Loop Active -> Scale & Optimize)
   2. Stage transitions only occur via decision gates, never automatically
   3. Progress percent computed deterministically from completed artifacts and build status
   4. State machine persisted in PostgreSQL with entered_at, exit_criteria, progress_percent, blocking_risks, suggested_focus
   5. State transitions logged with correlation_id for observability
-**Plans**: TBD
+**Plans:** 4 plans
 
 Plans:
-- [ ] 02-01: Define state machine schema and PostgreSQL models
-- [ ] 02-02: Implement transitions library FSM with gate enforcement
-- [ ] 02-03: Build deterministic progress computation from artifacts
-- [ ] 02-04: Add observability (correlation_id, timeline events)
+- [ ] 02-01-PLAN.md -- Domain core: Stage/ProjectStatus enums, transition validation, progress computation (TDD)
+- [ ] 02-02-PLAN.md -- Domain logic: Decision gate resolution, system risk detection (TDD)
+- [ ] 02-03-PLAN.md -- DB models: StageConfig, DecisionGate, StageEvent + Alembic setup
+- [ ] 02-04-PLAN.md -- JourneyService orchestrating domain + persistence with integration tests
 
 ### Phase 3: Workspace & Authentication
 **Goal**: First-login provisioning with feature flags and user isolation
@@ -214,7 +214,7 @@ Plans:
 **Requirements**: GENR-01, GENR-02, GENR-03, GENR-04, GENR-05, GENR-06, GENR-07, MVPS-01, MVPS-02, MVPS-03, MVPS-04, SOLD-01, SOLD-02, SOLD-03, ITER-01, ITER-02, ITER-03, GENL-01, GENL-02, GENL-03, GENL-04, GENL-05, GENL-06, DEPL-01, DEPL-02, DEPL-03, BETA-01, BETA-02, CNTR-01, CNTR-02, CHAT-01, CHAT-02
 **Success Criteria** (what must be TRUE):
   1. Start generation returns job_id with status queued/running
-  2. Job progresses deterministically (scaffold → code → deps → checks → ready)
+  2. Job progresses deterministically (scaffold -> code -> deps -> checks -> ready)
   3. Workspace contains expected files (README, env example, start script)
   4. E2B-hosted preview URL exists for running app
   5. Builds versioned (build_v0_1, build_v0_2)
@@ -242,17 +242,17 @@ Plans:
 - [ ] 10-07: Deploy readiness assessment endpoint
 - [ ] 10-08: Beta gating middleware
 - [ ] 10-09: Response contract validation tests
-- [ ] 10-10: E2E founder flow test (idea → brief → plan → build → preview)
+- [ ] 10-10: E2E founder flow test (idea -> brief -> plan -> build -> preview)
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Runner Interface & Test Foundation | 0/3 | Not started | - |
-| 2. State Machine Core | 0/4 | Not started | - |
+| 1. Runner Interface & Test Foundation | 3/3 | Complete | 2026-02-16 |
+| 2. State Machine Core | 0/4 | Planning complete | - |
 | 3. Workspace & Authentication | 0/4 | Not started | - |
 | 4. Onboarding & Idea Capture | 0/4 | Not started | - |
 | 5. Capacity Queue & Worker Model | 0/5 | Not started | - |
