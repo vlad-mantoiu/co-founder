@@ -17,41 +17,42 @@ tier: {{ tier }}
 
 ---
 
+<a name="product-brief"></a>
 # Product Brief
 
 {% if brief %}
 ## Technical Specifications
 
-### Problem Statement {#problem-statement}
+### Problem Statement
 
 {{ brief.problem_statement }}
 
-### Target User {#target-user}
+### Target User
 
 {{ brief.target_user }}
 
-### Value Proposition {#value-proposition}
+### Value Proposition
 
 {{ brief.value_proposition }}
 
-### Key Constraint {#key-constraint}
+### Key Constraint
 
 {{ brief.key_constraint }}
 
-### Differentiation Points {#differentiation-points}
+### Differentiation Points
 
 {% for point in brief.differentiation_points %}
 - {{ point }}
 {% endfor %}
 
 {% if tier in ["partner", "cto"] and brief.market_analysis %}
-### Market Analysis {#market-analysis}
+### Market Analysis
 
 {{ brief.market_analysis }}
 {% endif %}
 
 {% if tier == "cto" and brief.competitive_strategy %}
-### Competitive Strategy {#competitive-strategy}
+### Competitive Strategy
 
 {{ brief.competitive_strategy }}
 {% endif %}
@@ -59,12 +60,13 @@ tier: {{ tier }}
 
 ---
 
+<a name="mvp-scope"></a>
 # MVP Scope
 
 {% if mvp_scope %}
 ## Technical Specifications
 
-### Core Features {#core-features}
+### Core Features
 
 {% for feature in mvp_scope.core_features %}
 #### {{ feature.name }}
@@ -86,20 +88,20 @@ Description: {{ feature.description }}
 {% endif %}
 {% endfor %}
 
-### Out of Scope {#out-of-scope}
+### Out of Scope
 
 {% for item in mvp_scope.out_of_scope %}
 - {{ item }}
 {% endfor %}
 
-### Success Metrics {#success-metrics}
+### Success Metrics
 
 {% for metric in mvp_scope.success_metrics %}
 - {{ metric }}
 {% endfor %}
 
 {% if tier in ["partner", "cto"] and mvp_scope.technical_architecture %}
-### Technical Architecture {#technical-architecture}
+### Technical Architecture
 
 ```
 Architecture Overview:
@@ -108,7 +110,7 @@ Architecture Overview:
 {% endif %}
 
 {% if tier == "cto" and mvp_scope.scalability_plan %}
-### Scalability Plan {#scalability-plan}
+### Scalability Plan
 
 {{ mvp_scope.scalability_plan }}
 {% endif %}
@@ -116,12 +118,13 @@ Architecture Overview:
 
 ---
 
+<a name="milestones"></a>
 # Milestones
 
 {% if milestones %}
 ## Technical Specifications
 
-### Timeline {#timeline}
+### Timeline
 
 {% for milestone in milestones.milestones %}
 #### {{ milestone.name }} - Week {{ milestone.week }}
@@ -134,7 +137,7 @@ Architecture Overview:
 {% endfor %}
 {% endfor %}
 
-### Critical Path {#critical-path}
+### Critical Path
 
 {% for item in milestones.critical_path %}
 - {{ item }}
@@ -143,13 +146,13 @@ Architecture Overview:
 **Total Duration:** {{ milestones.total_duration_weeks }} weeks
 
 {% if tier in ["partner", "cto"] and milestones.resource_plan %}
-### Resource Plan {#resource-plan}
+### Resource Plan
 
 {{ milestones.resource_plan }}
 {% endif %}
 
 {% if tier == "cto" and milestones.risk_mitigation_timeline %}
-### Risk Mitigation Timeline {#risk-mitigation-timeline}
+### Risk Mitigation Timeline
 
 {{ milestones.risk_mitigation_timeline }}
 {% endif %}
@@ -157,12 +160,13 @@ Architecture Overview:
 
 ---
 
+<a name="risk-log"></a>
 # Risk Log
 
 {% if risk_log %}
 ## Technical Specifications
 
-### Technical Risks {#technical-risks}
+### Technical Risks
 
 {% for risk in risk_log.technical_risks %}
 #### **[{{ risk.severity|upper }}]** {{ risk.title }}
@@ -178,7 +182,7 @@ Architecture Overview:
 ---
 {% endfor %}
 
-### Market Risks {#market-risks}
+### Market Risks
 
 {% for risk in risk_log.market_risks %}
 #### **[{{ risk.severity|upper }}]** {{ risk.title }}
@@ -194,7 +198,7 @@ Architecture Overview:
 ---
 {% endfor %}
 
-### Execution Risks {#execution-risks}
+### Execution Risks
 
 {% for risk in risk_log.execution_risks %}
 #### **[{{ risk.severity|upper }}]** {{ risk.title }}
@@ -211,7 +215,7 @@ Architecture Overview:
 {% endfor %}
 
 {% if tier in ["partner", "cto"] and risk_log.financial_risks %}
-### Financial Risks {#financial-risks}
+### Financial Risks
 
 {% for risk in risk_log.financial_risks %}
 #### **[{{ risk.severity|upper }}]** {{ risk.title }}
@@ -226,7 +230,7 @@ Architecture Overview:
 {% endif %}
 
 {% if tier == "cto" and risk_log.strategic_risks %}
-### Strategic Risks {#strategic-risks}
+### Strategic Risks
 
 {% for risk in risk_log.strategic_risks %}
 #### **[{{ risk.severity|upper }}]** {{ risk.title }}
@@ -243,24 +247,13 @@ Architecture Overview:
 
 ---
 
+<a name="how-it-works"></a>
 # How It Works
 
 {% if how_it_works %}
 ## Technical Specifications
 
-### User Journey {#user-journey}
-
-```mermaid
-graph TD
-{% for step in how_it_works.user_journey %}
-    Step{{ step.step_number }}[{{ step.title }}]
-{% endfor %}
-{% for step in how_it_works.user_journey %}
-{% if not loop.last %}
-    Step{{ step.step_number }} --> Step{{ step.step_number + 1 }}
-{% endif %}
-{% endfor %}
-```
+### User Journey
 
 {% for step in how_it_works.user_journey %}
 #### Step {{ step.step_number }}: {{ step.title }}
@@ -284,26 +277,26 @@ graph TD
 ---
 {% endfor %}
 
-### Architecture {#architecture}
+### Architecture
 
 ```
 {{ how_it_works.architecture }}
 ```
 
-### Data Flow {#data-flow}
+### Data Flow
 
 ```
 {{ how_it_works.data_flow }}
 ```
 
 {% if tier in ["partner", "cto"] and how_it_works.integration_points %}
-### Integration Points {#integration-points}
+### Integration Points
 
 {{ how_it_works.integration_points }}
 {% endif %}
 
 {% if tier == "cto" and how_it_works.security_compliance %}
-### Security & Compliance {#security-compliance}
+### Security & Compliance
 
 {{ how_it_works.security_compliance }}
 {% endif %}
