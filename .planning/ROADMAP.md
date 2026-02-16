@@ -69,13 +69,12 @@ Plans:
   3. First login idempotently provisions user profile and workspace
   4. Feature flags API returns beta_features[] array with default gating
   5. User isolation enforced — users cannot access others' data (404 on wrong project_id)
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 03-01: Auth middleware with Clerk JWT verification
-- [ ] 03-02: User profile and workspace provisioning logic
-- [ ] 03-03: Feature flags system with beta_features column
-- [ ] 03-04: User isolation tests (cross-user access attempt returns 404)
+- [ ] 03-01-PLAN.md -- Auth foundation: schema extensions, provisioning, debug_id error handling
+- [ ] 03-02-PLAN.md -- Feature flags: resolution module, require_feature dependency, GET /api/features
+- [ ] 03-03-PLAN.md -- Auth wiring: auto-provisioning in require_auth, user isolation integration tests
 
 ### Phase 4: Onboarding & Idea Capture
 **Goal**: Dynamic LLM-tailored questions for idea capture with project creation
@@ -252,8 +251,8 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Runner Interface & Test Foundation | 3/3 | Complete | 2026-02-16 |
-| 2. State Machine Core | 0/4 | Planning complete | - |
-| 3. Workspace & Authentication | 0/4 | Not started | - |
+| 2. State Machine Core | 4/4 | Complete | 2026-02-16 |
+| 3. Workspace & Authentication | 0/3 | Planning complete | - |
 | 4. Onboarding & Idea Capture | 0/4 | Not started | - |
 | 5. Capacity Queue & Worker Model | 0/5 | Not started | - |
 | 6. Artifact Generation Pipeline | 0/5 | Not started | - |
