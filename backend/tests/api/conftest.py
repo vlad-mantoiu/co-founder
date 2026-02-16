@@ -46,28 +46,15 @@ async def engine() -> AsyncEngine:
 
 
 @pytest.fixture
-async def db_session(engine: AsyncEngine) -> AsyncSession:
-    """Create an async session for tests."""
-    session_factory = async_sessionmaker(
-        engine,
-        class_=AsyncSession,
-        expire_on_commit=False,
-    )
-    async with session_factory() as session:
-        # Seed bootstrapper tier for provisioning tests
-        tier = PlanTier(
-            slug="bootstrapper",
-            name="Bootstrapper",
-            price_monthly_cents=0,
-            price_yearly_cents=0,
-            max_projects=1,
-            max_sessions_per_day=10,
-            max_tokens_per_day=500_000,
-            default_models={},
-            allowed_models=[],
-        )
-        session.add(tier)
-        await session.commit()
+async def db_session(engine: AsyncEngine, api_client) -> AsyncSession:
+    """Create an async session for tests.
+
+    Depends on api_client to ensure database is initialized and seeded.
+    """
+    from app.db import get_session_factory
+
+    factory = get_session_factory()
+    async with factory() as session:
         yield session
 
 
