@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 ## Current Position
 
 Phase: 5 of 10 (Capacity Queue Worker Model)
-Plan: 3 of 5 completed
+Plan: 4 of 5 completed
 Status: In Progress
-Last activity: 2026-02-16 — Completed 05-03-PLAN.md (Job state machine and usage counters with tier-based limits)
+Last activity: 2026-02-17 — Completed 05-04-PLAN.md (Job API routes with SSE streaming and background worker)
 
-Progress: [████████▓▓] 60%
+Progress: [████████▓▓] 80%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 18
-- Average duration: 3.4 min
-- Total execution time: 1.02 hours
+- Total plans completed: 19
+- Average duration: 4.5 min
+- Total execution time: 1.42 hours
 
 **By Phase:**
 
@@ -31,11 +31,11 @@ Progress: [████████▓▓] 60%
 | 02    | 4     | 12 min | 3.0 min  |
 | 03    | 4     | 20 min | 5.0 min  |
 | 04    | 4     | 14 min | 3.5 min  |
-| 05    | 3     | 11 min | 3.7 min  |
+| 05    | 4     | 24 min | 6.0 min  |
 
 **Recent Trend:**
-- Last 5 plans: 04-04 (5 min), 05-01 (3 min), 05-02 (3 min), 05-03 (5 min)
-- Trend: Phase 5 progressing - state machine & usage counters with tier-based limits complete
+- Last 5 plans: 05-01 (3 min), 05-02 (3 min), 05-03 (5 min), 05-04 (13 min)
+- Trend: Phase 5 integration tasks taking longer (API + worker vs primitives)
 
 *Updated after each plan completion*
 
@@ -61,7 +61,8 @@ Progress: [████████▓▓] 60%
 | 05-03     | 5 min    | 2 tasks     | 6 files  |
 | 05-01     | 3 min    | 1 task      | 6 files  |
 | 05-02     | 3 min    | 2 tasks     | 5 files  |
-| Phase 05 P03 | 5 | 2 tasks | 6 files |
+| 05-03     | 5 min    | 2 tasks     | 6 files  |
+| 05-04     | 13 min   | 2 tasks     | 5 files  |
 
 ## Accumulated Context
 
@@ -127,6 +128,10 @@ Recent decisions affecting current work:
 - [Phase 05-03]: JobStateMachine validates all transitions - terminal states (READY, FAILED) reject all transitions
 - [Phase 05-03]: Iteration tracking with tier-based depth (2/3/5) and 3x hard cap prevents runaway costs
 - [Phase 05-03]: Daily job limits with midnight UTC reset via Redis EXPIREAT (5/50/200 per tier)
+- [Phase 05-04]: Redis dependency injection for testability (override with fakeredis in tests)
+- [Phase 05-04]: BackgroundTasks for MVP worker (simplest async execution pattern)
+- [Phase 05-04]: SSE testing skipped with TestClient (fakeredis pubsub blocks - manual/E2E only)
+- [Phase 05-04]: Non-blocking Postgres persistence (logs error, doesn't fail job)
 
 ### Pending Todos
 
@@ -162,8 +167,8 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17 (execute-phase)
-Stopped at: Completed 05-02-PLAN.md
-Resume file: .planning/phases/05-capacity-queue-worker-model/05-02-SUMMARY.md
+Stopped at: Completed 05-04-PLAN.md
+Resume file: .planning/phases/05-capacity-queue-worker-model/05-04-SUMMARY.md
 
 ---
-*Phase 05 IN PROGRESS — Plan 02 complete: Distributed concurrency primitives (semaphore + estimator)*
+*Phase 05 IN PROGRESS — Plan 04 complete: Job API routes with SSE streaming and background worker*
