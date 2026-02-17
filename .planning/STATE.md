@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 ## Current Position
 
 Phase: 10 of 10 (Export, Deploy Readiness & E2E Testing)
-Plan: 3 of 5 completed (10-03 Response contracts and beta gating tests)
+Plan: 5 of 5 completed (10-05 MVP Built transition and dashboard build data)
 Status: Active
-Last activity: 2026-02-17 — Completed 10-03-PLAN.md (response contract tests, beta gating tests, schema null-safety fixes)
+Last activity: 2026-02-17 — Completed 10-05-PLAN.md (MVP Built post-build hook, dynamic dashboard product_version)
 
-Progress: [██████████] 92%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -91,6 +91,7 @@ Progress: [██████████] 92%
 | Phase 10 P02 | 2 | 2 tasks | 4 files |
 | Phase 10 P01 | 3 | 2 tasks | 6 files |
 | Phase 10 P03 | 2 | 2 tasks | 5 files |
+| Phase 10 P05 | 2 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -249,6 +250,9 @@ Recent decisions affecting current work:
 - [Phase 10-03]: Mini FastAPI() app for testing require_feature closure in isolation from main test router
 - [Phase 10-03]: GateStatusResponse.options uses Field(default_factory=list) — list fields default to [] for CNTR-02 compliance
 - [Phase 10-03]: TimelineResponse.items and GraphResponse.nodes/edges use Field(default_factory=list) — stable empty array shape
+- [Phase 10-05]: Bypass JourneyService._transition_stage for MVP Built hook — build completion is authoritative trigger (no gate required)
+- [Phase 10-05]: Idempotent MVP Built hook: stage >= 3 check prevents re-transition on subsequent builds
+- [Phase 10-05]: Dashboard product_version derived dynamically from Job.build_version string parse ('build_v0_1' -> 'v0.1')
 
 ### Pending Todos
 
@@ -285,10 +289,10 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17 (execute-phase)
-Stopped at: Completed 10-03-PLAN.md (response contract tests, beta gating tests, schema null-safety fixes)
-Resume file: .planning/phases/10-export-deploy-readiness-e2e-testing/10-03-SUMMARY.md
-Next action: Execute 10-04-PLAN.md
+Stopped at: Completed 10-05-PLAN.md (MVP Built post-build hook, dynamic dashboard product_version)
+Resume file: .planning/phases/10-export-deploy-readiness-e2e-testing/10-05-SUMMARY.md
+Next action: Phase 10 complete — all 5 plans done
 
 ---
 *Phase 09 COMPLETE — 5 of 5 plans done: Neo4j StrategyGraph foundation + TimelineService + API routes + Timeline Kanban board + NodeDetailModal + BrandNav + Modal gap closure (real API data)*
-*Phase 10 IN PROGRESS — 3 of 5 plans done: domain functions + response contracts + beta gating tests*
+*Phase 10 COMPLETE — 5 of 5 plans done: domain functions + response contracts + beta gating tests + generation routes + MVP Built transition + dashboard build data*
