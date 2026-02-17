@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.routes import admin, agent, artifacts, billing, dashboard, decision_gates, execution_plans, features, health, jobs, onboarding, projects, understanding
+from app.api.routes import admin, agent, artifacts, billing, dashboard, decision_gates, execution_plans, features, health, jobs, onboarding, projects, strategy_graph, timeline, understanding
 
 api_router = APIRouter()
 
@@ -17,3 +17,5 @@ api_router.include_router(execution_plans.router, prefix="/plans", tags=["execut
 api_router.include_router(admin.router, tags=["admin"])
 api_router.include_router(billing.router, tags=["billing"])
 api_router.include_router(features.router, prefix="/features", tags=["features"])
+api_router.include_router(strategy_graph.router, prefix="/graph", tags=["strategy-graph"])
+api_router.include_router(timeline.router, prefix="/timeline", tags=["timeline"])
