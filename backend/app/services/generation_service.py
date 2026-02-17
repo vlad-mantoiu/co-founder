@@ -5,6 +5,8 @@ the JobStateMachine transitions, persisting sandbox build results.
 """
 
 import logging
+import uuid
+from datetime import datetime, timezone
 from typing import Callable
 from uuid import uuid4
 
@@ -123,6 +125,21 @@ class GenerationService:
             sandbox_id = sandbox._sandbox.sandbox_id
             build_version = await self._get_next_build_version(project_id, state_machine)
 
+            # 7. Post-build hook: MVP Built state transition (non-fatal)
+            try:
+                await self._handle_mvp_built_transition(
+                    job_id=job_id,
+                    project_id=project_id,
+                    build_version=build_version,
+                    preview_url=preview_url,
+                )
+            except Exception:
+                logger.warning(
+                    "MVP Built post-build hook failed for job %s (non-fatal)",
+                    job_id,
+                    exc_info=True,
+                )
+
             return {
                 "sandbox_id": sandbox_id,
                 "preview_url": preview_url,
@@ -196,6 +213,102 @@ class GenerationService:
                 continue
 
         return f"build_v0_{max_n + 1}"
+
+    async def _handle_mvp_built_transition(
+        self,
+        job_id: str,
+        project_id: str,
+        build_version: str,
+        preview_url: str,
+    ) -> None:
+        """Trigger MVP Built state when first build (build_v0_1) completes.
+
+        MVPS-01: stage transitions to 3 (Development / MVP Built)
+        MVPS-03: Timeline event logged
+        MVPS-04: Strategy graph node marked completed (via StrategyGraph, non-fatal)
+
+        Only fires for build_v0_1 (first build). Subsequent builds are no-ops.
+        """
+        if build_version != "build_v0_1":
+            return  # Only first build triggers MVP transition
+
+        from app.db.models.project import Project
+        from app.db.models.stage_event import StageEvent
+
+        pid = uuid.UUID(project_id)
+        correlation_id = uuid.uuid4()
+        factory = get_session_factory()
+        async with factory() as session:
+            # Load project
+            result = await session.execute(
+                select(Project).where(Project.id == pid)
+            )
+            project = result.scalar_one_or_none()
+            if project is None:
+                logger.warning("MVP Built hook: project %s not found", project_id)
+                return
+
+            # Only advance if project is currently at stage 2 (Validated Direction)
+            # or any earlier stage — skip if already at 3+ (idempotent guard)
+            current_stage = project.stage_number if project.stage_number is not None else 0
+            if current_stage >= 3:
+                logger.info(
+                    "MVP Built hook: project %s already at stage %d, skipping",
+                    project_id,
+                    current_stage,
+                )
+                return
+
+            # Directly advance stage to 3 (MVP Built / Development)
+            # Bypass JourneyService._transition_stage validation since
+            # a completed build is the authoritative trigger for this transition.
+            from_stage_value = project.stage_number
+            project.stage_number = 3
+            project.stage_entered_at = datetime.now(timezone.utc)
+
+            # Log transition event
+            transition_event = StageEvent(
+                project_id=pid,
+                correlation_id=correlation_id,
+                event_type="transition",
+                from_stage=str(from_stage_value) if from_stage_value is not None else "pre-stage",
+                to_stage="3",
+                actor="system",
+                detail={"target_stage": 3, "trigger": "build_complete"},
+            )
+            session.add(transition_event)
+
+            # Log mvp_built timeline event (MVPS-03)
+            mvp_event = StageEvent(
+                project_id=pid,
+                correlation_id=correlation_id,
+                event_type="mvp_built",
+                actor="system",
+                detail={
+                    "preview_url": preview_url,
+                    "build_version": build_version,
+                },
+                reason="First MVP build completed and preview deployed",
+            )
+            session.add(mvp_event)
+            await session.commit()
+
+        # Sync to Neo4j strategy graph (MVPS-04, non-fatal)
+        try:
+            from app.db.graph.strategy_graph import get_strategy_graph
+            strategy_graph = get_strategy_graph()
+            await strategy_graph.upsert_milestone_node({
+                "id": f"mvp_built_{project_id}",
+                "project_id": project_id,
+                "title": "Stage: MVP Built",
+                "status": "done",
+                "type": "milestone",
+                "why": "MVP build completed",
+                "impact_summary": f"Build {build_version} deployed to {preview_url}",
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            })
+        except Exception:
+            logger.warning("Neo4j sync failed for MVP Built milestone", exc_info=True)
 
 
 def _friendly_message(exc: Exception) -> str:
