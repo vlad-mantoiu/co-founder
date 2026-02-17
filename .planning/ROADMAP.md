@@ -22,7 +22,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 8: Understanding Interview & Decision Gates** - Clarifying questions and Proceed/Narrow/Pivot/Park gates (completed 2026-02-17)
 - [ ] **Phase 9: Strategy Graph & Timeline** - Neo4j decision tracking with Kanban execution view
 - [x] **Phase 10: Export, Deploy Readiness & E2E Testing** - PDF/Markdown export with comprehensive testing (completed 2026-02-17)
-- [ ] **Phase 11: Cross-Phase Frontend Wiring** - Fix integration breaks from milestone audit
+- [x] **Phase 11: Cross-Phase Frontend Wiring** - Fix integration breaks from milestone audit (completed 2026-02-17)
 
 ## Phase Details
 
@@ -255,7 +255,7 @@ Plans:
   2. Onboarding → understanding transition preserves project_id (gate and plan generation work)
   3. Brief section editing persists successfully (no 404)
   4. /admin route protected server-side by Clerk middleware (not just client-side)
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 11-01-PLAN.md -- SSE-to-polling auth fix + admin middleware hardening
@@ -278,7 +278,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 8. Understanding Interview & Decision Gates | 6/8 | Complete    | 2026-02-17 |
 | 9. Strategy Graph & Timeline | 0/4 | Planned | - |
 | 10. Export, Deploy Readiness & E2E Testing | 10/11 | Complete    | 2026-02-17 |
-| 11. Cross-Phase Frontend Wiring | 0/1 | Gap closure | - |
+| 11. Cross-Phase Frontend Wiring | 0/1 | Complete    | 2026-02-17 |
 
 ---
 *Created: 2026-02-16*
