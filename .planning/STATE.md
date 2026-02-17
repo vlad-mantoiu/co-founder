@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-16)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** Phase 9 (Strategy Graph & Timeline) — IN PROGRESS
+**Current focus:** Phase 10 (Export, Deploy Readiness & E2E Testing) — IN PROGRESS
 
 ## Current Position
 
-Phase: 9 of 10 (Strategy Graph & Timeline)
-Plan: 5 of 5 completed (09-05 Modal gap closure — real API data for graph + timeline modals)
+Phase: 10 of 10 (Export, Deploy Readiness & E2E Testing)
+Plan: 2 of 10 completed (10-02 Domain functions: alignment score + deploy readiness checks)
 Status: Active
-Last activity: 2026-02-17 — Completed 09-05-PLAN.md (strategy graph modal API fetch, timeline decision modal API fetch)
+Last activity: 2026-02-17 — Completed 10-02-PLAN.md (alignment score + deploy readiness domain functions)
 
-Progress: [██████████] 90%
+Progress: [██████████] 92%
 
 ## Performance Metrics
 
@@ -88,6 +88,7 @@ Progress: [██████████] 90%
 | Phase 09 P03 | 3 | 2 tasks | 6 files |
 | Phase 09 P04 | 3 | 2 tasks | 8 files |
 | Phase 09 P05 | 2 | 2 tasks | 2 files |
+| Phase 10 P02 | 2 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -236,6 +237,9 @@ Recent decisions affecting current work:
 - [Phase 09-05]: enrichedDetail state replaces selectedItem + timelineItemToNodeDetail adapter (direct API data eliminates stub layer)
 - [Phase 09-05]: Non-fatal error handling for node detail fetch (silently skip, modal stays closed rather than showing stale data)
 - [Phase 09-05]: base.id set to graph_node_id ?? item.id so View-in-Graph navigates to correct graph node
+- [Phase 10]: Integer truncation for alignment score (int(2/3*100)=66) — deterministic, no rounding edge cases
+- [Phase 10]: Scope creep threshold at score < 60 — consistent with yellow band 60-79
+- [Phase 10]: DEPLOY_PATHS hardcoded as module-level constant (Vercel/Railway/AWS ECS) — no LLM needed, deterministic
 
 ### Pending Todos
 
@@ -272,9 +276,10 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17 (execute-phase)
-Stopped at: Completed 09-05-PLAN.md (strategy graph modal real API fetch, timeline decision modal API fetch)
-Resume file: .planning/phases/09-strategy-graph-timeline/09-05-SUMMARY.md
-Next action: Phase 09 all 5 plans complete — proceed to Phase 10
+Stopped at: Completed 10-02-PLAN.md (alignment score + deploy readiness domain functions)
+Resume file: .planning/phases/10-export-deploy-readiness-e2e-testing/10-02-SUMMARY.md
+Next action: Execute 10-03-PLAN.md
 
 ---
 *Phase 09 COMPLETE — 5 of 5 plans done: Neo4j StrategyGraph foundation + TimelineService + API routes + Timeline Kanban board + NodeDetailModal + BrandNav + Modal gap closure (real API data)*
+*Phase 10 IN PROGRESS — 2 of 10 plans done: domain functions (alignment score + deploy readiness checks)*
