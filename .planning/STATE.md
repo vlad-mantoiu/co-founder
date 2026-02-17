@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 
 ## Current Position
 
-Phase: 8 of 10 (Understanding Interview & Decision Gates) — COMPLETE (gap closure done)
-Plan: 7 of 7 completed (08-07 gap closure just completed)
+Phase: 8 of 10 (Understanding Interview & Decision Gates) — COMPLETE (all gap closures done)
+Plan: 8 of 8 completed (08-08 gap closure just completed)
 Status: Active
-Last activity: 2026-02-17 — Completed 08-07-PLAN.md (Dashboard Project Context Flags — SC4 gap closure)
+Last activity: 2026-02-17 — Completed 08-08-PLAN.md (Gap Closure: Narrow/Pivot real Runner calls + get_brief ownership security)
 
 Progress: [█████████░] 80%
 
@@ -82,6 +82,7 @@ Progress: [█████████░] 80%
 | Phase 08 P05 | 3 | 2 tasks | 7 files |
 | Phase 08 P06 | 15 | 2 tasks | 6 files |
 | Phase 08 P07 | 3 | 1 task | 1 file |
+| Phase 08 P08 | 1 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -182,7 +183,7 @@ Recent decisions affecting current work:
 - [Phase 07]: Risk flags only render when risks present (clean dashboard when healthy)
 - [Phase 08-02]: GateService uses DI pattern with runner + session_factory for testability
 - [Phase 08-02]: GATE_1_OPTIONS locked as constant to prevent runtime modification
-- [Phase 08-02]: Stub narrow/pivot brief generation with version rotation (full LLM impl in Plan 3)
+- [Phase 08-02]: Stub narrow/pivot brief generation with version rotation (replaced with real Runner calls in Plan 8)
 - [Phase 08-02]: check_gate_blocking does not enforce user ownership (called by services that already verified ownership)
 - [Phase 08-02]: Park decision updates project status to "parked" (preserves stage_number for resumption)
 - [Phase 08]: Extended Runner protocol with 4 understanding interview methods for adaptive questioning and confidence assessment
@@ -205,6 +206,9 @@ Recent decisions affecting current work:
 - [Phase 08-06]: Dashboard gate banner links to /understanding for seamless continuation
 - [Phase 08-07]: Per-project EXISTS subquery loop acceptable at MVP scale; lateral join optimization deferred
 - [Phase 08-07]: ProjectResponse boolean flags default to False via Pydantic (new projects never have gates/sessions/briefs)
+- [Phase 08-08]: Narrowing context appended to original idea_text as [NARROWING INSTRUCTION] suffix in runner.generate_idea_brief call
+- [Phase 08-08]: Pivot context prefixes action_text as [PIVOT - NEW DIRECTION] with original idea as reference
+- [Phase 08-08]: Project ownership check added to both get_brief and edit_brief_section (defense-in-depth, 404 pattern)
 
 ### Pending Todos
 
@@ -241,9 +245,9 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17 (execute-phase)
-Stopped at: Completed 08-07-PLAN.md (SC4 gap closure — ProjectResponse boolean flags) — Phase 08 gap closure COMPLETE
-Resume file: .planning/phases/08-understanding-interview-decision-gates/08-07-SUMMARY.md
+Stopped at: Completed 08-08-PLAN.md (SC8/Security gap closure — narrow/pivot real Runner calls + get_brief ownership) — Phase 08 gap closures COMPLETE
+Resume file: .planning/phases/08-understanding-interview-decision-gates/08-08-SUMMARY.md
 Next action: Begin Phase 9 or await user direction
 
 ---
-*Phase 08 COMPLETE — 7 plans done: full Understanding Interview -> Idea Brief -> Decision Gate 1 -> Execution Plan Selection flow, dashboard integration, Deep Research 402 stub, SC4 gap closure (dashboard project context flags)*
+*Phase 08 COMPLETE — 8 plans done: full Understanding Interview -> Idea Brief -> Decision Gate 1 -> Execution Plan Selection flow, dashboard integration, Deep Research 402 stub, SC4 gap closure (dashboard flags), SC8+Security gap closure (narrow/pivot Runner calls + get_brief ownership)*
