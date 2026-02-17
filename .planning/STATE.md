@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 ## Current Position
 
 Phase: 9 of 10 (Strategy Graph & Timeline)
-Plan: 2 of 4 completed (09-02 Timeline service and graph/timeline API routes done)
+Plan: 4 of 4 completed (09-04 Timeline Kanban board, search/filter, NodeDetailModal, BrandNav)
 Status: Active
-Last activity: 2026-02-17 — Completed 09-02-PLAN.md (TimelineService PostgreSQL aggregation, strategy_graph routes, timeline routes, router registration)
+Last activity: 2026-02-17 — Completed 09-04-PLAN.md (KanbanBoard, TimelineSearch, timeline page, NodeDetailModal, BrandNav navigation links)
 
-Progress: [█████████░] 82%
+Progress: [██████████] 90%
 
 ## Performance Metrics
 
@@ -85,6 +85,7 @@ Progress: [█████████░] 82%
 | Phase 08 P08 | 1 | 2 tasks | 2 files |
 | Phase 09 P01 | 8 | 2 tasks | 6 files |
 | Phase 09 P02 | 2 | 2 tasks | 4 files |
+| Phase 09 P04 | 3 | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -219,6 +220,11 @@ Recent decisions affecting current work:
 - [Phase 09-02]: Strategy graph routes return empty GraphResponse (not 500) when Neo4j unavailable — graceful degradation
 - [Phase 09-02]: Node type derived from 'type' Neo4j property (set during upsert) rather than re-derived from label
 - [Phase 09-02]: Timeline items sorted newest-first in Python after aggregation from 3 separate queries (avoids SQL UNION complexity)
+- [Phase 09-04]: KanbanBoard sorts items newest-first within each column using timestamp descending (locked decision)
+- [Phase 09-04]: No drag-drop on timeline board — system-driven status only, read-only board (locked decision)
+- [Phase 09-04]: NodeDetailModal shared component in strategy-graph/ usable by both graph and timeline views
+- [Phase 09-04]: timelineItemToNodeDetail adapter converts API response to modal interface (decouples shared modal from API shape)
+- [Phase 09-04]: BrandNav: Strategy and Timeline placed after Projects, before Chat (manage -> visualize -> track -> build)
 
 ### Pending Todos
 
@@ -255,9 +261,9 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17 (execute-phase)
-Stopped at: Completed 09-02-PLAN.md (TimelineService, strategy_graph routes, timeline routes)
-Resume file: .planning/phases/09-strategy-graph-timeline/09-02-SUMMARY.md
-Next action: Execute 09-03 (Frontend strategy graph visualization component)
+Stopped at: Completed 09-04-PLAN.md (Timeline Kanban board, TimelineSearch, NodeDetailModal, BrandNav)
+Resume file: .planning/phases/09-strategy-graph-timeline/09-04-SUMMARY.md
+Next action: Execute 09-03 (Frontend strategy graph visualization component — ForceGraph2D, strategy page)
 
 ---
-*Phase 09 IN PROGRESS — 2 of 4 plans done: Neo4j StrategyGraph foundation + TimelineService PostgreSQL aggregation + strategy graph and timeline API routes*
+*Phase 09 IN PROGRESS — 4 of 4 plans done (plan 03 still pending execution): Neo4j StrategyGraph foundation + TimelineService + API routes + Timeline Kanban board + NodeDetailModal + BrandNav*
