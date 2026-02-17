@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { apiFetch } from "@/lib/api";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Stage metadata — mirrors backend STAGE_LABELS (locked decision)
@@ -65,10 +66,10 @@ export interface BuildProgressState {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// SSE event shape from /api/jobs/{job_id}/stream
+// Job status response shape from GET /api/jobs/{job_id}
 // ──────────────────────────────────────────────────────────────────────────────
 
-interface JobStreamEvent {
+interface JobStatusResponse {
   job_id: string;
   status: string;
   message?: string;
@@ -80,16 +81,19 @@ interface JobStreamEvent {
 
 const TERMINAL_STATUSES = new Set(["ready", "failed"]);
 
-function statusToStageIndex(status: string): number {
+export function statusToStageIndex(status: string): number {
   const idx = STAGE_ORDER.indexOf(status as (typeof STAGE_ORDER)[number]);
   return idx >= 0 ? idx : 0;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Hook
+// Hook — authenticated long-polling via apiFetch instead of EventSource
 // ──────────────────────────────────────────────────────────────────────────────
 
-export function useBuildProgress(jobId: string | null): BuildProgressState {
+export function useBuildProgress(
+  jobId: string | null,
+  getToken: () => Promise<string | null>
+): BuildProgressState & { connectionFailed: boolean } {
   const [state, setState] = useState<BuildProgressState>({
     status: "queued",
     label: STAGE_LABELS["queued"],
@@ -101,28 +105,32 @@ export function useBuildProgress(jobId: string | null): BuildProgressState {
     totalStages: STAGE_ORDER.length,
     isTerminal: false,
   });
+  const [connectionFailed, setConnectionFailed] = useState(false);
 
-  useEffect(() => {
+  // Refs for synchronous terminal tracking and failure counting
+  const isTerminalRef = useRef(false);
+  const failureCountRef = useRef(0);
+
+  const fetchStatus = useCallback(async () => {
     if (!jobId) return;
 
-    const apiUrl =
-      process.env.NEXT_PUBLIC_API_URL ?? "";
-    const eventSource = new EventSource(
-      `${apiUrl}/api/jobs/${jobId}/stream`
-    );
-
-    eventSource.onmessage = (event: MessageEvent<string>) => {
-      let data: JobStreamEvent;
-      try {
-        data = JSON.parse(event.data) as JobStreamEvent;
-      } catch {
-        return;
+    try {
+      const res = await apiFetch(`/api/jobs/${jobId}`, getToken);
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
       }
+      const data: JobStatusResponse = await res.json();
 
       const status = (data.status ?? "unknown") as BuildStatus;
-      const label =
-        STAGE_LABELS[status] ?? data.message ?? status;
+      const label = STAGE_LABELS[status] ?? data.message ?? status;
       const isTerminal = TERMINAL_STATUSES.has(status);
+
+      // Update terminal ref synchronously so interval can check it
+      isTerminalRef.current = isTerminal;
+
+      // Reset failure tracking on success
+      failureCountRef.current = 0;
+      setConnectionFailed(false);
 
       setState({
         status,
@@ -135,29 +143,47 @@ export function useBuildProgress(jobId: string | null): BuildProgressState {
         totalStages: STAGE_ORDER.length,
         isTerminal,
       });
-
-      // Close once we hit a terminal state
-      if (isTerminal) {
-        eventSource.close();
+    } catch {
+      failureCountRef.current += 1;
+      if (failureCountRef.current >= 3) {
+        setConnectionFailed(true);
       }
-    };
+    }
+  }, [jobId, getToken]);
 
-    eventSource.onerror = () => {
-      // On connection error, mark as terminal so UI can handle gracefully
-      setState((prev) => ({
-        ...prev,
-        status: "failed",
-        label: STAGE_LABELS["failed"],
-        error: "Lost connection to build server. Please refresh.",
-        isTerminal: true,
-      }));
-      eventSource.close();
-    };
+  useEffect(() => {
+    if (!jobId) return;
+
+    // Reset state when jobId changes
+    isTerminalRef.current = false;
+    failureCountRef.current = 0;
+    setConnectionFailed(false);
+
+    // Immediate fetch on mount
+    fetchStatus();
+
+    // Polling interval — 5s, stops when terminal
+    const interval = setInterval(() => {
+      if (isTerminalRef.current) {
+        clearInterval(interval);
+        return;
+      }
+      fetchStatus();
+    }, 5000);
+
+    // Tab-focus refetch — immediately re-fetch when user returns to tab
+    function handleVisibility() {
+      if (!document.hidden) {
+        fetchStatus();
+      }
+    }
+    document.addEventListener("visibilitychange", handleVisibility);
 
     return () => {
-      eventSource.close();
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibility);
     };
-  }, [jobId]);
+  }, [jobId, fetchStatus]);
 
-  return state;
+  return { ...state, connectionFailed };
 }

@@ -14,7 +14,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { X } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import { useAuth } from "@clerk/nextjs";
 import { useBuildProgress } from "@/hooks/useBuildProgress";
 import { BuildProgressBar } from "@/components/build/BuildProgressBar";
@@ -45,7 +45,8 @@ export default function BuildPage() {
     stageIndex,
     totalStages,
     isTerminal,
-  } = useBuildProgress(jobId);
+    connectionFailed,
+  } = useBuildProgress(jobId, getToken);
 
   const [cancelling, setCancelling] = useState(false);
 
@@ -162,6 +163,16 @@ export default function BuildPage() {
                   Sit tight — we&apos;re writing and testing your code.
                 </p>
               </div>
+
+              {/* Reconnecting banner — shown after 3 consecutive poll failures */}
+              {connectionFailed && (
+                <div className="mb-4 px-4 py-3 bg-yellow-500/10 border border-yellow-500/20 rounded-xl flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 text-yellow-400 animate-spin" />
+                  <span className="text-sm text-yellow-400">
+                    Reconnecting to build server...
+                  </span>
+                </div>
+              )}
 
               {/* Progress bar */}
               <BuildProgressBar
