@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 ## Current Position
 
 Phase: 8 of 10 (Understanding Interview & Decision Gates)
-Plan: 1 of 6 completed (08-02 just completed)
+Plan: 4 of 6 completed (08-04 just completed)
 Status: Active
-Last activity: 2026-02-17 — Completed 08-02-PLAN.md (Decision Gate 1 Backend)
+Last activity: 2026-02-17 — Completed 08-04-PLAN.md (Understanding Interview Frontend)
 
-Progress: [██░░░░░░░░] 17%
+Progress: [███████░░░] 67%
 
 ## Performance Metrics
 
@@ -77,6 +77,7 @@ Progress: [██░░░░░░░░] 17%
 | Phase 07 P04 | 2 | 2 tasks | 6 files |
 | Phase 08 P02 | 7 | 2 tasks | 5 files |
 | Phase 08 P01 | 8.6 | 2 tasks | 11 files |
+| Phase 08 P04 | 5 | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -183,6 +184,12 @@ Recent decisions affecting current work:
 - [Phase 08]: Extended Runner protocol with 4 understanding interview methods for adaptive questioning and confidence assessment
 - [Phase 08]: RationalisedIdeaBrief with per-section confidence scores (strong/moderate/needs_depth) for Decision Gate 1 input
 - [Phase 08]: UnderstandingSession model extends onboarding flow by linking to OnboardingSession for continuity
+- [Phase 08-04]: useUnderstandingInterview hook manages 8-phase lifecycle (idle/starting/questioning/loading_next/editing_answer/finalizing/viewing_brief/re_interviewing/error)
+- [Phase 08-04]: Manual expansion pattern for cards (no Radix Collapsible - follows existing codebase patterns)
+- [Phase 08-04]: Confidence indicators use custom badge component with color-coded states (green/yellow/red)
+- [Phase 08-04]: IdeaBriefView renders 10 sections in fixed order with investor-facing tone label
+- [Phase 08-04]: Inline editing uses controlled textarea with optimistic updates (Phase 4 pattern)
+- [Phase 08-04]: Re-interview button for major changes, inline editing for small tweaks (locked decision)
 
 ### Pending Todos
 
@@ -219,9 +226,9 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17 (execute-phase)
-Stopped at: Completed 08-02-PLAN.md (Decision Gate 1 Backend)
-Resume file: .planning/phases/08-understanding-interview-decision-gates/08-02-SUMMARY.md
-Next action: Continue to 08-03-PLAN.md or await user direction
+Stopped at: Completed 08-04-PLAN.md (Understanding Interview Frontend)
+Resume file: .planning/phases/08-understanding-interview-decision-gates/08-04-SUMMARY.md
+Next action: Continue to 08-05-PLAN.md or await user direction
 
 ---
-*Phase 08 IN PROGRESS — Plan 1 of 6 complete: Decision Gate 1 backend with 4 options, GateService, 5 REST endpoints*
+*Phase 08 IN PROGRESS — Plan 4 of 6 complete: Understanding interview UI with adaptive questions, Rationalised Idea Brief display, confidence indicators*
