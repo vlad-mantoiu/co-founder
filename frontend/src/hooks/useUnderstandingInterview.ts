@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { apiFetch } from "@/lib/api";
+import { toast } from "sonner";
 
 /**
  * Understanding interview phase state machine.
@@ -306,12 +307,13 @@ export function useUnderstandingInterview() {
 
   /**
    * Edit a section in the Rationalised Idea Brief.
+   * Takes projectId as first arg (backend expects project_id, not artifactId).
    */
   const editBriefSection = useCallback(
-    async (sectionKey: string, newContent: string) => {
-      if (!state.artifactId) return;
+    async (projectId: string, sectionKey: string, newContent: string) => {
+      if (!projectId) return;
 
-      // Optimistic update
+      // Optimistic update — keep user's text visible even on failure
       setState((s) => ({
         ...s,
         brief: s.brief
@@ -324,7 +326,7 @@ export function useUnderstandingInterview() {
 
       try {
         const response = await apiFetch(
-          `/api/understanding/${state.artifactId}/brief`,
+          `/api/understanding/${projectId}/brief`,
           getToken,
           {
             method: "PATCH",
@@ -353,15 +355,23 @@ export function useUnderstandingInterview() {
             : null,
           briefVersion: data.version,
         }));
+
+        toast.success("Section updated");
       } catch (err) {
-        // Revert optimistic update on error
+        // Do NOT revert state — keep user's text visible (locked decision)
         setState((s) => ({
           ...s,
           error: (err as Error).message,
         }));
+        toast.error("Failed to save section. Tap to retry.", {
+          action: {
+            label: "Retry",
+            onClick: () => editBriefSection(projectId, sectionKey, newContent),
+          },
+        });
       }
     },
-    [getToken, state.artifactId],
+    [getToken],
   );
 
   /**

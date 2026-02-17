@@ -78,6 +78,7 @@ export function IdeaBriefCard({ section, onEdit, isEditing = false }: IdeaBriefC
               <textarea
                 value={editValue}
                 onChange={(e) => setEditValue(e.target.value)}
+                onBlur={handleSave}
                 className="w-full min-h-32 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent resize-y"
                 rows={6}
               />

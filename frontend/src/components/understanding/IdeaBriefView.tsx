@@ -9,7 +9,7 @@ import type { RationalisedIdeaBrief } from "@/hooks/useUnderstandingInterview";
 
 interface IdeaBriefViewProps {
   brief: RationalisedIdeaBrief;
-  onEditSection: (sectionKey: string, newContent: string) => void;
+  onEditSection: (projectId: string, sectionKey: string, newContent: string) => void;
   onReInterview: () => void;
   onProceedToDecision: () => void;
   artifactId: string;
@@ -167,7 +167,7 @@ export function IdeaBriefView({
               fullContent: section.fullContent,
               confidence: section.confidence as "strong" | "moderate" | "needs_depth",
             }}
-            onEdit={onEditSection}
+            onEdit={(sectionKey, newContent) => onEditSection(projectId, sectionKey, newContent)}
           />
         ))}
       </div>
