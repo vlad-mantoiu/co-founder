@@ -1,5 +1,6 @@
 """GateService — orchestrates decision gate lifecycle with domain logic."""
 
+import logging
 import uuid
 from datetime import datetime, timezone
 
@@ -22,7 +23,10 @@ from app.schemas.decision_gates import (
     GateStatusResponse,
     ResolveGateResponse,
 )
+from app.services.graph_service import GraphService
 from app.services.journey import JourneyService
+
+logger = logging.getLogger(__name__)
 
 
 class GateService:
@@ -198,12 +202,28 @@ class GateService:
                 resolution_summary = "Ready to proceed to execution planning"
                 next_action = "We'll generate execution plan options for you to choose from"
 
-            return ResolveGateResponse(
+            response = ResolveGateResponse(
                 gate_id=str(gate_uuid),
                 decision=decision,
                 status="decided",
                 resolution_summary=resolution_summary,
                 next_action=next_action,
+            )
+
+            # Dual-write to Neo4j strategy graph (non-fatal)
+            await self._sync_to_graph(gate, project.id)
+
+            return response
+
+    async def _sync_to_graph(self, gate: DecisionGate, project_id: uuid.UUID) -> None:
+        """Dual-write resolved gate to Neo4j strategy graph. Non-fatal."""
+        try:
+            from app.db.graph.strategy_graph import get_strategy_graph
+            graph_service = GraphService(get_strategy_graph())
+            await graph_service.sync_decision_to_graph(gate, str(project_id))
+        except Exception:
+            logger.warning(
+                "Neo4j sync failed for gate %s", gate.id, exc_info=True
             )
 
     async def _handle_narrow(
