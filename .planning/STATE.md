@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-16)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** Phase 7 (State Machine Integration & Dashboard)
+**Current focus:** Phase 8 (Understanding Interview & Decision Gates) — COMPLETE
 
 ## Current Position
 
-Phase: 8 of 10 (Understanding Interview & Decision Gates)
-Plan: 5 of 6 completed (08-05 just completed)
+Phase: 8 of 10 (Understanding Interview & Decision Gates) — COMPLETE
+Plan: 6 of 6 completed (08-06 just completed)
 Status: Active
-Last activity: 2026-02-17 — Completed 08-05-PLAN.md (Decision Gate & Execution Plan Frontend)
+Last activity: 2026-02-17 — Completed 08-06-PLAN.md (Full Phase 8 Flow Integration)
 
-Progress: [████████░░] 70%
+Progress: [█████████░] 80%
 
 ## Performance Metrics
 
@@ -80,6 +80,7 @@ Progress: [████████░░] 70%
 | Phase 08 P03 | 7 | 2 tasks | 8 files |
 | Phase 08 P04 | 5 | 2 tasks | 8 files |
 | Phase 08 P05 | 3 | 2 tasks | 7 files |
+| Phase 08 P06 | 15 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -198,6 +199,9 @@ Recent decisions affecting current work:
 - [Phase 08-04]: IdeaBriefView renders 10 sections in fixed order with investor-facing tone label
 - [Phase 08-04]: Inline editing uses controlled textarea with optimistic updates (Phase 4 pattern)
 - [Phase 08-04]: Re-interview button for major changes, inline editing for small tweaks (locked decision)
+- [Phase 08-06]: Phase-based rendering for understanding page (gate_open/plan_selection/plan_selected/parked)
+- [Phase 08-06]: Deep Research button shows CTO tier upgrade toast on 402 with Lock icon badge (UNDR-06 compliance)
+- [Phase 08-06]: Dashboard gate banner links to /understanding for seamless continuation
 
 ### Pending Todos
 
@@ -234,9 +238,9 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17 (execute-phase)
-Stopped at: Completed 08-05-PLAN.md (Decision Gate & Execution Plan Frontend)
-Resume file: .planning/phases/08-understanding-interview-decision-gates/08-05-SUMMARY.md
-Next action: Continue to 08-06-PLAN.md or await user direction
+Stopped at: Completed 08-06-PLAN.md (Full Phase 8 Flow Integration) — Phase 08 COMPLETE
+Resume file: .planning/phases/08-understanding-interview-decision-gates/08-06-SUMMARY.md
+Next action: Begin Phase 9 or await user direction
 
 ---
-*Phase 08 IN PROGRESS — Plan 5 of 6 complete: Decision Gate 1 modal with 4 rich cards, execution plan comparison table with detailed breakdowns*
+*Phase 08 COMPLETE — All 6 plans done: full Understanding Interview -> Idea Brief -> Decision Gate 1 -> Execution Plan Selection flow, dashboard integration, Deep Research 402 stub*
