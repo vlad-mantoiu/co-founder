@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-16)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** Phase 11 (Cross-Phase Frontend Wiring) — IN PROGRESS
+**Current focus:** Phase 12 (Milestone Audit Gap Closure) — IN PROGRESS
 
 ## Current Position
 
-Phase: 11 of 11 (Cross-Phase Frontend Wiring)
-Plan: 2 of N completed (11-02 unified /projects/[id]/... routes + brief edit fix with blur-save + toasts)
+Phase: 12 of 12 (Milestone Audit Gap Closure)
+Plan: 1 of N completed (12-01 build polling fix, strategy graph edges fix, company route redirects)
 Status: In Progress
-Last activity: 2026-02-17 — Completed 11-02-PLAN.md (project-scoped routes, onboarding redirect fix, brief edit 404 fix, blur-save, toast notifications)
+Last activity: 2026-02-17 — Completed 12-01-PLAN.md (build polling endpoint fix, strategy graph edge mismatch fix, 3 company routes converted to thin redirects)
 
-Progress: [██--------] 20%
+Progress: [███-------] 30%
 
 ## Performance Metrics
 
@@ -100,6 +100,7 @@ Progress: [██--------] 20%
 | Phase 10 P11 | 4 | 2 tasks | 3 files |
 | Phase 11 P01 | 5 | 2 tasks | 3 files |
 | Phase 11 P02 | 5 | 2 tasks | 13 files |
+| Phase 12 P01 | 2 | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -298,6 +299,9 @@ Recent decisions affecting current work:
 - [Phase 11-02]: Blur-save (onBlur) as primary save trigger for brief sections, explicit Save button still available
 - [Phase 11-02]: Brief state not reverted on save failure — user text preserved (locked decision from Phase 08-04)
 - [Phase 11-02]: Old /understanding route becomes redirect page (not deleted) — preserves legacy bookmarks and links
+- [Phase 12-01]: ApiEdge interface separates backend API shape (from/to) from ForceGraph2D component shape (source/target) — keeps GraphLink clean
+- [Phase 12-01]: GenerationStatusResponse replaces JobStatusResponse — stage_label field replaces non-existent message field
+- [Phase 12-01]: Thin redirect pattern (useParams + redirect + qs passthrough) applied to all 3 legacy company routes
 
 ### Pending Todos
 
@@ -334,9 +338,9 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17 (execute-phase)
-Stopped at: Completed 11-02-PLAN.md (unified /projects/[id]/... routes, onboarding redirect fix, brief edit 404 fix, blur-save, toast notifications)
-Resume file: .planning/phases/11-cross-phase-frontend-wiring/11-02-SUMMARY.md
-Next action: Continue Phase 11 — execute 11-03-PLAN.md and remaining plans.
+Stopped at: Completed 12-01-PLAN.md (build polling fix, strategy graph edge fix, company route redirects)
+Resume file: .planning/phases/12-milestone-audit-gap-closure/12-01-SUMMARY.md
+Next action: Continue Phase 12 — execute remaining 12-XX plans.
 
 ---
 *Phase 09 COMPLETE — 5 of 5 plans done: Neo4j StrategyGraph foundation + TimelineService + API routes + Timeline Kanban board + NodeDetailModal + BrandNav + Modal gap closure (real API data)*
