@@ -11,8 +11,11 @@ import { useAdmin } from "@/hooks/useAdmin";
 const navLinks = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/projects", label: "Projects" },
+  { href: "/strategy", label: "Strategy" },
+  { href: "/timeline", label: "Timeline" },
   { href: "/chat", label: "Chat" },
   { href: "/architecture", label: "Architecture" },
+  { href: "/billing", label: "Billing" },
 ] as const;
 
 export function BrandNav() {
