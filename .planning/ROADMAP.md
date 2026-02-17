@@ -229,7 +229,7 @@ Plans:
   15. Response contracts stable (empty arrays not null)
   16. Chat interface preserved as secondary input (de-emphasized in nav)
   17. End-to-end founder flow test completes successfully
-**Plans:** 10 plans
+**Plans:** 11 plans
 
 Plans:
 - [ ] 10-01-PLAN.md -- Generation service, Job model columns, worker integration (TDD)
@@ -242,6 +242,7 @@ Plans:
 - [ ] 10-08-PLAN.md -- Build progress UI (progress bar, success, failure, cancel)
 - [ ] 10-09-PLAN.md -- Floating chat widget + deploy readiness UI
 - [ ] 10-10-PLAN.md -- E2E founder flow test (idea -> brief -> plan -> build -> preview)
+- [ ] 10-11-PLAN.md -- Gap closure: workspace files in RunnerFake + strong GENR-03 assertions
 
 ## Progress
 
@@ -259,7 +260,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 7. State Machine Integration & Dashboard | 0/5 | Not started | - |
 | 8. Understanding Interview & Decision Gates | 6/8 | Complete    | 2026-02-17 |
 | 9. Strategy Graph & Timeline | 0/4 | Planned | - |
-| 10. Export, Deploy Readiness & E2E Testing | 0/10 | Not started | - |
+| 10. Export, Deploy Readiness & E2E Testing | 10/11 | Gap closure planned | - |
 
 ---
 *Created: 2026-02-16*
