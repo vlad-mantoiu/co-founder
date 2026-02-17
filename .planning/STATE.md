@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 ## Current Position
 
 Phase: 11 of 11 (Cross-Phase Frontend Wiring)
-Plan: 1 of N completed (11-01 SSE auth fix — authenticated polling + admin middleware guard)
+Plan: 2 of N completed (11-02 unified /projects/[id]/... routes + brief edit fix with blur-save + toasts)
 Status: In Progress
-Last activity: 2026-02-17 — Completed 11-01-PLAN.md (EventSource replaced with apiFetch polling, /admin protected server-side in Clerk middleware)
+Last activity: 2026-02-17 — Completed 11-02-PLAN.md (project-scoped routes, onboarding redirect fix, brief edit 404 fix, blur-save, toast notifications)
 
-Progress: [█---------] 10%
+Progress: [██--------] 20%
 
 ## Performance Metrics
 
@@ -99,6 +99,7 @@ Progress: [█---------] 10%
 | Phase 10 P10 | 15 | 2 tasks | 2 files |
 | Phase 10 P11 | 4 | 2 tasks | 3 files |
 | Phase 11 P01 | 5 | 2 tasks | 3 files |
+| Phase 11 P02 | 5 | 2 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -291,6 +292,12 @@ Recent decisions affecting current work:
 - [Phase 11-01]: connectionFailed=true after 3 consecutive failures — transient network hiccups should not alarm user on first failure
 - [Phase 11-01]: isAdminRoute guard before isPublicRoute in clerkMiddleware — /admin removed from public routes, server-side publicMetadata.admin check
 - [Phase 11-01]: Non-admin redirect to /dashboard (not /sign-in) — silently handles both unauthenticated and authenticated non-admin users
+- [Phase 11-02]: Project-scoped routes under /projects/[id]/... — flat /strategy and /timeline routes remain for nav bar with project selectors
+- [Phase 11-02]: useParams for projectId in all project-scoped pages — never searchParams for path-segment data
+- [Phase 11-02]: editBriefSection takes projectId as first arg — backend route expects project_id not artifactId (was causing 404)
+- [Phase 11-02]: Blur-save (onBlur) as primary save trigger for brief sections, explicit Save button still available
+- [Phase 11-02]: Brief state not reverted on save failure — user text preserved (locked decision from Phase 08-04)
+- [Phase 11-02]: Old /understanding route becomes redirect page (not deleted) — preserves legacy bookmarks and links
 
 ### Pending Todos
 
@@ -327,9 +334,9 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17 (execute-phase)
-Stopped at: Completed 11-01-PLAN.md (SSE auth fix — authenticated polling + admin middleware guard)
-Resume file: .planning/phases/11-cross-phase-frontend-wiring/11-01-SUMMARY.md
-Next action: Continue Phase 11 — execute 11-02-PLAN.md and remaining plans.
+Stopped at: Completed 11-02-PLAN.md (unified /projects/[id]/... routes, onboarding redirect fix, brief edit 404 fix, blur-save, toast notifications)
+Resume file: .planning/phases/11-cross-phase-frontend-wiring/11-02-SUMMARY.md
+Next action: Continue Phase 11 — execute 11-03-PLAN.md and remaining plans.
 
 ---
 *Phase 09 COMPLETE — 5 of 5 plans done: Neo4j StrategyGraph foundation + TimelineService + API routes + Timeline Kanban board + NodeDetailModal + BrandNav + Modal gap closure (real API data)*
