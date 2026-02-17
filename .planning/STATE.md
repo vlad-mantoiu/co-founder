@@ -77,6 +77,7 @@ Progress: [███████░░░] 67%
 | Phase 07 P04 | 2 | 2 tasks | 6 files |
 | Phase 08 P02 | 7 | 2 tasks | 5 files |
 | Phase 08 P01 | 8.6 | 2 tasks | 11 files |
+| Phase 08 P03 | 7 | 2 tasks | 8 files |
 | Phase 08 P04 | 5 | 2 tasks | 8 files |
 
 ## Accumulated Context
@@ -184,6 +185,12 @@ Recent decisions affecting current work:
 - [Phase 08]: Extended Runner protocol with 4 understanding interview methods for adaptive questioning and confidence assessment
 - [Phase 08]: RationalisedIdeaBrief with per-section confidence scores (strong/moderate/needs_depth) for Decision Gate 1 input
 - [Phase 08]: UnderstandingSession model extends onboarding flow by linking to OnboardingSession for continuity
+- [Phase 08-03]: Store execution plan options in Artifact with artifact_type=EXECUTION_PLAN (matches existing artifact pattern)
+- [Phase 08-03]: Selection persisted as selected_option_id in artifact.current_content (enables check_plan_selected enforcement)
+- [Phase 08-03]: Regeneration uses same endpoint as generation with optional feedback parameter (simplifies API surface)
+- [Phase 08-03]: Deep Research stub always returns 402 with upgrade message (monetization gate for CTO tier)
+- [Phase 08-03]: ExecutionOption includes engineering_impact and cost_note fields (DCSN-02 compliance for decision console)
+- [Phase 08-03]: RunnerFake returns 3 options covering spectrum: Fast MVP (70% scope, low risk), Full-Featured (95% scope, high risk), Hybrid (85% scope, medium risk)
 - [Phase 08-04]: useUnderstandingInterview hook manages 8-phase lifecycle (idle/starting/questioning/loading_next/editing_answer/finalizing/viewing_brief/re_interviewing/error)
 - [Phase 08-04]: Manual expansion pattern for cards (no Radix Collapsible - follows existing codebase patterns)
 - [Phase 08-04]: Confidence indicators use custom badge component with color-coded states (green/yellow/red)
