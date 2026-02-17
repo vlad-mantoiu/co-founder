@@ -38,11 +38,14 @@ class GraphEdge(BaseModel):
 
 
 class GraphResponse(BaseModel):
-    """Full graph response for a project."""
+    """Full graph response for a project.
+
+    CNTR-02: nodes and edges default to empty arrays, never null.
+    """
 
     project_id: str
-    nodes: list[GraphNode]
-    edges: list[GraphEdge]
+    nodes: list[GraphNode] = Field(default_factory=list, description="Graph nodes, empty array when none exist")
+    edges: list[GraphEdge] = Field(default_factory=list, description="Graph edges, empty array when none exist")
 
 
 class NodeDetailResponse(BaseModel):

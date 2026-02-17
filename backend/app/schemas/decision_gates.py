@@ -135,4 +135,4 @@ class GateStatusResponse(BaseModel):
     status: str
     decision: str | None = None
     decided_at: str | None = None
-    options: list[GateOption] | None = None
+    options: list[GateOption] = Field(default_factory=list, description="Decision options (empty list when no options available)")

@@ -26,11 +26,14 @@ class TimelineItem(BaseModel):
 
 
 class TimelineResponse(BaseModel):
-    """Paginated timeline response for a project."""
+    """Paginated timeline response for a project.
+
+    CNTR-02: items defaults to empty array, never null.
+    """
 
     project_id: str
-    items: list[TimelineItem]
-    total: int
+    items: list[TimelineItem] = Field(default_factory=list, description="Timeline items, empty array when none exist")
+    total: int = 0
 
 
 class TimelineSearchParams(BaseModel):
