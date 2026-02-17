@@ -23,6 +23,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 9: Strategy Graph & Timeline** - Neo4j decision tracking with Kanban execution view
 - [x] **Phase 10: Export, Deploy Readiness & E2E Testing** - PDF/Markdown export with comprehensive testing (completed 2026-02-17)
 - [x] **Phase 11: Cross-Phase Frontend Wiring** - Fix integration breaks from milestone audit (completed 2026-02-17)
+- [ ] **Phase 12: Milestone Audit Gap Closure** - Fix build polling endpoint, graph field mismatch, route cleanup
 
 ## Phase Details
 
@@ -261,10 +262,25 @@ Plans:
 - [ ] 11-01-PLAN.md -- SSE-to-polling auth fix + admin middleware hardening
 - [ ] 11-02-PLAN.md -- Route unification under /projects/[id]/... + brief edit fix with blur-save + toast
 
+### Phase 12: Milestone Audit Gap Closure
+**Goal:** Fix 2 critical integration breaks and clean up dead routes from v0.1 audit
+**Depends on**: Phase 11
+**Requirements**: GENR-04, GRPH-02, GRPH-05
+**Gap Closure:** Closes all gaps from v0.1-MILESTONE-AUDIT.md
+**Success Criteria** (what must be TRUE):
+  1. Build progress page displays preview_url, build_version, error_message from generation status endpoint
+  2. Strategy graph renders edges/relationships between nodes (not isolated nodes)
+  3. Old /company/[id]/* routes redirect to /projects/[id]/* equivalents
+  4. Old /strategy and /timeline pages redirect to project-scoped equivalents or show project selector
+**Plans:** 1 plan
+
+Plans:
+- [ ] 12-01-PLAN.md -- Fix build polling endpoint + graph field mismatch + route cleanup
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10 -> 11
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10 -> 11 -> 12
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -279,9 +295,10 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 9. Strategy Graph & Timeline | 0/4 | Planned | - |
 | 10. Export, Deploy Readiness & E2E Testing | 10/11 | Complete    | 2026-02-17 |
 | 11. Cross-Phase Frontend Wiring | 0/1 | Complete    | 2026-02-17 |
+| 12. Milestone Audit Gap Closure | 0/1 | Gap closure | - |
 
 ---
 *Created: 2026-02-16*
-*Updated: 2026-02-17 — added Phase 11 gap closure from milestone audit*
-*Depth: comprehensive (11 phases)*
+*Updated: 2026-02-17 — added Phase 12 gap closure from v0.1 milestone audit*
+*Depth: comprehensive (12 phases)*
 *Timeline: 2-week sprint (14 days)*
