@@ -2,12 +2,15 @@
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import func, select
+from sqlalchemy import exists, and_, func, select
 
-from app.core.auth import ClerkUser, require_auth
+from app.core.auth import ClerkUser, require_auth, require_subscription
 from app.core.llm_config import get_or_create_user_settings
 from app.db.base import get_session_factory
+from app.db.models.artifact import Artifact
+from app.db.models.decision_gate import DecisionGate
 from app.db.models.project import Project
+from app.db.models.understanding_session import UnderstandingSession
 
 router = APIRouter()
 
@@ -25,10 +28,51 @@ class ProjectResponse(BaseModel):
     github_repo: str | None
     created_at: str
     status: str
+    has_pending_gate: bool = False
+    has_understanding_session: bool = False
+    has_brief: bool = False
+
+
+async def _compute_project_flags(session, project_id: str) -> dict:
+    """Compute boolean context flags for a project via efficient EXISTS subqueries."""
+    pending_gate_q = select(
+        exists().where(
+            and_(
+                DecisionGate.project_id == project_id,
+                DecisionGate.status == "pending",
+            )
+        )
+    )
+    understanding_session_q = select(
+        exists().where(
+            and_(
+                UnderstandingSession.project_id == project_id,
+                UnderstandingSession.status == "in_progress",
+            )
+        )
+    )
+    brief_q = select(
+        exists().where(
+            and_(
+                Artifact.project_id == project_id,
+                Artifact.artifact_type == "idea_brief",
+            )
+        )
+    )
+
+    has_pending_gate = (await session.execute(pending_gate_q)).scalar() or False
+    has_understanding_session = (await session.execute(understanding_session_q)).scalar() or False
+    has_brief = (await session.execute(brief_q)).scalar() or False
+
+    return {
+        "has_pending_gate": has_pending_gate,
+        "has_understanding_session": has_understanding_session,
+        "has_brief": has_brief,
+    }
 
 
 @router.post("/", response_model=ProjectResponse)
-async def create_project(request: ProjectCreate, user: ClerkUser = Depends(require_auth)):
+async def create_project(request: ProjectCreate, user: ClerkUser = Depends(require_subscription)):
     """Create a new project, respecting plan limits."""
     factory = get_session_factory()
 
@@ -72,6 +116,9 @@ async def create_project(request: ProjectCreate, user: ClerkUser = Depends(requi
             github_repo=project.github_repo,
             created_at=project.created_at.isoformat(),
             status=project.status,
+            has_pending_gate=False,
+            has_understanding_session=False,
+            has_brief=False,
         )
 
 
@@ -86,17 +133,21 @@ async def list_projects(user: ClerkUser = Depends(require_auth)):
             .order_by(Project.created_at.desc())
         )
         projects = result.scalars().all()
-        return [
-            ProjectResponse(
-                id=str(p.id),
-                name=p.name,
-                description=p.description,
-                github_repo=p.github_repo,
-                created_at=p.created_at.isoformat(),
-                status=p.status,
+        responses = []
+        for p in projects:
+            flags = await _compute_project_flags(session, str(p.id))
+            responses.append(
+                ProjectResponse(
+                    id=str(p.id),
+                    name=p.name,
+                    description=p.description,
+                    github_repo=p.github_repo,
+                    created_at=p.created_at.isoformat(),
+                    status=p.status,
+                    **flags,
+                )
             )
-            for p in projects
-        ]
+        return responses
 
 
 @router.get("/{project_id}", response_model=ProjectResponse)
@@ -114,6 +165,8 @@ async def get_project(project_id: str, user: ClerkUser = Depends(require_auth)):
         if project is None:
             raise HTTPException(status_code=404, detail="Project not found")
 
+        flags = await _compute_project_flags(session, str(project.id))
+
         return ProjectResponse(
             id=str(project.id),
             name=project.name,
@@ -121,6 +174,7 @@ async def get_project(project_id: str, user: ClerkUser = Depends(require_auth)):
             github_repo=project.github_repo,
             created_at=project.created_at.isoformat(),
             status=project.status,
+            **flags,
         )
 
 
