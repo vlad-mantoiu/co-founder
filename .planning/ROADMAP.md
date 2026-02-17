@@ -198,16 +198,13 @@ Plans:
   6. Timeline items have timestamp, type, title, summary, build_version, decision_id, debug_id
   7. Timeline rendered as Kanban board with statuses (Planned/In Progress/Done)
   8. Tickets expandable for full information and queryable via search
-**Plans**: TBD
+**Plans:** 4 plans
 
 Plans:
-- [ ] 09-01: Neo4j decision node CRUD with graph schema
-- [ ] 09-02: Neo4j indexes on project_id and timestamp
-- [ ] 09-03: Strategy Graph API with node detail endpoint
-- [ ] 09-04: Frontend react-force-graph visualization
-- [ ] 09-05: Timeline data model with statuses
-- [ ] 09-06: Frontend Kanban board with @dnd-kit drag-drop
-- [ ] 09-07: Timeline search and filter
+- [ ] 09-01-PLAN.md -- Neo4j StrategyGraph class, Pydantic schemas, GraphService, GateService dual-write
+- [ ] 09-02-PLAN.md -- TimelineService aggregation, strategy graph + timeline API routes
+- [ ] 09-03-PLAN.md -- Frontend react-force-graph-2d visualization, NodeDetailModal (shared)
+- [ ] 09-04-PLAN.md -- Frontend Kanban board, timeline search/filter, BrandNav integration
 
 ### Phase 10: Export, Deploy Readiness & E2E Testing
 **Goal**: PDF/Markdown export, deploy readiness, and comprehensive end-to-end testing
@@ -260,7 +257,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 6. Artifact Generation Pipeline | 0/5 | Planned | - |
 | 7. State Machine Integration & Dashboard | 0/5 | Not started | - |
 | 8. Understanding Interview & Decision Gates | 6/8 | Complete    | 2026-02-17 |
-| 9. Strategy Graph & Timeline | 0/7 | Not started | - |
+| 9. Strategy Graph & Timeline | 0/4 | Planned | - |
 | 10. Export, Deploy Readiness & E2E Testing | 0/10 | Not started | - |
 
 ---
