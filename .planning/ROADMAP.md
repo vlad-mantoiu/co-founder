@@ -23,7 +23,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 9: Strategy Graph & Timeline** - Neo4j decision tracking with Kanban execution view
 - [x] **Phase 10: Export, Deploy Readiness & E2E Testing** - PDF/Markdown export with comprehensive testing (completed 2026-02-17)
 - [x] **Phase 11: Cross-Phase Frontend Wiring** - Fix integration breaks from milestone audit (completed 2026-02-17)
-- [ ] **Phase 12: Milestone Audit Gap Closure** - Fix build polling endpoint, graph field mismatch, route cleanup
+- [x] **Phase 12: Milestone Audit Gap Closure** - Fix build polling endpoint, graph field mismatch, route cleanup (completed 2026-02-17)
 
 ## Phase Details
 
@@ -272,7 +272,7 @@ Plans:
   2. Strategy graph renders edges/relationships between nodes (not isolated nodes)
   3. Old /company/[id]/* routes redirect to /projects/[id]/* equivalents
   4. Old /strategy and /timeline pages redirect to project-scoped equivalents or show project selector
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] 12-01-PLAN.md -- Fix build polling endpoint + graph field mismatch + route cleanup
@@ -295,7 +295,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 9. Strategy Graph & Timeline | 0/4 | Planned | - |
 | 10. Export, Deploy Readiness & E2E Testing | 10/11 | Complete    | 2026-02-17 |
 | 11. Cross-Phase Frontend Wiring | 0/1 | Complete    | 2026-02-17 |
-| 12. Milestone Audit Gap Closure | 0/1 | Gap closure | - |
+| 12. Milestone Audit Gap Closure | 0/1 | Complete    | 2026-02-17 |
 
 ---
 *Created: 2026-02-16*
