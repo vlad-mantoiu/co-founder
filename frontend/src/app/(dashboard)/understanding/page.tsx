@@ -1,13 +1,18 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { useUnderstandingInterview } from "@/hooks/useUnderstandingInterview";
 import { InterviewQuestion } from "@/components/understanding/InterviewQuestion";
 import { InterviewHistory } from "@/components/understanding/InterviewHistory";
 import { IdeaBriefView } from "@/components/understanding/IdeaBriefView";
+import { DecisionGateModal } from "@/components/decision-gates/DecisionGateModal";
+import { PlanComparisonTable } from "@/components/execution-plans/PlanComparisonTable";
+import { PlanOptionCard } from "@/components/execution-plans/PlanOptionCard";
+import { useDecisionGate } from "@/hooks/useDecisionGate";
+import { useExecutionPlans } from "@/hooks/useExecutionPlans";
 
 /**
  * Understanding Interview Page.
@@ -17,7 +22,11 @@ import { IdeaBriefView } from "@/components/understanding/IdeaBriefView";
  * - starting/loading_next: Skeleton shimmer
  * - questioning/editing_answer: Interview UI with history
  * - finalizing: Brief generation loading
- * - viewing_brief: IdeaBriefView with full brief
+ * - viewing_brief: IdeaBriefView with full brief + "Ready to decide?" CTA
+ * - gate_open: DecisionGateModal full-screen
+ * - plan_selection: PlanComparisonTable + PlanOptionCards
+ * - plan_selected: Success state with dashboard link
+ * - parked: Parked confirmation
  * - re_interviewing: Transition back to questioning
  * - error: Error display with debug_id
  */
@@ -35,8 +44,29 @@ export default function UnderstandingPage() {
     resumeSession,
   } = useUnderstandingInterview();
 
-  // Get onboarding session ID from query params
+  const {
+    state: gateState,
+    openGate,
+    selectOption,
+    resolveGate,
+    closeGate,
+  } = useDecisionGate();
+
+  const {
+    state: planState,
+    generatePlans,
+    selectPlan,
+    regeneratePlans,
+  } = useExecutionPlans();
+
+  // Get onboarding session ID and project ID from query params
   const onboardingSessionId = searchParams.get("sessionId");
+  const projectId = searchParams.get("projectId") || "";
+
+  // Local UI phase tracking
+  const [uiPhase, setUiPhase] = useState<
+    "interview" | "gate_open" | "plan_selection" | "plan_selected" | "parked"
+  >("interview");
 
   useEffect(() => {
     // Auto-start interview if session ID provided
@@ -51,6 +81,47 @@ export default function UnderstandingPage() {
     } else if (state.currentQuestion) {
       await submitAnswer(state.currentQuestion.id, answer);
     }
+  };
+
+  // Handle decision gate opening
+  const handleOpenGate = async () => {
+    if (!projectId) return;
+    setUiPhase("gate_open");
+    await openGate(projectId);
+  };
+
+  // Handle gate resolution
+  const handleGateResolve = async (actionText?: string, parkNote?: string) => {
+    await resolveGate(actionText, parkNote);
+
+    // Wait for resolution
+    setTimeout(() => {
+      const decision = gateState.selectedOption;
+
+      if (decision === "proceed") {
+        // Proceed: Generate execution plans
+        setUiPhase("plan_selection");
+        generatePlans(projectId);
+      } else if (decision === "narrow" || decision === "pivot") {
+        // Narrow/Pivot: Regenerate brief (stub for now - return to brief view)
+        setUiPhase("interview");
+        // Brief regeneration would happen in backend
+      } else if (decision === "park") {
+        // Park: Show parked confirmation
+        setUiPhase("parked");
+      }
+    }, 600);
+  };
+
+  // Handle plan selection
+  const handlePlanSelect = async (optionId: string) => {
+    await selectPlan(projectId, optionId);
+    setUiPhase("plan_selected");
+  };
+
+  // Handle plan regeneration
+  const handlePlanRegenerate = async () => {
+    await regeneratePlans(projectId, "Generate different options");
   };
 
   return (
@@ -155,16 +226,136 @@ export default function UnderstandingPage() {
           </div>
         )}
 
-        {/* VIEWING_BRIEF: Full brief display */}
-        {state.phase === "viewing_brief" && state.brief && (
+        {/* VIEWING_BRIEF: Full brief display + Ready to decide CTA */}
+        {state.phase === "viewing_brief" && state.brief && uiPhase === "interview" && (
           <div className="w-full">
             <IdeaBriefView
               brief={state.brief}
               onEditSection={editBriefSection}
               onReInterview={reInterview}
+              onProceedToDecision={handleOpenGate}
               artifactId={state.artifactId || ""}
               version={state.briefVersion}
+              projectId={projectId}
             />
+          </div>
+        )}
+
+        {/* GATE_OPEN: DecisionGateModal full-screen */}
+        {uiPhase === "gate_open" && (
+          <DecisionGateModal
+            isOpen={gateState.isOpen}
+            onClose={() => {
+              closeGate();
+              setUiPhase("interview");
+            }}
+            gateId={gateState.gateId}
+            projectId={projectId}
+            briefSummary={
+              state.brief
+                ? {
+                    problem_statement: state.brief.problem_statement,
+                    target_user: state.brief.target_user,
+                    value_prop: state.brief.value_prop,
+                  }
+                : undefined
+            }
+            options={gateState.options}
+            selectedOption={gateState.selectedOption}
+            onSelectOption={selectOption}
+            onResolve={handleGateResolve}
+            isResolving={gateState.isResolving}
+            error={gateState.error}
+          />
+        )}
+
+        {/* PLAN_SELECTION: Execution plan comparison */}
+        {uiPhase === "plan_selection" && (
+          <div className="max-w-6xl mx-auto px-6 py-12 space-y-8">
+            <div className="space-y-3">
+              <h2 className="text-3xl font-display font-bold text-white">
+                Choose Your Execution Path
+              </h2>
+              <p className="text-muted-foreground">
+                We&apos;ve generated three execution options. Review the comparison and select
+                the path that best fits your goals.
+              </p>
+            </div>
+
+            {/* Comparison Table */}
+            <PlanComparisonTable
+              options={planState.options}
+              onSelect={handlePlanSelect}
+              onRegenerate={handlePlanRegenerate}
+              isGenerating={planState.isGenerating}
+            />
+
+            {/* Detailed option cards */}
+            {!planState.isGenerating && planState.options.length > 0 && (
+              <div className="space-y-4 pt-8 border-t border-white/10">
+                <h3 className="text-xl font-display font-semibold text-white">
+                  Detailed Breakdown
+                </h3>
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {planState.options.map((option) => (
+                    <PlanOptionCard
+                      key={option.id}
+                      option={option}
+                      isRecommended={option.is_recommended}
+                      onSelect={() => handlePlanSelect(option.id)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {planState.error && (
+              <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20">
+                <p className="text-sm text-red-400">{planState.error}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* PLAN_SELECTED: Success state */}
+        {uiPhase === "plan_selected" && (
+          <div className="max-w-2xl w-full text-center space-y-6">
+            <CheckCircle2 className="h-16 w-16 text-brand mx-auto" />
+            <div className="space-y-2">
+              <h2 className="text-3xl font-display font-bold text-white">
+                Execution Plan Selected
+              </h2>
+              <p className="text-muted-foreground">
+                Your execution path has been saved. You can now continue to your dashboard to
+                track progress.
+              </p>
+            </div>
+            <button
+              onClick={() => router.push("/dashboard")}
+              className="px-6 py-3 bg-brand hover:bg-brand/90 text-white font-semibold rounded-xl transition-colors shadow-glow"
+            >
+              Continue to Dashboard
+            </button>
+          </div>
+        )}
+
+        {/* PARKED: Parked confirmation */}
+        {uiPhase === "parked" && (
+          <div className="max-w-2xl w-full text-center space-y-6">
+            <div className="p-6 bg-white/5 border border-white/10 rounded-xl">
+              <h2 className="text-2xl font-display font-semibold text-white mb-3">
+                Project Parked
+              </h2>
+              <p className="text-muted-foreground">
+                This project has been parked. You can resume it anytime from your dashboard.
+              </p>
+            </div>
+            <button
+              onClick={() => router.push("/dashboard")}
+              className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-medium rounded-xl transition-colors"
+            >
+              Return to Dashboard
+            </button>
           </div>
         )}
 

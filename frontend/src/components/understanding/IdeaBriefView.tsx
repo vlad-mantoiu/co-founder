@@ -1,6 +1,9 @@
 "use client";
 
-import { RefreshCw } from "lucide-react";
+import { useState } from "react";
+import { RefreshCw, Lock, ArrowRight } from "lucide-react";
+import { useAuth } from "@clerk/nextjs";
+import { apiFetch } from "@/lib/api";
 import { IdeaBriefCard } from "./IdeaBriefCard";
 import type { RationalisedIdeaBrief } from "@/hooks/useUnderstandingInterview";
 
@@ -8,8 +11,10 @@ interface IdeaBriefViewProps {
   brief: RationalisedIdeaBrief;
   onEditSection: (sectionKey: string, newContent: string) => void;
   onReInterview: () => void;
+  onProceedToDecision: () => void;
   artifactId: string;
   version: number;
+  projectId: string;
 }
 
 /**
@@ -23,9 +28,42 @@ export function IdeaBriefView({
   brief,
   onEditSection,
   onReInterview,
+  onProceedToDecision,
   artifactId,
   version,
+  projectId,
 }: IdeaBriefViewProps) {
+  const { getToken } = useAuth();
+  const [deepResearchMessage, setDeepResearchMessage] = useState<string | null>(null);
+  const [isDeepResearchLoading, setIsDeepResearchLoading] = useState(false);
+
+  // Handle Deep Research button click (returns 402)
+  const handleDeepResearch = async () => {
+    setIsDeepResearchLoading(true);
+    setDeepResearchMessage(null);
+
+    try {
+      const response = await apiFetch(
+        `/api/plans/${projectId}/deep-research`,
+        getToken,
+        { method: "POST" }
+      );
+
+      if (response.status === 402) {
+        const data = await response.json();
+        setDeepResearchMessage(
+          data.detail ||
+            "Deep Research requires CTO tier. Upgrade to unlock market research, competitor analysis, and technical feasibility reports."
+        );
+      } else if (!response.ok) {
+        setDeepResearchMessage("Failed to start Deep Research. Please try again.");
+      }
+    } catch {
+      setDeepResearchMessage("An error occurred. Please try again.");
+    } finally {
+      setIsDeepResearchLoading(false);
+    }
+  };
   // Map brief sections to card format
   const sections = [
     {
@@ -132,6 +170,50 @@ export function IdeaBriefView({
             onEdit={onEditSection}
           />
         ))}
+      </div>
+
+      {/* Deep Research button (gated at 402) */}
+      <div className="pt-6 border-t border-white/10">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleDeepResearch}
+            disabled={isDeepResearchLoading}
+            className="flex items-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 text-muted-foreground font-medium rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Lock className="h-4 w-4" />
+            Deep Research
+            {isDeepResearchLoading ? (
+              <span className="ml-2 h-4 w-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+            ) : (
+              <span className="ml-1 px-2 py-0.5 bg-brand/20 text-brand text-xs font-semibold rounded-full">
+                CTO Tier
+              </span>
+            )}
+          </button>
+        </div>
+        {deepResearchMessage && (
+          <div className="mt-3 p-3 bg-brand/10 border border-brand/20 rounded-lg">
+            <p className="text-sm text-brand">{deepResearchMessage}</p>
+          </div>
+        )}
+        <p className="mt-2 text-xs text-muted-foreground">
+          Deep Research provides market research, competitor analysis, and technical feasibility
+          reports.
+        </p>
+      </div>
+
+      {/* Proceed to Decision CTA */}
+      <div className="pt-6 border-t border-white/10">
+        <button
+          onClick={onProceedToDecision}
+          className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-brand hover:bg-brand/90 text-white font-semibold rounded-xl transition-colors shadow-glow"
+        >
+          Proceed to Decision Gate
+          <ArrowRight className="h-5 w-5" />
+        </button>
+        <p className="mt-2 text-xs text-muted-foreground text-center">
+          Ready to decide your next step? Review your options and choose your path forward.
+        </p>
       </div>
 
       {/* Re-interview button */}

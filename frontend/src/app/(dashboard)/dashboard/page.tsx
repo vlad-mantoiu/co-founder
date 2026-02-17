@@ -1,7 +1,8 @@
 "use client";
 
 import { useUser, useAuth } from "@clerk/nextjs";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   FolderPlus,
@@ -25,13 +26,44 @@ interface Project {
   status: string;
   github_repo: string | null;
   created_at: string;
+  stage_number?: number;
+  has_pending_gate?: boolean;
+  has_understanding_session?: boolean;
+  has_brief?: boolean;
 }
 
 export default function DashboardPage() {
   const { user } = useUser();
   const { getToken } = useAuth();
+  const searchParams = useSearchParams();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const checkoutTriggered = useRef(false);
+
+  // Auto-checkout redirect for post-signup users with ?plan=...&interval=...
+  useEffect(() => {
+    const plan = searchParams.get("plan");
+    const interval = searchParams.get("interval") || "monthly";
+
+    if (!plan || checkoutTriggered.current) return;
+    checkoutTriggered.current = true;
+
+    async function triggerCheckout() {
+      try {
+        const res = await apiFetch("/api/billing/checkout", getToken, {
+          method: "POST",
+          body: JSON.stringify({ plan_slug: plan, interval }),
+        });
+        const data = await res.json();
+        if (data.checkout_url) {
+          window.location.href = data.checkout_url;
+        }
+      } catch {
+        // Checkout failed — continue to dashboard
+      }
+    }
+    triggerCheckout();
+  }, [searchParams, getToken]);
 
   useEffect(() => {
     async function fetchProjects() {
@@ -142,6 +174,12 @@ function ReturningUserDashboard({
   firstName: string;
   projects: Project[];
 }) {
+  // Check if any projects have pending gates or understanding sessions
+  const pendingGateProjects = projects.filter((p) => p.has_pending_gate);
+  const understandingInProgressProjects = projects.filter(
+    (p) => p.has_understanding_session && !p.has_brief
+  );
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -162,6 +200,51 @@ function ReturningUserDashboard({
         </Link>
       </div>
 
+      {/* Pending Gates Banner */}
+      {pendingGateProjects.length > 0 && (
+        <div className="p-4 bg-brand/10 border border-brand/20 rounded-xl">
+          <div className="flex items-start gap-3">
+            <Clock className="w-5 h-5 text-brand mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <h3 className="font-semibold text-white mb-1">
+                Decision Gate Pending
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                {pendingGateProjects.length === 1
+                  ? `${pendingGateProjects[0].name} has a pending decision gate.`
+                  : `${pendingGateProjects.length} projects have pending decision gates.`}{" "}
+                Make your decision to continue.
+              </p>
+              <Link
+                href={`/understanding?projectId=${pendingGateProjects[0].id}`}
+                className="inline-flex items-center gap-1 mt-2 text-sm text-brand hover:underline"
+              >
+                Go to Decision Gate <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Understanding Interview in Progress Banner */}
+      {understandingInProgressProjects.length > 0 && (
+        <div className="p-4 bg-white/5 border border-white/10 rounded-xl">
+          <div className="flex items-start gap-3">
+            <MessageSquare className="w-5 h-5 text-white mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <h3 className="font-semibold text-white mb-1">
+                Understanding Interview in Progress
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                {understandingInProgressProjects.length === 1
+                  ? `${understandingInProgressProjects[0].name} is being analyzed.`
+                  : `${understandingInProgressProjects.length} projects are being analyzed.`}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Quick stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard icon={<GitPullRequest className="w-5 h-5" />} label="PRs Created" value="0" />
@@ -179,7 +262,7 @@ function ReturningUserDashboard({
           {projects.map((project) => (
             <GlassCard key={project.id} variant="strong" className="group hover:ring-1 hover:ring-brand/30 transition-all">
               <div className="flex items-start justify-between">
-                <div>
+                <div className="flex-1">
                   <h3 className="font-display font-semibold text-white group-hover:text-brand transition-colors">
                     {project.name}
                   </h3>
@@ -188,9 +271,27 @@ function ReturningUserDashboard({
                       {project.description}
                     </p>
                   )}
+                  {/* Status badges */}
+                  <div className="mt-2 flex items-center gap-2 flex-wrap">
+                    {project.status === "parked" && (
+                      <span className="px-2.5 py-1 text-xs rounded-full bg-yellow-500/10 text-yellow-400 font-medium">
+                        Parked
+                      </span>
+                    )}
+                    {project.has_pending_gate && (
+                      <span className="px-2.5 py-1 text-xs rounded-full bg-brand/10 text-brand font-medium">
+                        Pending Gate
+                      </span>
+                    )}
+                    {project.has_understanding_session && !project.has_brief && (
+                      <span className="px-2.5 py-1 text-xs rounded-full bg-white/10 text-white font-medium">
+                        Understanding...
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <span className="flex-shrink-0 px-2.5 py-1 text-xs rounded-full bg-neon-green/10 text-neon-green font-medium">
-                  {project.status}
+                  {project.status !== "parked" ? project.status : "idle"}
                 </span>
               </div>
               <div className="mt-4 flex items-center gap-3 text-xs text-muted-foreground">

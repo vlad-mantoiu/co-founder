@@ -94,7 +94,7 @@ export function IdeaInput({
               disabled={!idea.trim() || disabled}
               className="w-full px-6 py-3 bg-brand hover:bg-brand/90 text-white font-medium rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Let's go
+              Let&apos;s go
             </button>
           )}
         </form>

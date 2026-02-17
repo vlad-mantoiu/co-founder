@@ -15,7 +15,7 @@ interface ArtifactPanelProps {
 interface ArtifactContent {
   id: string;
   artifact_type: string;
-  content: Record<string, any>;
+  content: Record<string, unknown>;
   version_number: number;
   has_user_edits: boolean;
   generation_status: string;
