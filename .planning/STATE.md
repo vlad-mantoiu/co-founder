@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-16)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** Phase 10 (Export, Deploy Readiness & E2E Testing) — IN PROGRESS
+**Current focus:** Phase 10 (Export, Deploy Readiness & E2E Testing) — COMPLETE (all gap closures done)
 
 ## Current Position
 
 Phase: 10 of 10 (Export, Deploy Readiness & E2E Testing)
-Plan: 10 of 10 completed (10-10 E2E founder flow test — idea to MVP Built)
+Plan: 11 of 11 completed (10-11 GENR-03 gap closure — workspace files in RunnerFake + unconditional deploy readiness reconstruction)
 Status: Complete
-Last activity: 2026-02-17 — Completed 10-10-PLAN.md (FakeSandboxRuntime test double, full E2E founder flow test, all Phase 10 success criteria validated)
+Last activity: 2026-02-17 — Completed 10-11-PLAN.md (RunnerFake workspace files, strong GENR-03 test assertions, unconditional deploy readiness reconstruction)
 
 Progress: [██████████] 100%
 
@@ -97,6 +97,7 @@ Progress: [██████████] 100%
 | Phase 10 P08 | 3 | 2 tasks | 7 files |
 | Phase 10 P09 | 4 | 2 tasks | 8 files |
 | Phase 10 P10 | 15 | 2 tasks | 2 files |
+| Phase 10 P11 | 4 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -282,6 +283,8 @@ Recent decisions affecting current work:
 - [Phase 10-10]: asyncio.run() with fresh asyncpg engine avoids cross-event-loop pool issues from TestClient
 - [Phase 10-10]: BackgroundTask runs synchronously in TestClient (simulation path, no runner) — MVP hook triggered manually in asyncio.run() context
 - [Phase 10-10]: Timeline assertion uses milestone type with stage 3 in title — mvp_built event_type not surfaced by TimelineService
+- [Phase 10-11]: RunnerFake._get_realistic_code() returns 5 FileChange entries (2 app + README.md + .env.example + Procfile) — workspace contract matches what Runner always generates
+- [Phase 10-11]: _reconstruct_workspace_for_checks() unconditionally returns all 4 deployment files — no conditional on workspace_path or preview_url (Runner always produces these)
 
 ### Pending Todos
 
@@ -318,10 +321,10 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17 (execute-phase)
-Stopped at: Completed 10-10-PLAN.md (E2E founder flow test — FakeSandboxRuntime, full 9-step test, all Phase 10 success criteria validated)
-Resume file: .planning/phases/10-export-deploy-readiness-e2e-testing/10-10-SUMMARY.md
-Next action: Phase 10 COMPLETE — all 10 plans done. Milestone 1 complete.
+Stopped at: Completed 10-11-PLAN.md (GENR-03 gap closure — RunnerFake workspace files, strong test assertions, unconditional deploy readiness reconstruction)
+Resume file: .planning/phases/10-export-deploy-readiness-e2e-testing/10-11-SUMMARY.md
+Next action: Phase 10 COMPLETE — all 11 plans done (including gap closure). All success criteria verified.
 
 ---
 *Phase 09 COMPLETE — 5 of 5 plans done: Neo4j StrategyGraph foundation + TimelineService + API routes + Timeline Kanban board + NodeDetailModal + BrandNav + Modal gap closure (real API data)*
-*Phase 10 COMPLETE — 10 of 10 plans done: domain functions + response contracts + beta gating tests + generation routes + MVP Built transition + dashboard build data + Gate 2 solidification + Change Request artifacts + Build Progress UI + FloatingChat + Deploy Readiness UI + E2E founder flow test*
+*Phase 10 COMPLETE — 11 of 11 plans done: domain functions + response contracts + beta gating tests + generation routes + MVP Built transition + dashboard build data + Gate 2 solidification + Change Request artifacts + Build Progress UI + FloatingChat + Deploy Readiness UI + E2E founder flow test + GENR-03 gap closure (workspace files)*
