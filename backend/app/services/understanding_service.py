@@ -19,6 +19,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from app.agent.runner import Runner
 from app.db.models.artifact import Artifact
 from app.db.models.onboarding_session import OnboardingSession
+from app.db.models.project import Project
 from app.db.models.understanding_session import UnderstandingSession
 from app.schemas.artifacts import ArtifactType
 
@@ -297,7 +298,18 @@ class UnderstandingService:
             HTTPException(404): If brief not found or user doesn't own project
         """
         async with self.session_factory() as session:
-            # Load artifact with user isolation (via project ownership)
+            # Verify project ownership before returning the brief
+            project_result = await session.execute(
+                select(Project).where(
+                    Project.id == UUID(project_id),
+                    Project.clerk_user_id == clerk_user_id,
+                )
+            )
+            project = project_result.scalar_one_or_none()
+            if not project:
+                raise HTTPException(status_code=404, detail="Project not found")
+
+            # Load artifact after ownership verified
             result = await session.execute(
                 select(Artifact).where(
                     Artifact.project_id == UUID(project_id),
@@ -308,8 +320,6 @@ class UnderstandingService:
 
             if not artifact:
                 raise HTTPException(status_code=404, detail="Idea brief not found")
-
-            # TODO: Add project ownership check via join to ensure user owns project
 
             return {
                 "brief": artifact.current_content,
@@ -336,7 +346,18 @@ class UnderstandingService:
             HTTPException(400): If section_key invalid
         """
         async with self.session_factory() as session:
-            # Load artifact
+            # Verify project ownership before allowing edits
+            project_result = await session.execute(
+                select(Project).where(
+                    Project.id == UUID(project_id),
+                    Project.clerk_user_id == clerk_user_id,
+                )
+            )
+            project = project_result.scalar_one_or_none()
+            if not project:
+                raise HTTPException(status_code=404, detail="Project not found")
+
+            # Load artifact after ownership verified
             result = await session.execute(
                 select(Artifact).where(
                     Artifact.project_id == UUID(project_id),
