@@ -66,6 +66,30 @@ class E2BSandboxRuntime:
         except Exception as e:
             raise SandboxError(f"Failed to start sandbox: {e}") from e
 
+    async def connect(self, sandbox_id: str) -> None:
+        """Reconnect to an existing sandbox by its sandbox_id.
+
+        Used for iteration builds (GENL-02): patches existing sandbox instead of
+        creating a new one. If the sandbox has expired, raises SandboxError.
+
+        Args:
+            sandbox_id: E2B sandbox ID to reconnect to
+
+        Raises:
+            SandboxError: If sandbox has expired or connection fails
+        """
+        import os
+
+        try:
+            os.environ["E2B_API_KEY"] = self.settings.e2b_api_key
+            loop = asyncio.get_event_loop()
+            self._sandbox = await loop.run_in_executor(
+                None,
+                lambda: Sandbox.connect(sandbox_id),
+            )
+        except Exception as e:
+            raise SandboxError(f"Failed to connect to sandbox {sandbox_id}: {e}") from e
+
     async def stop(self) -> None:
         """Stop the sandbox instance and clean up."""
         if not self._sandbox:

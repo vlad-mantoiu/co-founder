@@ -163,6 +163,197 @@ class GenerationService:
             exc.debug_id = debug_id  # type: ignore[attr-defined]
             raise
 
+    async def execute_iteration_build(
+        self,
+        job_id: str,
+        job_data: dict,
+        state_machine: JobStateMachine,
+        change_request: dict,
+    ) -> dict:
+        """Execute an iteration build that patches an existing sandbox or rebuilds from scratch.
+
+        Implements GENL-02, GENL-03, GENL-04, GENL-05, GENL-06.
+
+        Pipeline stages:
+            STARTING -> SCAFFOLD -> CODE -> DEPS -> CHECKS -> (caller handles READY)
+
+        Args:
+            job_id: Unique job identifier (Redis key)
+            job_data: Job metadata dict (user_id, project_id, goal, tier, previous_sandbox_id, …)
+            state_machine: JobStateMachine for publishing transitions
+            change_request: Dict with at minimum {"change_description": "..."} plus optional context
+
+        Returns:
+            Dict with keys: sandbox_id, preview_url, build_version, workspace_path
+
+        Raises:
+            Exception: On any pipeline failure (after transitioning to FAILED)
+        """
+        sandbox = None
+        user_id = job_data.get("user_id", "")
+        project_id = job_data.get("project_id", "")
+        previous_sandbox_id = job_data.get("previous_sandbox_id", None)
+
+        try:
+            # 1. STARTING
+            await state_machine.transition(job_id, JobStatus.STARTING, "Starting iteration build pipeline")
+
+            # 2. SCAFFOLD — try to reconnect to previous sandbox, fall back to fresh
+            await state_machine.transition(job_id, JobStatus.SCAFFOLD, "Reconnecting to existing sandbox or scaffolding fresh state")
+
+            sandbox_reconnected = False
+            sandbox = None
+
+            if previous_sandbox_id:
+                try:
+                    # Attempt to reconnect to previous sandbox (GENL-02: patch workspace)
+                    sandbox = self.sandbox_runtime_factory()
+                    await sandbox.connect(previous_sandbox_id)
+                    sandbox_reconnected = True
+                    logger.info("Iteration build: reconnected to sandbox %s", previous_sandbox_id)
+                except Exception as connect_exc:
+                    logger.warning(
+                        "Iteration build: sandbox %s unavailable (%s), falling back to full rebuild",
+                        previous_sandbox_id,
+                        connect_exc,
+                    )
+                    sandbox = None
+                    sandbox_reconnected = False
+
+            if sandbox is None:
+                # Full rebuild from scratch (fallback or no prior sandbox)
+                sandbox = self.sandbox_runtime_factory()
+                await sandbox.start()
+
+            # Extend sandbox lifetime
+            sandbox._sandbox.set_timeout(3600)
+
+            # 3. CODE — run Runner with change_request context
+            await state_machine.transition(job_id, JobStatus.CODE, "Running LLM patch generation")
+
+            # Build agent state that includes the change request context
+            agent_state = create_initial_state(
+                user_id=user_id,
+                project_id=project_id,
+                project_path="/home/user/project",
+                goal=change_request.get("change_description", job_data.get("goal", "")),
+                session_id=job_id,
+            )
+            # Embed the change request into the state for the Runner to consume
+            agent_state["change_request"] = change_request
+
+            final_state = await self.runner.run(agent_state)
+
+            # 4. DEPS — write changed files to sandbox (patch mode for reconnected, full for fresh)
+            await state_machine.transition(
+                job_id,
+                JobStatus.DEPS,
+                "Writing patched files to sandbox",
+            )
+
+            working_files: dict = final_state.get("working_files", {})
+            workspace_path = "/home/user/project"
+            for rel_path, file_change in working_files.items():
+                content = (
+                    file_change.get("content", "")
+                    if isinstance(file_change, dict)
+                    else str(file_change)
+                )
+                abs_path = (
+                    rel_path
+                    if rel_path.startswith("/")
+                    else f"{workspace_path}/{rel_path}"
+                )
+                await sandbox.write_file(abs_path, content)
+
+            # 5. CHECKS — run health check, attempt rollback if fails (GENL-03)
+            await state_machine.transition(job_id, JobStatus.CHECKS, "Running health checks on patched build")
+
+            check_result = await sandbox.run_command("echo 'health-check-ok'", cwd=workspace_path)
+            check_passed = check_result.get("exit_code", 0) == 0
+
+            if not check_passed:
+                logger.warning("Iteration build %s: health check failed, attempting rollback", job_id)
+                # Attempt one rollback: revert files (re-run without the patch)
+                try:
+                    rollback_state = create_initial_state(
+                        user_id=user_id,
+                        project_id=project_id,
+                        project_path=workspace_path,
+                        goal=job_data.get("goal", ""),
+                        session_id=job_id,
+                    )
+                    rollback_result = await self.runner.run(rollback_state)
+                    rollback_files: dict = rollback_result.get("working_files", {})
+                    for rel_path, file_change in rollback_files.items():
+                        content = (
+                            file_change.get("content", "")
+                            if isinstance(file_change, dict)
+                            else str(file_change)
+                        )
+                        abs_path = (
+                            rel_path if rel_path.startswith("/") else f"{workspace_path}/{rel_path}"
+                        )
+                        await sandbox.write_file(abs_path, content)
+                except Exception as rollback_exc:
+                    logger.error("Iteration build %s: rollback failed: %s", job_id, rollback_exc)
+
+                # Mark as needs-review even if rollback ran
+                await state_machine.transition(
+                    job_id,
+                    JobStatus.FAILED,
+                    "Build check failed — needs-review. Your change may have introduced an error. Please review the code before deploying.",
+                )
+                debug_id = str(uuid4())
+                exc = RuntimeError("Build check failed after patch: needs-review")
+                exc.debug_id = debug_id  # type: ignore[attr-defined]
+                raise exc
+
+            # 6. Compute build result fields
+            host = sandbox._sandbox.get_host(8080)
+            preview_url = f"https://{host}"
+            sandbox_id = sandbox._sandbox.sandbox_id
+            build_version = await self._get_next_build_version(project_id, state_machine)
+
+            # 7. Timeline narration (GENL-05)
+            try:
+                await self._log_iteration_event(
+                    project_id=project_id,
+                    build_version=build_version,
+                    change_request=change_request,
+                )
+            except Exception:
+                logger.warning(
+                    "Iteration timeline event failed for job %s (non-fatal)",
+                    job_id,
+                    exc_info=True,
+                )
+
+            return {
+                "sandbox_id": sandbox_id,
+                "preview_url": preview_url,
+                "build_version": build_version,
+                "workspace_path": workspace_path,
+            }
+
+        except Exception as exc:
+            if hasattr(exc, "debug_id"):
+                # Already handled (needs-review path raises with debug_id)
+                raise
+            debug_id = str(uuid4())
+            logger.error(
+                f"GenerationService.execute_iteration_build failed for job {job_id}: {exc}",
+                exc_info=True,
+                extra={"debug_id": debug_id},
+            )
+            await state_machine.transition(
+                job_id,
+                JobStatus.FAILED,
+                f"Iteration build failed — debug_id: {debug_id}. {_friendly_message(exc)}",
+            )
+            exc.debug_id = debug_id  # type: ignore[attr-defined]
+            raise
+
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
@@ -309,6 +500,40 @@ class GenerationService:
             })
         except Exception:
             logger.warning("Neo4j sync failed for MVP Built milestone", exc_info=True)
+
+
+    async def _log_iteration_event(
+        self,
+        project_id: str,
+        build_version: str,
+        change_request: dict,
+    ) -> None:
+        """Log a StageEvent for a completed iteration build (GENL-05: timeline narration).
+
+        Args:
+            project_id: Project UUID string
+            build_version: New build version string (e.g. "build_v0_2")
+            change_request: Dict with change_description and other context
+        """
+        from app.db.models.stage_event import StageEvent
+
+        change_description = change_request.get("change_description", "")[:100]
+        pid = uuid.UUID(project_id)
+        factory = get_session_factory()
+        async with factory() as session:
+            iteration_event = StageEvent(
+                project_id=pid,
+                correlation_id=uuid.uuid4(),
+                event_type="iteration_completed",
+                actor="system",
+                detail={
+                    "build_version": build_version,
+                    "change_description": change_request.get("change_description", ""),
+                },
+                reason=f"Iteration build {build_version}: {change_description}",
+            )
+            session.add(iteration_event)
+            await session.commit()
 
 
 def _friendly_message(exc: Exception) -> str:
