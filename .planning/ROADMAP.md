@@ -22,6 +22,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 8: Understanding Interview & Decision Gates** - Clarifying questions and Proceed/Narrow/Pivot/Park gates (completed 2026-02-17)
 - [ ] **Phase 9: Strategy Graph & Timeline** - Neo4j decision tracking with Kanban execution view
 - [x] **Phase 10: Export, Deploy Readiness & E2E Testing** - PDF/Markdown export with comprehensive testing (completed 2026-02-17)
+- [ ] **Phase 11: Cross-Phase Frontend Wiring** - Fix integration breaks from milestone audit
 
 ## Phase Details
 
@@ -244,10 +245,25 @@ Plans:
 - [ ] 10-10-PLAN.md -- E2E founder flow test (idea -> brief -> plan -> build -> preview)
 - [ ] 10-11-PLAN.md -- Gap closure: workspace files in RunnerFake + strong GENR-03 assertions
 
+### Phase 11: Cross-Phase Frontend Wiring
+**Goal:** Fix 3 cross-phase integration breaks and 1 security gap identified by milestone audit
+**Depends on**: Phase 10
+**Requirements**: None new — closes integration gaps for existing satisfied requirements
+**Gap Closure:** Closes all gaps from v1-MILESTONE-AUDIT.md
+**Success Criteria** (what must be TRUE):
+  1. Build progress page shows real-time status updates (no 401 from SSE/polling)
+  2. Onboarding → understanding transition preserves project_id (gate and plan generation work)
+  3. Brief section editing persists successfully (no 404)
+  4. /admin route protected server-side by Clerk middleware (not just client-side)
+**Plans:** 1 plan
+
+Plans:
+- [ ] 11-01-PLAN.md -- Fix SSE auth, projectId routing, brief edit param, admin middleware
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10 -> 11
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -261,8 +277,10 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 8. Understanding Interview & Decision Gates | 6/8 | Complete    | 2026-02-17 |
 | 9. Strategy Graph & Timeline | 0/4 | Planned | - |
 | 10. Export, Deploy Readiness & E2E Testing | 10/11 | Complete    | 2026-02-17 |
+| 11. Cross-Phase Frontend Wiring | 0/1 | Gap closure | - |
 
 ---
 *Created: 2026-02-16*
-*Depth: comprehensive (10 phases, 5-10 plans each)*
+*Updated: 2026-02-17 — added Phase 11 gap closure from milestone audit*
+*Depth: comprehensive (11 phases)*
 *Timeline: 2-week sprint (14 days)*
