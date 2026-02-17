@@ -842,3 +842,121 @@ async def get_product(
             return "moderate"
         else:
             return "needs_depth"
+
+    async def generate_execution_options(self, brief: dict, feedback: str | None = None) -> dict:
+        """Generate 2-3 execution plan options from the Idea Brief.
+
+        Returns 3 realistic options:
+        - Fast MVP (recommended, low risk, 70% scope, 3-4 weeks)
+        - Full-Featured Launch (high risk, 95% scope, 8-10 weeks)
+        - Hybrid Approach (medium risk, 85% scope, 5-6 weeks)
+
+        Args:
+            brief: Rationalised Idea Brief artifact content
+            feedback: Optional feedback on previous options (for regeneration)
+
+        Returns:
+            Dict matching ExecutionPlanOptions schema with 3 options
+
+        Raises:
+            RuntimeError: For llm_failure and rate_limited scenarios
+        """
+        if self.scenario == "llm_failure":
+            raise RuntimeError("Anthropic API rate limit exceeded. Retry after 60 seconds.")
+
+        if self.scenario == "rate_limited":
+            raise RuntimeError(
+                "Worker capacity exceeded. Estimated wait: 5 minutes. Current queue depth: 12."
+            )
+
+        # Return 3 realistic execution plan options
+        return {
+            "options": [
+                {
+                    "id": "fast-mvp",
+                    "name": "Fast MVP",
+                    "is_recommended": True,
+                    "time_to_ship": "3-4 weeks",
+                    "engineering_cost": "Low (1 engineer, ~80 hours)",
+                    "risk_level": "low",
+                    "scope_coverage": 70,
+                    "pros": [
+                        "Fastest path to user feedback",
+                        "Lowest cost and risk",
+                        "Validates core assumptions quickly",
+                        "Easy to pivot if needed",
+                    ],
+                    "cons": [
+                        "Limited feature set may not wow users",
+                        "May need significant Phase 2 work",
+                        "Could miss competitive advantages",
+                    ],
+                    "technical_approach": "We'll focus on the core workflow with minimal UI polish. Use proven tech stack (Next.js, FastAPI, PostgreSQL) for speed. Manual processes replace automation where possible. Single-location only, defer multi-location sync to Phase 2.",
+                    "tradeoffs": [
+                        "Speed over completeness — ship fast, iterate based on feedback",
+                        "Manual workarounds over automation — founder does setup tasks",
+                        "Proven tech over optimal tech — use what the team knows best",
+                    ],
+                    "engineering_impact": "Single full-stack engineer can complete alone. Low coordination overhead. High velocity due to narrow scope.",
+                    "cost_note": "$12-15k engineering cost (80 hours @ $150-190/hr). Add $2k for design. Total budget: ~$14-17k.",
+                },
+                {
+                    "id": "full-featured",
+                    "name": "Full-Featured Launch",
+                    "is_recommended": False,
+                    "time_to_ship": "8-10 weeks",
+                    "engineering_cost": "High (2-3 engineers, ~400 hours)",
+                    "risk_level": "high",
+                    "scope_coverage": 95,
+                    "pros": [
+                        "Comprehensive feature set from day one",
+                        "Stronger competitive positioning",
+                        "Less follow-on work needed",
+                        "Impressive demo for investors/partners",
+                    ],
+                    "cons": [
+                        "Longer time to market and feedback",
+                        "Higher cost and burn rate",
+                        "Risk of building features nobody wants",
+                        "Harder to pivot if core assumptions are wrong",
+                    ],
+                    "technical_approach": "We'll build the complete vision: multi-location sync, barcode scanning, mobile app, third-party integrations, advanced reporting. Invest in scalable architecture from the start. Polish UI/UX to production quality. Comprehensive test coverage.",
+                    "tradeoffs": [
+                        "Completeness over speed — launch with full feature set",
+                        "Quality over iteration — get it right the first time",
+                        "Scalability over simplicity — build for 10k users on day one",
+                    ],
+                    "engineering_impact": "Requires 2-3 engineers with coordination overhead. Frontend specialist + backend specialist + mobile developer. Higher management burden.",
+                    "cost_note": "$60-76k engineering cost (400 hours @ $150-190/hr). Add $8k for design and QA. Total budget: ~$68-84k.",
+                },
+                {
+                    "id": "hybrid",
+                    "name": "Hybrid Approach",
+                    "is_recommended": False,
+                    "time_to_ship": "5-6 weeks",
+                    "engineering_cost": "Medium (1-2 engineers, ~200 hours)",
+                    "risk_level": "medium",
+                    "scope_coverage": 85,
+                    "pros": [
+                        "Balanced speed and completeness",
+                        "Includes key differentiators (e.g., barcode scanning)",
+                        "Moderate cost and risk",
+                        "Strong enough for early adopters",
+                    ],
+                    "cons": [
+                        "Not as fast as Fast MVP",
+                        "Not as complete as Full-Featured",
+                        "May require tough scope decisions mid-build",
+                    ],
+                    "technical_approach": "We'll build core features plus 2-3 key differentiators (e.g., barcode scanning, basic multi-location). Defer advanced features like mobile app and integrations. Use responsive web app (works on mobile browsers). Moderate UI polish — clean but not pixel-perfect.",
+                    "tradeoffs": [
+                        "Strategic features over full scope — include competitive differentiators",
+                        "Responsive web over native mobile — works everywhere, less dev time",
+                        "Solid foundation over quick hacks — built to extend, not rewrite",
+                    ],
+                    "engineering_impact": "1-2 engineers depending on skillset. Can be done solo with longer timeline, or faster with pair. Moderate complexity.",
+                    "cost_note": "$30-38k engineering cost (200 hours @ $150-190/hr). Add $4k for design. Total budget: ~$34-42k.",
+                },
+            ],
+            "recommended_id": "fast-mvp",
+        }

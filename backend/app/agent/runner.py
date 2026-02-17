@@ -3,7 +3,7 @@
 This protocol defines the interface that decouples business logic from LangGraph,
 enabling Test-Driven Development throughout the project.
 
-All Runner implementations MUST provide these 9 methods:
+All Runner implementations MUST provide these 10 methods:
 - run: Execute the full 6-node pipeline
 - step: Execute a single named node
 - generate_questions: Create onboarding questions from context
@@ -13,6 +13,7 @@ All Runner implementations MUST provide these 9 methods:
 - generate_idea_brief: Generate Rationalised Idea Brief from understanding interview
 - check_question_relevance: Check if remaining questions need regeneration after answer edit
 - assess_section_confidence: Assess confidence level for idea brief sections
+- generate_execution_options: Generate 2-3 execution plan options from Idea Brief
 """
 
 from typing import Protocol, runtime_checkable
@@ -142,5 +143,17 @@ class Runner(Protocol):
 
         Returns:
             Confidence level: "strong" | "moderate" | "needs_depth"
+        """
+        ...
+
+    async def generate_execution_options(self, brief: dict, feedback: str | None = None) -> dict:
+        """Generate 2-3 execution plan options from the Idea Brief.
+
+        Args:
+            brief: Rationalised Idea Brief artifact content
+            feedback: Optional feedback on previous options (for regeneration)
+
+        Returns:
+            Dict matching ExecutionPlanOptions schema with 2-3 options
         """
         ...

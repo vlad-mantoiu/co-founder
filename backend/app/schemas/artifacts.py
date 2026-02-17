@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 
 
 class ArtifactType(StrEnum):
-    """Six artifact types in generation pipeline."""
+    """Seven artifact types in generation pipeline."""
 
     BRIEF = "brief"
     MVP_SCOPE = "mvp_scope"
@@ -25,6 +25,7 @@ class ArtifactType(StrEnum):
     RISK_LOG = "risk_log"
     HOW_IT_WORKS = "how_it_works"
     IDEA_BRIEF = "idea_brief"  # Rationalised Idea Brief from understanding interview
+    EXECUTION_PLAN = "execution_plan"  # Execution plan options for Decision Gate 2
 
 
 # Generation order (locked decision: linear chain)
