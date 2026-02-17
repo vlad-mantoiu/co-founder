@@ -61,7 +61,7 @@ class GateService:
             project_uuid = uuid.UUID(project_id)
             result = await session.execute(
                 select(Project).where(
-                    Project.id == project_uuid, Project.user_id == clerk_user_id
+                    Project.id == project_uuid, Project.clerk_user_id == clerk_user_id
                 )
             )
             project = result.scalar_one_or_none()
@@ -153,7 +153,7 @@ class GateService:
             # Verify project ownership
             result = await session.execute(
                 select(Project).where(
-                    Project.id == gate.project_id, Project.user_id == clerk_user_id
+                    Project.id == gate.project_id, Project.clerk_user_id == clerk_user_id
                 )
             )
             project = result.scalar_one_or_none()
@@ -297,7 +297,7 @@ class GateService:
             # Verify project ownership
             result = await session.execute(
                 select(Project).where(
-                    Project.id == gate.project_id, Project.user_id == clerk_user_id
+                    Project.id == gate.project_id, Project.clerk_user_id == clerk_user_id
                 )
             )
             project = result.scalar_one_or_none()
@@ -333,7 +333,7 @@ class GateService:
             project_uuid = uuid.UUID(project_id)
             result = await session.execute(
                 select(Project).where(
-                    Project.id == project_uuid, Project.user_id == clerk_user_id
+                    Project.id == project_uuid, Project.clerk_user_id == clerk_user_id
                 )
             )
             project = result.scalar_one_or_none()
