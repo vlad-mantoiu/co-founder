@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 ## Current Position
 
 Phase: 9 of 10 (Strategy Graph & Timeline)
-Plan: 1 of 4 completed (09-01 Neo4j foundation done)
+Plan: 2 of 4 completed (09-02 Timeline service and graph/timeline API routes done)
 Status: Active
-Last activity: 2026-02-17 — Completed 09-01-PLAN.md (Neo4j StrategyGraph class, GraphService, dual-write in GateService)
+Last activity: 2026-02-17 — Completed 09-02-PLAN.md (TimelineService PostgreSQL aggregation, strategy_graph routes, timeline routes, router registration)
 
 Progress: [█████████░] 82%
 
@@ -84,6 +84,7 @@ Progress: [█████████░] 82%
 | Phase 08 P07 | 3 | 1 task | 1 file |
 | Phase 08 P08 | 1 | 2 tasks | 2 files |
 | Phase 09 P01 | 8 | 2 tasks | 6 files |
+| Phase 09 P02 | 2 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -214,6 +215,10 @@ Recent decisions affecting current work:
 - [Phase 09-01]: Non-fatal dual-write: Neo4j sync wrapped in try/except at both GraphService method level AND GateService._sync_to_graph for defense-in-depth
 - [Phase 09-01]: GraphEdge uses Pydantic v2 alias for "from"/"to" with populate_by_name=True (reserved keyword workaround)
 - [Phase 09-01]: _artifact_graph_status() maps Artifact.generation_status to graph status string (done/in_progress/planned/failed)
+- [Phase 09-02]: TimelineService uses _strip_tz() for naive datetime comparison to handle tz-aware query params vs tz-naive DB timestamps
+- [Phase 09-02]: Strategy graph routes return empty GraphResponse (not 500) when Neo4j unavailable — graceful degradation
+- [Phase 09-02]: Node type derived from 'type' Neo4j property (set during upsert) rather than re-derived from label
+- [Phase 09-02]: Timeline items sorted newest-first in Python after aggregation from 3 separate queries (avoids SQL UNION complexity)
 
 ### Pending Todos
 
@@ -250,9 +255,9 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17 (execute-phase)
-Stopped at: Completed 09-01-PLAN.md (Neo4j StrategyGraph class, GraphService DI layer, GateService dual-write)
-Resume file: .planning/phases/09-strategy-graph-timeline/09-01-SUMMARY.md
-Next action: Execute 09-02 (Graph API endpoints and timeline query service)
+Stopped at: Completed 09-02-PLAN.md (TimelineService, strategy_graph routes, timeline routes)
+Resume file: .planning/phases/09-strategy-graph-timeline/09-02-SUMMARY.md
+Next action: Execute 09-03 (Frontend strategy graph visualization component)
 
 ---
-*Phase 09 IN PROGRESS — 1 of 4 plans done: Neo4j StrategyGraph foundation with Decision/Milestone/ArtifactNode labels, GraphService DI, dual-write from GateService*
+*Phase 09 IN PROGRESS — 2 of 4 plans done: Neo4j StrategyGraph foundation + TimelineService PostgreSQL aggregation + strategy graph and timeline API routes*
