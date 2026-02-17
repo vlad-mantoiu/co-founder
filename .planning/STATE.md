@@ -76,6 +76,7 @@ Progress: [██░░░░░░░░] 17%
 | Phase 07 P03 | 2 | 3 tasks | 6 files |
 | Phase 07 P04 | 2 | 2 tasks | 6 files |
 | Phase 08 P02 | 7 | 2 tasks | 5 files |
+| Phase 08 P01 | 8.6 | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -179,6 +180,9 @@ Recent decisions affecting current work:
 - [Phase 08-02]: Stub narrow/pivot brief generation with version rotation (full LLM impl in Plan 3)
 - [Phase 08-02]: check_gate_blocking does not enforce user ownership (called by services that already verified ownership)
 - [Phase 08-02]: Park decision updates project status to "parked" (preserves stage_number for resumption)
+- [Phase 08]: Extended Runner protocol with 4 understanding interview methods for adaptive questioning and confidence assessment
+- [Phase 08]: RationalisedIdeaBrief with per-section confidence scores (strong/moderate/needs_depth) for Decision Gate 1 input
+- [Phase 08]: UnderstandingSession model extends onboarding flow by linking to OnboardingSession for continuity
 
 ### Pending Todos
 
