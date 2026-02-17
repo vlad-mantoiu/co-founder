@@ -149,14 +149,13 @@ Plans:
   5. Every job and decision has correlation_id logged
   6. Errors return debug_id without secrets
   7. Timeline entries reference correlation IDs
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 07-01: Dashboard API aggregating state machine + artifacts + builds
-- [ ] 07-02: Progress computation logic from deterministic rules
-- [ ] 07-03: Frontend Company dashboard with stage card
-- [ ] 07-04: Correlation ID middleware and error handling
-- [ ] 07-05: Frontend drill-down views for artifacts
+- [ ] 07-01-PLAN.md -- Dashboard API with aggregation service (TDD)
+- [ ] 07-02-PLAN.md -- Correlation ID middleware and structured logging
+- [ ] 07-03-PLAN.md -- Frontend Company dashboard with stage ring and action hero
+- [ ] 07-04-PLAN.md -- Frontend artifact drill-down slide-over panel with toast notifications
 
 ### Phase 8: Understanding Interview & Decision Gates
 **Goal**: Rationalised Idea Brief generation with Proceed/Narrow/Pivot/Park decision gates
