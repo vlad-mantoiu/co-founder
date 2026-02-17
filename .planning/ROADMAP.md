@@ -229,19 +229,19 @@ Plans:
   15. Response contracts stable (empty arrays not null)
   16. Chat interface preserved as secondary input (de-emphasized in nav)
   17. End-to-end founder flow test completes successfully
-**Plans**: TBD
+**Plans:** 10 plans
 
 Plans:
-- [ ] 10-01: Generation Loop v0.1 job orchestration
-- [ ] 10-02: E2B sandbox provisioning and preview URL
-- [ ] 10-03: Build versioning and workspace file validation
-- [ ] 10-04: MVP Built state transition trigger
-- [ ] 10-05: Solidification Gate 2 with scope creep detection
-- [ ] 10-06: Iteration Plan and Change Request logic
-- [ ] 10-07: Deploy readiness assessment endpoint
-- [ ] 10-08: Beta gating middleware
-- [ ] 10-09: Response contract validation tests
-- [ ] 10-10: E2E founder flow test (idea -> brief -> plan -> build -> preview)
+- [ ] 10-01-PLAN.md -- Generation service, Job model columns, worker integration (TDD)
+- [ ] 10-02-PLAN.md -- Alignment score + deploy readiness domain functions (TDD)
+- [ ] 10-03-PLAN.md -- Response contract validation + beta gating tests (TDD)
+- [ ] 10-04-PLAN.md -- Generation API routes (start, status, cancel, preview-viewed)
+- [ ] 10-05-PLAN.md -- MVP Built state transition + dashboard build data wiring
+- [ ] 10-06-PLAN.md -- Solidification Gate 2 + Change Request artifacts
+- [ ] 10-07-PLAN.md -- Deploy readiness endpoint + iteration build loop (v0.2+)
+- [ ] 10-08-PLAN.md -- Build progress UI (progress bar, success, failure, cancel)
+- [ ] 10-09-PLAN.md -- Floating chat widget + deploy readiness UI
+- [ ] 10-10-PLAN.md -- E2E founder flow test (idea -> brief -> plan -> build -> preview)
 
 ## Progress
 
