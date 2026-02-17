@@ -18,6 +18,7 @@ from app.db.models.understanding_session import UnderstandingSession
 from app.domain.gates import GateDecision
 from app.schemas.decision_gates import (
     GATE_1_OPTIONS,
+    GATE_2_OPTIONS,
     CreateGateResponse,
     GateOption,
     GateStatusResponse,
@@ -115,12 +116,14 @@ class GateService:
                 context={"brief_summary": brief_summary},
             )
 
-            # Return response with options
+            # Return response with options (Gate 2 has different options than Gate 1)
+            options_map = {"direction": GATE_1_OPTIONS, "solidification": GATE_2_OPTIONS}
+            options = options_map.get(gate_type, GATE_1_OPTIONS)
             return CreateGateResponse(
                 gate_id=str(gate_id),
                 gate_type=gate_type,
                 status="pending",
-                options=GATE_1_OPTIONS,
+                options=options,
                 created_at=datetime.now(timezone.utc).isoformat(),
             )
 
@@ -187,7 +190,26 @@ class GateService:
             )
 
             # Handle decision-specific actions
-            if decision == "narrow":
+            if gate.gate_type == "solidification":
+                # Gate 2: compute alignment score and store in context (SOLD-02)
+                score, creep = await self._compute_gate2_alignment(session, gate.project_id)
+                gate.context = gate.context or {}
+                gate.context["alignment_score"] = score
+                gate.context["scope_creep_detected"] = creep
+                from sqlalchemy.orm.attributes import flag_modified
+                flag_modified(gate, "context")
+                await session.commit()
+
+                if decision == "iterate":
+                    resolution_summary = f"Ready to iterate. Alignment: {score}%"
+                    next_action = "Submit your change request"
+                elif decision == "ship":
+                    resolution_summary = "Ready to assess deploy readiness"
+                    next_action = "We'll check your build for deploy readiness"
+                else:  # park
+                    resolution_summary = f"Project parked: {park_note or 'No note provided'}"
+                    next_action = "You can revisit this project anytime from the Parked section"
+            elif decision == "narrow":
                 await self._handle_narrow(session, gate, project, action_text)
                 resolution_summary = "Scope narrowed based on your input"
                 next_action = "Review the updated Idea Brief, then proceed to execution planning"
@@ -214,6 +236,47 @@ class GateService:
             await self._sync_to_graph(gate, project.id)
 
             return response
+
+    async def _compute_gate2_alignment(
+        self, session: AsyncSession, project_id: uuid.UUID
+    ) -> tuple[int, bool]:
+        """Compute alignment score for Gate 2 (solidification) using existing artifacts.
+
+        Loads MVP Scope artifact as original scope and all change_request artifacts
+        as requested changes. Falls back to neutral (75, False) when artifacts missing.
+
+        Args:
+            session: SQLAlchemy session
+            project_id: Project UUID
+
+        Returns:
+            Tuple of (score: int, scope_creep_detected: bool)
+        """
+        from app.domain.alignment import compute_alignment_score
+
+        # Load MVP Scope artifact for original scope
+        mvp_result = await session.execute(
+            select(Artifact).where(
+                Artifact.project_id == project_id,
+                Artifact.artifact_type == "mvp_scope",
+            )
+        )
+        mvp_artifact = mvp_result.scalar_one_or_none()
+        original_scope: dict = mvp_artifact.current_content or {} if mvp_artifact else {}
+
+        # Load all existing change_request artifacts
+        cr_result = await session.execute(
+            select(Artifact).where(
+                Artifact.project_id == project_id,
+                Artifact.artifact_type.like("change_request_%"),
+            )
+        )
+        change_request_artifacts = cr_result.scalars().all()
+        requested_changes: list[dict] = [
+            cr.current_content for cr in change_request_artifacts if cr.current_content
+        ]
+
+        return compute_alignment_score(original_scope, requested_changes)
 
     async def _sync_to_graph(self, gate: DecisionGate, project_id: uuid.UUID) -> None:
         """Dual-write resolved gate to Neo4j strategy graph. Non-fatal."""
@@ -393,13 +456,15 @@ class GateService:
             if not project:
                 raise HTTPException(status_code=404, detail="Gate not found")
 
+            options_map = {"direction": GATE_1_OPTIONS, "solidification": GATE_2_OPTIONS}
+            options = options_map.get(gate.gate_type, GATE_1_OPTIONS) if gate.status == "pending" else []
             return GateStatusResponse(
                 gate_id=str(gate.id),
                 gate_type=gate.gate_type,
                 status=gate.status,
                 decision=gate.decision,
                 decided_at=gate.decided_at.isoformat() if gate.decided_at else None,
-                options=GATE_1_OPTIONS if gate.status == "pending" else None,
+                options=options,
             )
 
     async def get_pending_gate(
@@ -442,13 +507,15 @@ class GateService:
             if not gate:
                 return None
 
+            options_map = {"direction": GATE_1_OPTIONS, "solidification": GATE_2_OPTIONS}
+            options = options_map.get(gate.gate_type, GATE_1_OPTIONS)
             return GateStatusResponse(
                 gate_id=str(gate.id),
                 gate_type=gate.gate_type,
                 status=gate.status,
                 decision=None,
                 decided_at=None,
-                options=GATE_1_OPTIONS if gate.gate_type == "direction" else None,
+                options=options,
             )
 
     async def check_gate_blocking(self, project_id: str) -> bool:
