@@ -85,6 +85,7 @@ Progress: [██████████] 90%
 | Phase 08 P08 | 1 | 2 tasks | 2 files |
 | Phase 09 P01 | 8 | 2 tasks | 6 files |
 | Phase 09 P02 | 2 | 2 tasks | 4 files |
+| Phase 09 P03 | 3 | 2 tasks | 6 files |
 | Phase 09 P04 | 3 | 2 tasks | 8 files |
 
 ## Accumulated Context
@@ -220,6 +221,11 @@ Recent decisions affecting current work:
 - [Phase 09-02]: Strategy graph routes return empty GraphResponse (not 500) when Neo4j unavailable — graceful degradation
 - [Phase 09-02]: Node type derived from 'type' Neo4j property (set during upsert) rather than re-derived from label
 - [Phase 09-02]: Timeline items sorted newest-first in Python after aggregation from 3 separate queries (avoids SQL UNION complexity)
+- [Phase 09-03]: ForceGraph2D ref typed as MutableRefObject<ForceGraphMethods<any,any>> with undefined init (required by library typings)
+- [Phase 09-03]: Adjacency sets (highlightNodes, highlightLinks) rebuilt via useMemo on hoverNode change for O(E) hover highlighting
+- [Phase 09-03]: nodeCanvasObjectMode='replace' disables all default rendering for full custom node appearance
+- [Phase 09-03]: NodeDetailModal showGraphLink prop enables reuse from timeline without coupling to graph types
+- [Phase 09-03]: Strategy page uses ?highlight= param to auto-open node when navigated from timeline view
 - [Phase 09-04]: KanbanBoard sorts items newest-first within each column using timestamp descending (locked decision)
 - [Phase 09-04]: No drag-drop on timeline board — system-driven status only, read-only board (locked decision)
 - [Phase 09-04]: NodeDetailModal shared component in strategy-graph/ usable by both graph and timeline views
@@ -261,9 +267,9 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17 (execute-phase)
-Stopped at: Completed 09-04-PLAN.md (Timeline Kanban board, TimelineSearch, NodeDetailModal, BrandNav)
-Resume file: .planning/phases/09-strategy-graph-timeline/09-04-SUMMARY.md
-Next action: Execute 09-03 (Frontend strategy graph visualization component — ForceGraph2D, strategy page)
+Stopped at: Completed 09-03-PLAN.md (ForceGraphInner, StrategyGraphCanvas, GraphMinimap, NodeDetailModal, strategy page)
+Resume file: .planning/phases/09-strategy-graph-timeline/09-03-SUMMARY.md
+Next action: Phase 09 all 4 plans complete — proceed to Phase 10
 
 ---
 *Phase 09 IN PROGRESS — 4 of 4 plans done (plan 03 still pending execution): Neo4j StrategyGraph foundation + TimelineService + API routes + Timeline Kanban board + NodeDetailModal + BrandNav*
