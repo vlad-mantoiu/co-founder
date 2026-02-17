@@ -19,20 +19,6 @@ function buildQueryString(projectId: string, params: SearchParams): string {
   return `/api/timeline/${projectId}${qs}`;
 }
 
-function timelineItemToNodeDetail(item: TimelineItem): NodeDetail {
-  return {
-    id: item.id,
-    title: item.title,
-    type: item.type,
-    status: item.kanban_status,
-    created_at: item.timestamp,
-    why: item.summary,
-    impact_summary: "",
-    tradeoffs: [],
-    alternatives: [],
-  };
-}
-
 function TimelineSkeleton() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -64,7 +50,7 @@ export default function TimelinePage() {
     dateFrom: null,
     dateTo: null,
   });
-  const [selectedItem, setSelectedItem] = useState<TimelineItem | null>(null);
+  const [enrichedDetail, setEnrichedDetail] = useState<NodeDetail | null>(null);
 
   const fetchTimeline = useCallback(
     async (params: SearchParams) => {
@@ -96,17 +82,47 @@ export default function TimelinePage() {
     setSearchState(params);
   }, []);
 
-  const handleCardClick = useCallback((item: TimelineItem) => {
-    setSelectedItem(item);
-  }, []);
+  const handleCardClick = useCallback(async (item: TimelineItem) => {
+    const base: NodeDetail = {
+      id: item.graph_node_id ?? item.id,
+      title: item.title,
+      type: item.type,
+      status: item.kanban_status,
+      created_at: item.timestamp,
+      why: item.summary,
+      impact_summary: "",
+      tradeoffs: [],
+      alternatives: [],
+    };
+
+    if (item.type === "decision" && item.graph_node_id && projectId) {
+      try {
+        const res = await apiFetch(
+          `/api/graph/${projectId}/nodes/${item.graph_node_id}`,
+          getToken
+        );
+        if (res.ok) {
+          const detail = await res.json();
+          base.impact_summary = detail.impact_summary ?? "";
+          base.tradeoffs = detail.tradeoffs ?? [];
+          base.alternatives = detail.alternatives ?? [];
+          base.created_at = detail.created_at ?? item.timestamp;
+        }
+      } catch {
+        // Non-fatal fallback
+      }
+    }
+
+    setEnrichedDetail(base);
+  }, [projectId, getToken]);
 
   const handleCloseModal = useCallback(() => {
-    setSelectedItem(null);
+    setEnrichedDetail(null);
   }, []);
 
   const handleViewInGraph = useCallback(
     (nodeId: string) => {
-      setSelectedItem(null);
+      setEnrichedDetail(null);
       router.push(`/strategy?project=${projectId}&highlight=${nodeId}`);
     },
     [router, projectId],
@@ -184,7 +200,7 @@ export default function TimelinePage() {
 
       {/* Node detail modal */}
       <NodeDetailModal
-        node={selectedItem ? timelineItemToNodeDetail(selectedItem) : null}
+        node={enrichedDetail}
         onClose={handleCloseModal}
         showGraphLink={true}
         onViewInGraph={handleViewInGraph}
