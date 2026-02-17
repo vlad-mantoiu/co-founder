@@ -8,9 +8,15 @@ import { StrategyGraphCanvas, type GraphNode, type GraphLink } from "@/component
 import { NodeDetailModal, type NodeDetail } from "@/components/strategy-graph/NodeDetailModal";
 import { apiFetch } from "@/lib/api";
 
+interface ApiEdge {
+  from: string;
+  to: string;
+  relation: string;
+}
+
 interface GraphResponse {
   nodes: GraphNode[];
-  links: GraphLink[];
+  edges: ApiEdge[];
 }
 
 function GraphPageSkeleton() {
@@ -50,7 +56,7 @@ export default function StrategyPage() {
   const projectId = searchParams.get("project");
   const highlightId = searchParams.get("highlight");
 
-  const [graphData, setGraphData] = useState<GraphResponse>({ nodes: [], links: [] });
+  const [graphData, setGraphData] = useState<{ nodes: GraphNode[]; links: GraphLink[] }>({ nodes: [], links: [] });
   const [selectedNode, setSelectedNode] = useState<NodeDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -87,7 +93,12 @@ export default function StrategyPage() {
         throw new Error(`Failed to load graph (${res.status})`);
       }
       const data: GraphResponse = await res.json();
-      setGraphData({ nodes: data.nodes ?? [], links: data.links ?? [] });
+      const mappedLinks: GraphLink[] = (data.edges ?? []).map((e: ApiEdge) => ({
+        source: e.from,
+        target: e.to,
+        relation: e.relation,
+      }));
+      setGraphData({ nodes: data.nodes ?? [], links: mappedLinks });
 
       // Auto-open highlighted node if navigated from timeline
       if (highlightId && data.nodes) {
