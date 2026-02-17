@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 
 ## Current Position
 
-Phase: 8 of 10 (Understanding Interview & Decision Gates) — COMPLETE
-Plan: 6 of 6 completed (08-06 just completed)
+Phase: 8 of 10 (Understanding Interview & Decision Gates) — COMPLETE (gap closure done)
+Plan: 7 of 7 completed (08-07 gap closure just completed)
 Status: Active
-Last activity: 2026-02-17 — Completed 08-06-PLAN.md (Full Phase 8 Flow Integration)
+Last activity: 2026-02-17 — Completed 08-07-PLAN.md (Dashboard Project Context Flags — SC4 gap closure)
 
 Progress: [█████████░] 80%
 
@@ -81,6 +81,7 @@ Progress: [█████████░] 80%
 | Phase 08 P04 | 5 | 2 tasks | 8 files |
 | Phase 08 P05 | 3 | 2 tasks | 7 files |
 | Phase 08 P06 | 15 | 2 tasks | 6 files |
+| Phase 08 P07 | 3 | 1 task | 1 file |
 
 ## Accumulated Context
 
@@ -202,6 +203,8 @@ Recent decisions affecting current work:
 - [Phase 08-06]: Phase-based rendering for understanding page (gate_open/plan_selection/plan_selected/parked)
 - [Phase 08-06]: Deep Research button shows CTO tier upgrade toast on 402 with Lock icon badge (UNDR-06 compliance)
 - [Phase 08-06]: Dashboard gate banner links to /understanding for seamless continuation
+- [Phase 08-07]: Per-project EXISTS subquery loop acceptable at MVP scale; lateral join optimization deferred
+- [Phase 08-07]: ProjectResponse boolean flags default to False via Pydantic (new projects never have gates/sessions/briefs)
 
 ### Pending Todos
 
@@ -238,9 +241,9 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17 (execute-phase)
-Stopped at: Completed 08-06-PLAN.md (Full Phase 8 Flow Integration) — Phase 08 COMPLETE
-Resume file: .planning/phases/08-understanding-interview-decision-gates/08-06-SUMMARY.md
+Stopped at: Completed 08-07-PLAN.md (SC4 gap closure — ProjectResponse boolean flags) — Phase 08 gap closure COMPLETE
+Resume file: .planning/phases/08-understanding-interview-decision-gates/08-07-SUMMARY.md
 Next action: Begin Phase 9 or await user direction
 
 ---
-*Phase 08 COMPLETE — All 6 plans done: full Understanding Interview -> Idea Brief -> Decision Gate 1 -> Execution Plan Selection flow, dashboard integration, Deep Research 402 stub*
+*Phase 08 COMPLETE — 7 plans done: full Understanding Interview -> Idea Brief -> Decision Gate 1 -> Execution Plan Selection flow, dashboard integration, Deep Research 402 stub, SC4 gap closure (dashboard project context flags)*
