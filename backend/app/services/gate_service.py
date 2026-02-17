@@ -1,0 +1,386 @@
+"""GateService — orchestrates decision gate lifecycle with domain logic."""
+
+import uuid
+from datetime import datetime, timezone
+
+from fastapi import HTTPException
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+from app.agent.runner import Runner
+from app.db.models.artifact import Artifact
+from app.db.models.decision_gate import DecisionGate
+from app.db.models.project import Project
+from app.domain.gates import GateDecision
+from app.schemas.decision_gates import (
+    GATE_1_OPTIONS,
+    CreateGateResponse,
+    GateOption,
+    GateStatusResponse,
+    ResolveGateResponse,
+)
+from app.services.journey import JourneyService
+
+
+class GateService:
+    """Service layer for decision gate operations.
+
+    Orchestrates gate creation, resolution, status checks, and blocking enforcement.
+    Integrates with domain logic, Runner for LLM operations, and persistence.
+    """
+
+    def __init__(self, runner: Runner, session_factory: async_sessionmaker[AsyncSession]):
+        """Initialize with dependency injection.
+
+        Args:
+            runner: Runner instance for LLM operations
+            session_factory: SQLAlchemy async session factory
+        """
+        self.runner = runner
+        self.session_factory = session_factory
+
+    async def create_gate(
+        self, clerk_user_id: str, project_id: str, gate_type: str
+    ) -> CreateGateResponse:
+        """Create a decision gate for a project.
+
+        Args:
+            clerk_user_id: Clerk user ID for ownership check
+            project_id: UUID string of the project
+            gate_type: Type of gate (e.g., "direction" for Gate 1)
+
+        Returns:
+            CreateGateResponse with gate_id and options
+
+        Raises:
+            HTTPException(404): Project not found or not owned by user
+            HTTPException(409): Pending gate already exists for this project+type
+        """
+        async with self.session_factory() as session:
+            # Verify project ownership
+            project_uuid = uuid.UUID(project_id)
+            result = await session.execute(
+                select(Project).where(
+                    Project.id == project_uuid, Project.user_id == clerk_user_id
+                )
+            )
+            project = result.scalar_one_or_none()
+            if not project:
+                raise HTTPException(status_code=404, detail="Project not found")
+
+            # Check for existing pending gate
+            result = await session.execute(
+                select(DecisionGate).where(
+                    DecisionGate.project_id == project_uuid,
+                    DecisionGate.gate_type == gate_type,
+                    DecisionGate.status == "pending",
+                )
+            )
+            existing_gate = result.scalar_one_or_none()
+            if existing_gate:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"Pending {gate_type} gate already exists for this project",
+                )
+
+            # Get brief summary from Idea Brief artifact for context
+            result = await session.execute(
+                select(Artifact).where(
+                    Artifact.project_id == project_uuid,
+                    Artifact.artifact_type == "idea_brief",
+                )
+            )
+            brief_artifact = result.scalar_one_or_none()
+            brief_summary = ""
+            if brief_artifact and brief_artifact.current_content:
+                brief_summary = (
+                    brief_artifact.current_content.get("problem_statement", "")
+                    or brief_artifact.current_content.get("title", "")
+                    or project.name
+                )
+
+            # Create gate using JourneyService
+            journey_service = JourneyService(session)
+            gate_id = await journey_service.create_gate(
+                project_id=project_uuid,
+                gate_type=gate_type,
+                stage_number=project.stage_number or 1,
+                context={"brief_summary": brief_summary},
+            )
+
+            # Return response with options
+            return CreateGateResponse(
+                gate_id=str(gate_id),
+                gate_type=gate_type,
+                status="pending",
+                options=GATE_1_OPTIONS,
+                created_at=datetime.now(timezone.utc).isoformat(),
+            )
+
+    async def resolve_gate(
+        self,
+        clerk_user_id: str,
+        gate_id: str,
+        decision: str,
+        action_text: str | None = None,
+        park_note: str | None = None,
+    ) -> ResolveGateResponse:
+        """Resolve a pending gate with a decision.
+
+        Args:
+            clerk_user_id: Clerk user ID for ownership check
+            gate_id: UUID string of the gate to resolve
+            decision: Decision string ("proceed", "narrow", "pivot", "park")
+            action_text: Description for narrow/pivot (required for those decisions)
+            park_note: Optional note for park decision
+
+        Returns:
+            ResolveGateResponse with resolution summary and next action
+
+        Raises:
+            HTTPException(404): Gate not found or not owned by user
+            HTTPException(409): Gate already decided
+            HTTPException(422): Missing required action_text for narrow/pivot
+        """
+        async with self.session_factory() as session:
+            # Load gate with ownership check
+            gate_uuid = uuid.UUID(gate_id)
+            result = await session.execute(select(DecisionGate).where(DecisionGate.id == gate_uuid))
+            gate = result.scalar_one_or_none()
+            if not gate:
+                raise HTTPException(status_code=404, detail="Gate not found")
+
+            # Verify project ownership
+            result = await session.execute(
+                select(Project).where(
+                    Project.id == gate.project_id, Project.user_id == clerk_user_id
+                )
+            )
+            project = result.scalar_one_or_none()
+            if not project:
+                raise HTTPException(status_code=404, detail="Gate not found")
+
+            # Check gate is pending
+            if gate.status != "pending":
+                raise HTTPException(
+                    status_code=409, detail=f"Gate already decided (status: {gate.status})"
+                )
+
+            # Validate action_text for narrow/pivot
+            if decision in ["narrow", "pivot"] and not action_text:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"action_text is required for {decision} decision",
+                )
+
+            # Resolve gate via JourneyService
+            journey_service = JourneyService(session)
+            await journey_service.decide_gate(
+                gate_id=gate_uuid, decision=decision, decided_by="founder", reason=action_text or park_note
+            )
+
+            # Handle decision-specific actions
+            if decision == "narrow":
+                await self._handle_narrow(session, gate, project, action_text)
+                resolution_summary = "Scope narrowed based on your input"
+                next_action = "Review the updated Idea Brief, then proceed to execution planning"
+            elif decision == "pivot":
+                await self._handle_pivot(session, gate, project, action_text)
+                resolution_summary = "New direction set based on your pivot"
+                next_action = "Review the new Idea Brief, then proceed to execution planning"
+            elif decision == "park":
+                resolution_summary = f"Project parked: {park_note or 'No note provided'}"
+                next_action = "You can revisit this project anytime from the Parked section"
+            else:  # proceed
+                resolution_summary = "Ready to proceed to execution planning"
+                next_action = "We'll generate execution plan options for you to choose from"
+
+            return ResolveGateResponse(
+                gate_id=str(gate_uuid),
+                decision=decision,
+                status="decided",
+                resolution_summary=resolution_summary,
+                next_action=next_action,
+            )
+
+    async def _handle_narrow(
+        self, session: AsyncSession, gate: DecisionGate, project: Project, action_text: str
+    ) -> None:
+        """Handle narrow decision: update brief with narrowed scope.
+
+        Args:
+            session: SQLAlchemy session
+            gate: DecisionGate being resolved
+            project: Project being narrowed
+            action_text: Narrowing instructions from founder
+        """
+        # Store action_text in gate context
+        gate.context = gate.context or {}
+        gate.context["narrowing_instruction"] = action_text
+
+        # Get existing Idea Brief
+        result = await session.execute(
+            select(Artifact).where(
+                Artifact.project_id == project.id, Artifact.artifact_type == "idea_brief"
+            )
+        )
+        brief_artifact = result.scalar_one_or_none()
+        if not brief_artifact:
+            return  # No brief to update
+
+        # Generate updated brief via Runner (stub for now - full implementation in Phase 8 Plan 3)
+        # For now, just log the narrowing instruction in the artifact context
+        brief_artifact.current_content = brief_artifact.current_content or {}
+        brief_artifact.current_content["_narrowing_note"] = f"Narrowed: {action_text}"
+        brief_artifact.version_number += 1
+        brief_artifact.updated_at = datetime.now(timezone.utc)
+
+        await session.commit()
+
+    async def _handle_pivot(
+        self, session: AsyncSession, gate: DecisionGate, project: Project, action_text: str
+    ) -> None:
+        """Handle pivot decision: create new brief version.
+
+        Args:
+            session: SQLAlchemy session
+            gate: DecisionGate being resolved
+            project: Project being pivoted
+            action_text: Pivot description from founder
+        """
+        # Store action_text in gate context
+        gate.context = gate.context or {}
+        gate.context["pivot_description"] = action_text
+
+        # Get existing Idea Brief
+        result = await session.execute(
+            select(Artifact).where(
+                Artifact.project_id == project.id, Artifact.artifact_type == "idea_brief"
+            )
+        )
+        brief_artifact = result.scalar_one_or_none()
+        if not brief_artifact:
+            return  # No brief to update
+
+        # Generate new brief via Runner (stub for now - full implementation in Phase 8 Plan 3)
+        # For now, rotate version and log pivot
+        brief_artifact.previous_content = brief_artifact.current_content
+        brief_artifact.current_content = brief_artifact.current_content or {}
+        brief_artifact.current_content["_pivot_note"] = f"Pivoted: {action_text}"
+        brief_artifact.version_number += 1
+        brief_artifact.has_user_edits = False  # Reset edit flag on pivot
+        brief_artifact.updated_at = datetime.now(timezone.utc)
+
+        await session.commit()
+
+    async def get_gate_status(self, clerk_user_id: str, gate_id: str) -> GateStatusResponse:
+        """Get status of a decision gate.
+
+        Args:
+            clerk_user_id: Clerk user ID for ownership check
+            gate_id: UUID string of the gate
+
+        Returns:
+            GateStatusResponse with current state
+
+        Raises:
+            HTTPException(404): Gate not found or not owned by user
+        """
+        async with self.session_factory() as session:
+            # Load gate with ownership check
+            gate_uuid = uuid.UUID(gate_id)
+            result = await session.execute(select(DecisionGate).where(DecisionGate.id == gate_uuid))
+            gate = result.scalar_one_or_none()
+            if not gate:
+                raise HTTPException(status_code=404, detail="Gate not found")
+
+            # Verify project ownership
+            result = await session.execute(
+                select(Project).where(
+                    Project.id == gate.project_id, Project.user_id == clerk_user_id
+                )
+            )
+            project = result.scalar_one_or_none()
+            if not project:
+                raise HTTPException(status_code=404, detail="Gate not found")
+
+            return GateStatusResponse(
+                gate_id=str(gate.id),
+                gate_type=gate.gate_type,
+                status=gate.status,
+                decision=gate.decision,
+                decided_at=gate.decided_at.isoformat() if gate.decided_at else None,
+                options=GATE_1_OPTIONS if gate.status == "pending" else None,
+            )
+
+    async def get_pending_gate(
+        self, clerk_user_id: str, project_id: str
+    ) -> GateStatusResponse | None:
+        """Get pending gate for a project, if any.
+
+        Args:
+            clerk_user_id: Clerk user ID for ownership check
+            project_id: UUID string of the project
+
+        Returns:
+            GateStatusResponse if pending gate exists, None otherwise
+
+        Raises:
+            HTTPException(404): Project not found or not owned by user
+        """
+        async with self.session_factory() as session:
+            # Verify project ownership
+            project_uuid = uuid.UUID(project_id)
+            result = await session.execute(
+                select(Project).where(
+                    Project.id == project_uuid, Project.user_id == clerk_user_id
+                )
+            )
+            project = result.scalar_one_or_none()
+            if not project:
+                raise HTTPException(status_code=404, detail="Project not found")
+
+            # Query for pending gate
+            result = await session.execute(
+                select(DecisionGate)
+                .where(
+                    DecisionGate.project_id == project_uuid, DecisionGate.status == "pending"
+                )
+                .order_by(DecisionGate.created_at.desc())
+                .limit(1)
+            )
+            gate = result.scalar_one_or_none()
+            if not gate:
+                return None
+
+            return GateStatusResponse(
+                gate_id=str(gate.id),
+                gate_type=gate.gate_type,
+                status=gate.status,
+                decision=None,
+                decided_at=None,
+                options=GATE_1_OPTIONS if gate.gate_type == "direction" else None,
+            )
+
+    async def check_gate_blocking(self, project_id: str) -> bool:
+        """Check if there's a pending gate blocking operations.
+
+        Args:
+            project_id: UUID string of the project
+
+        Returns:
+            True if pending gate exists, False otherwise
+
+        Note: Does not enforce user ownership (used by other services that already checked)
+        """
+        async with self.session_factory() as session:
+            project_uuid = uuid.UUID(project_id)
+            result = await session.execute(
+                select(DecisionGate)
+                .where(
+                    DecisionGate.project_id == project_uuid, DecisionGate.status == "pending"
+                )
+                .limit(1)
+            )
+            gate = result.scalar_one_or_none()
+            return gate is not None
