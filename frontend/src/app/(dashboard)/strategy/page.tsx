@@ -13,20 +13,6 @@ interface GraphResponse {
   links: GraphLink[];
 }
 
-function graphNodeToNodeDetail(node: GraphNode): NodeDetail {
-  return {
-    id: node.id,
-    title: node.title,
-    type: node.type,
-    status: node.status,
-    created_at: new Date().toISOString(),
-    why: "",
-    impact_summary: "",
-    tradeoffs: [],
-    alternatives: [],
-  };
-}
-
 function GraphPageSkeleton() {
   return (
     <div className="w-full h-[calc(100vh-12rem)] flex items-center justify-center">
@@ -69,6 +55,28 @@ export default function StrategyPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const fetchAndOpenNode = useCallback(async (nodeId: string) => {
+    if (!projectId) return;
+    try {
+      const res = await apiFetch(`/api/graph/${projectId}/nodes/${nodeId}`, getToken);
+      if (!res.ok) return;
+      const detail = await res.json();
+      setSelectedNode({
+        id: detail.id,
+        title: detail.title,
+        type: detail.type,
+        status: detail.status,
+        created_at: detail.created_at,
+        why: detail.why ?? "",
+        impact_summary: detail.impact_summary ?? "",
+        tradeoffs: detail.tradeoffs ?? [],
+        alternatives: detail.alternatives ?? [],
+      });
+    } catch {
+      // Non-fatal
+    }
+  }, [projectId, getToken]);
+
   const fetchGraph = useCallback(async () => {
     if (!projectId) return;
     setLoading(true);
@@ -85,7 +93,7 @@ export default function StrategyPage() {
       if (highlightId && data.nodes) {
         const target = data.nodes.find((n: GraphNode) => n.id === highlightId);
         if (target) {
-          setSelectedNode(graphNodeToNodeDetail(target));
+          fetchAndOpenNode(highlightId);
         }
       }
     } catch (err) {
@@ -93,15 +101,15 @@ export default function StrategyPage() {
     } finally {
       setLoading(false);
     }
-  }, [projectId, getToken, highlightId]);
+  }, [projectId, getToken, highlightId, fetchAndOpenNode]);
 
   useEffect(() => {
     fetchGraph();
   }, [fetchGraph]);
 
   const handleNodeClick = useCallback((node: GraphNode) => {
-    setSelectedNode(graphNodeToNodeDetail(node));
-  }, []);
+    fetchAndOpenNode(node.id);
+  }, [fetchAndOpenNode]);
 
   const handleCloseModal = useCallback(() => {
     setSelectedNode(null);
