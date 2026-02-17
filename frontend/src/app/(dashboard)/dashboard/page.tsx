@@ -216,7 +216,7 @@ function ReturningUserDashboard({
                 Make your decision to continue.
               </p>
               <Link
-                href={`/understanding?projectId=${pendingGateProjects[0].id}`}
+                href={`/projects/${pendingGateProjects[0].id}/understanding`}
                 className="inline-flex items-center gap-1 mt-2 text-sm text-brand hover:underline"
               >
                 Go to Decision Gate <ArrowRight className="w-4 h-4" />

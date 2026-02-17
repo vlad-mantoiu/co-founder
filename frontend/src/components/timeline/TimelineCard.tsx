@@ -60,7 +60,7 @@ export function TimelineCard({ item, onClick }: TimelineCardProps) {
       {item.graph_node_id && (
         <div className="mt-2 pt-2 border-t border-white/5">
           <Link
-            href={`/strategy?project=${item.project_id}&highlight=${item.graph_node_id}`}
+            href={`/projects/${item.project_id}/strategy?highlight=${item.graph_node_id}`}
             onClick={(e) => e.stopPropagation()}
             className="text-xs text-brand hover:text-brand/80 transition-colors"
           >

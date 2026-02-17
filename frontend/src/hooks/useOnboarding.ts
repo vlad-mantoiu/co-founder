@@ -453,11 +453,11 @@ export function useOnboarding() {
 
       const data = await response.json();
 
-      // Success - redirect to dashboard
+      // Success - redirect to understanding page with project context
       setState((s) => ({ ...s, isLoading: false }));
 
-      // Redirect to dashboard (or project page when available)
-      window.location.href = "/dashboard";
+      // Redirect to project-scoped understanding page with sessionId preserved
+      window.location.href = `/projects/${data.project_id}/understanding?sessionId=${state.sessionId}`;
     } catch (err) {
       setState((s) => ({
         ...s,

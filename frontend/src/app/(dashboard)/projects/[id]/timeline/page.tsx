@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { KanbanBoard } from "@/components/timeline/KanbanBoard";
 import { TimelineSearch, SearchParams } from "@/components/timeline/TimelineSearch";
@@ -34,12 +34,19 @@ function TimelineSkeleton() {
   );
 }
 
-export default function TimelinePage() {
-  const searchParams = useSearchParams();
+/**
+ * Project-scoped Timeline page.
+ *
+ * Reads projectId from URL path segment (params.id).
+ * View-in-graph links navigate to /projects/{id}/strategy?highlight={nodeId}.
+ */
+export default function ProjectTimelinePage() {
+  const params = useParams<{ id: string }>();
   const router = useRouter();
   const { getToken } = useAuth();
 
-  const projectId = searchParams.get("project");
+  // projectId from URL path segment — always present
+  const projectId = params.id;
 
   const [items, setItems] = useState<TimelineItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -54,7 +61,6 @@ export default function TimelinePage() {
 
   const fetchTimeline = useCallback(
     async (params: SearchParams) => {
-      if (!projectId) return;
       setLoading(true);
       setError(null);
       try {
@@ -123,39 +129,11 @@ export default function TimelinePage() {
   const handleViewInGraph = useCallback(
     (nodeId: string) => {
       setEnrichedDetail(null);
+      // Use project-scoped strategy URL
       router.push(`/projects/${projectId}/strategy?highlight=${nodeId}`);
     },
     [router, projectId],
   );
-
-  // No project selected
-  if (!projectId) {
-    return (
-      <div className="p-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-display font-semibold text-white">Timeline</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Track project events and milestones
-          </p>
-        </div>
-        <div className="flex flex-col items-center justify-center h-[50vh] text-center">
-          <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mb-4">
-            <span className="text-2xl text-white/20">&#9776;</span>
-          </div>
-          <h3 className="text-lg font-medium text-white/60">No project selected</h3>
-          <p className="text-sm text-white/30 mt-1 mb-4">
-            Select a project to view its timeline
-          </p>
-          <button
-            onClick={() => router.push("/projects")}
-            className="px-4 py-2 rounded-lg bg-brand/20 text-brand hover:bg-brand/30 text-sm font-medium transition-colors"
-          >
-            Go to Projects
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="p-6">
