@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-16)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** Phase 8 (Understanding Interview & Decision Gates) — COMPLETE
+**Current focus:** Phase 9 (Strategy Graph & Timeline) — IN PROGRESS
 
 ## Current Position
 
-Phase: 8 of 10 (Understanding Interview & Decision Gates) — COMPLETE (all gap closures done)
-Plan: 8 of 8 completed (08-08 gap closure just completed)
+Phase: 9 of 10 (Strategy Graph & Timeline)
+Plan: 1 of 4 completed (09-01 Neo4j foundation done)
 Status: Active
-Last activity: 2026-02-17 — Completed 08-08-PLAN.md (Gap Closure: Narrow/Pivot real Runner calls + get_brief ownership security)
+Last activity: 2026-02-17 — Completed 09-01-PLAN.md (Neo4j StrategyGraph class, GraphService, dual-write in GateService)
 
-Progress: [█████████░] 80%
+Progress: [█████████░] 82%
 
 ## Performance Metrics
 
@@ -83,6 +83,7 @@ Progress: [█████████░] 80%
 | Phase 08 P06 | 15 | 2 tasks | 6 files |
 | Phase 08 P07 | 3 | 1 task | 1 file |
 | Phase 08 P08 | 1 | 2 tasks | 2 files |
+| Phase 09 P01 | 8 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -209,6 +210,10 @@ Recent decisions affecting current work:
 - [Phase 08-08]: Narrowing context appended to original idea_text as [NARROWING INSTRUCTION] suffix in runner.generate_idea_brief call
 - [Phase 08-08]: Pivot context prefixes action_text as [PIVOT - NEW DIRECTION] with original idea as reference
 - [Phase 08-08]: Project ownership check added to both get_brief and edit_brief_section (defense-in-depth, 404 pattern)
+- [Phase 09-01]: Separate Neo4j labels (Decision/Milestone/ArtifactNode) from KnowledgeGraph (Entity) to avoid node collision
+- [Phase 09-01]: Non-fatal dual-write: Neo4j sync wrapped in try/except at both GraphService method level AND GateService._sync_to_graph for defense-in-depth
+- [Phase 09-01]: GraphEdge uses Pydantic v2 alias for "from"/"to" with populate_by_name=True (reserved keyword workaround)
+- [Phase 09-01]: _artifact_graph_status() maps Artifact.generation_status to graph status string (done/in_progress/planned/failed)
 
 ### Pending Todos
 
@@ -245,9 +250,9 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17 (execute-phase)
-Stopped at: Completed 08-08-PLAN.md (SC8/Security gap closure — narrow/pivot real Runner calls + get_brief ownership) — Phase 08 gap closures COMPLETE
-Resume file: .planning/phases/08-understanding-interview-decision-gates/08-08-SUMMARY.md
-Next action: Begin Phase 9 or await user direction
+Stopped at: Completed 09-01-PLAN.md (Neo4j StrategyGraph class, GraphService DI layer, GateService dual-write)
+Resume file: .planning/phases/09-strategy-graph-timeline/09-01-SUMMARY.md
+Next action: Execute 09-02 (Graph API endpoints and timeline query service)
 
 ---
-*Phase 08 COMPLETE — 8 plans done: full Understanding Interview -> Idea Brief -> Decision Gate 1 -> Execution Plan Selection flow, dashboard integration, Deep Research 402 stub, SC4 gap closure (dashboard flags), SC8+Security gap closure (narrow/pivot Runner calls + get_brief ownership)*
+*Phase 09 IN PROGRESS — 1 of 4 plans done: Neo4j StrategyGraph foundation with Decision/Milestone/ArtifactNode labels, GraphService DI, dual-write from GateService*
