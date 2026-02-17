@@ -1,0 +1,192 @@
+"""Execution plan API routes.
+
+Provides 6 endpoints for execution plan generation, selection, status, and Deep Research stub.
+"""
+
+from fastapi import APIRouter, Depends, HTTPException
+
+from app.agent.runner import Runner
+from app.agent.runner_fake import RunnerFake
+from app.core.auth import ClerkUser, require_auth
+from app.db.base import get_session_factory
+from app.schemas.execution_plans import (
+    GeneratePlansRequest,
+    GeneratePlansResponse,
+    SelectPlanRequest,
+    SelectPlanResponse,
+)
+from app.services.execution_plan_service import ExecutionPlanService
+
+router = APIRouter()
+
+
+def get_runner() -> Runner:
+    """Dependency that provides Runner instance.
+
+    Override this dependency in tests via app.dependency_overrides.
+    """
+    return RunnerFake()
+
+
+@router.post("/generate", response_model=GeneratePlansResponse, status_code=200)
+async def generate_execution_plans(
+    request: GeneratePlansRequest,
+    user: ClerkUser = Depends(require_auth),
+    runner: Runner = Depends(get_runner),
+):
+    """Generate 2-3 execution plan options.
+
+    Enforces 409 if Decision Gate 1 not resolved with 'proceed'.
+    """
+    session_factory = get_session_factory()
+    service = ExecutionPlanService(runner, session_factory)
+    return await service.generate_options(user.user_id, request.project_id, request.feedback)
+
+
+@router.post("/{project_id}/select", response_model=SelectPlanResponse, status_code=200)
+async def select_execution_plan(
+    project_id: str,
+    request: SelectPlanRequest,
+    user: ClerkUser = Depends(require_auth),
+    runner: Runner = Depends(get_runner),
+):
+    """Select an execution plan option.
+
+    Persists selection for later enforcement (PLAN-02).
+    """
+    session_factory = get_session_factory()
+    service = ExecutionPlanService(runner, session_factory)
+    return await service.select_option(user.user_id, project_id, request.option_id)
+
+
+@router.get("/{project_id}", response_model=GeneratePlansResponse, status_code=200)
+async def get_execution_plans(
+    project_id: str,
+    user: ClerkUser = Depends(require_auth),
+    runner: Runner = Depends(get_runner),
+):
+    """Get current execution plan options (latest generation).
+
+    Returns 404 if no execution plan exists.
+    """
+    from app.db.models.artifact import Artifact
+    from app.db.models.project import Project
+    from app.schemas.artifacts import ArtifactType
+    from app.schemas.execution_plans import ExecutionOption
+    from sqlalchemy import select
+    import uuid
+
+    session_factory = get_session_factory()
+    async with session_factory() as session:
+        # Verify project ownership
+        project_uuid = uuid.UUID(project_id)
+        result = await session.execute(
+            select(Project).where(Project.id == project_uuid, Project.clerk_user_id == user.user_id)
+        )
+        project = result.scalar_one_or_none()
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+
+        # Load execution plan artifact
+        result = await session.execute(
+            select(Artifact).where(
+                Artifact.project_id == project_uuid,
+                Artifact.artifact_type == ArtifactType.EXECUTION_PLAN,
+            )
+        )
+        plan_artifact = result.scalar_one_or_none()
+        if not plan_artifact or not plan_artifact.current_content:
+            raise HTTPException(status_code=404, detail="Execution plan not found")
+
+        return GeneratePlansResponse(
+            plan_set_id=plan_artifact.current_content.get("plan_set_id", ""),
+            options=[
+                ExecutionOption(**opt)
+                for opt in plan_artifact.current_content.get("options", [])
+            ],
+            recommended_id=plan_artifact.current_content.get("recommended_id", ""),
+            generated_at=plan_artifact.current_content.get("generated_at", ""),
+        )
+
+
+@router.get("/{project_id}/selected", response_model=SelectPlanResponse, status_code=200)
+async def get_selected_plan(
+    project_id: str,
+    user: ClerkUser = Depends(require_auth),
+    runner: Runner = Depends(get_runner),
+):
+    """Get selected execution plan option.
+
+    Returns 404 if no plan selected yet.
+    """
+    session_factory = get_session_factory()
+    service = ExecutionPlanService(runner, session_factory)
+    selected = await service.get_selected_plan(user.user_id, project_id)
+    if not selected:
+        raise HTTPException(status_code=404, detail="No execution plan selected")
+
+    # Get plan_set_id from artifact
+    from app.db.models.artifact import Artifact
+    from app.db.models.project import Project
+    from app.schemas.artifacts import ArtifactType
+    from sqlalchemy import select
+    import uuid
+
+    async with session_factory() as session:
+        project_uuid = uuid.UUID(project_id)
+        result = await session.execute(
+            select(Artifact).where(
+                Artifact.project_id == project_uuid,
+                Artifact.artifact_type == ArtifactType.EXECUTION_PLAN,
+            )
+        )
+        plan_artifact = result.scalar_one_or_none()
+        plan_set_id = (
+            plan_artifact.current_content.get("plan_set_id", "")
+            if plan_artifact and plan_artifact.current_content
+            else ""
+        )
+
+    return SelectPlanResponse(
+        selected_option=selected,
+        plan_set_id=plan_set_id,
+        message=f"Currently selected: {selected.name}",
+    )
+
+
+@router.post("/regenerate", response_model=GeneratePlansResponse, status_code=200)
+async def regenerate_execution_plans(
+    request: GeneratePlansRequest,
+    user: ClerkUser = Depends(require_auth),
+    runner: Runner = Depends(get_runner),
+):
+    """Regenerate execution plan options with feedback.
+
+    Used when founder clicks "Generate different options" button.
+    """
+    if not request.feedback:
+        raise HTTPException(
+            status_code=422, detail="feedback is required for regeneration"
+        )
+
+    session_factory = get_session_factory()
+    service = ExecutionPlanService(runner, session_factory)
+    return await service.regenerate_options(user.user_id, request.project_id, request.feedback)
+
+
+@router.post("/{project_id}/deep-research", status_code=402)
+async def deep_research(
+    project_id: str,
+    user: ClerkUser = Depends(require_auth),
+):
+    """Deep Research stub (UNDR-06).
+
+    Always returns 402 to encourage upgrade to CTO tier.
+    """
+    raise HTTPException(
+        status_code=402,
+        detail={
+            "message": "Deep Research requires CTO tier. Upgrade to unlock market research, competitor analysis, and technical feasibility reports.",
+            "upgrade_url": "/billing",
+        },
+    )
