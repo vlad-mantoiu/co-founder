@@ -265,6 +265,10 @@ Recent decisions affecting current work:
 - [Phase 10-06]: Gate 2 alignment computed at resolution time by loading mvp_scope + existing change_request_ artifacts
 - [Phase 10-06]: options_map dict pattern for dynamic gate option routing (direction→GATE_1, solidification→GATE_2)
 - [Phase 10-06]: ChangeRequestService derives tier from latest ready Job for TIER_ITERATION_DEPTH lookup
+- [Phase 10-07]: DeployReadinessService reconstructs workspace from Job metadata for MVP (no E2B re-fetch) — avoids live network call
+- [Phase 10-07]: Iteration build fallback: FakeSandboxRuntime.connect() raises SandboxError, service logs warning and falls back to start()
+- [Phase 10-07]: Iteration check failure path: attempts one rollback then marks FAILED "needs-review" (GENL-03)
+- [Phase 10-07]: E2BSandboxRuntime.connect() wraps Sandbox.connect() in run_in_executor for async compatibility
 - [Phase 10]: Build page uses ?job_id= query param for active job (bookmarkable, no context providers)
 - [Phase 10]: AlertDialog built custom matching shadcn API — no shadcn install, avoids new dependency
 
