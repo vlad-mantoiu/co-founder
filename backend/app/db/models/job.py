@@ -25,6 +25,12 @@ class Job(Base):
     started_at = Column(DateTime(timezone=True), nullable=True)
     completed_at = Column(DateTime(timezone=True), nullable=True)
 
+    # Sandbox / build result fields
+    sandbox_id = Column(String(255), nullable=True)  # E2B sandbox ID for reconnection
+    preview_url = Column(Text, nullable=True)  # Full preview URL (https://{port}-{sandbox_id}.e2b.app)
+    build_version = Column(String(50), nullable=True)  # Version tag like "build_v0_1"
+    workspace_path = Column(String(500), nullable=True)  # Path in sandbox (/home/user/project)
+
     # Error tracking
     error_message = Column(Text, nullable=True)
     debug_id = Column(String(255), nullable=True)  # E2B execution ID for debugging
