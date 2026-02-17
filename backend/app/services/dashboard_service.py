@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.artifact import Artifact
 from app.db.models.decision_gate import DecisionGate
+from app.db.models.job import Job
 from app.db.models.project import Project
 from app.db.models.stage_config import StageConfig
 from app.domain.progress import compute_stage_progress
@@ -174,12 +175,46 @@ class DashboardService:
         # Stage name
         stage_name = STAGE_NAMES.get(stage_number, f"Stage {stage_number}")
 
-        # Product version (hardcoded for MVP, will be dynamic in Phase 8)
-        product_version = "v0.1"
+        # Query latest READY job with build_version for dynamic product_version (MVPS-02)
+        result = await session.execute(
+            select(Job)
+            .where(
+                Job.project_id == project_id,
+                Job.status == "ready",
+                Job.build_version.isnot(None),
+            )
+            .order_by(Job.created_at.desc())
+            .limit(1)
+        )
+        latest_build = result.scalar_one_or_none()
 
-        # Build status (stub for future integration)
-        latest_build_status = None
-        preview_url = None
+        if latest_build and latest_build.build_version:
+            # "build_v0_1" -> "v0.1", "build_v0_2" -> "v0.2"
+            parts = latest_build.build_version.replace("build_v", "").split("_")
+            product_version = f"v{parts[0]}.{parts[1]}"
+            latest_build_status = "success"
+            preview_url = latest_build.preview_url
+        else:
+            product_version = "v0.0"
+            latest_build_status = None
+            preview_url = None
+
+        # Check for a running or failed job (latest job without a build_version)
+        result = await session.execute(
+            select(Job)
+            .where(
+                Job.project_id == project_id,
+                Job.build_version.is_(None),
+            )
+            .order_by(Job.created_at.desc())
+            .limit(1)
+        )
+        in_flight_job = result.scalar_one_or_none()
+        if in_flight_job:
+            if in_flight_job.status == "failed":
+                latest_build_status = "failed"
+            elif in_flight_job.status not in ("ready", "failed"):
+                latest_build_status = "running"
 
         return DashboardResponse(
             project_id=str(project_id),
