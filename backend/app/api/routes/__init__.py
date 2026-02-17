@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.routes import admin, agent, artifacts, billing, features, health, jobs, onboarding, projects
+from app.api.routes import admin, agent, artifacts, billing, dashboard, features, health, jobs, onboarding, projects
 
 api_router = APIRouter()
 
@@ -10,6 +10,7 @@ api_router.include_router(projects.router, prefix="/projects", tags=["projects"]
 api_router.include_router(onboarding.router, prefix="/onboarding", tags=["onboarding"])
 api_router.include_router(jobs.router, prefix="/jobs", tags=["jobs"])
 api_router.include_router(artifacts.router, prefix="/artifacts", tags=["artifacts"])
+api_router.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])
 api_router.include_router(admin.router, tags=["admin"])
 api_router.include_router(billing.router, tags=["billing"])
 api_router.include_router(features.router, prefix="/features", tags=["features"])
