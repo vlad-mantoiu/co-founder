@@ -12,6 +12,11 @@ from app.api.routes import api_router
 from app.core.config import get_settings
 from app.db import init_db, close_db, init_redis, close_redis
 from app.db.seed import seed_plan_tiers
+from app.middleware.correlation import (
+    setup_correlation_middleware,
+    setup_logging,
+    get_correlation_id,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +28,10 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     print(f"Starting {settings.app_name}...")
     print(f"Debug mode: {settings.debug}")
+
+    # Setup correlation ID logging
+    setup_logging()
+    print("Correlation ID logging configured.")
 
     await init_db()
     print("Database initialized.")
@@ -47,13 +56,14 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
     Logs errors server-side with full context, returns sanitized response to client.
     """
     debug_id = str(uuid.uuid4())
+    correlation_id = get_correlation_id()
 
     # Extract user_id if available
     user_id = getattr(request.state, "user_id", None)
 
-    # Log error with full context
+    # Log error with full context (correlation_id added by filter, also explicit)
     logger.error(
-        f"HTTP {exc.status_code} | debug_id={debug_id} | "
+        f"HTTP {exc.status_code} | debug_id={debug_id} | correlation_id={correlation_id} | "
         f"path={request.url.path} | method={request.method} | "
         f"user_id={user_id} | detail={exc.detail}"
     )
@@ -71,13 +81,14 @@ async def generic_exception_handler(request: Request, exc: Exception) -> JSONRes
     Logs full exception with traceback, returns generic 500 to client.
     """
     debug_id = str(uuid.uuid4())
+    correlation_id = get_correlation_id()
 
     # Extract user_id if available
     user_id = getattr(request.state, "user_id", None)
 
-    # Log full exception with traceback
+    # Log full exception with traceback (correlation_id added by filter, also explicit)
     logger.error(
-        f"Unhandled exception | debug_id={debug_id} | "
+        f"Unhandled exception | debug_id={debug_id} | correlation_id={correlation_id} | "
         f"path={request.url.path} | method={request.method} | "
         f"user_id={user_id}",
         exc_info=exc,
@@ -117,6 +128,9 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Correlation ID middleware (runs first on incoming requests)
+    setup_correlation_middleware(app)
 
     # Exception handlers
     app.exception_handler(HTTPException)(http_exception_handler)
