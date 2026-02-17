@@ -19,7 +19,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 5: Capacity Queue & Worker Model** - Queue-based throughput limiting with tier enforcement
 - [ ] **Phase 6: Artifact Generation Pipeline** - LLM-generated versioned documents (Brief, Scope, Risk Log)
 - [ ] **Phase 7: State Machine Integration & Dashboard** - Deterministic progress with frontend Company dashboard
-- [ ] **Phase 8: Understanding Interview & Decision Gates** - Clarifying questions and Proceed/Narrow/Pivot/Park gates
+- [x] **Phase 8: Understanding Interview & Decision Gates** - Clarifying questions and Proceed/Narrow/Pivot/Park gates (completed 2026-02-17)
 - [ ] **Phase 9: Strategy Graph & Timeline** - Neo4j decision tracking with Kanban execution view
 - [ ] **Phase 10: Export, Deploy Readiness & E2E Testing** - PDF/Markdown export with comprehensive testing
 
@@ -259,7 +259,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 5. Capacity Queue & Worker Model | 0/5 | Not started | - |
 | 6. Artifact Generation Pipeline | 0/5 | Planned | - |
 | 7. State Machine Integration & Dashboard | 0/5 | Not started | - |
-| 8. Understanding Interview & Decision Gates | 6/8 | Gap closure planned | - |
+| 8. Understanding Interview & Decision Gates | 6/8 | Complete    | 2026-02-17 |
 | 9. Strategy Graph & Timeline | 0/7 | Not started | - |
 | 10. Export, Deploy Readiness & E2E Testing | 0/10 | Not started | - |
 
