@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 ## Current Position
 
 Phase: 10 of 10 (Export, Deploy Readiness & E2E Testing)
-Plan: 8 of 8 completed (10-08 Build progress UI: SSE hook, stepper, success/failure cards, cancel dialog)
+Plan: 9 of 9 completed (10-09 Floating chat widget, nav de-emphasis, deploy readiness UI)
 Status: Active
-Last activity: 2026-02-17 — Completed 10-08-PLAN.md (useBuildProgress SSE hook, BuildProgressBar stepper, BuildSummary, BuildFailureCard, build page with cancel dialog)
+Last activity: 2026-02-17 — Completed 10-09-PLAN.md (FloatingChat overlay, ChatMessage, ChatInput, DeployReadinessPanel, DeployPathCard, deploy page with step checklist, BrandNav de-emphasis)
 
-Progress: [██████████] 96%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -95,6 +95,7 @@ Progress: [██████████] 96%
 | Phase 10 P05 | 2 | 2 tasks | 3 files |
 | Phase 10 P06 | 4 | 2 tasks | 6 files |
 | Phase 10 P08 | 3 | 2 tasks | 7 files |
+| Phase 10 P09 | 4 | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -271,6 +272,11 @@ Recent decisions affecting current work:
 - [Phase 10-07]: E2BSandboxRuntime.connect() wraps Sandbox.connect() in run_in_executor for async compatibility
 - [Phase 10]: Build page uses ?job_id= query param for active job (bookmarkable, no context providers)
 - [Phase 10]: AlertDialog built custom matching shadcn API — no shadcn install, avoids new dependency
+- [Phase 10-09]: FloatingChat clears messages on close (ephemeral per CHAT-01 locked decision — cleared on user action not unmount)
+- [Phase 10-09]: Project context fetched once on panel open (stored in useState, not re-fetched per message)
+- [Phase 10-09]: Action parsing from assistant response strings: [ACTION:navigate:/path] and [ACTION:start_build:id]
+- [Phase 10-09]: Chat nav item moved last with opacity-60 secondary flag — floating bubble is primary entry point
+- [Phase 10-09]: Deploy page derives secrets checklist from blocking issues containing env var keywords
 
 ### Pending Todos
 
@@ -307,10 +313,10 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17 (execute-phase)
-Stopped at: Completed 10-08-PLAN.md (Build progress UI: SSE hook, stepper, success/failure cards, cancel dialog)
-Resume file: .planning/phases/10-export-deploy-readiness-e2e-testing/10-08-SUMMARY.md
-Next action: Phase 10 COMPLETE
+Stopped at: Completed 10-09-PLAN.md (FloatingChat overlay, nav de-emphasis, deploy readiness UI, deploy page)
+Resume file: .planning/phases/10-export-deploy-readiness-e2e-testing/10-09-SUMMARY.md
+Next action: Phase 10 COMPLETE — all 9 plans done
 
 ---
 *Phase 09 COMPLETE — 5 of 5 plans done: Neo4j StrategyGraph foundation + TimelineService + API routes + Timeline Kanban board + NodeDetailModal + BrandNav + Modal gap closure (real API data)*
-*Phase 10 COMPLETE — 8 of 8 plans done: domain functions + response contracts + beta gating tests + generation routes + MVP Built transition + dashboard build data + Gate 2 solidification + Change Request artifacts + Build Progress UI*
+*Phase 10 COMPLETE — 9 of 9 plans done: domain functions + response contracts + beta gating tests + generation routes + MVP Built transition + dashboard build data + Gate 2 solidification + Change Request artifacts + Build Progress UI + FloatingChat + Deploy Readiness UI*
