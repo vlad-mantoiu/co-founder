@@ -6,11 +6,14 @@ from datetime import datetime, timezone
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.agent.runner import Runner
 from app.db.models.artifact import Artifact
 from app.db.models.decision_gate import DecisionGate
+from app.db.models.onboarding_session import OnboardingSession
 from app.db.models.project import Project
+from app.db.models.understanding_session import UnderstandingSession
 from app.domain.gates import GateDecision
 from app.schemas.decision_gates import (
     GATE_1_OPTIONS,
@@ -206,7 +209,7 @@ class GateService:
     async def _handle_narrow(
         self, session: AsyncSession, gate: DecisionGate, project: Project, action_text: str
     ) -> None:
-        """Handle narrow decision: update brief with narrowed scope.
+        """Handle narrow decision: regenerate brief with narrowed scope via Runner.
 
         Args:
             session: SQLAlchemy session
@@ -217,6 +220,7 @@ class GateService:
         # Store action_text in gate context
         gate.context = gate.context or {}
         gate.context["narrowing_instruction"] = action_text
+        flag_modified(gate, "context")
 
         # Get existing Idea Brief
         result = await session.execute(
@@ -228,11 +232,45 @@ class GateService:
         if not brief_artifact:
             return  # No brief to update
 
-        # Generate updated brief via Runner (stub for now - full implementation in Phase 8 Plan 3)
-        # For now, just log the narrowing instruction in the artifact context
-        brief_artifact.current_content = brief_artifact.current_content or {}
-        brief_artifact.current_content["_narrowing_note"] = f"Narrowed: {action_text}"
+        # Load OnboardingSession for idea_text context
+        onboarding_result = await session.execute(
+            select(OnboardingSession)
+            .where(OnboardingSession.project_id == project.id)
+            .order_by(OnboardingSession.created_at.desc())
+            .limit(1)
+        )
+        onboarding = onboarding_result.scalar_one_or_none()
+
+        # Load UnderstandingSession for questions/answers context
+        understanding_result = await session.execute(
+            select(UnderstandingSession)
+            .where(UnderstandingSession.project_id == project.id)
+            .order_by(UnderstandingSession.created_at.desc())
+            .limit(1)
+        )
+        understanding = understanding_result.scalar_one_or_none()
+
+        # Build narrowing context
+        if onboarding:
+            narrowed_idea = f"{onboarding.idea_text}\n\n[NARROWING INSTRUCTION]: {action_text}"
+        else:
+            narrowed_idea = f"{project.name}: {project.description}\n\n[NARROWING INSTRUCTION]: {action_text}"
+
+        questions = understanding.questions if understanding else []
+        answers = understanding.answers if understanding else {}
+
+        # Regenerate full brief with narrowing context via Runner
+        new_brief_content = await self.runner.generate_idea_brief(
+            idea=narrowed_idea, questions=questions, answers=answers
+        )
+
+        # Rotate versions
+        brief_artifact.previous_content = brief_artifact.current_content
+        brief_artifact.current_content = new_brief_content
+        flag_modified(brief_artifact, "current_content")
+        flag_modified(brief_artifact, "previous_content")
         brief_artifact.version_number += 1
+        brief_artifact.has_user_edits = False
         brief_artifact.updated_at = datetime.now(timezone.utc)
 
         await session.commit()
@@ -240,7 +278,7 @@ class GateService:
     async def _handle_pivot(
         self, session: AsyncSession, gate: DecisionGate, project: Project, action_text: str
     ) -> None:
-        """Handle pivot decision: create new brief version.
+        """Handle pivot decision: regenerate brief with new direction via Runner.
 
         Args:
             session: SQLAlchemy session
@@ -251,6 +289,7 @@ class GateService:
         # Store action_text in gate context
         gate.context = gate.context or {}
         gate.context["pivot_description"] = action_text
+        flag_modified(gate, "context")
 
         # Get existing Idea Brief
         result = await session.execute(
@@ -262,13 +301,43 @@ class GateService:
         if not brief_artifact:
             return  # No brief to update
 
-        # Generate new brief via Runner (stub for now - full implementation in Phase 8 Plan 3)
-        # For now, rotate version and log pivot
+        # Load OnboardingSession for original idea context
+        onboarding_result = await session.execute(
+            select(OnboardingSession)
+            .where(OnboardingSession.project_id == project.id)
+            .order_by(OnboardingSession.created_at.desc())
+            .limit(1)
+        )
+        onboarding = onboarding_result.scalar_one_or_none()
+
+        # Load UnderstandingSession for questions/answers context
+        understanding_result = await session.execute(
+            select(UnderstandingSession)
+            .where(UnderstandingSession.project_id == project.id)
+            .order_by(UnderstandingSession.created_at.desc())
+            .limit(1)
+        )
+        understanding = understanding_result.scalar_one_or_none()
+
+        # Build pivot context — action_text IS the new direction
+        original_idea = onboarding.idea_text if onboarding else project.name
+        pivoted_idea = f"[PIVOT — NEW DIRECTION]: {action_text}\n\nOriginal idea: {original_idea}"
+
+        questions = understanding.questions if understanding else []
+        answers = understanding.answers if understanding else {}
+
+        # Regenerate full brief with pivot context via Runner
+        new_brief_content = await self.runner.generate_idea_brief(
+            idea=pivoted_idea, questions=questions, answers=answers
+        )
+
+        # Rotate versions
         brief_artifact.previous_content = brief_artifact.current_content
-        brief_artifact.current_content = brief_artifact.current_content or {}
-        brief_artifact.current_content["_pivot_note"] = f"Pivoted: {action_text}"
+        brief_artifact.current_content = new_brief_content
+        flag_modified(brief_artifact, "current_content")
+        flag_modified(brief_artifact, "previous_content")
         brief_artifact.version_number += 1
-        brief_artifact.has_user_edits = False  # Reset edit flag on pivot
+        brief_artifact.has_user_edits = False
         brief_artifact.updated_at = datetime.now(timezone.utc)
 
         await session.commit()
