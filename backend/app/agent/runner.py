@@ -3,12 +3,16 @@
 This protocol defines the interface that decouples business logic from LangGraph,
 enabling Test-Driven Development throughout the project.
 
-All Runner implementations MUST provide these 5 methods:
+All Runner implementations MUST provide these 9 methods:
 - run: Execute the full 6-node pipeline
 - step: Execute a single named node
 - generate_questions: Create onboarding questions from context
 - generate_brief: Convert answers into a structured product brief
 - generate_artifacts: Generate documentation artifacts from the brief
+- generate_understanding_questions: Create adaptive understanding questions (deeper than onboarding)
+- generate_idea_brief: Generate Rationalised Idea Brief from understanding interview
+- check_question_relevance: Check if remaining questions need regeneration after answer edit
+- assess_section_confidence: Assess confidence level for idea brief sections
 """
 
 from typing import Protocol, runtime_checkable
@@ -86,5 +90,57 @@ class Runner(Protocol):
         Returns:
             Artifacts dict with keys: product_brief, mvp_scope, milestones,
             risk_log, how_it_works
+        """
+        ...
+
+    async def generate_understanding_questions(self, context: dict) -> list[dict]:
+        """Generate adaptive understanding questions (deeper than onboarding).
+
+        Args:
+            context: Dictionary with keys like "idea_text", "answered_questions", "answers"
+
+        Returns:
+            List of question dicts with keys: id, text, input_type, required, options, follow_up_hint
+        """
+        ...
+
+    async def generate_idea_brief(self, idea: str, questions: list[dict], answers: dict) -> dict:
+        """Generate Rationalised Idea Brief from understanding interview answers.
+
+        Args:
+            idea: Original idea text
+            questions: List of understanding questions
+            answers: Dictionary mapping question IDs to user answers
+
+        Returns:
+            Dict matching RationalisedIdeaBrief schema
+        """
+        ...
+
+    async def check_question_relevance(
+        self, idea: str, answered: list[dict], answers: dict, remaining: list[dict]
+    ) -> dict:
+        """Check if remaining questions are still relevant after an answer edit.
+
+        Args:
+            idea: Original idea text
+            answered: List of already-answered questions
+            answers: Current answers dict
+            remaining: List of remaining (unanswered) questions
+
+        Returns:
+            Dict with keys: needs_regeneration (bool), preserve_indices (list[int])
+        """
+        ...
+
+    async def assess_section_confidence(self, section_key: str, content: str) -> str:
+        """Assess confidence level for a brief section.
+
+        Args:
+            section_key: Section identifier (e.g., "problem_statement", "target_user")
+            content: Section content to assess
+
+        Returns:
+            Confidence level: "strong" | "moderate" | "needs_depth"
         """
         ...

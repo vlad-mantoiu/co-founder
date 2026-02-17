@@ -633,3 +633,212 @@ async def get_product(
                 "status_message": "Tests failed with type errors",
             }
         )
+
+    # =========================================================================
+    # UNDERSTANDING INTERVIEW METHODS
+    # =========================================================================
+
+    async def generate_understanding_questions(self, context: dict) -> list[dict]:
+        """Generate adaptive understanding questions (deeper than onboarding).
+
+        Args:
+            context: Dictionary with keys like "idea_text", "answered_questions", "answers"
+
+        Returns:
+            List of 6 understanding questions focusing on market validation, competitive analysis,
+            monetization depth, risk awareness, and smallest experiment.
+
+        Raises:
+            RuntimeError: For llm_failure and rate_limited scenarios
+        """
+        if self.scenario == "llm_failure":
+            raise RuntimeError("Anthropic API rate limit exceeded. Retry after 60 seconds.")
+
+        if self.scenario == "rate_limited":
+            raise RuntimeError(
+                "Worker capacity exceeded. Estimated wait: 5 minutes. Current queue depth: 12."
+            )
+
+        # Return 6 adaptive questions using "we" co-founder language
+        return [
+            {
+                "id": "uq1",
+                "text": "Who have we talked to that experiences this problem? What did they tell us?",
+                "input_type": "textarea",
+                "required": True,
+                "options": None,
+                "follow_up_hint": "Think about specific conversations, not hypothetical users",
+            },
+            {
+                "id": "uq2",
+                "text": "What are the top 3 alternatives our users consider today? What do they like and hate about each?",
+                "input_type": "textarea",
+                "required": True,
+                "options": None,
+                "follow_up_hint": "Include direct competitors and workarounds (spreadsheets, manual processes)",
+            },
+            {
+                "id": "uq3",
+                "text": "How will we make money? Be specific about pricing, customer acquisition, and unit economics.",
+                "input_type": "textarea",
+                "required": True,
+                "options": None,
+                "follow_up_hint": "Include assumptions about willingness to pay and customer lifetime value",
+            },
+            {
+                "id": "uq4",
+                "text": "What's the biggest risk that could kill this idea? How likely is it?",
+                "input_type": "textarea",
+                "required": True,
+                "options": None,
+                "follow_up_hint": "Be honest about technical, market, or execution risks",
+            },
+            {
+                "id": "uq5",
+                "text": "What's the smallest experiment we can run to validate our riskiest assumption?",
+                "input_type": "textarea",
+                "required": True,
+                "options": None,
+                "follow_up_hint": "Think smoke test, not MVP — what can we test in days, not months?",
+            },
+            {
+                "id": "uq6",
+                "text": "What constraints must we work within? (Budget, timeline, team, technology, regulation, etc.)",
+                "input_type": "textarea",
+                "required": False,
+                "options": None,
+                "follow_up_hint": None,
+            },
+        ]
+
+    async def generate_idea_brief(self, idea: str, questions: list[dict], answers: dict) -> dict:
+        """Generate Rationalised Idea Brief from understanding interview answers.
+
+        Args:
+            idea: Original idea text
+            questions: List of understanding questions
+            answers: Dictionary mapping question IDs to user answers
+
+        Returns:
+            Dict matching RationalisedIdeaBrief schema with realistic confidence scores
+
+        Raises:
+            RuntimeError: For llm_failure and rate_limited scenarios
+        """
+        if self.scenario == "llm_failure":
+            raise RuntimeError("Anthropic API rate limit exceeded. Retry after 60 seconds.")
+
+        if self.scenario == "rate_limited":
+            raise RuntimeError(
+                "Worker capacity exceeded. Estimated wait: 5 minutes. Current queue depth: 12."
+            )
+
+        # Return complete RationalisedIdeaBrief with investor-facing tone and confidence scores
+        from datetime import datetime, timezone
+
+        return {
+            "_schema_version": 1,
+            "problem_statement": "Small business owners waste 5-10 hours per week manually tracking inventory in spreadsheets, leading to stockouts, overordering, and lost sales. We've validated this through interviews with 12 retail shop owners who all cited inventory management as their #1 operational pain point.",
+            "target_user": "Retail shop owners with 1-10 employees managing physical products across 1-3 locations. Our initial focus is gift shops, boutiques, and cafes that carry 100-1000 SKUs and lack dedicated IT staff.",
+            "value_prop": "We provide dead-simple inventory tracking with barcode scanning, real-time sync across locations, and automatic reorder alerts. Our goal is zero training required — owners can start tracking inventory in under 10 minutes.",
+            "differentiation": "We're inventory-first, unlike POS bundled solutions (Shopify, Square) that treat inventory as an afterthought. We compete on depth of inventory features (lot tracking, cycle counting, multi-location transfers) rather than breadth. Our setup takes 10 minutes vs weeks for enterprise ERPs, and we're affordable at $49/mo vs $300+ for enterprise tools.",
+            "monetization_hypothesis": "We'll charge $49/month per location with a 14-day free trial. Based on our customer interviews, we believe 60% of trial users will convert if we save them 3+ hours per week. Our target is 100 paying customers in the first 6 months, generating $4,900 MRR. Average customer value: $588/year with 70% annual retention.",
+            "market_context": "We've identified a $2B TAM in SMB inventory software, growing 12% annually as retailers digitize post-pandemic. Our SAM (retail shops with <10 employees) is $400M. The market is underserved — POS systems are overkill, and ERPs are too complex and expensive. We're targeting 1% market share ($4M ARR) within 3 years.",
+            "key_constraints": [
+                "Must work offline with background sync (many retail locations have unreliable WiFi)",
+                "Must integrate with existing POS systems within 6 months (or we lose customers to bundled solutions)",
+                "Must stay under $50/mo price point (validated willingness-to-pay threshold from interviews)",
+            ],
+            "assumptions": [
+                "Shop owners will pay $49/mo if we save them 3+ hours per week (validated in 8/12 interviews)",
+                "Barcode scanning is a must-have feature for conversion (mentioned by 10/12 interviewees)",
+                "Mobile app is critical — owners check inventory on-the-go (9/12 interviewees requested this)",
+                "We can acquire customers at <$200 CAC through local retail associations and word-of-mouth",
+            ],
+            "risks": [
+                "Competition from POS systems adding inventory features (Square recently added basic inventory)",
+                "Customer acquisition cost may exceed LTV if we rely on paid ads (estimated CAC via ads: $300-400)",
+                "Integration complexity with legacy POS systems could delay roadmap by 3+ months",
+                "Retention risk if we don't deliver mobile app within 6 months (mentioned by 75% of interviewees)",
+            ],
+            "smallest_viable_experiment": "We'll build a single-location inventory tracker with manual entry and CSV export. We'll test with 10 local shop owners for 2 weeks, offering free usage in exchange for daily feedback. Success criteria: 7/10 owners say they'd pay $49/mo, and at least 5 actively use it 3+ times per week. This validates core value prop before investing in barcode scanning or multi-location sync.",
+            "confidence_scores": {
+                "problem_statement": "strong",  # Validated through 12 interviews
+                "target_user": "strong",  # Specific segment identified
+                "value_prop": "moderate",  # Not yet tested with working product
+                "differentiation": "moderate",  # Competitive analysis done, but untested in market
+                "monetization_hypothesis": "moderate",  # Price validated, but conversion rate is assumed
+                "market_context": "strong",  # TAM/SAM analysis with research backing
+                "key_constraints": "strong",  # Identified through user interviews
+                "assumptions": "moderate",  # Some validated, some unproven
+                "risks": "strong",  # Comprehensive risk identification
+                "smallest_viable_experiment": "strong",  # Clear, actionable experiment defined
+            },
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+    async def check_question_relevance(
+        self, idea: str, answered: list[dict], answers: dict, remaining: list[dict]
+    ) -> dict:
+        """Check if remaining questions are still relevant after an answer edit.
+
+        In the fake implementation, we always return no regeneration needed for simplicity.
+
+        Args:
+            idea: Original idea text
+            answered: List of already-answered questions
+            answers: Current answers dict
+            remaining: List of remaining (unanswered) questions
+
+        Returns:
+            Dict with needs_regeneration=False, preserve_indices=[] (no changes in fake)
+
+        Raises:
+            RuntimeError: For llm_failure and rate_limited scenarios
+        """
+        if self.scenario == "llm_failure":
+            raise RuntimeError("Anthropic API rate limit exceeded. Retry after 60 seconds.")
+
+        if self.scenario == "rate_limited":
+            raise RuntimeError(
+                "Worker capacity exceeded. Estimated wait: 5 minutes. Current queue depth: 12."
+            )
+
+        # In fake, no regeneration needed (simplest behavior for testing)
+        return {
+            "needs_regeneration": False,
+            "preserve_indices": [],
+        }
+
+    async def assess_section_confidence(self, section_key: str, content: str) -> str:
+        """Assess confidence level for a brief section.
+
+        Simple heuristic: length-based confidence (realistic for fake).
+
+        Args:
+            section_key: Section identifier (e.g., "problem_statement")
+            content: Section content to assess
+
+        Returns:
+            Confidence level: "strong" | "moderate" | "needs_depth"
+
+        Raises:
+            RuntimeError: For llm_failure and rate_limited scenarios
+        """
+        if self.scenario == "llm_failure":
+            raise RuntimeError("Anthropic API rate limit exceeded. Retry after 60 seconds.")
+
+        if self.scenario == "rate_limited":
+            raise RuntimeError(
+                "Worker capacity exceeded. Estimated wait: 5 minutes. Current queue depth: 12."
+            )
+
+        # Simple heuristic for fake: length-based confidence
+        content_length = len(content.strip())
+
+        if content_length > 100:
+            return "strong"
+        elif content_length >= 50:
+            return "moderate"
+        else:
+            return "needs_depth"
