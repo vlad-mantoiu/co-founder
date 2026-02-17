@@ -173,7 +173,7 @@ Plans:
   9. Execution plan generation returns 2-3 options with tradeoffs and recommended flag
   10. Selection required before build (409 if missing)
   11. Decision Console templates show options with pros/cons, engineering impact, time_to_ship, cost_note
-**Plans**: 6 plans
+**Plans**: 8 plans
 
 Plans:
 - [ ] 08-01-PLAN.md -- Understanding Interview backend: Runner extension, schemas, service, API
@@ -182,6 +182,8 @@ Plans:
 - [ ] 08-04-PLAN.md -- Understanding Interview frontend: adaptive interview, Idea Brief display
 - [ ] 08-05-PLAN.md -- Decision Gate + Execution Plan frontend: full-screen modal, comparison table
 - [ ] 08-06-PLAN.md -- Flow integration: wiring, Deep Research button, dashboard updates, verification
+- [ ] 08-07-PLAN.md -- Gap closure: wire dashboard project context flags (has_pending_gate, has_understanding_session, has_brief)
+- [ ] 08-08-PLAN.md -- Gap closure: replace narrow/pivot stubs with Runner brief regeneration + fix get_brief ownership
 
 ### Phase 9: Strategy Graph & Timeline
 **Goal**: Neo4j decision tracking with interactive graph and Kanban timeline view
@@ -257,7 +259,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 5. Capacity Queue & Worker Model | 0/5 | Not started | - |
 | 6. Artifact Generation Pipeline | 0/5 | Planned | - |
 | 7. State Machine Integration & Dashboard | 0/5 | Not started | - |
-| 8. Understanding Interview & Decision Gates | 0/6 | Planned | - |
+| 8. Understanding Interview & Decision Gates | 6/8 | Gap closure planned | - |
 | 9. Strategy Graph & Timeline | 0/7 | Not started | - |
 | 10. Export, Deploy Readiness & E2E Testing | 0/10 | Not started | - |
 
