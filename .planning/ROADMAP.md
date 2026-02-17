@@ -255,10 +255,11 @@ Plans:
   2. Onboarding → understanding transition preserves project_id (gate and plan generation work)
   3. Brief section editing persists successfully (no 404)
   4. /admin route protected server-side by Clerk middleware (not just client-side)
-**Plans:** 1 plan
+**Plans:** 2 plans
 
 Plans:
-- [ ] 11-01-PLAN.md -- Fix SSE auth, projectId routing, brief edit param, admin middleware
+- [ ] 11-01-PLAN.md -- SSE-to-polling auth fix + admin middleware hardening
+- [ ] 11-02-PLAN.md -- Route unification under /projects/[id]/... + brief edit fix with blur-save + toast
 
 ## Progress
 
