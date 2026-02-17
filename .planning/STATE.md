@@ -91,6 +91,7 @@ Progress: [██████████] 100%
 | Phase 10 P02 | 2 | 2 tasks | 4 files |
 | Phase 10 P01 | 3 | 2 tasks | 6 files |
 | Phase 10 P03 | 2 | 2 tasks | 5 files |
+| Phase 10 P04 | 3 | 2 tasks | 3 files |
 | Phase 10 P05 | 2 | 2 tasks | 3 files |
 
 ## Accumulated Context
@@ -250,6 +251,10 @@ Recent decisions affecting current work:
 - [Phase 10-03]: Mini FastAPI() app for testing require_feature closure in isolation from main test router
 - [Phase 10-03]: GateStatusResponse.options uses Field(default_factory=list) — list fields default to [] for CNTR-02 compliance
 - [Phase 10-03]: TimelineResponse.items and GraphResponse.nodes/edges use Field(default_factory=list) — stable empty array shape
+- [Phase 10-04]: STAGE_LABELS module-level constant maps all JobStatus values to user-friendly strings (locked decision)
+- [Phase 10-04]: Cancel endpoint checks TERMINAL_STATES set {ready, failed} — returns 409 rather than silently no-op
+- [Phase 10-04]: preview-viewed uses create_gate idempotency (catches 409, returns gate_already_created)
+- [Phase 10-04]: FSM walk helper uses individual asyncio.run() per transition — preserves in-memory server state across event loops
 - [Phase 10-05]: Bypass JourneyService._transition_stage for MVP Built hook — build completion is authoritative trigger (no gate required)
 - [Phase 10-05]: Idempotent MVP Built hook: stage >= 3 check prevents re-transition on subsequent builds
 - [Phase 10-05]: Dashboard product_version derived dynamically from Job.build_version string parse ('build_v0_1' -> 'v0.1')
