@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { useDashboard } from "@/hooks/useDashboard";
+import { useState, useEffect, useRef } from "react";
+import { useDashboard, ArtifactSummary } from "@/hooks/useDashboard";
 import { StageRing } from "@/components/dashboard/stage-ring";
 import { ActionHero } from "@/components/dashboard/action-hero";
 import { ArtifactCard } from "@/components/dashboard/artifact-card";
 import { RiskFlags } from "@/components/dashboard/risk-flags";
+import { SlideOver } from "@/components/ui/slide-over";
+import { ArtifactPanel } from "@/components/dashboard/artifact-panel";
+import { toast } from "sonner";
 
 interface CompanyDashboardPageProps {
   params: {
@@ -19,6 +22,44 @@ export default function CompanyDashboardPage({
   const { projectId } = params;
   const { data, loading, error, changedFields, refetch } = useDashboard(projectId);
   const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(null);
+
+  // Track previous artifacts for toast notifications
+  const previousArtifactsRef = useRef<ArtifactSummary[]>([]);
+
+  // Toast notifications for polling changes
+  useEffect(() => {
+    if (!data) return;
+
+    // Check for artifact status changes
+    if (changedFields.has("artifacts")) {
+      const prevArtifacts = previousArtifactsRef.current;
+      const currentArtifacts = data.artifacts;
+
+      currentArtifacts.forEach((artifact) => {
+        const prevArtifact = prevArtifacts.find((a) => a.id === artifact.id);
+
+        if (prevArtifact) {
+          // Check for generation completion
+          if (prevArtifact.generation_status === "generating" && artifact.generation_status === "idle") {
+            toast.success("Artifact generation completed");
+          }
+
+          // Check for generation failure
+          if (artifact.generation_status === "failed" && prevArtifact.generation_status !== "failed") {
+            toast.error("Artifact generation failed");
+          }
+        }
+      });
+    }
+
+    // Check for progress changes
+    if (changedFields.has("progress")) {
+      toast.success(`Progress updated: ${data.mvp_completion_percent}%`);
+    }
+
+    // Update previous artifacts ref
+    previousArtifactsRef.current = data.artifacts;
+  }, [data, changedFields]);
 
   // Loading state (first load, no data yet)
   if (loading && !data) {
@@ -133,6 +174,27 @@ export default function CompanyDashboardPage({
           )}
         </div>
       </div>
+
+      {/* Slide-over panel for artifact drill-down */}
+      {selectedArtifactId && (
+        <SlideOver
+          key={selectedArtifactId}
+          open={selectedArtifactId !== null}
+          onClose={() => setSelectedArtifactId(null)}
+          title={
+            data.artifacts.find((a) => a.id === selectedArtifactId)?.artifact_type
+              .split("_")
+              .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+              .join(" ") || "Artifact"
+          }
+        >
+          <ArtifactPanel
+            artifactId={selectedArtifactId}
+            projectId={projectId}
+            onClose={() => setSelectedArtifactId(null)}
+          />
+        </SlideOver>
+      )}
     </div>
   );
 }

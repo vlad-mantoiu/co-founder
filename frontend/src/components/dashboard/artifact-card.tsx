@@ -76,8 +76,6 @@ export function ArtifactCard({ artifact, onClick, isChanged }: ArtifactCardProps
           </div>
 
           <div className="flex items-center gap-4 text-sm text-white/50">
-            <span>v{artifact.version_number}</span>
-            <span>•</span>
             <span>{relativeTime}</span>
           </div>
 

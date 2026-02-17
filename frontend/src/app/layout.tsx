@@ -3,6 +3,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { Space_Grotesk } from "next/font/google";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 export const dynamic = "force-dynamic";
@@ -48,6 +49,7 @@ export default function RootLayout({
           className={`${GeistSans.variable} ${GeistMono.variable} ${spaceGrotesk.variable} antialiased`}
         >
           {children}
+          <Toaster position="top-right" theme="dark" richColors />
         </body>
       </html>
     </ClerkProvider>
