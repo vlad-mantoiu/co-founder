@@ -9,13 +9,13 @@ import { cn } from "@/lib/utils";
 import { useAdmin } from "@/hooks/useAdmin";
 
 const navLinks = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/projects", label: "Projects" },
-  { href: "/strategy", label: "Strategy" },
-  { href: "/timeline", label: "Timeline" },
-  { href: "/chat", label: "Chat" },
-  { href: "/architecture", label: "Architecture" },
-  { href: "/billing", label: "Billing" },
+  { href: "/dashboard", label: "Dashboard", secondary: false },
+  { href: "/projects", label: "Projects", secondary: false },
+  { href: "/strategy", label: "Strategy", secondary: false },
+  { href: "/timeline", label: "Timeline", secondary: false },
+  { href: "/architecture", label: "Architecture", secondary: false },
+  { href: "/billing", label: "Billing", secondary: false },
+  { href: "/chat", label: "Chat", secondary: true },
 ] as const;
 
 export function BrandNav() {
@@ -38,7 +38,7 @@ export function BrandNav() {
 
         {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-1">
-          {navLinks.map(({ href, label }) => {
+          {navLinks.map(({ href, label, secondary }) => {
             const isActive = pathname === href || pathname.startsWith(`${href}/`);
             return (
               <Link
@@ -46,6 +46,7 @@ export function BrandNav() {
                 href={href}
                 className={cn(
                   "px-4 py-2 rounded-xl text-sm font-medium transition-colors",
+                  secondary && "opacity-60",
                   isActive
                     ? "bg-brand/15 text-brand"
                     : "text-muted-foreground hover:text-white hover:bg-white/5",
@@ -91,7 +92,7 @@ export function BrandNav() {
       {/* Mobile dropdown */}
       {mobileOpen && (
         <nav className="md:hidden glass-strong border-t border-white/5 px-4 py-3 space-y-1">
-          {navLinks.map(({ href, label }) => {
+          {navLinks.map(({ href, label, secondary }) => {
             const isActive = pathname === href;
             return (
               <Link
@@ -100,6 +101,7 @@ export function BrandNav() {
                 onClick={() => setMobileOpen(false)}
                 className={cn(
                   "block px-4 py-2.5 rounded-xl text-sm font-medium transition-colors",
+                  secondary && "opacity-60",
                   isActive
                     ? "bg-brand/15 text-brand"
                     : "text-muted-foreground hover:text-white hover:bg-white/5",
