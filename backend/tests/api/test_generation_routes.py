@@ -485,29 +485,19 @@ def test_workspace_files_expected():
 
     written_files = _asyncio.run(_run())
 
-    # RunnerFake returns files from _get_realistic_code():
-    # "src/models/product.py" and "src/api/routes/products.py"
-    # These don't include README / .env.example yet.
-    # Per plan spec: if RunnerFake doesn't return these, update RunnerFake's
-    # deterministic response to include them.
-
     # The workspace is written at /home/user/project/{rel_path}
     written_paths = list(written_files.keys())
 
-    # Check that we have the core workspace content from RunnerFake
-    assert len(written_paths) > 0, "RunnerFake must produce at least one file"
-
-    # Verify README.md is present in workspace files — if not, we need to add it
+    # GENR-03: Workspace must contain README.md, .env.example, and a start script
     has_readme = any("README" in p for p in written_paths)
     has_env_example = any(".env.example" in p for p in written_paths)
-    has_start_script = any("start" in p.lower() or "package.json" in p or "Makefile" in p for p in written_paths)
+    has_start_script = any("Procfile" in p for p in written_paths)
 
-    if not has_readme:
-        # RunnerFake currently doesn't include README.md — this is GENR-03 coverage gap.
-        # We verify and accept the current workspace shape per existing RunnerFake contract,
-        # but document this as a workspace coverage gap to fix in RunnerFake.
-        assert written_paths, "Workspace must have files"
-        # Verify the files RunnerFake DOES write (core product code)
-        assert any("product" in p.lower() for p in written_paths), (
-            "Workspace must contain product files as minimum content"
-        )
+    assert has_readme, f"Workspace must contain README.md (GENR-03). Got: {written_paths}"
+    assert has_env_example, f"Workspace must contain .env.example (GENR-03). Got: {written_paths}"
+    assert has_start_script, f"Workspace must contain Procfile (GENR-03). Got: {written_paths}"
+
+    # Also verify core application code is still present
+    assert any("product" in p.lower() for p in written_paths), (
+        "Workspace must contain product files as core application code"
+    )
