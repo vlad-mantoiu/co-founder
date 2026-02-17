@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 ## Current Position
 
 Phase: 10 of 10 (Export, Deploy Readiness & E2E Testing)
-Plan: 2 of 10 completed (10-02 Domain functions: alignment score + deploy readiness checks)
+Plan: 3 of 5 completed (10-03 Response contracts and beta gating tests)
 Status: Active
-Last activity: 2026-02-17 — Completed 10-02-PLAN.md (alignment score + deploy readiness domain functions)
+Last activity: 2026-02-17 — Completed 10-03-PLAN.md (response contract tests, beta gating tests, schema null-safety fixes)
 
 Progress: [██████████] 92%
 
@@ -89,6 +89,8 @@ Progress: [██████████] 92%
 | Phase 09 P04 | 3 | 2 tasks | 8 files |
 | Phase 09 P05 | 2 | 2 tasks | 2 files |
 | Phase 10 P02 | 2 | 2 tasks | 4 files |
+| Phase 10 P01 | 3 | 2 tasks | 6 files |
+| Phase 10 P03 | 2 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -240,6 +242,13 @@ Recent decisions affecting current work:
 - [Phase 10]: Integer truncation for alignment score (int(2/3*100)=66) — deterministic, no rounding edge cases
 - [Phase 10]: Scope creep threshold at score < 60 — consistent with yellow band 60-79
 - [Phase 10]: DEPLOY_PATHS hardcoded as module-level constant (Vercel/Railway/AWS ECS) — no LLM needed, deterministic
+- [Phase 10]: GenerationService owns all FSM transitions — worker delegates entirely when runner is provided
+- [Phase 10]: debug_id attached to raised exception (exc.debug_id) so worker can persist without double-transition to FAILED
+- [Phase 10]: fakeredis(decode_responses=True) avoids bytes/str mismatch in JobStateMachine tests
+- [Phase 10-03]: patch where imported (app.core.feature_flags.get_settings) not where defined — classic Python mock pattern
+- [Phase 10-03]: Mini FastAPI() app for testing require_feature closure in isolation from main test router
+- [Phase 10-03]: GateStatusResponse.options uses Field(default_factory=list) — list fields default to [] for CNTR-02 compliance
+- [Phase 10-03]: TimelineResponse.items and GraphResponse.nodes/edges use Field(default_factory=list) — stable empty array shape
 
 ### Pending Todos
 
@@ -276,10 +285,10 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17 (execute-phase)
-Stopped at: Completed 10-02-PLAN.md (alignment score + deploy readiness domain functions)
-Resume file: .planning/phases/10-export-deploy-readiness-e2e-testing/10-02-SUMMARY.md
-Next action: Execute 10-03-PLAN.md
+Stopped at: Completed 10-03-PLAN.md (response contract tests, beta gating tests, schema null-safety fixes)
+Resume file: .planning/phases/10-export-deploy-readiness-e2e-testing/10-03-SUMMARY.md
+Next action: Execute 10-04-PLAN.md
 
 ---
 *Phase 09 COMPLETE — 5 of 5 plans done: Neo4j StrategyGraph foundation + TimelineService + API routes + Timeline Kanban board + NodeDetailModal + BrandNav + Modal gap closure (real API data)*
-*Phase 10 IN PROGRESS — 2 of 10 plans done: domain functions (alignment score + deploy readiness checks)*
+*Phase 10 IN PROGRESS — 3 of 5 plans done: domain functions + response contracts + beta gating tests*
