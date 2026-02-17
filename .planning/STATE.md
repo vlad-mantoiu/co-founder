@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 ## Current Position
 
 Phase: 10 of 10 (Export, Deploy Readiness & E2E Testing)
-Plan: 5 of 5 completed (10-05 MVP Built transition and dashboard build data)
+Plan: 6 of 7 completed (10-06 Gate 2 solidification, change request artifacts)
 Status: Active
-Last activity: 2026-02-17 — Completed 10-05-PLAN.md (MVP Built post-build hook, dynamic dashboard product_version)
+Last activity: 2026-02-17 — Completed 10-06-PLAN.md (Gate 2 options, alignment resolution, ChangeRequestService, change-requests route, 5 tests)
 
-Progress: [██████████] 100%
+Progress: [██████████] 96%
 
 ## Performance Metrics
 
@@ -93,6 +93,7 @@ Progress: [██████████] 100%
 | Phase 10 P03 | 2 | 2 tasks | 5 files |
 | Phase 10 P04 | 3 | 2 tasks | 3 files |
 | Phase 10 P05 | 2 | 2 tasks | 3 files |
+| Phase 10 P06 | 4 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -258,6 +259,11 @@ Recent decisions affecting current work:
 - [Phase 10-05]: Bypass JourneyService._transition_stage for MVP Built hook — build completion is authoritative trigger (no gate required)
 - [Phase 10-05]: Idempotent MVP Built hook: stage >= 3 check prevents re-transition on subsequent builds
 - [Phase 10-05]: Dashboard product_version derived dynamically from Job.build_version string parse ('build_v0_1' -> 'v0.1')
+- [Phase 10-06]: GATE_2_OPTIONS uses value field (iterate/ship/park) distinct from Gate 1 (proceed/narrow/pivot/park)
+- [Phase 10-06]: Change requests stored as Artifact records with change_request_{N} artifact_type (no separate model, no migration)
+- [Phase 10-06]: Gate 2 alignment computed at resolution time by loading mvp_scope + existing change_request_ artifacts
+- [Phase 10-06]: options_map dict pattern for dynamic gate option routing (direction→GATE_1, solidification→GATE_2)
+- [Phase 10-06]: ChangeRequestService derives tier from latest ready Job for TIER_ITERATION_DEPTH lookup
 
 ### Pending Todos
 
@@ -294,10 +300,10 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17 (execute-phase)
-Stopped at: Completed 10-05-PLAN.md (MVP Built post-build hook, dynamic dashboard product_version)
-Resume file: .planning/phases/10-export-deploy-readiness-e2e-testing/10-05-SUMMARY.md
-Next action: Phase 10 complete — all 5 plans done
+Stopped at: Completed 10-06-PLAN.md (Gate 2 solidification, change request artifacts, 5 tests)
+Resume file: .planning/phases/10-export-deploy-readiness-e2e-testing/10-06-SUMMARY.md
+Next action: Execute 10-07-PLAN.md
 
 ---
 *Phase 09 COMPLETE — 5 of 5 plans done: Neo4j StrategyGraph foundation + TimelineService + API routes + Timeline Kanban board + NodeDetailModal + BrandNav + Modal gap closure (real API data)*
-*Phase 10 COMPLETE — 5 of 5 plans done: domain functions + response contracts + beta gating tests + generation routes + MVP Built transition + dashboard build data*
+*Phase 10 IN PROGRESS — 6 of 7 plans done: domain functions + response contracts + beta gating tests + generation routes + MVP Built transition + dashboard build data + Gate 2 solidification + Change Request artifacts*
