@@ -1,5 +1,6 @@
-"""JobWorker: pulls jobs from queue, enforces concurrency, executes via Runner."""
+"""JobWorker: pulls jobs from queue, enforces concurrency, executes via GenerationService."""
 
+import json
 import logging
 import time
 import uuid
@@ -23,13 +24,15 @@ async def process_next_job(runner: Runner | None = None, redis=None) -> bool:
     Steps:
     1. Dequeue highest priority job
     2. Check per-user and per-project concurrency semaphores
-    3. If semaphore acquired: transition STARTING->SCAFFOLD->...->READY
-    4. If semaphore unavailable: re-enqueue job
+    3. If runner provided: delegate to GenerationService.execute_build()
+       Otherwise: simulate status transitions (backwards-compatible fallback)
+    4. On READY: persist build result to Postgres and publish preview_url in Redis event
     5. Record duration for wait time estimation
     6. Release semaphore on completion (or crash via TTL)
 
     Args:
-        runner: Optional Runner instance for job execution (for MVP, can be None)
+        runner: Optional Runner instance. When provided, real GenerationService is used.
+                When None, simulated status loop runs (backwards-compatible).
         redis: Redis client instance (injected by caller, or uses get_redis() if None)
 
     Returns:
@@ -73,34 +76,41 @@ async def process_next_job(runner: Runner | None = None, redis=None) -> bool:
         return False
 
     start_time = time.time()
+    build_result: dict | None = None
+    error_message: str | None = None
+    debug_id: str | None = None
 
     try:
-        # Transition to STARTING
-        await state_machine.transition(job_id, JobStatus.STARTING, "Starting job execution")
-
-        # Execute phases: SCAFFOLD -> CODE -> DEPS -> CHECKS
-        # For MVP: simulate with status transitions (Runner integration in Phase 6)
-        for status in [JobStatus.SCAFFOLD, JobStatus.CODE, JobStatus.DEPS, JobStatus.CHECKS]:
-            await state_machine.transition(job_id, status, f"Phase: {status.value}")
-
-            # Heartbeat to extend semaphore TTL during long operations
-            await user_sem.heartbeat(job_id)
-            await project_sem.heartbeat(job_id)
-
-        # If we have a runner, execute the actual pipeline
         if runner:
-            from app.agent.state import create_initial_state
-            state = create_initial_state(
-                user_id=user_id,
-                project_id=project_id,
-                project_path=f"/tmp/jobs/{job_id}",
-                goal=job_data.get("goal", ""),
-                session_id=job_id,
-            )
-            await runner.run(state)
+            # Real execution path: GenerationService handles all FSM transitions
+            from app.sandbox.e2b_runtime import E2BSandboxRuntime
+            from app.services.generation_service import GenerationService
 
-        # Mark as READY
-        await state_machine.transition(job_id, JobStatus.READY, "Job completed successfully")
+            generation_service = GenerationService(
+                runner=runner,
+                sandbox_runtime_factory=lambda: E2BSandboxRuntime(),
+            )
+            build_result = await generation_service.execute_build(
+                job_id, job_data, state_machine
+            )
+        else:
+            # Backwards-compatible simulated loop (no runner injected)
+            await state_machine.transition(job_id, JobStatus.STARTING, "Starting job execution")
+            for status in [JobStatus.SCAFFOLD, JobStatus.CODE, JobStatus.DEPS, JobStatus.CHECKS]:
+                await state_machine.transition(job_id, status, f"Phase: {status.value}")
+
+                # Heartbeat to extend semaphore TTL during long operations
+                await user_sem.heartbeat(job_id)
+                await project_sem.heartbeat(job_id)
+
+        # Mark as READY — publish preview_url in event payload when available
+        ready_message = "Job completed successfully"
+        if build_result and build_result.get("preview_url"):
+            ready_message = json.dumps({
+                "message": "Job completed successfully",
+                "preview_url": build_result["preview_url"],
+            })
+        await state_machine.transition(job_id, JobStatus.READY, ready_message)
 
         # Record duration for wait time estimation
         duration = time.time() - start_time
@@ -108,16 +118,35 @@ async def process_next_job(runner: Runner | None = None, redis=None) -> bool:
         await estimator.record_completion(tier, duration)
 
         # Persist to Postgres (terminal state)
-        await _persist_job_to_postgres(job_id, job_data, JobStatus.READY, duration)
+        await _persist_job_to_postgres(
+            job_id, job_data, JobStatus.READY, duration, build_result=build_result
+        )
 
     except Exception as exc:
         logger.error(f"Job {job_id} failed: {exc}", exc_info=True)
-        await state_machine.transition(
-            job_id, JobStatus.FAILED,
-            f"Job failed: {str(exc)[:200]}"
-        )
+
+        # If GenerationService already transitioned to FAILED, don't double-transition.
+        # We detect this by checking if exc carries a debug_id (set by GenerationService).
+        debug_id = getattr(exc, "debug_id", None)
+        if debug_id is None:
+            # Fallback: transition here (simulated path or unexpected error)
+            debug_id = str(uuid.uuid4())
+            await state_machine.transition(
+                job_id,
+                JobStatus.FAILED,
+                f"Job failed — debug_id: {debug_id}. {str(exc)[:200]}",
+            )
+
+        error_message = str(exc)
         duration = time.time() - start_time
-        await _persist_job_to_postgres(job_id, job_data, JobStatus.FAILED, duration, str(exc))
+        await _persist_job_to_postgres(
+            job_id,
+            job_data,
+            JobStatus.FAILED,
+            duration,
+            error_message=error_message,
+            debug_id=debug_id,
+        )
 
     finally:
         # Release semaphores
@@ -133,8 +162,20 @@ async def _persist_job_to_postgres(
     status: JobStatus,
     duration: float,
     error_message: str | None = None,
+    debug_id: str | None = None,
+    build_result: dict | None = None,
 ) -> None:
-    """Write job record to Postgres for audit trail (terminal states only)."""
+    """Write job record to Postgres for audit trail (terminal states only).
+
+    Args:
+        job_id: Unique job identifier
+        job_data: Job metadata dict
+        status: Terminal JobStatus (READY or FAILED)
+        duration: Execution duration in seconds
+        error_message: Error details for failed jobs
+        debug_id: Debug identifier for failed jobs
+        build_result: Dict with sandbox_id, preview_url, build_version, workspace_path
+    """
     from app.db.base import get_session_factory
     from app.db.models.job import Job
 
@@ -150,7 +191,12 @@ async def _persist_job_to_postgres(
                 goal=job_data.get("goal", ""),
                 duration_seconds=int(duration),
                 error_message=error_message,
-                debug_id=str(uuid.uuid4()),
+                debug_id=debug_id or str(uuid.uuid4()),
+                # Sandbox build result fields (None for failed/simulated jobs)
+                sandbox_id=build_result.get("sandbox_id") if build_result else None,
+                preview_url=build_result.get("preview_url") if build_result else None,
+                build_version=build_result.get("build_version") if build_result else None,
+                workspace_path=build_result.get("workspace_path") if build_result else None,
             )
             session.add(job)
             await session.commit()

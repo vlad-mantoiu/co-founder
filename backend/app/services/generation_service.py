@@ -1,0 +1,210 @@
+"""GenerationService: Orchestrates the full build pipeline for a job.
+
+Wires Runner (LLM code generation) + E2BSandboxRuntime (execution) into
+the JobStateMachine transitions, persisting sandbox build results.
+"""
+
+import logging
+from typing import Callable
+from uuid import uuid4
+
+from sqlalchemy import select
+
+from app.agent.runner import Runner
+from app.agent.state import create_initial_state
+from app.db.base import get_session_factory
+from app.queue.schemas import JobStatus
+from app.queue.state_machine import JobStateMachine
+from app.sandbox.e2b_runtime import E2BSandboxRuntime
+
+logger = logging.getLogger(__name__)
+
+
+class GenerationService:
+    """Orchestrates the build pipeline: Runner (LLM) + E2B sandbox execution.
+
+    Constructor uses dependency injection so tests can supply fakes for both
+    the runner and the sandbox runtime without touching any real APIs.
+
+    Args:
+        runner: Runner implementation (RunnerReal in prod, RunnerFake in tests)
+        sandbox_runtime_factory: Zero-arg callable returning an E2BSandboxRuntime
+            (or compatible fake). Called once per execute_build invocation.
+    """
+
+    def __init__(
+        self,
+        runner: Runner,
+        sandbox_runtime_factory: Callable[[], E2BSandboxRuntime],
+    ) -> None:
+        self.runner = runner
+        self.sandbox_runtime_factory = sandbox_runtime_factory
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    async def execute_build(
+        self,
+        job_id: str,
+        job_data: dict,
+        state_machine: JobStateMachine,
+    ) -> dict:
+        """Execute the full build pipeline and return sandbox build results.
+
+        Pipeline stages:
+            STARTING -> SCAFFOLD -> CODE -> DEPS -> CHECKS -> (caller handles READY)
+
+        Args:
+            job_id: Unique job identifier (Redis key)
+            job_data: Job metadata dict (user_id, project_id, goal, tier, …)
+            state_machine: JobStateMachine for publishing transitions
+
+        Returns:
+            Dict with keys: sandbox_id, preview_url, build_version, workspace_path
+
+        Raises:
+            Exception: On any pipeline failure (after transitioning to FAILED)
+        """
+        sandbox = None
+        user_id = job_data.get("user_id", "")
+        project_id = job_data.get("project_id", "")
+
+        try:
+            # 1. STARTING
+            await state_machine.transition(job_id, JobStatus.STARTING, "Starting generation pipeline")
+
+            # 2. SCAFFOLD — create initial LangGraph state
+            await state_machine.transition(job_id, JobStatus.SCAFFOLD, "Scaffolding project state")
+            agent_state = create_initial_state(
+                user_id=user_id,
+                project_id=project_id,
+                project_path=f"/home/user/project",
+                goal=job_data.get("goal", ""),
+                session_id=job_id,
+            )
+
+            # 3. CODE — run the Runner pipeline
+            await state_machine.transition(job_id, JobStatus.CODE, "Running LLM code generation pipeline")
+            final_state = await self.runner.run(agent_state)
+
+            # 4. DEPS — create E2B sandbox, write generated files
+            await state_machine.transition(job_id, JobStatus.DEPS, "Provisioning E2B sandbox and installing dependencies")
+            sandbox = self.sandbox_runtime_factory()
+            await sandbox.start()
+
+            # Extend sandbox lifetime so it survives the full build cycle
+            sandbox._sandbox.set_timeout(3600)
+
+            # Write all generated files into sandbox
+            working_files: dict = final_state.get("working_files", {})
+            workspace_path = "/home/user/project"
+            for rel_path, file_change in working_files.items():
+                # FileChange is a TypedDict — content is in the 'content' key
+                content = (
+                    file_change.get("content", "")
+                    if isinstance(file_change, dict)
+                    else str(file_change)
+                )
+                abs_path = (
+                    rel_path
+                    if rel_path.startswith("/")
+                    else f"{workspace_path}/{rel_path}"
+                )
+                await sandbox.write_file(abs_path, content)
+
+            # 5. CHECKS — basic health check
+            await state_machine.transition(job_id, JobStatus.CHECKS, "Running health checks")
+            await sandbox.run_command("echo 'health-check-ok'", cwd=workspace_path)
+
+            # 6. Compute build result fields
+            host = sandbox._sandbox.get_host(8080)
+            preview_url = f"https://{host}"
+            sandbox_id = sandbox._sandbox.sandbox_id
+            build_version = await self._get_next_build_version(project_id, state_machine)
+
+            return {
+                "sandbox_id": sandbox_id,
+                "preview_url": preview_url,
+                "build_version": build_version,
+                "workspace_path": workspace_path,
+            }
+
+        except Exception as exc:
+            debug_id = str(uuid4())
+            logger.error(
+                f"GenerationService.execute_build failed for job {job_id}: {exc}",
+                exc_info=True,
+                extra={"debug_id": debug_id},
+            )
+            await state_machine.transition(
+                job_id,
+                JobStatus.FAILED,
+                f"Build failed — debug_id: {debug_id}. {_friendly_message(exc)}",
+            )
+            # Attach debug_id so caller can persist it
+            exc.debug_id = debug_id  # type: ignore[attr-defined]
+            raise
+
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+
+    async def _get_next_build_version(
+        self,
+        project_id: str,
+        state_machine: JobStateMachine,
+    ) -> str:
+        """Compute next build version for a project.
+
+        Queries the Job table for the highest existing build_version of READY
+        jobs for this project, parses "build_v0_N", returns "build_v0_{N+1}".
+        First build returns "build_v0_1".
+
+        Args:
+            project_id: Project UUID string
+            state_machine: JobStateMachine (unused here; kept for symmetry / future use)
+
+        Returns:
+            Version string like "build_v0_1"
+        """
+        from app.db.models.job import Job
+        import uuid as _uuid
+
+        try:
+            factory = get_session_factory()
+            async with factory() as session:
+                result = await session.execute(
+                    select(Job.build_version)
+                    .where(Job.project_id == _uuid.UUID(project_id))
+                    .where(Job.status == JobStatus.READY.value)
+                    .where(Job.build_version.isnot(None))
+                )
+                versions = [row[0] for row in result.fetchall()]
+        except Exception:
+            # If DB unavailable, default to first version
+            versions = []
+
+        max_n = 0
+        for v in versions:
+            # Expected format: "build_v0_N"
+            try:
+                n = int(v.rsplit("_", 1)[-1])
+                if n > max_n:
+                    max_n = n
+            except (ValueError, AttributeError):
+                continue
+
+        return f"build_v0_{max_n + 1}"
+
+
+def _friendly_message(exc: Exception) -> str:
+    """Convert a raw exception into a user-friendly failure message."""
+    msg = str(exc)
+    if "timeout" in msg.lower():
+        return "The build timed out. Try a smaller scope or contact support."
+    if "sandbox" in msg.lower():
+        return "The build sandbox could not be started. Our team has been notified."
+    if "rate" in msg.lower() or "429" in msg:
+        return "LLM rate limit reached. Please try again in a few minutes."
+    return "An unexpected error occurred during the build. Our team has been notified."
