@@ -66,17 +66,17 @@ export interface BuildProgressState {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Job status response shape from GET /api/jobs/{job_id}
+// Generation status response from GET /api/generation/{job_id}/status
 // ──────────────────────────────────────────────────────────────────────────────
 
-interface JobStatusResponse {
+interface GenerationStatusResponse {
   job_id: string;
   status: string;
-  message?: string;
-  preview_url?: string;
-  build_version?: string;
-  error_message?: string;
-  debug_id?: string;
+  stage_label: string;
+  preview_url?: string | null;
+  build_version?: string | null;
+  error_message?: string | null;
+  debug_id?: string | null;
 }
 
 const TERMINAL_STATUSES = new Set(["ready", "failed"]);
@@ -115,14 +115,14 @@ export function useBuildProgress(
     if (!jobId) return;
 
     try {
-      const res = await apiFetch(`/api/jobs/${jobId}`, getToken);
+      const res = await apiFetch(`/api/generation/${jobId}/status`, getToken);
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`);
       }
-      const data: JobStatusResponse = await res.json();
+      const data: GenerationStatusResponse = await res.json();
 
       const status = (data.status ?? "unknown") as BuildStatus;
-      const label = STAGE_LABELS[status] ?? data.message ?? status;
+      const label = STAGE_LABELS[status] ?? data.stage_label ?? status;
       const isTerminal = TERMINAL_STATUSES.has(status);
 
       // Update terminal ref synchronously so interval can check it
