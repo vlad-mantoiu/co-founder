@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 ## Current Position
 
 Phase: 10 of 10 (Export, Deploy Readiness & E2E Testing)
-Plan: 9 of 9 completed (10-09 Floating chat widget, nav de-emphasis, deploy readiness UI)
-Status: Active
-Last activity: 2026-02-17 — Completed 10-09-PLAN.md (FloatingChat overlay, ChatMessage, ChatInput, DeployReadinessPanel, DeployPathCard, deploy page with step checklist, BrandNav de-emphasis)
+Plan: 10 of 10 completed (10-10 E2E founder flow test — idea to MVP Built)
+Status: Complete
+Last activity: 2026-02-17 — Completed 10-10-PLAN.md (FakeSandboxRuntime test double, full E2E founder flow test, all Phase 10 success criteria validated)
 
 Progress: [██████████] 100%
 
@@ -96,6 +96,7 @@ Progress: [██████████] 100%
 | Phase 10 P06 | 4 | 2 tasks | 6 files |
 | Phase 10 P08 | 3 | 2 tasks | 7 files |
 | Phase 10 P09 | 4 | 2 tasks | 8 files |
+| Phase 10 P10 | 15 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -277,6 +278,10 @@ Recent decisions affecting current work:
 - [Phase 10-09]: Action parsing from assistant response strings: [ACTION:navigate:/path] and [ACTION:start_build:id]
 - [Phase 10-09]: Chat nav item moved last with opacity-60 secondary flag — floating bubble is primary entry point
 - [Phase 10-09]: Deploy page derives secrets checklist from blocking issues containing env var keywords
+- [Phase 10-10]: FakeSandboxRuntime as @property _sandbox returns new _FakeSandbox() each call (immutable inner class)
+- [Phase 10-10]: asyncio.run() with fresh asyncpg engine avoids cross-event-loop pool issues from TestClient
+- [Phase 10-10]: BackgroundTask runs synchronously in TestClient (simulation path, no runner) — MVP hook triggered manually in asyncio.run() context
+- [Phase 10-10]: Timeline assertion uses milestone type with stage 3 in title — mvp_built event_type not surfaced by TimelineService
 
 ### Pending Todos
 
@@ -313,10 +318,10 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17 (execute-phase)
-Stopped at: Completed 10-09-PLAN.md (FloatingChat overlay, nav de-emphasis, deploy readiness UI, deploy page)
-Resume file: .planning/phases/10-export-deploy-readiness-e2e-testing/10-09-SUMMARY.md
-Next action: Phase 10 COMPLETE — all 9 plans done
+Stopped at: Completed 10-10-PLAN.md (E2E founder flow test — FakeSandboxRuntime, full 9-step test, all Phase 10 success criteria validated)
+Resume file: .planning/phases/10-export-deploy-readiness-e2e-testing/10-10-SUMMARY.md
+Next action: Phase 10 COMPLETE — all 10 plans done. Milestone 1 complete.
 
 ---
 *Phase 09 COMPLETE — 5 of 5 plans done: Neo4j StrategyGraph foundation + TimelineService + API routes + Timeline Kanban board + NodeDetailModal + BrandNav + Modal gap closure (real API data)*
-*Phase 10 COMPLETE — 9 of 9 plans done: domain functions + response contracts + beta gating tests + generation routes + MVP Built transition + dashboard build data + Gate 2 solidification + Change Request artifacts + Build Progress UI + FloatingChat + Deploy Readiness UI*
+*Phase 10 COMPLETE — 10 of 10 plans done: domain functions + response contracts + beta gating tests + generation routes + MVP Built transition + dashboard build data + Gate 2 solidification + Change Request artifacts + Build Progress UI + FloatingChat + Deploy Readiness UI + E2E founder flow test*
