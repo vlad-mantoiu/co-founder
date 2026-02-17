@@ -17,13 +17,14 @@ from pydantic import BaseModel, Field
 
 
 class ArtifactType(StrEnum):
-    """Five artifact types in generation pipeline."""
+    """Six artifact types in generation pipeline."""
 
     BRIEF = "brief"
     MVP_SCOPE = "mvp_scope"
     MILESTONES = "milestones"
     RISK_LOG = "risk_log"
     HOW_IT_WORKS = "how_it_works"
+    IDEA_BRIEF = "idea_brief"  # Rationalised Idea Brief from understanding interview
 
 
 # Generation order (locked decision: linear chain)
