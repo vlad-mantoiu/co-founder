@@ -198,13 +198,14 @@ Plans:
   6. Timeline items have timestamp, type, title, summary, build_version, decision_id, debug_id
   7. Timeline rendered as Kanban board with statuses (Planned/In Progress/Done)
   8. Tickets expandable for full information and queryable via search
-**Plans:** 4 plans
+**Plans:** 5 plans
 
 Plans:
 - [ ] 09-01-PLAN.md -- Neo4j StrategyGraph class, Pydantic schemas, GraphService, GateService dual-write
 - [ ] 09-02-PLAN.md -- TimelineService aggregation, strategy graph + timeline API routes
 - [ ] 09-03-PLAN.md -- Frontend react-force-graph-2d visualization, NodeDetailModal (shared)
 - [ ] 09-04-PLAN.md -- Frontend Kanban board, timeline search/filter, BrandNav integration
+- [ ] 09-05-PLAN.md -- Gap closure: fetch real node detail from API in strategy graph and timeline modals
 
 ### Phase 10: Export, Deploy Readiness & E2E Testing
 **Goal**: PDF/Markdown export, deploy readiness, and comprehensive end-to-end testing
