@@ -9,12 +9,12 @@ Requirements for production readiness. Each maps to roadmap phases.
 
 ### LLM Integration
 
-- [ ] **LLM-01**: RunnerReal generates dynamic understanding interview questions via real Claude calls
-- [ ] **LLM-02**: RunnerReal generates Rationalised Idea Brief with per-section confidence scores via real Claude
-- [ ] **LLM-03**: RunnerReal checks question relevance when founder edits answers
-- [ ] **LLM-04**: RunnerReal assesses section confidence (strong/moderate/needs_depth) via real Claude
-- [ ] **LLM-05**: RunnerReal generates 2-3 execution plan options with engineering impact via real Claude
-- [ ] **LLM-06**: RunnerReal generates artifact cascade (Brief, MVP Scope, Milestones, Risk Log, How It Works) via real Claude
+- [x] **LLM-01**: RunnerReal generates dynamic understanding interview questions via real Claude calls
+- [x] **LLM-02**: RunnerReal generates Rationalised Idea Brief with per-section confidence scores via real Claude
+- [x] **LLM-03**: RunnerReal checks question relevance when founder edits answers
+- [x] **LLM-04**: RunnerReal assesses section confidence (strong/moderate/needs_depth) via real Claude
+- [x] **LLM-05**: RunnerReal generates 2-3 execution plan options with engineering impact via real Claude
+- [x] **LLM-06**: RunnerReal generates artifact cascade (Brief, MVP Scope, Milestones, Risk Log, How It Works) via real Claude
 - [ ] **LLM-07**: RunnerReal.run() executes full LangGraph pipeline with real Claude calls for code generation
 - [x] **LLM-08**: LangGraph uses AsyncPostgresSaver (not MemorySaver) for production checkpointing
 - [x] **LLM-09**: All RunnerReal methods strip markdown code fences before JSON parsing
@@ -22,7 +22,7 @@ Requirements for production readiness. Each maps to roadmap phases.
 - [ ] **LLM-11**: detect_llm_risks() returns real risk signals from Redis usage data and UsageLog
 - [ ] **LLM-12**: build_failure_count wired to actual executor failure data (not hardcoded 0)
 - [x] **LLM-13**: All RunnerReal methods retry on Anthropic 529/overload with tenacity exponential backoff
-- [ ] **LLM-14**: All LLM prompts use co-founder "we" voice consistently
+- [x] **LLM-14**: All LLM prompts use co-founder "we" voice consistently
 - [ ] **LLM-15**: Higher tiers receive richer analysis in briefs and more execution plan options
 
 ### Stripe Billing
@@ -89,12 +89,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| LLM-01 | Phase 13 | Pending |
-| LLM-02 | Phase 13 | Pending |
-| LLM-03 | Phase 13 | Pending |
-| LLM-04 | Phase 13 | Pending |
-| LLM-05 | Phase 13 | Pending |
-| LLM-06 | Phase 13 | Pending |
+| LLM-01 | Phase 13 | Complete |
+| LLM-02 | Phase 13 | Complete |
+| LLM-03 | Phase 13 | Complete |
+| LLM-04 | Phase 13 | Complete |
+| LLM-05 | Phase 13 | Complete |
+| LLM-06 | Phase 13 | Complete |
 | LLM-07 | Phase 13 | Pending |
 | LLM-08 | Phase 13 | Complete |
 | LLM-09 | Phase 13 | Complete |
@@ -102,7 +102,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LLM-11 | Phase 13 | Pending |
 | LLM-12 | Phase 13 | Pending |
 | LLM-13 | Phase 13 | Complete |
-| LLM-14 | Phase 13 | Pending |
+| LLM-14 | Phase 13 | Complete |
 | LLM-15 | Phase 13 | Pending |
 | BILL-01 | Phase 14 | Pending |
 | BILL-02 | Phase 14 | Pending |

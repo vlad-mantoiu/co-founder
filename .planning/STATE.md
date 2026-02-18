@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-18)
 ## Current Position
 
 Phase: 13 of 16 (LLM Activation and Hardening)
-Plan: 1 of 7 in current phase
+Plan: 6 of 7 in current phase
 Status: In progress
-Last activity: 2026-02-18 — Phase 13 Plan 01 complete (llm_helpers.py foundation)
+Last activity: 2026-02-18 — Phase 13 Plan 06 complete (risk signal activation)
 
 Progress: [█░░░░░░░░░] 10% (v0.2) — v0.1 complete (phases 1-12)
 
@@ -41,6 +41,9 @@ Progress: [█░░░░░░░░░] 10% (v0.2) — v0.1 complete (phases 
 | Plan | Duration | Tasks | Files |
 |------|----------|-------|-------|
 | Phase 13 P01 | 2 min | 2 tasks | 3 files |
+| Phase 13 P02 | — | — | — |
+| Phase 13 P03 | 2 min | 1 task | 1 file |
+| Phase 13 P06 | 2 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -61,6 +64,11 @@ Recent decisions affecting v0.2 work:
 - [Phase 13 P01]: _invoke_with_retry uses tenacity stop_after_attempt(4) with reraise=True — OverloadedError propagates after exhausting retries
 - [Phase 13 P01]: UsageTrackingCallback logs failures at WARNING (not ERROR) — operational noise, not bugs
 - [Phase 13 P01]: Import pattern for all subsequent plans: from app.agent.llm_helpers import _strip_json_fences, _parse_json_response, _invoke_with_retry
+- [Phase 13 P03]: COFOUNDER_SYSTEM constant centralizes "we" voice — all RunnerReal methods use it via {task_instructions} template slot
+- [Phase 13 P03]: assess_section_confidence uses plain-string keyword search (not JSON parse) with "moderate" as safe default
+- [Phase 13 P03]: JSON retry pattern: catch JSONDecodeError, prepend strict prompt, retry once — no silent swallowing, raises RuntimeError on second failure
+- [Phase 13 P06]: detect_llm_risks is async with module-level get_redis/get_or_create_user_settings imports for patchability in tests
+- [Phase 13 P06]: build_failure_count queries Job.status=="failed" rows; journey.py uses project.clerk_user_id from already-loaded project
 
 ### Pending Todos
 
@@ -75,9 +83,9 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Completed 13-01-PLAN.md (llm_helpers.py foundation)
-Resume file: .planning/phases/13-llm-activation-and-hardening/13-02-PLAN.md
-Next action: `/gsd:execute-phase 13 02`
+Stopped at: Completed 13-03-PLAN.md (RunnerReal all 10 methods with co-founder voice)
+Resume file: .planning/phases/13-llm-activation-and-hardening/13-04-PLAN.md
+Next action: `/gsd:execute-phase 13 04`
 
 ---
 *v0.1 COMPLETE — 56 plans, 12 phases, 76/76 requirements (2026-02-17)*
