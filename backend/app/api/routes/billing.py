@@ -1,11 +1,12 @@
 """Billing routes — Stripe Checkout, Customer Portal, webhooks, and status."""
 
 import logging
+from datetime import datetime, timedelta, timezone
 
 import stripe
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from app.core.auth import ClerkUser, require_auth
@@ -13,6 +14,7 @@ from app.core.config import get_settings
 from app.db.base import get_session_factory
 from app.db.models.plan_tier import PlanTier
 from app.db.models.stripe_event import StripeWebhookEvent
+from app.db.models.usage_log import UsageLog
 from app.db.models.user_settings import UserSettings
 
 logger = logging.getLogger(__name__)
@@ -40,6 +42,14 @@ class BillingStatusResponse(BaseModel):
     plan_name: str
     stripe_subscription_status: str | None
     has_subscription: bool
+
+
+class UsageResponse(BaseModel):
+    tokens_used_today: int
+    tokens_limit: int  # -1 = unlimited
+    plan_slug: str
+    plan_name: str
+    reset_at: str  # ISO 8601 — next midnight UTC
 
 
 # ── Helpers ─────────────────────────────────────────────────────────
@@ -227,6 +237,63 @@ async def get_billing_status(
             stripe_subscription_status=user_settings.stripe_subscription_status,
             has_subscription=user_settings.stripe_subscription_id is not None,
         )
+
+
+@router.get("/billing/usage", response_model=UsageResponse)
+async def get_billing_usage(
+    user: ClerkUser = Depends(require_auth),
+):
+    """Return the user's token usage for today vs their plan limit."""
+    now_utc = datetime.now(timezone.utc)
+    today_midnight = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
+    next_midnight = today_midnight + timedelta(days=1)
+
+    factory = get_session_factory()
+    async with factory() as session:
+        # Sum total_tokens used today for this user
+        usage_result = await session.execute(
+            select(func.coalesce(func.sum(UsageLog.total_tokens), 0)).where(
+                UsageLog.clerk_user_id == user.user_id,
+                UsageLog.created_at >= today_midnight,
+                UsageLog.created_at < next_midnight,
+            )
+        )
+        tokens_used_today: int = usage_result.scalar_one()
+
+        # Look up user settings and plan tier
+        settings_result = await session.execute(
+            select(UserSettings, PlanTier)
+            .join(PlanTier, UserSettings.plan_tier_id == PlanTier.id)
+            .where(UserSettings.clerk_user_id == user.user_id)
+        )
+        row = settings_result.one_or_none()
+
+    if row is None:
+        # No settings yet — return bootstrapper defaults
+        return UsageResponse(
+            tokens_used_today=tokens_used_today,
+            tokens_limit=500_000,
+            plan_slug="bootstrapper",
+            plan_name="Bootstrapper",
+            reset_at=next_midnight.isoformat(),
+        )
+
+    user_settings, plan_tier = row._tuple()
+
+    # Admin override takes precedence over plan default
+    tokens_limit: int = (
+        user_settings.override_max_tokens_per_day
+        if user_settings.override_max_tokens_per_day is not None
+        else plan_tier.max_tokens_per_day
+    )
+
+    return UsageResponse(
+        tokens_used_today=tokens_used_today,
+        tokens_limit=tokens_limit,
+        plan_slug=plan_tier.slug,
+        plan_name=plan_tier.name,
+        reset_at=next_midnight.isoformat(),
+    )
 
 
 @router.post("/webhooks/stripe")
