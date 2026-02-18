@@ -44,6 +44,7 @@ Progress: [█░░░░░░░░░] 10% (v0.2) — v0.1 complete (phases 
 | Phase 13 P02 | — | — | — |
 | Phase 13 P03 | 2 min | 1 task | 1 file |
 | Phase 13 P06 | 2 min | 2 tasks | 4 files |
+| Phase 13 P04 | 3 | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -69,6 +70,9 @@ Recent decisions affecting v0.2 work:
 - [Phase 13 P03]: JSON retry pattern: catch JSONDecodeError, prepend strict prompt, retry once — no silent swallowing, raises RuntimeError on second failure
 - [Phase 13 P06]: detect_llm_risks is async with module-level get_redis/get_or_create_user_settings imports for patchability in tests
 - [Phase 13 P06]: build_failure_count queries Job.status=="failed" rows; journey.py uses project.clerk_user_id from already-loaded project
+- [Phase 13]: get_runner() returns RunnerReal when ANTHROPIC_API_KEY is set; RunnerFake fallback for local dev
+- [Phase 13]: OverloadedError after 4 retries: return 202 with queue message; enqueue to cofounder:llm_queue Redis list
+- [Phase 13]: _tier injected via dict spread into answers/brief/onboarding_data — no runner method signature changes needed
 
 ### Pending Todos
 

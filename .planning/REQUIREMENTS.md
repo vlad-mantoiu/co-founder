@@ -15,7 +15,7 @@ Requirements for production readiness. Each maps to roadmap phases.
 - [x] **LLM-04**: RunnerReal assesses section confidence (strong/moderate/needs_depth) via real Claude
 - [x] **LLM-05**: RunnerReal generates 2-3 execution plan options with engineering impact via real Claude
 - [x] **LLM-06**: RunnerReal generates artifact cascade (Brief, MVP Scope, Milestones, Risk Log, How It Works) via real Claude
-- [ ] **LLM-07**: RunnerReal.run() executes full LangGraph pipeline with real Claude calls for code generation
+- [x] **LLM-07**: RunnerReal.run() executes full LangGraph pipeline with real Claude calls for code generation
 - [x] **LLM-08**: LangGraph uses AsyncPostgresSaver (not MemorySaver) for production checkpointing
 - [x] **LLM-09**: All RunnerReal methods strip markdown code fences before JSON parsing
 - [x] **LLM-10**: UsageTrackingCallback logs DB/Redis write failures at WARNING level (no silent swallowing)
@@ -95,7 +95,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LLM-04 | Phase 13 | Complete |
 | LLM-05 | Phase 13 | Complete |
 | LLM-06 | Phase 13 | Complete |
-| LLM-07 | Phase 13 | Pending |
+| LLM-07 | Phase 13 | Complete |
 | LLM-08 | Phase 13 | Complete |
 | LLM-09 | Phase 13 | Complete |
 | LLM-10 | Phase 13 | Complete |
