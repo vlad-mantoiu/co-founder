@@ -1,14 +1,14 @@
 "use client";
 
 import { useUser, useAuth } from "@clerk/nextjs";
-import { useEffect, useState, useRef } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useState, useRef, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { toast } from "sonner";
 import {
   FolderPlus,
   Github,
   MessageSquare,
-  Sparkles,
   ArrowRight,
   GitPullRequest,
   GitCommit,
@@ -16,7 +16,6 @@ import {
   Clock,
 } from "lucide-react";
 import { GlassCard } from "@/components/ui/glass-card";
-import { OnboardingStep, OnboardingProgress } from "@/components/ui/onboarding-steps";
 import { apiFetch } from "@/lib/api";
 
 interface Project {
@@ -32,15 +31,33 @@ interface Project {
   has_brief?: boolean;
 }
 
-export default function DashboardPage() {
-  const { user } = useUser();
-  const { getToken } = useAuth();
+/* ─── Checkout success detector (must be in Suspense — uses useSearchParams) ─── */
+
+function CheckoutSuccessDetector() {
   const searchParams = useSearchParams();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  const hasRun = useRef(false);
+
+  useEffect(() => {
+    if (hasRun.current) return;
+    const success = searchParams.get("checkout_success");
+    if (success === "true") {
+      hasRun.current = true;
+      toast.success("Subscription activated! Welcome aboard.");
+      const url = new URL(window.location.href);
+      url.searchParams.delete("checkout_success");
+      window.history.replaceState({}, "", url.toString());
+    }
+  }, [searchParams]);
+
+  return null;
+}
+
+/* ─── Auto-checkout redirect (must be in Suspense — uses useSearchParams) ─── */
+
+function CheckoutAutoRedirector({ getToken }: { getToken: () => Promise<string | null> }) {
+  const searchParams = useSearchParams();
   const checkoutTriggered = useRef(false);
 
-  // Auto-checkout redirect for post-signup users with ?plan=...&interval=...
   useEffect(() => {
     const plan = searchParams.get("plan");
     const interval = searchParams.get("interval") || "monthly";
@@ -65,6 +82,18 @@ export default function DashboardPage() {
     triggerCheckout();
   }, [searchParams, getToken]);
 
+  return null;
+}
+
+/* ─── Main page ─── */
+
+export default function DashboardPage() {
+  const { user } = useUser();
+  const { getToken } = useAuth();
+  const router = useRouter();
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loaded, setLoaded] = useState(false);
+
   useEffect(() => {
     async function fetchProjects() {
       try {
@@ -87,81 +116,36 @@ export default function DashboardPage() {
 
   if (!loaded) {
     return (
+      <>
+        <Suspense fallback={null}>
+          <CheckoutSuccessDetector />
+          <CheckoutAutoRedirector getToken={getToken} />
+        </Suspense>
+        <div className="flex items-center justify-center h-64">
+          <div className="w-8 h-8 border-2 border-brand border-t-transparent rounded-full animate-spin" />
+        </div>
+      </>
+    );
+  }
+
+  // No projects yet — redirect to onboarding flow
+  if (!hasProjects) {
+    router.replace("/onboarding");
+    return (
       <div className="flex items-center justify-center h-64">
         <div className="w-8 h-8 border-2 border-brand border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
-  if (hasProjects) {
-    return <ReturningUserDashboard firstName={firstName} projects={projects} />;
-  }
-
-  return <OnboardingDashboard firstName={firstName} />;
-}
-
-/* ─── Onboarding (new user) ─── */
-
-function OnboardingDashboard({ firstName }: { firstName: string }) {
-  const completedSteps = 0;
-
   return (
-    <div className="space-y-8">
-      {/* Hero */}
-      <div className="space-y-2">
-        <h1 className="font-display text-3xl sm:text-4xl font-bold text-white">
-          Welcome, <span className="text-brand">{firstName}</span>
-        </h1>
-        <p className="text-muted-foreground text-lg">
-          Let&apos;s get your AI co-founder up and running
-        </p>
-      </div>
-
-      <OnboardingProgress current={completedSteps} total={4} />
-
-      {/* Steps */}
-      <div className="space-y-4">
-        <OnboardingStep
-          stepNumber={1}
-          icon={<FolderPlus className="w-5 h-5" />}
-          title="Create a Project"
-          description="Set up a workspace for your app. Give it a name and description so your AI co-founder understands the scope."
-          status="active"
-          cta={
-            <Link
-              href="/projects"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand text-white text-sm font-medium hover:bg-brand-dark transition-colors shadow-glow"
-            >
-              Create Project <ArrowRight className="w-4 h-4" />
-            </Link>
-          }
-        />
-
-        <OnboardingStep
-          stepNumber={2}
-          icon={<Github className="w-5 h-5" />}
-          title="Connect GitHub"
-          description="Link a repository so your AI co-founder can read, write, and open pull requests on your codebase."
-          status="pending"
-        />
-
-        <OnboardingStep
-          stepNumber={3}
-          icon={<MessageSquare className="w-5 h-5" />}
-          title="Describe Your First Task"
-          description='Tell your co-founder what to build — e.g. "Build a REST API for user auth with JWT tokens."'
-          status="pending"
-        />
-
-        <OnboardingStep
-          stepNumber={4}
-          icon={<Sparkles className="w-5 h-5" />}
-          title="Watch It Work"
-          description="Your AI co-founder will architect, code, test, and push the changes. Sit back and review the PR."
-          status="pending"
-        />
-      </div>
-    </div>
+    <>
+      <Suspense fallback={null}>
+        <CheckoutSuccessDetector />
+        <CheckoutAutoRedirector getToken={getToken} />
+      </Suspense>
+      <ReturningUserDashboard firstName={firstName} projects={projects} />
+    </>
   );
 }
 
