@@ -1,6 +1,7 @@
 """AI Co-Founder Backend: FastAPI application entry point."""
 
 import logging
+import signal
 import uuid
 from contextlib import asynccontextmanager
 
@@ -42,6 +43,15 @@ def validate_price_map() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler for startup/shutdown events."""
+    # Graceful shutdown flag — SIGTERM handler flips this so ALB health check returns 503
+    app.state.shutting_down = False
+
+    def handle_sigterm(signum, frame):
+        app.state.shutting_down = True
+        logger.info("SIGTERM received - health check will return 503, draining connections")
+
+    signal.signal(signal.SIGTERM, handle_sigterm)
+
     # Startup
     settings = get_settings()
     print(f"Starting {settings.app_name}...")

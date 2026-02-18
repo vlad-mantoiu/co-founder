@@ -1,5 +1,5 @@
 import logging
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
@@ -9,8 +9,16 @@ router = APIRouter()
 
 
 @router.get("/health")
-async def health_check():
-    """Health check endpoint for load balancer."""
+async def health_check(request: Request):
+    """Health check endpoint for load balancer.
+
+    Returns 503 during graceful shutdown so ALB stops routing traffic.
+    """
+    if getattr(request.app.state, "shutting_down", False):
+        return JSONResponse(
+            status_code=503,
+            content={"status": "shutting_down", "service": "cofounder-backend"},
+        )
     return {"status": "healthy", "service": "cofounder-backend"}
 
 
