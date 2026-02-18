@@ -5,7 +5,9 @@ Tests enforce pure function behavior:
 - Deterministic outputs given same inputs
 - Injectable time for testability
 """
+import pytest
 from datetime import datetime, timedelta, timezone
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.domain.risks import detect_llm_risks, detect_system_risks
 
@@ -169,17 +171,61 @@ def test_detect_system_risks_default_now_parameter():
     assert isinstance(risks, list)
 
 
-def test_detect_llm_risks_returns_empty_list():
-    """LLM risk detection stub always returns empty list."""
-    risks = detect_llm_risks()
-    assert risks == []
+class TestDetectLlmRisks:
+    @pytest.mark.asyncio
+    async def test_high_usage_returns_risk(self):
+        """When usage > 80% of daily limit, return high_token_usage risk."""
+        mock_redis = AsyncMock()
+        mock_redis.get = AsyncMock(return_value=b"85000")
 
+        mock_settings = MagicMock()
+        mock_settings.plan_tier.max_tokens_per_day = 100000
+        mock_settings.override_max_tokens_per_day = None
 
-def test_detect_llm_risks_accepts_kwargs():
-    """LLM risk detection stub accepts arbitrary kwargs for future use."""
-    risks = detect_llm_risks(
-        project_stage=1,
-        milestones=[],
-        code_quality="unknown",
-    )
-    assert risks == []
+        with patch("app.domain.risks.get_redis", return_value=mock_redis), \
+             patch("app.domain.risks.get_or_create_user_settings", return_value=mock_settings):
+            risks = await detect_llm_risks("user_123", None)
+
+        assert len(risks) == 1
+        assert risks[0]["rule"] == "high_token_usage"
+        assert "85%" in risks[0]["message"]
+
+    @pytest.mark.asyncio
+    async def test_normal_usage_returns_empty(self):
+        """When usage < 80% of daily limit, return no risks."""
+        mock_redis = AsyncMock()
+        mock_redis.get = AsyncMock(return_value=b"50000")
+
+        mock_settings = MagicMock()
+        mock_settings.plan_tier.max_tokens_per_day = 100000
+        mock_settings.override_max_tokens_per_day = None
+
+        with patch("app.domain.risks.get_redis", return_value=mock_redis), \
+             patch("app.domain.risks.get_or_create_user_settings", return_value=mock_settings):
+            risks = await detect_llm_risks("user_123", None)
+
+        assert len(risks) == 0
+
+    @pytest.mark.asyncio
+    async def test_unlimited_plan_returns_empty(self):
+        """When plan has unlimited tokens (-1), return no risks."""
+        mock_redis = AsyncMock()
+        mock_redis.get = AsyncMock(return_value=b"999999")
+
+        mock_settings = MagicMock()
+        mock_settings.plan_tier.max_tokens_per_day = -1
+        mock_settings.override_max_tokens_per_day = None
+
+        with patch("app.domain.risks.get_redis", return_value=mock_redis), \
+             patch("app.domain.risks.get_or_create_user_settings", return_value=mock_settings):
+            risks = await detect_llm_risks("user_123", None)
+
+        assert len(risks) == 0
+
+    @pytest.mark.asyncio
+    async def test_redis_failure_returns_empty(self):
+        """When Redis fails, return empty list (non-blocking)."""
+        with patch("app.domain.risks.get_redis", side_effect=Exception("Redis down")):
+            risks = await detect_llm_risks("user_123", None)
+
+        assert len(risks) == 0

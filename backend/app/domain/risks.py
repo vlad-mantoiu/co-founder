@@ -1,9 +1,16 @@
 """System risk detection rules.
 
 Pure domain functions for detecting project risks.
-No DB access, fully deterministic.
+detect_system_risks: No DB access, fully deterministic.
+detect_llm_risks: Async, reads Redis usage + user settings.
 """
-from datetime import datetime, timedelta, timezone
+import logging
+from datetime import date, datetime, timedelta, timezone
+
+from app.core.llm_config import get_or_create_user_settings
+from app.db.redis import get_redis
+
+logger = logging.getLogger(__name__)
 
 
 def detect_system_risks(
@@ -65,16 +72,44 @@ def detect_system_risks(
     return risks
 
 
-def detect_llm_risks(**kwargs) -> list[dict]:
-    """Detect LLM-assessed risks (stub for future implementation).
+async def detect_llm_risks(user_id: str, session) -> list[dict]:
+    """Detect LLM-related risks from Redis usage data.
 
-    Stub for LLM-based risk assessment. Returns empty list.
-    Will be implemented with Runner integration in a future phase.
+    Checks daily token usage ratio against the user's plan limit.
+    Returns risk signal when usage exceeds 80% of daily limit.
 
     Args:
-        **kwargs: Project context parameters (stage, milestones, code quality, etc.)
+        user_id: Clerk user ID
+        session: SQLAlchemy async session (for user settings lookup)
 
     Returns:
-        Empty list (stub implementation)
+        List of risk dicts with structure: {"type": "llm", "rule": str, "message": str}
     """
-    return []
+    risks: list[dict] = []
+
+    try:
+        r = get_redis()
+        today = date.today().isoformat()
+        key = f"cofounder:usage:{user_id}:{today}"
+        used_tokens = int(await r.get(key) or 0)
+
+        user_settings = await get_or_create_user_settings(user_id)
+        tier = user_settings.plan_tier
+        max_tokens = (
+            user_settings.override_max_tokens_per_day
+            if user_settings.override_max_tokens_per_day is not None
+            else tier.max_tokens_per_day
+        )
+
+        if max_tokens != -1 and max_tokens > 0:
+            ratio = used_tokens / max_tokens
+            if ratio > 0.8:
+                risks.append({
+                    "type": "llm",
+                    "rule": "high_token_usage",
+                    "message": f"We're at {ratio:.0%} of today's token budget. Consider upgrading to avoid interruptions.",
+                })
+    except Exception as e:
+        logger.warning("detect_llm_risks check failed (non-blocking): %s", e)
+
+    return risks
