@@ -83,12 +83,12 @@ Plans:
   3. Each ECS deploy is traceable to a specific git SHA via the task definition, enabling rollback to any previous image
   4. During a rolling ECS deploy, the ALB stops routing to the old task within 60 seconds of SIGTERM with no 502 errors surfaced to founders
   5. All 18 previously deferred integration tests run and pass after the pytest-asyncio scope fix
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 15-01: TBD
-- [ ] 15-02: TBD
-- [ ] 15-03: TBD
+- [ ] 15-01-PLAN.md — pytest-asyncio scope fix + unit/integration test markers
+- [ ] 15-02-PLAN.md — SIGTERM graceful shutdown handler + CDK ALB deregistration delay
+- [ ] 15-03-PLAN.md — CI workflow restructuring: test gate, path filtering, SHA-pinned ECS deploys
 
 ### Phase 16: CloudWatch Observability
 **Goal**: An outage, error spike, or LLM slowdown triggers an ops email alert before founders start complaining
@@ -128,7 +128,7 @@ Phases execute in numeric order: 13 → 14 → 15 → 16
 | 12. Milestone Audit Gap Closure | v0.1 | 1/1 | Complete | 2026-02-17 |
 | 13. LLM Activation and Hardening | 7/7 | Complete   | 2026-02-18 | - |
 | 14. Stripe Live Activation | 3/4 | Complete    | 2026-02-18 | - |
-| 15. CI/CD Hardening | v0.2 | 0/TBD | Not started | - |
+| 15. CI/CD Hardening | v0.2 | 0/3 | Not started | - |
 | 16. CloudWatch Observability | v0.2 | 0/TBD | Not started | - |
 
 ---
