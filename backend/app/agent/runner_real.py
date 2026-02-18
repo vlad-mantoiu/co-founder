@@ -41,6 +41,49 @@ Your voice:
 
 {task_instructions}"""
 
+# Tier-based interview question counts (locked decision)
+QUESTION_COUNT_BY_TIER = {
+    "bootstrapper": "6-8",
+    "partner": "10-12",
+    "cto_scale": "14-16",
+}
+
+# Tier-based brief sections (locked decision)
+BRIEF_SECTIONS_BY_TIER = {
+    "bootstrapper": [
+        "problem_statement", "target_user", "value_prop",
+        "key_constraints", "assumptions", "risks",
+        "smallest_viable_experiment", "confidence_scores",
+    ],
+    "partner": [
+        "problem_statement", "target_user", "value_prop",
+        "differentiation", "monetization_hypothesis", "market_context",
+        "key_constraints", "assumptions", "risks",
+        "smallest_viable_experiment", "confidence_scores",
+    ],
+    "cto_scale": [
+        "problem_statement", "target_user", "value_prop",
+        "differentiation", "monetization_hypothesis", "market_context",
+        "competitive_analysis", "scalability_notes", "risk_deep_dive",
+        "key_constraints", "assumptions", "risks",
+        "smallest_viable_experiment", "confidence_scores",
+    ],
+}
+
+# Tier-based execution plan richness
+EXEC_PLAN_DETAIL_BY_TIER = {
+    "bootstrapper": "For each option, provide a brief engineering impact summary (2-3 sentences).",
+    "partner": "For each option, provide detailed engineering impact analysis including team composition, coordination overhead, technical risk areas, and dependency chain. Include a cost_note with estimated budget range.",
+    "cto_scale": "For each option, provide comprehensive engineering impact analysis including team composition, skill requirements, coordination overhead, technical risk areas, dependency chains, infrastructure requirements, and scaling considerations. Include detailed cost_note with budget breakdown by role. Add a 'technical_deep_dive' field with architecture recommendations.",
+}
+
+# Tier-based artifact richness
+ARTIFACT_TIER_SECTIONS = {
+    "bootstrapper": "Include core fields only for each artifact (no market_analysis, competitive_strategy, resource_plan, scalability_plan, financial_risks, strategic_risks, integration_points, security_compliance, risk_mitigation_timeline).",
+    "partner": "Include core fields plus business-tier sections: market_analysis in brief, technical_architecture in mvp_scope, resource_plan in milestones, financial_risks in risk_log, integration_points in how_it_works.",
+    "cto_scale": "Include all fields — core, business-tier, and strategic-tier sections: competitive_strategy in brief, scalability_plan in mvp_scope, risk_mitigation_timeline in milestones, strategic_risks in risk_log, security_compliance in how_it_works.",
+}
+
 
 class RunnerReal:
     """Production Runner implementation wrapping the LangGraph pipeline.
@@ -248,13 +291,8 @@ Return ONLY a JSON object:
         idea_text = context.get("idea_text", "")
         onboarding_answers = context.get("onboarding_answers", {})
 
-        # Tier-based question count
-        tier_question_counts = {
-            "bootstrapper": "6-8",
-            "partner": "10-12",
-            "cto_scale": "14-16",
-        }
-        question_count = tier_question_counts.get(tier, "6-8")
+        # Tier-based question count — use module-level constant
+        question_count = QUESTION_COUNT_BY_TIER.get(tier, "6-8")
 
         llm = await create_tracked_llm(
             user_id=user_id, role="architect", session_id=session_id
@@ -316,6 +354,11 @@ End the interview with a closing question like: "I have enough to build your bri
         """
         user_id = answers.get("_user_id", "system")
         session_id = answers.get("_session_id", "default")
+        tier = answers.get("_tier", "bootstrapper")
+
+        # Tier-conditional sections
+        sections = BRIEF_SECTIONS_BY_TIER.get(tier, BRIEF_SECTIONS_BY_TIER["bootstrapper"])
+        sections_instruction = f"Include these sections in the brief: {', '.join(sections)}."
 
         # Build formatted Q&A pairs for the prompt
         qa_pairs = []
@@ -331,10 +374,12 @@ End the interview with a closing question like: "I have enough to build your bri
             user_id=user_id, role="architect", session_id=session_id
         )
 
-        task_instructions = """Generate a Rationalised Idea Brief from the founder's understanding interview.
+        task_instructions = f"""Generate a Rationalised Idea Brief from the founder's understanding interview.
 
 Use "we" voice throughout: "We've identified...", "Our target user is...", "The risk here is..."
 Plain English — no jargon. A non-technical founder should read this without Googling anything.
+
+{sections_instruction}
 
 Return ONLY a JSON object with these fields:
 {
@@ -517,7 +562,15 @@ Return ONLY one of: "strong", "moderate", "needs_depth"
         """
         user_id = brief.get("_user_id", "system")
         session_id = brief.get("_session_id", "default")
-        tier = brief.get("_context", {}).get("tier", "bootstrapper") if isinstance(brief.get("_context"), dict) else "bootstrapper"
+        # _tier is injected by service layer; fall back to _context dict for backwards compat
+        tier = brief.get("_tier") or (
+            brief.get("_context", {}).get("tier", "bootstrapper")
+            if isinstance(brief.get("_context"), dict)
+            else "bootstrapper"
+        )
+
+        # Tier-conditional engineering detail instruction
+        detail_instruction = EXEC_PLAN_DETAIL_BY_TIER.get(tier, EXEC_PLAN_DETAIL_BY_TIER["bootstrapper"])
 
         # Clean brief for prompt (remove internal keys)
         clean_brief = {k: v for k, v in brief.items() if not k.startswith("_")}
@@ -543,13 +596,14 @@ For each option include:
 - pros (array of strings), cons (array of strings)
 - technical_approach (string), tradeoffs (array of strings), engineering_impact (string)
 
+Engineering detail level: {detail_instruction}
+
 Return ONLY a JSON object:
 {{
   "options": [...],
   "recommended_id": "..."
 }}
-
-Tier context: {tier}{feedback_context}"""
+{feedback_context}"""
 
         system_msg = SystemMessage(
             content=COFOUNDER_SYSTEM.format(task_instructions=task_instructions)
@@ -585,6 +639,11 @@ Tier context: {tier}{feedback_context}"""
         """
         user_id = brief.get("_user_id", "system")
         session_id = brief.get("_session_id", "default")
+        # _tier is injected by service layer
+        tier = brief.get("_tier", "bootstrapper")
+
+        # Tier-conditional artifact richness instruction
+        tier_sections = ARTIFACT_TIER_SECTIONS.get(tier, ARTIFACT_TIER_SECTIONS["bootstrapper"])
 
         # Filter out internal keys
         clean_brief = {k: v for k, v in brief.items() if not k.startswith("_")}
@@ -593,15 +652,17 @@ Tier context: {tier}{feedback_context}"""
             user_id=user_id, role="architect", session_id=session_id
         )
 
-        task_instructions = """Generate a complete set of project artifacts from the product brief.
+        task_instructions = f"""Generate a complete set of project artifacts from the product brief.
 These artifacts are the founder's project documentation — they'll share these with advisors,
 investors, and team members.
 
 Use "we" voice throughout. Plain English — no jargon.
 
+Artifact richness level: {tier_sections}
+
 Return ONLY a JSON object with these 5 keys:
-{
-  "brief": {
+{{
+  "brief": {{
     "_schema_version": 1,
     "problem_statement": "...",
     "target_user": "...",
@@ -610,37 +671,37 @@ Return ONLY a JSON object with these 5 keys:
     "differentiation_points": ["..."],
     "market_analysis": "...",
     "competitive_strategy": "..."
-  },
-  "mvp_scope": {
+  }},
+  "mvp_scope": {{
     "_schema_version": 1,
-    "core_features": [{"name": "...", "description": "...", "priority": "high|medium|low"}],
+    "core_features": [{{"name": "...", "description": "...", "priority": "high|medium|low"}}],
     "out_of_scope": ["..."],
     "success_metrics": ["..."],
     "technical_architecture": "...",
     "scalability_plan": "..."
-  },
-  "milestones": {
+  }},
+  "milestones": {{
     "_schema_version": 1,
-    "milestones": [{"title": "...", "description": "...", "success_criteria": ["..."], "estimated_weeks": 1}],
+    "milestones": [{{"title": "...", "description": "...", "success_criteria": ["..."], "estimated_weeks": 1}}],
     "critical_path": ["..."],
     "total_duration_weeks": 4,
     "resource_plan": "...",
     "risk_mitigation_timeline": "..."
-  },
-  "risk_log": {
+  }},
+  "risk_log": {{
     "_schema_version": 1,
-    "technical_risks": [{"title": "...", "description": "...", "severity": "high|medium|low", "mitigation": "..."}],
-    "market_risks": [{"title": "...", "description": "...", "severity": "high|medium|low", "mitigation": "..."}],
-    "execution_risks": [{"title": "...", "description": "...", "severity": "high|medium|low", "mitigation": "..."}]
-  },
-  "how_it_works": {
+    "technical_risks": [{{"title": "...", "description": "...", "severity": "high|medium|low", "mitigation": "..."}}],
+    "market_risks": [{{"title": "...", "description": "...", "severity": "high|medium|low", "mitigation": "..."}}],
+    "execution_risks": [{{"title": "...", "description": "...", "severity": "high|medium|low", "mitigation": "..."}}]
+  }},
+  "how_it_works": {{
     "_schema_version": 1,
-    "user_journey": [{"step_number": 1, "title": "...", "description": "..."}],
+    "user_journey": [{{"step_number": 1, "title": "...", "description": "..."}}],
     "architecture": "...",
     "data_flow": "...",
     "integration_points": "..."
-  }
-}
+  }}
+}}
 
 Each artifact should cross-reference others (e.g., milestones reference MVP features,
 risk log references brief assumptions)."""
