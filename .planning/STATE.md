@@ -35,6 +35,7 @@ Progress: [░░░░░░░░░░] 0% (v0.2) — v0.1 complete (phases 1
 - Trend: Stable
 
 *Updated after each plan completion*
+| Phase 13 P02 | 2 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -49,6 +50,9 @@ Recent decisions affecting v0.2 work:
 - [v0.2]: LLM activation is critical path — Stripe enforcement and CloudWatch LLM alarms only become meaningful after RunnerReal is live
 - [v0.2]: Phase 14 (Stripe) and Phase 15 (CI/CD) can be planned in parallel; both depend on Phase 13 being live first
 - [v0.2]: Phase 16 (CloudWatch) must follow Phase 13 (real LLM calls must flow for LLM alarms to fire)
+- [Phase 13]: Use async context manager split pattern in FastAPI lifespan to persist AsyncPostgresSaver across yield boundary
+- [Phase 13]: Deprecate database_url param in create_production_graph in favor of injected checkpointer from app.state
+- [Phase 13]: Exception fallback to MemorySaver ensures startup never hard-fails due to checkpointer initialization
 
 ### Pending Todos
 
