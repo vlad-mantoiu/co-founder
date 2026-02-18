@@ -19,8 +19,8 @@ Requirements for production readiness. Each maps to roadmap phases.
 - [x] **LLM-08**: LangGraph uses AsyncPostgresSaver (not MemorySaver) for production checkpointing
 - [x] **LLM-09**: All RunnerReal methods strip markdown code fences before JSON parsing
 - [x] **LLM-10**: UsageTrackingCallback logs DB/Redis write failures at WARNING level (no silent swallowing)
-- [ ] **LLM-11**: detect_llm_risks() returns real risk signals from Redis usage data and UsageLog
-- [ ] **LLM-12**: build_failure_count wired to actual executor failure data (not hardcoded 0)
+- [x] **LLM-11**: detect_llm_risks() returns real risk signals from Redis usage data and UsageLog
+- [x] **LLM-12**: build_failure_count wired to actual executor failure data (not hardcoded 0)
 - [x] **LLM-13**: All RunnerReal methods retry on Anthropic 529/overload with tenacity exponential backoff
 - [x] **LLM-14**: All LLM prompts use co-founder "we" voice consistently
 - [ ] **LLM-15**: Higher tiers receive richer analysis in briefs and more execution plan options
@@ -99,8 +99,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LLM-08 | Phase 13 | Complete |
 | LLM-09 | Phase 13 | Complete |
 | LLM-10 | Phase 13 | Complete |
-| LLM-11 | Phase 13 | Pending |
-| LLM-12 | Phase 13 | Pending |
+| LLM-11 | Phase 13 | Complete |
+| LLM-12 | Phase 13 | Complete |
 | LLM-13 | Phase 13 | Complete |
 | LLM-14 | Phase 13 | Complete |
 | LLM-15 | Phase 13 | Pending |
