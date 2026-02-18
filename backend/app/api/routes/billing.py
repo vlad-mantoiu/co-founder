@@ -105,18 +105,27 @@ async def _get_or_create_stripe_customer(
         return user_settings.stripe_customer_id
 
     _get_stripe()
-    customer = stripe.Customer.create(
+    customer = await stripe.Customer.create_async(
         metadata={"clerk_user_id": clerk_user_id},
     )
 
     factory = get_session_factory()
     async with factory() as session:
-        result = await session.execute(
-            select(UserSettings).where(UserSettings.clerk_user_id == clerk_user_id)
-        )
-        us = result.scalar_one()
-        us.stripe_customer_id = customer.id
-        await session.commit()
+        try:
+            result = await session.execute(
+                select(UserSettings).where(UserSettings.clerk_user_id == clerk_user_id)
+            )
+            us = result.scalar_one()
+            us.stripe_customer_id = customer.id
+            await session.commit()
+        except IntegrityError:
+            # Concurrent request already set stripe_customer_id — re-query to get it
+            await session.rollback()
+            result = await session.execute(
+                select(UserSettings).where(UserSettings.clerk_user_id == clerk_user_id)
+            )
+            us = result.scalar_one()
+            return us.stripe_customer_id
 
     return customer.id
 
@@ -153,11 +162,11 @@ async def create_checkout_session(
     settings = get_settings()
     _get_stripe()
 
-    checkout_session = stripe.checkout.Session.create(
+    checkout_session = await stripe.checkout.Session.create_async(
         customer=customer_id,
         mode="subscription",
         line_items=[{"price": price_id, "quantity": 1}],
-        success_url=f"{settings.frontend_url}/billing?session_id={{CHECKOUT_SESSION_ID}}",
+        success_url=f"{settings.frontend_url}/dashboard?checkout_success=true",
         cancel_url=f"{settings.frontend_url}/pricing",
         metadata={
             "clerk_user_id": user.user_id,
@@ -181,7 +190,7 @@ async def create_portal_session(
     settings = get_settings()
     _get_stripe()
 
-    portal_session = stripe.billing_portal.Session.create(
+    portal_session = await stripe.billing_portal.Session.create_async(
         customer=user_settings.stripe_customer_id,
         return_url=f"{settings.frontend_url}/billing",
     )
@@ -360,7 +369,7 @@ async def _handle_subscription_deleted(subscription: dict) -> None:
 
 
 async def _handle_payment_failed(invoice: dict) -> None:
-    """Mark subscription as past_due on payment failure."""
+    """Immediately restrict to bootstrapper tier on payment failure (no grace period)."""
     customer_id = invoice.get("customer")
 
     if not customer_id:
@@ -368,6 +377,12 @@ async def _handle_payment_failed(invoice: dict) -> None:
 
     factory = get_session_factory()
     async with factory() as session:
+        # Get bootstrapper tier for immediate downgrade
+        tier_result = await session.execute(
+            select(PlanTier).where(PlanTier.slug == "bootstrapper")
+        )
+        bootstrapper = tier_result.scalar_one()
+
         result = await session.execute(
             select(UserSettings).where(UserSettings.stripe_customer_id == customer_id)
         )
@@ -375,6 +390,8 @@ async def _handle_payment_failed(invoice: dict) -> None:
         if user_settings is None:
             return
 
+        user_settings.plan_tier_id = bootstrapper.id
         user_settings.stripe_subscription_status = "past_due"
+        # Do NOT clear stripe_subscription_id — Stripe may still recover the subscription
         await session.commit()
-        logger.info("Payment failed — set past_due for customer %s", customer_id)
+        logger.info("Payment failed — restricted to bootstrapper for customer %s", customer_id)

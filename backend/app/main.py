@@ -21,6 +21,24 @@ from app.middleware.correlation import (
 logger = logging.getLogger(__name__)
 
 
+def validate_price_map() -> None:
+    """Fail fast if any Stripe price ID is missing at startup."""
+    settings = get_settings()
+    if settings.debug:
+        return  # Skip in dev/test mode
+    required = {
+        "stripe_price_bootstrapper_monthly": settings.stripe_price_bootstrapper_monthly,
+        "stripe_price_bootstrapper_annual": settings.stripe_price_bootstrapper_annual,
+        "stripe_price_partner_monthly": settings.stripe_price_partner_monthly,
+        "stripe_price_partner_annual": settings.stripe_price_partner_annual,
+        "stripe_price_cto_monthly": settings.stripe_price_cto_monthly,
+        "stripe_price_cto_annual": settings.stripe_price_cto_annual,
+    }
+    missing = [k for k, v in required.items() if not v]
+    if missing:
+        raise RuntimeError(f"Missing Stripe price IDs at startup: {missing}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler for startup/shutdown events."""
@@ -41,6 +59,9 @@ async def lifespan(app: FastAPI):
 
     await seed_plan_tiers()
     print("Plan tiers seeded.")
+
+    validate_price_map()
+    print("Stripe PRICE_MAP validated.")
 
     # Initialize Neo4j schema (non-fatal)
     try:
