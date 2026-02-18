@@ -121,7 +121,9 @@ Recent decisions affecting v0.2 work:
 
 ### Pending Todos
 
-None yet.
+- [ ] Verify workflow_run gate: push a commit with a failing test and confirm deploy.yml does NOT trigger
+- [ ] Verify path filtering: push a backend-only change and confirm deploy-frontend job is skipped in Actions UI
+- [ ] Fix 16 pre-existing unit test failures (test_auth 4, test_usage_counters 8, test_runner_protocol 1, test_runner_fake 2, test_artifact_models 1) — CI gate will fail on every push until resolved
 
 ### Blockers/Concerns
 

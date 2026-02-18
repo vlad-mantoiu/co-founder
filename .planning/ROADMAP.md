@@ -128,7 +128,7 @@ Phases execute in numeric order: 13 → 14 → 15 → 16
 | 12. Milestone Audit Gap Closure | v0.1 | 1/1 | Complete | 2026-02-17 |
 | 13. LLM Activation and Hardening | 7/7 | Complete   | 2026-02-18 | - |
 | 14. Stripe Live Activation | 3/4 | Complete    | 2026-02-18 | - |
-| 15. CI/CD Hardening | 3/3 | Complete   | 2026-02-18 | - |
+| 15. CI/CD Hardening | 3/3 | Complete    | 2026-02-18 | - |
 | 16. CloudWatch Observability | v0.2 | 0/TBD | Not started | - |
 
 ---
