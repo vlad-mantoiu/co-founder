@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-18)
 ## Current Position
 
 Phase: 14 of 16 (Stripe Live Activation)
-Plan: 1 of 4 in current phase
+Plan: 3 of 4 in current phase
 Status: In Progress
-Last activity: 2026-02-19 — Phase 14 Plan 01 complete (Stripe billing hardening — idempotency, async SDK, startup validation)
+Last activity: 2026-02-19 — Phase 14 Plan 03 complete (usage meter endpoint, billing page overhaul, checkout success toast)
 
 Progress: [█░░░░░░░░░] 10% (v0.2) — v0.1 complete (phases 1-12)
 
@@ -53,6 +53,7 @@ Progress: [█░░░░░░░░░] 10% (v0.2) — v0.1 complete (phases 
 | Plan | Duration | Tasks | Files |
 |------|----------|-------|-------|
 | Phase 14 P01 | 3 min | 2 tasks | 5 files |
+| Phase 14 P03 | 3 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -89,6 +90,9 @@ Recent decisions affecting v0.2 work:
 - [Phase 14 P01]: validate_price_map() returns early if settings.debug=True so local dev and tests are never blocked
 - [Phase 14 P01]: success_url redirects to /dashboard?checkout_success=true (locked decision — main dashboard with success toast)
 - [Phase 14 P01]: Payment failure sets plan_tier_id to bootstrapper immediately — no grace period; stripe_subscription_id preserved for Stripe recovery
+- [Phase 14]: UsageMeter shown as first visual element for subscribed users — token usage is the primary billing signal
+- [Phase 14]: CheckoutSuccessDetector and CheckoutAutoRedirector are separate client components in Suspense — Next.js 15 requires useSearchParams callers to be inside Suspense
+- [Phase 14]: Billing page upgrade section references $99/mo explicitly — no 'free tier' framing for bootstrapper
 
 ### Pending Todos
 
@@ -103,9 +107,9 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: Phase 14 Plan 01 complete (Stripe billing hardening)
-Resume file: .planning/phases/14-stripe-live-activation/14-01-SUMMARY.md
-Next action: Execute Phase 14 Plan 02
+Stopped at: Completed 14-03-PLAN.md
+Resume file: .planning/phases/14-stripe-live-activation/14-03-SUMMARY.md
+Next action: Execute Phase 14 Plan 04
 
 ---
 *v0.1 COMPLETE — 56 plans, 12 phases, 76/76 requirements (2026-02-17)*
