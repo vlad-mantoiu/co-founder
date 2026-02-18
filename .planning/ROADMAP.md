@@ -33,7 +33,7 @@
 
 - [x] **Phase 13: LLM Activation and Hardening** - Wire RunnerReal to real Claude calls, fix silent failures, replace MemorySaver (completed 2026-02-18)
 - [x] **Phase 14: Stripe Live Activation** - Activate subscription billing end-to-end with idempotency and async SDK (completed 2026-02-18)
-- [ ] **Phase 15: CI/CD Hardening** - Add test gate before deploy, path filtering, SHA-pinned ECS deploys, graceful shutdown
+- [x] **Phase 15: CI/CD Hardening** - Add test gate before deploy, path filtering, SHA-pinned ECS deploys, graceful shutdown (completed 2026-02-18)
 - [ ] **Phase 16: CloudWatch Observability** - SNS alerts, CloudWatch alarms, structured logging, LLM latency metrics
 
 ## Phase Details
@@ -128,7 +128,7 @@ Phases execute in numeric order: 13 → 14 → 15 → 16
 | 12. Milestone Audit Gap Closure | v0.1 | 1/1 | Complete | 2026-02-17 |
 | 13. LLM Activation and Hardening | 7/7 | Complete   | 2026-02-18 | - |
 | 14. Stripe Live Activation | 3/4 | Complete    | 2026-02-18 | - |
-| 15. CI/CD Hardening | 2/3 | In Progress|  | - |
+| 15. CI/CD Hardening | 3/3 | Complete   | 2026-02-18 | - |
 | 16. CloudWatch Observability | v0.2 | 0/TBD | Not started | - |
 
 ---

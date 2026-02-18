@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-18)
 ## Current Position
 
 Phase: 15 of 16 (CI/CD Hardening)
-Plan: 2 of 3 in current phase
-Status: In Progress
-Last activity: 2026-02-19 — Phase 15 Plan 02 complete (SIGTERM handler, shutdown-aware health check, ALB 60s deregistration delay)
+Plan: 3 of 3 in current phase (COMPLETE)
+Status: Phase Complete
+Last activity: 2026-02-19 — Phase 15 Plan 03 complete (test-gated, path-filtered, SHA-pinned CI/CD workflows)
 
 Progress: [█░░░░░░░░░] 10% (v0.2) — v0.1 complete (phases 1-12)
 
@@ -63,6 +63,7 @@ Progress: [█░░░░░░░░░] 10% (v0.2) — v0.1 complete (phases 
 |------|----------|-------|-------|
 | Phase 15 P01 | 18 min | 2 tasks | 51 files |
 | Phase 15 P02 | 1 min | 2 tasks | 3 files |
+| Phase 15 P03 | 2 min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -112,6 +113,11 @@ Recent decisions affecting v0.2 work:
 - [Phase 15 P01]: test_feature_flags.py and test_provisioning.py in domain/ marked integration (require real PostgreSQL)
 - [Phase 15 P02]: SIGTERM handler sets app.state.shutting_down bool in main thread; health check reads it defensively via getattr with False default
 - [Phase 15 P02]: ALB setAttribute() workaround for 60s deregistration delay (CDK Issue #4015 — no first-class prop on ApplicationLoadBalancedFargateService)
+- [Phase 15 P03]: Use workflow_run (not needs:) to chain deploy.yml after test.yml — separate workflows cannot use needs: across files
+- [Phase 15 P03]: workflow_dispatch bypasses test gate and path filter by design — changes job conditional on workflow_run only; hotfix use case
+- [Phase 15 P03]: CDK deploy step removed from deploy.yml — infrastructure changes require deliberate CDK runs, not every code push
+- [Phase 15 P03]: ECS task definitions fetched dynamically from ECS at deploy time via describe-task-definition — avoids staleness when CDK updates infra
+- [Phase 15 P03]: always() + needs.result == 'success' + changes.result == 'skipped' pattern handles skipped changes job on manual dispatch
 
 ### Pending Todos
 
@@ -126,9 +132,9 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: Completed 15-01-PLAN.md (pytest marker infrastructure, asyncio scope fix)
-Resume file: .planning/phases/15-ci-cd-hardening/15-01-SUMMARY.md
-Next action: Execute Phase 15 Plan 03 (Smoke Test GitHub Actions workflow) — Plan 01 and 02 complete, only Plan 03 remains
+Stopped at: Completed 15-03-PLAN.md (CI/CD workflow restructure — test gate, path filter, SHA-pinned ECS deploy, nightly integration tests)
+Resume file: .planning/phases/15-ci-cd-hardening/15-03-SUMMARY.md
+Next action: Execute Phase 16 (CloudWatch Alarms) — Phase 15 complete, all 3 plans done
 
 ---
 *v0.1 COMPLETE — 56 plans, 12 phases, 76/76 requirements (2026-02-17)*

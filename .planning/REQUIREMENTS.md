@@ -38,11 +38,11 @@ Requirements for production readiness. Each maps to roadmap phases.
 
 ### CI/CD
 
-- [ ] **CICD-01**: deploy.yml requires test job to pass before deploying
-- [ ] **CICD-02**: Ruff lint check runs in CI and blocks deploy on failure
-- [ ] **CICD-03**: Frontend TypeScript typecheck (tsc --noEmit) runs in CI
-- [ ] **CICD-04**: ECS deploy uses SHA-pinned task definitions via render + deploy actions
-- [ ] **CICD-05**: Path filtering ensures backend-only changes don't rebuild frontend (and vice versa)
+- [x] **CICD-01**: deploy.yml requires test job to pass before deploying
+- [x] **CICD-02**: Ruff lint check runs in CI and blocks deploy on failure
+- [x] **CICD-03**: Frontend TypeScript typecheck (tsc --noEmit) runs in CI
+- [x] **CICD-04**: ECS deploy uses SHA-pinned task definitions via render + deploy actions
+- [x] **CICD-05**: Path filtering ensures backend-only changes don't rebuild frontend (and vice versa)
 - [x] **CICD-06**: FastAPI SIGTERM handler fails health check immediately for graceful shutdown
 - [x] **CICD-07**: ALB deregistration delay set to 60s in CDK
 - [x] **CICD-08**: pytest-asyncio scope fix resolves 18 deferred integration tests
@@ -112,11 +112,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BILL-06 | Phase 14 | Complete |
 | BILL-07 | Phase 14 | Complete |
 | BILL-08 | Phase 14 | Complete |
-| CICD-01 | Phase 15 | Pending |
-| CICD-02 | Phase 15 | Pending |
-| CICD-03 | Phase 15 | Pending |
-| CICD-04 | Phase 15 | Pending |
-| CICD-05 | Phase 15 | Pending |
+| CICD-01 | Phase 15 | Complete |
+| CICD-02 | Phase 15 | Complete |
+| CICD-03 | Phase 15 | Complete |
+| CICD-04 | Phase 15 | Complete |
+| CICD-05 | Phase 15 | Complete |
 | CICD-06 | Phase 15 | Complete |
 | CICD-07 | Phase 15 | Complete |
 | CICD-08 | Phase 15 | Complete |
