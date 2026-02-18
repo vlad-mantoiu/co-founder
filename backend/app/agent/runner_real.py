@@ -382,7 +382,7 @@ Plain English — no jargon. A non-technical founder should read this without Go
 {sections_instruction}
 
 Return ONLY a JSON object with these fields:
-{
+{{
   "problem_statement": "...",
   "target_user": "...",
   "value_prop": "...",
@@ -393,7 +393,7 @@ Return ONLY a JSON object with these fields:
   "assumptions": ["..."],
   "risks": ["..."],
   "smallest_viable_experiment": "...",
-  "confidence_scores": {
+  "confidence_scores": {{
     "problem_statement": "strong|moderate|needs_depth",
     "target_user": "strong|moderate|needs_depth",
     "value_prop": "strong|moderate|needs_depth",
@@ -404,9 +404,9 @@ Return ONLY a JSON object with these fields:
     "assumptions": "strong|moderate|needs_depth",
     "risks": "strong|moderate|needs_depth",
     "smallest_viable_experiment": "strong|moderate|needs_depth"
-  },
+  }},
   "_schema_version": 1
-}
+}}
 
 For confidence_scores, assess each section as:
 - "strong": Backed by specific evidence, customer interviews, or data from the founder's answers
