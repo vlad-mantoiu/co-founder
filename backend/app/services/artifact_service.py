@@ -16,9 +16,11 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.artifacts.generator import ArtifactGenerator
+from app.db.graph.strategy_graph import get_strategy_graph
 from app.db.models.artifact import Artifact
 from app.db.models.project import Project
 from app.schemas.artifacts import ArtifactType, GENERATION_ORDER
+from app.services.graph_service import GraphService
 
 
 class ArtifactService:
@@ -97,9 +99,12 @@ class ArtifactService:
                     artifact_type = ArtifactType(artifact_row.artifact_type)
                     existing_artifacts[artifact_type] = artifact_row.current_content
 
+            # Inject tier into onboarding_data so it reaches generate_artifacts
+            onboarding_data_with_tier = {**onboarding_data, "_tier": tier}
+
             # Generate cascade
             completed, failed = await self.generator.generate_cascade(
-                onboarding_data=onboarding_data,
+                onboarding_data=onboarding_data_with_tier,
                 existing_artifacts=existing_artifacts if existing_artifacts else None,
             )
 
@@ -168,6 +173,38 @@ class ArtifactService:
                     artifact.generation_status = "failed"
 
             await session.commit()
+
+            # Sync completed artifacts to Neo4j strategy graph (non-fatal)
+            graph_service = GraphService(get_strategy_graph())
+            for artifact_type, content in completed.items():
+                result = await session.execute(
+                    select(Artifact).where(
+                        Artifact.project_id == project_id,
+                        Artifact.artifact_type == artifact_type.value,
+                    )
+                )
+                artifact = result.scalar_one_or_none()
+                if artifact:
+                    await graph_service.sync_artifact_to_graph(artifact, str(project_id))
+
+            # Create edges: each artifact FOLLOWS the previous in generation order
+            synced_ids = []
+            for at in GENERATION_ORDER:
+                result = await session.execute(
+                    select(Artifact).where(
+                        Artifact.project_id == project_id,
+                        Artifact.artifact_type == at.value,
+                    )
+                )
+                artifact = result.scalar_one_or_none()
+                if artifact and artifact.generation_status == "idle":
+                    synced_ids.append(str(artifact.id))
+
+            for i in range(1, len(synced_ids)):
+                await graph_service.create_decision_edge(
+                    synced_ids[i - 1], synced_ids[i], "LEADS_TO"
+                )
+
             return (artifact_ids, failed)
 
     async def get_artifact(self, artifact_id: UUID, user_id: str) -> Artifact | None:

@@ -17,11 +17,13 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.agent.runner import Runner
+from app.db.graph.strategy_graph import get_strategy_graph
 from app.db.models.artifact import Artifact
 from app.db.models.onboarding_session import OnboardingSession
 from app.db.models.project import Project
 from app.db.models.understanding_session import UnderstandingSession
 from app.schemas.artifacts import ArtifactType
+from app.services.graph_service import GraphService
 
 
 class UnderstandingService:
@@ -72,10 +74,18 @@ class UnderstandingService:
                     detail="Onboarding session must be completed before starting understanding interview",
                 )
 
+            # Resolve tier for the user
+            from app.core.llm_config import get_or_create_user_settings
+            user_settings = await get_or_create_user_settings(clerk_user_id)
+            tier_slug = user_settings.plan_tier.slug if user_settings.plan_tier else "bootstrapper"
+
             # Generate understanding questions via Runner
             context = {
                 "idea_text": onboarding.idea_text,
                 "onboarding_answers": onboarding.answers,
+                "user_id": clerk_user_id,
+                "session_id": str(onboarding.id),
+                "tier": tier_slug,
             }
             questions_data = await self.runner.generate_understanding_questions(context)
 
@@ -184,9 +194,17 @@ class UnderstandingService:
                 q for q in understanding.questions if q["id"] not in understanding.answers
             ]
 
+            # Load onboarding session for idea_text
+            onboarding_result = await session.execute(
+                select(OnboardingSession).where(
+                    OnboardingSession.id == understanding.onboarding_session_id
+                )
+            )
+            onboarding = onboarding_result.scalar_one()
+
             # Check if remaining questions need regeneration
             relevance_check = await self.runner.check_question_relevance(
-                idea="",  # Not needed for fake
+                idea=onboarding.idea_text,
                 answered=answered_questions,
                 answers=understanding.answers,
                 remaining=remaining_questions,
@@ -251,12 +269,23 @@ class UnderstandingService:
             )
             onboarding = onboarding_result.scalar_one()
 
+            # Resolve tier for the user
+            from app.core.llm_config import get_or_create_user_settings
+            user_settings = await get_or_create_user_settings(clerk_user_id)
+            tier_slug = user_settings.plan_tier.slug if user_settings.plan_tier else "bootstrapper"
+
+            # Inject tier into answers so generate_idea_brief can read it
+            answers_with_tier = {**understanding.answers, "_tier": tier_slug}
+
             # Generate Idea Brief via Runner
             brief_content = await self.runner.generate_idea_brief(
                 idea=onboarding.idea_text,
                 questions=understanding.questions,
-                answers=understanding.answers,
+                answers=answers_with_tier,
             )
+
+            # Inject _tier into brief content for downstream tier-differentiation
+            brief_content["_tier"] = tier_slug
 
             # Store as Artifact
             artifact = Artifact(
@@ -277,6 +306,10 @@ class UnderstandingService:
             await session.commit()
             await session.refresh(artifact)
             await session.refresh(understanding)
+
+            # Sync artifact to Neo4j strategy graph (non-fatal)
+            graph_service = GraphService(get_strategy_graph())
+            await graph_service.sync_artifact_to_graph(artifact, str(understanding.project_id))
 
             return {
                 "brief": brief_content,
@@ -430,12 +463,21 @@ class UnderstandingService:
             )
             onboarding = onboarding_result.scalar_one()
 
+            # Resolve tier for the user
+            from app.core.llm_config import get_or_create_user_settings
+            user_settings = await get_or_create_user_settings(clerk_user_id)
+            tier_slug = user_settings.plan_tier.slug if user_settings.plan_tier else "bootstrapper"
+
             # Generate fresh questions
             context = {
                 "idea_text": onboarding.idea_text,
+                "onboarding_answers": onboarding.answers,
                 "existing_brief": (
                     understanding.answers if understanding.answers else None
-                ),  # Context from previous attempt
+                ),
+                "user_id": clerk_user_id,
+                "session_id": str(understanding.id),
+                "tier": tier_slug,
             }
             questions_data = await self.runner.generate_understanding_questions(context)
 
