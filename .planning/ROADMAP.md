@@ -100,12 +100,12 @@ Plans:
   3. Backend logs are structured JSON, enabling CloudWatch Insights to query by correlation_id, user_id, or error type
   4. Each RunnerReal method emits a custom CloudWatch metric for LLM call latency, visible in the AWS console
   5. New subscription and artifact generation events are emitted as business metrics to CloudWatch
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 16-01: TBD
-- [ ] 16-02: TBD
-- [ ] 16-03: TBD
+- [ ] 16-01-PLAN.md — Structured JSON logging migration (structlog + full backend migration)
+- [ ] 16-02-PLAN.md — CDK ObservabilityStack (SNS topic, 5 CloudWatch alarms, metric filter, log retention)
+- [ ] 16-03-PLAN.md — Custom CloudWatch metrics (LLM latency per method, business events)
 
 ## Progress
 
@@ -129,7 +129,7 @@ Phases execute in numeric order: 13 → 14 → 15 → 16
 | 13. LLM Activation and Hardening | 7/7 | Complete   | 2026-02-18 | - |
 | 14. Stripe Live Activation | 3/4 | Complete    | 2026-02-18 | - |
 | 15. CI/CD Hardening | 3/3 | Complete    | 2026-02-18 | - |
-| 16. CloudWatch Observability | v0.2 | 0/TBD | Not started | - |
+| 16. CloudWatch Observability | v0.2 | 0/3 | Not started | - |
 
 ---
 *Created: 2026-02-16*
