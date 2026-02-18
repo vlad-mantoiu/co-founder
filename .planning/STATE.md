@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-18)
 ## Current Position
 
 Phase: 14 of 16 (Stripe Live Activation)
-Plan: 3 of 4 in current phase
-Status: In Progress
-Last activity: 2026-02-19 — Phase 14 Plan 03 complete (usage meter endpoint, billing page overhaul, checkout success toast)
+Plan: 4 of 4 in current phase
+Status: Complete
+Last activity: 2026-02-19 — Phase 14 Plan 04 complete (pricing page annual clarification, webhook registration, Customer Portal config)
 
 Progress: [█░░░░░░░░░] 10% (v0.2) — v0.1 complete (phases 1-12)
 
@@ -55,6 +55,7 @@ Progress: [█░░░░░░░░░] 10% (v0.2) — v0.1 complete (phases 
 | Phase 14 P01 | 3 min | 2 tasks | 5 files |
 | Phase 14 P02 | 4 min | 1 task | 1 file |
 | Phase 14 P03 | 3 | 2 tasks | 3 files |
+| Phase 14 P04 | 15 min | 2 tasks | 1 file |
 
 ## Accumulated Context
 
@@ -97,6 +98,8 @@ Recent decisions affecting v0.2 work:
 - [Phase 14]: UsageMeter shown as first visual element for subscribed users — token usage is the primary billing signal
 - [Phase 14]: CheckoutSuccessDetector and CheckoutAutoRedirector are separate client components in Suspense — Next.js 15 requires useSearchParams callers to be inside Suspense
 - [Phase 14]: Billing page upgrade section references $99/mo explicitly — no 'free tier' framing for bootstrapper
+- [Phase 14 P04]: Annual pricing cards show 'billed annually' beneath price figure — clarifies lump-sum annual charge to founders
+- [Phase 14 P04]: Webhook endpoint registered at https://api.cofounder.getinsourced.ai/api/webhooks/stripe; signing secret in cofounder/app Secrets Manager
 
 ### Pending Todos
 
@@ -111,9 +114,9 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: Completed 14-03-PLAN.md
-Resume file: .planning/phases/14-stripe-live-activation/14-03-SUMMARY.md
-Next action: Execute Phase 14 Plan 04
+Stopped at: Completed 14-04-PLAN.md (Phase 14 complete)
+Resume file: .planning/phases/14-stripe-live-activation/14-04-SUMMARY.md
+Next action: Execute Phase 15 (CI/CD)
 
 ---
 *v0.1 COMPLETE — 56 plans, 12 phases, 76/76 requirements (2026-02-17)*

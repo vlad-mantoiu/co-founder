@@ -68,10 +68,10 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 14-01-PLAN.md — Backend hardening: idempotency table, async SDK, PRICE_MAP validation, payment failure fix
-- [ ] 14-02-PLAN.md — TDD: Billing API tests (idempotency, async, startup validation)
-- [ ] 14-03-PLAN.md — Usage meter endpoint + billing page overhaul + checkout success toast
-- [ ] 14-04-PLAN.md — Pricing page verification, annual billing clarification, webhook registration
+- [x] 14-01-PLAN.md — Backend hardening: idempotency table, async SDK, PRICE_MAP validation, payment failure fix
+- [x] 14-02-PLAN.md — TDD: Billing API tests (idempotency, async, startup validation)
+- [x] 14-03-PLAN.md — Usage meter endpoint + billing page overhaul + checkout success toast
+- [x] 14-04-PLAN.md — Pricing page verification, annual billing clarification, webhook registration
 
 ### Phase 15: CI/CD Hardening
 **Goal**: No broken code can reach production — deploys are test-gated, path-filtered, and traceable to a specific image SHA

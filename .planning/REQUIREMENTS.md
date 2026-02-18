@@ -30,11 +30,11 @@ Requirements for production readiness. Each maps to roadmap phases.
 - [x] **BILL-01**: Stripe webhook handlers check event.id for idempotency before processing
 - [x] **BILL-02**: PRICE_MAP validated at startup via lifespan (fail fast on missing price IDs)
 - [x] **BILL-03**: Stripe API calls use async SDK (no event loop blocking)
-- [ ] **BILL-04**: Pricing page checkout buttons wired to real POST /api/billing/checkout
+- [x] **BILL-04**: Pricing page checkout buttons wired to real POST /api/billing/checkout
 - [x] **BILL-05**: Checkout success state shown in billing page after redirect
 - [x] **BILL-06**: Usage meter displays tokens used vs plan limit on billing page
-- [ ] **BILL-07**: Annual/monthly pricing toggle on pricing page
-- [ ] **BILL-08**: Stripe webhook endpoint registered and verified in production
+- [x] **BILL-07**: Annual/monthly pricing toggle on pricing page
+- [x] **BILL-08**: Stripe webhook endpoint registered and verified in production
 
 ### CI/CD
 
@@ -107,11 +107,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BILL-01 | Phase 14 | Complete |
 | BILL-02 | Phase 14 | Complete |
 | BILL-03 | Phase 14 | Complete |
-| BILL-04 | Phase 14 | Pending |
+| BILL-04 | Phase 14 | Complete |
 | BILL-05 | Phase 14 | Complete |
 | BILL-06 | Phase 14 | Complete |
-| BILL-07 | Phase 14 | Pending |
-| BILL-08 | Phase 14 | Pending |
+| BILL-07 | Phase 14 | Complete |
+| BILL-08 | Phase 14 | Complete |
 | CICD-01 | Phase 15 | Pending |
 | CICD-02 | Phase 15 | Pending |
 | CICD-03 | Phase 15 | Pending |
