@@ -27,9 +27,9 @@ Requirements for production readiness. Each maps to roadmap phases.
 
 ### Stripe Billing
 
-- [ ] **BILL-01**: Stripe webhook handlers check event.id for idempotency before processing
-- [ ] **BILL-02**: PRICE_MAP validated at startup via lifespan (fail fast on missing price IDs)
-- [ ] **BILL-03**: Stripe API calls use async SDK (no event loop blocking)
+- [x] **BILL-01**: Stripe webhook handlers check event.id for idempotency before processing
+- [x] **BILL-02**: PRICE_MAP validated at startup via lifespan (fail fast on missing price IDs)
+- [x] **BILL-03**: Stripe API calls use async SDK (no event loop blocking)
 - [ ] **BILL-04**: Pricing page checkout buttons wired to real POST /api/billing/checkout
 - [ ] **BILL-05**: Checkout success state shown in billing page after redirect
 - [ ] **BILL-06**: Usage meter displays tokens used vs plan limit on billing page
@@ -104,9 +104,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LLM-13 | Phase 13 | Complete |
 | LLM-14 | Phase 13 | Complete |
 | LLM-15 | Phase 13 | Complete |
-| BILL-01 | Phase 14 | Pending |
-| BILL-02 | Phase 14 | Pending |
-| BILL-03 | Phase 14 | Pending |
+| BILL-01 | Phase 14 | Complete |
+| BILL-02 | Phase 14 | Complete |
+| BILL-03 | Phase 14 | Complete |
 | BILL-04 | Phase 14 | Pending |
 | BILL-05 | Phase 14 | Pending |
 | BILL-06 | Phase 14 | Pending |

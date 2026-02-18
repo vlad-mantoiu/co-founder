@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-02-18)
 
 ## Current Position
 
-Phase: 13 of 16 (LLM Activation and Hardening)
-Plan: 7 of 7 in current phase
-Status: Complete
-Last activity: 2026-02-18 — Phase 13 Plan 07 complete (LLM test suite — mocked RunnerReal and retry tests)
+Phase: 14 of 16 (Stripe Live Activation)
+Plan: 1 of 4 in current phase
+Status: In Progress
+Last activity: 2026-02-19 — Phase 14 Plan 01 complete (Stripe billing hardening — idempotency, async SDK, startup validation)
 
 Progress: [█░░░░░░░░░] 10% (v0.2) — v0.1 complete (phases 1-12)
 
@@ -48,6 +48,12 @@ Progress: [█░░░░░░░░░] 10% (v0.2) — v0.1 complete (phases 
 | Phase 13 P05 | 3 | 1 tasks | 1 files |
 | Phase 13 P07 | 5 | 2 tasks | 4 files |
 
+**Phase 14 (v0.2):**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 14 P01 | 3 min | 2 tasks | 5 files |
+
 ## Accumulated Context
 
 ### Decisions
@@ -79,6 +85,10 @@ Recent decisions affecting v0.2 work:
 - [Phase 13]: Mock create_tracked_llm via side_effect factory (not return_value) to handle async await chain correctly in RunnerReal tests
 - [Phase 13]: httpx.Request required for OverloadedError constructor — plain httpx.Response(529) fails without attached request
 - [Phase 13]: tenacity retry_with(wait=wait_none()) pattern for disabling backoff in tests without modifying production code
+- [Phase 14 P01]: StripeWebhookEvent uses event_id as PK — PK collision on duplicate naturally raises IntegrityError without extra query
+- [Phase 14 P01]: validate_price_map() returns early if settings.debug=True so local dev and tests are never blocked
+- [Phase 14 P01]: success_url redirects to /dashboard?checkout_success=true (locked decision — main dashboard with success toast)
+- [Phase 14 P01]: Payment failure sets plan_tier_id to bootstrapper immediately — no grace period; stripe_subscription_id preserved for Stripe recovery
 
 ### Pending Todos
 
@@ -93,9 +103,9 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: Phase 14 context gathered
-Resume file: .planning/phases/14-stripe-live-activation/14-CONTEXT.md
-Next action: `/gsd:plan-phase 14`
+Stopped at: Phase 14 Plan 01 complete (Stripe billing hardening)
+Resume file: .planning/phases/14-stripe-live-activation/14-01-SUMMARY.md
+Next action: Execute Phase 14 Plan 02
 
 ---
 *v0.1 COMPLETE — 56 plans, 12 phases, 76/76 requirements (2026-02-17)*
