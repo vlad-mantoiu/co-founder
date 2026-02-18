@@ -1,15 +1,21 @@
 """RunnerReal: Production implementation of the Runner protocol wrapping LangGraph.
 
-This implementation:
-1. Wraps the existing LangGraph pipeline without modifying it
-2. Provides direct access to individual nodes via step()
-3. Implements placeholder LLM operations for future phases
+Implements all 10 Runner protocol methods with:
+- Real Claude LLM calls via create_tracked_llm()
+- Tenacity retry on 529 OverloadedError
+- Markdown fence stripping before JSON parsing
+- Co-founder "we" voice in all prompts
+- Silent JSON retry with stricter prompt on first parse failure
 """
 
-from langgraph.checkpoint.memory import MemorySaver
+import json
+import logging
+
 from langchain_core.messages import HumanMessage, SystemMessage
+from langgraph.checkpoint.memory import MemorySaver
 
 from app.agent.graph import create_cofounder_graph
+from app.agent.llm_helpers import _invoke_with_retry, _parse_json_response
 from app.agent.nodes import (
     architect_node,
     coder_node,
@@ -20,6 +26,20 @@ from app.agent.nodes import (
 )
 from app.agent.state import CoFounderState
 from app.core.llm_config import create_tracked_llm
+
+logger = logging.getLogger(__name__)
+
+COFOUNDER_SYSTEM = """You are the founder's AI co-founder — a senior technical partner invested in their success.
+
+Your voice:
+- Use "we" for shared decisions ("We should consider...", "Our biggest risk here is...")
+- Use "your" for the founder's vision ("Your target customer...", "Your core insight...")
+- Use "I'd suggest" for technical recommendations
+- Validate first, then guide: "That's a solid instinct. One thing we should stress-test is..."
+- Plain English only — no jargon. The founder should never need to Google a term.
+- Never condescending. Smart, warm, direct.
+
+{task_instructions}"""
 
 
 class RunnerReal:
@@ -91,9 +111,6 @@ class RunnerReal:
     async def generate_questions(self, context: dict) -> list[dict]:
         """Generate onboarding questions tailored to the user's idea context.
 
-        This is a placeholder implementation for Phase 4 (Onboarding).
-        Currently generates generic questions based on idea keywords.
-
         Args:
             context: Dictionary with keys like "idea_keywords", "domain", etc.
 
@@ -101,51 +118,57 @@ class RunnerReal:
             List of question dicts with keys: id, text, required
 
         Raises:
-            RuntimeError: If LLM call fails
+            RuntimeError: If LLM call fails after retries
         """
-        try:
-            # Extract context
-            idea_keywords = context.get("idea_keywords", "")
-            user_id = context.get("user_id", "system")
-            session_id = context.get("session_id", "default")
+        user_id = context.get("user_id", "system")
+        session_id = context.get("session_id", "default")
+        idea_keywords = context.get("idea_keywords", "")
 
-            # Create LLM with tracking
-            llm = await create_tracked_llm(
-                user_id=user_id, role="architect", session_id=session_id
-            )
+        llm = await create_tracked_llm(
+            user_id=user_id, role="architect", session_id=session_id
+        )
 
-            # Generate questions using LLM
-            system_msg = SystemMessage(
-                content="""You are an expert product strategist helping founders clarify their ideas.
-Generate 5-7 questions that will help understand their idea deeply.
+        task_instructions = """Generate 5-7 questions that help us understand the founder's idea.
 
-Return ONLY a JSON array of objects with this structure:
+Use "we" language throughout — we're exploring this together:
+- "Who are we building this for?"
+- "What problem are we solving?"
+- "How will we make money?"
+
+Return ONLY a JSON array of objects:
 [
-  {"id": "1", "text": "What specific problem are you solving?", "required": true},
-  {"id": "2", "text": "Who is your target user?", "required": true}
+  {
+    "id": "q1",
+    "text": "...",
+    "input_type": "textarea",
+    "required": true,
+    "options": null,
+    "follow_up_hint": null
+  }
 ]"""
+
+        system_msg = SystemMessage(
+            content=COFOUNDER_SYSTEM.format(task_instructions=task_instructions)
+        )
+        human_msg = HumanMessage(
+            content=f"Generate onboarding questions for an idea with these keywords: {idea_keywords or 'general software product'}"
+        )
+
+        try:
+            response = await _invoke_with_retry(llm, [system_msg, human_msg])
+            return _parse_json_response(response.content)
+        except json.JSONDecodeError:
+            logger.warning("RunnerReal.generate_questions: JSON parse failed, retrying with strict prompt")
+            strict_system = SystemMessage(
+                content="IMPORTANT: Your response MUST be valid JSON only. "
+                "Do not include any explanation, markdown, or code fences. "
+                "Start your response with [ .\n\n" + system_msg.content
             )
-
-            human_msg = HumanMessage(
-                content=f"Generate onboarding questions for an idea with these keywords: {idea_keywords or 'general software product'}"
-            )
-
-            response = await llm.ainvoke([system_msg, human_msg])
-            content = response.content
-
-            # Parse JSON response
-            import json
-
-            questions = json.loads(content)
-            return questions
-
-        except Exception as e:
-            raise RuntimeError(f"Failed to generate questions: {str(e)}") from e
+            response = await _invoke_with_retry(llm, [strict_system, human_msg])
+            return _parse_json_response(response.content)
 
     async def generate_brief(self, answers: dict) -> dict:
         """Generate a structured product brief from onboarding answers.
-
-        This is a placeholder implementation for Phase 8 (Understanding Interview).
 
         Args:
             answers: Dictionary mapping question IDs to user answers
@@ -156,108 +179,488 @@ Return ONLY a JSON array of objects with this structure:
             smallest_viable_experiment
 
         Raises:
-            RuntimeError: If LLM call fails
+            RuntimeError: If LLM call fails after retries
         """
-        try:
-            user_id = answers.get("_user_id", "system")
-            session_id = answers.get("_session_id", "default")
+        user_id = answers.get("_user_id", "system")
+        session_id = answers.get("_session_id", "default")
 
-            # Create LLM with tracking
-            llm = await create_tracked_llm(
-                user_id=user_id, role="architect", session_id=session_id
-            )
+        # Filter out internal keys
+        clean_answers = {k: v for k, v in answers.items() if not k.startswith("_")}
 
-            # Generate brief using LLM
-            system_msg = SystemMessage(
-                content="""You are a product strategist converting user answers into a structured product brief.
+        llm = await create_tracked_llm(
+            user_id=user_id, role="architect", session_id=session_id
+        )
 
-Return ONLY a JSON object with this structure:
+        task_instructions = """Convert the founder's onboarding answers into a structured product brief.
+
+Use "we" voice throughout — this is our shared plan:
+- "Our target user is..."
+- "We're solving the problem of..."
+- "Our key differentiator is..."
+
+Return ONLY a JSON object:
 {
-  "problem_statement": "Clear description of the problem",
-  "target_user": "Description of who this is for",
-  "value_prop": "Why users will choose this",
-  "differentiation": "What makes this unique",
-  "monetization_hypothesis": "How this will make money",
+  "problem_statement": "Clear description of the problem we're solving",
+  "target_user": "Who we're building this for",
+  "value_prop": "Why users will choose our solution",
+  "differentiation": "What makes us unique",
+  "monetization_hypothesis": "How we'll make money",
   "assumptions": ["key assumption 1", "key assumption 2"],
   "risks": ["risk 1", "risk 2"],
-  "smallest_viable_experiment": "Minimal test to validate the idea"
+  "smallest_viable_experiment": "Minimal test to validate our idea"
 }"""
+
+        system_msg = SystemMessage(
+            content=COFOUNDER_SYSTEM.format(task_instructions=task_instructions)
+        )
+        human_msg = HumanMessage(
+            content=f"Generate a product brief from these onboarding answers: {clean_answers}"
+        )
+
+        try:
+            response = await _invoke_with_retry(llm, [system_msg, human_msg])
+            return _parse_json_response(response.content)
+        except json.JSONDecodeError:
+            logger.warning("RunnerReal.generate_brief: JSON parse failed, retrying with strict prompt")
+            strict_system = SystemMessage(
+                content="IMPORTANT: Your response MUST be valid JSON only. "
+                "Do not include any explanation, markdown, or code fences. "
+                "Start your response with { .\n\n" + system_msg.content
             )
+            response = await _invoke_with_retry(llm, [strict_system, human_msg])
+            return _parse_json_response(response.content)
 
-            # Filter out internal keys
-            clean_answers = {
-                k: v for k, v in answers.items() if not k.startswith("_")
-            }
+    async def generate_understanding_questions(self, context: dict) -> list[dict]:
+        """Generate adaptive understanding questions (deeper than onboarding).
 
-            human_msg = HumanMessage(
-                content=f"Generate a product brief from these answers: {clean_answers}"
+        Args:
+            context: Dictionary with keys like "idea_text", "onboarding_answers", "tier"
+
+        Returns:
+            List of question dicts with keys: id, text, input_type, required, options, follow_up_hint
+
+        Raises:
+            RuntimeError: If LLM call fails after retries
+        """
+        user_id = context.get("user_id", "system")
+        session_id = context.get("session_id", "default")
+        tier = context.get("tier", "bootstrapper")
+        idea_text = context.get("idea_text", "")
+        onboarding_answers = context.get("onboarding_answers", {})
+
+        # Tier-based question count
+        tier_question_counts = {
+            "bootstrapper": "6-8",
+            "partner": "10-12",
+            "cto_scale": "14-16",
+        }
+        question_count = tier_question_counts.get(tier, "6-8")
+
+        llm = await create_tracked_llm(
+            user_id=user_id, role="architect", session_id=session_id
+        )
+
+        task_instructions = f"""Generate {question_count} understanding interview questions about the founder's idea.
+These go deeper than initial onboarding — probe market validation, competitive landscape,
+monetization details, risk awareness, and smallest viable experiment.
+
+Use "we" language: "Who have we talked to...", "What's our biggest risk...", "How will we make money..."
+
+Return ONLY a JSON array of objects:
+[
+  {{
+    "id": "uq1",
+    "text": "...",
+    "input_type": "textarea",
+    "required": true,
+    "options": null,
+    "follow_up_hint": "..."
+  }}
+]
+
+End the interview with a closing question like: "I have enough to build your brief. Want to add anything else before I do?\""""
+
+        system_msg = SystemMessage(
+            content=COFOUNDER_SYSTEM.format(task_instructions=task_instructions)
+        )
+        human_msg = HumanMessage(
+            content=f"Idea: {idea_text}\n\nOnboarding answers: {onboarding_answers}"
+        )
+
+        try:
+            response = await _invoke_with_retry(llm, [system_msg, human_msg])
+            return _parse_json_response(response.content)
+        except json.JSONDecodeError:
+            logger.warning("RunnerReal.generate_understanding_questions: JSON parse failed, retrying with strict prompt")
+            strict_system = SystemMessage(
+                content="IMPORTANT: Your response MUST be valid JSON only. "
+                "Do not include any explanation, markdown, or code fences. "
+                "Start your response with [ .\n\n" + system_msg.content
             )
+            response = await _invoke_with_retry(llm, [strict_system, human_msg])
+            return _parse_json_response(response.content)
 
-            response = await llm.ainvoke([system_msg, human_msg])
-            content = response.content
+    async def generate_idea_brief(self, idea: str, questions: list[dict], answers: dict) -> dict:
+        """Generate Rationalised Idea Brief from understanding interview answers.
 
-            # Parse JSON response
-            import json
+        Args:
+            idea: Original idea text
+            questions: List of understanding questions
+            answers: Dictionary mapping question IDs to user answers
 
-            brief = json.loads(content)
-            return brief
+        Returns:
+            Dict matching RationalisedIdeaBrief schema with per-section confidence scores
 
-        except Exception as e:
-            raise RuntimeError(f"Failed to generate brief: {str(e)}") from e
+        Raises:
+            RuntimeError: If LLM call fails after retries
+        """
+        user_id = answers.get("_user_id", "system")
+        session_id = answers.get("_session_id", "default")
+
+        # Build formatted Q&A pairs for the prompt
+        qa_pairs = []
+        for q in questions:
+            qid = q.get("id", "")
+            qtext = q.get("text", "")
+            answer = answers.get(qid, "")
+            if answer:
+                qa_pairs.append(f"Q: {qtext}\nA: {answer}")
+        formatted_qa = "\n\n".join(qa_pairs)
+
+        llm = await create_tracked_llm(
+            user_id=user_id, role="architect", session_id=session_id
+        )
+
+        task_instructions = """Generate a Rationalised Idea Brief from the founder's understanding interview.
+
+Use "we" voice throughout: "We've identified...", "Our target user is...", "The risk here is..."
+Plain English — no jargon. A non-technical founder should read this without Googling anything.
+
+Return ONLY a JSON object with these fields:
+{
+  "problem_statement": "...",
+  "target_user": "...",
+  "value_prop": "...",
+  "differentiation": "...",
+  "monetization_hypothesis": "...",
+  "market_context": "...",
+  "key_constraints": ["..."],
+  "assumptions": ["..."],
+  "risks": ["..."],
+  "smallest_viable_experiment": "...",
+  "confidence_scores": {
+    "problem_statement": "strong|moderate|needs_depth",
+    "target_user": "strong|moderate|needs_depth",
+    "value_prop": "strong|moderate|needs_depth",
+    "differentiation": "strong|moderate|needs_depth",
+    "monetization_hypothesis": "strong|moderate|needs_depth",
+    "market_context": "strong|moderate|needs_depth",
+    "key_constraints": "strong|moderate|needs_depth",
+    "assumptions": "strong|moderate|needs_depth",
+    "risks": "strong|moderate|needs_depth",
+    "smallest_viable_experiment": "strong|moderate|needs_depth"
+  },
+  "_schema_version": 1
+}
+
+For confidence_scores, assess each section as:
+- "strong": Backed by specific evidence, customer interviews, or data from the founder's answers
+- "moderate": Reasonable hypothesis but not yet validated with real data
+- "needs_depth": Vague or missing — the founder should revisit this section"""
+
+        system_msg = SystemMessage(
+            content=COFOUNDER_SYSTEM.format(task_instructions=task_instructions)
+        )
+        human_msg = HumanMessage(
+            content=f"Idea: {idea}\n\nUnderstanding interview answers:\n\n{formatted_qa}"
+        )
+
+        try:
+            response = await _invoke_with_retry(llm, [system_msg, human_msg])
+            return _parse_json_response(response.content)
+        except json.JSONDecodeError:
+            logger.warning("RunnerReal.generate_idea_brief: JSON parse failed, retrying with strict prompt")
+            strict_system = SystemMessage(
+                content="IMPORTANT: Your response MUST be valid JSON only. "
+                "Do not include any explanation, markdown, or code fences. "
+                "Start your response with { .\n\n" + system_msg.content
+            )
+            response = await _invoke_with_retry(llm, [strict_system, human_msg])
+            return _parse_json_response(response.content)
+
+    async def check_question_relevance(
+        self, idea: str, answered: list[dict], answers: dict, remaining: list[dict]
+    ) -> dict:
+        """Check if remaining questions are still relevant after an answer edit.
+
+        Args:
+            idea: Original idea text
+            answered: List of already-answered questions
+            answers: Current answers dict
+            remaining: List of remaining (unanswered) questions
+
+        Returns:
+            Dict with keys: needs_regeneration (bool), preserve_indices (list[int]),
+            new_questions (optional list)
+
+        Raises:
+            RuntimeError: If LLM call fails after retries
+        """
+        user_id = answers.get("_user_id", "system")
+        session_id = answers.get("_session_id", "default")
+
+        # Build answered Q&A context
+        answered_context = []
+        for q in answered:
+            qid = q.get("id", "")
+            answer = answers.get(qid, "")
+            answered_context.append(f"Q: {q.get('text', '')}\nA: {answer}")
+        answered_str = "\n\n".join(answered_context)
+
+        remaining_str = "\n".join(
+            f"[{i}] {q.get('text', '')}" for i, q in enumerate(remaining)
+        )
+
+        llm = await create_tracked_llm(
+            user_id=user_id, role="architect", session_id=session_id
+        )
+
+        task_instructions = """The founder has edited an answer in their understanding interview.
+Review the remaining questions and determine if any are now irrelevant or if new questions are needed.
+
+Return ONLY a JSON object:
+{
+  "needs_regeneration": true/false,
+  "preserve_indices": [0, 2],
+  "new_questions": []
+}
+
+- needs_regeneration: true if remaining questions should be regenerated
+- preserve_indices: indices (0-based) of remaining questions to keep as-is
+- new_questions: optional array of 1-2 new questions based on the changed answer (use same question format)"""
+
+        system_msg = SystemMessage(
+            content=COFOUNDER_SYSTEM.format(task_instructions=task_instructions)
+        )
+        human_msg = HumanMessage(
+            content=(
+                f"Idea: {idea}\n\n"
+                f"Answered questions:\n{answered_str}\n\n"
+                f"Remaining questions:\n{remaining_str}"
+            )
+        )
+
+        try:
+            response = await _invoke_with_retry(llm, [system_msg, human_msg])
+            return _parse_json_response(response.content)
+        except json.JSONDecodeError:
+            logger.warning("RunnerReal.check_question_relevance: JSON parse failed, retrying with strict prompt")
+            strict_system = SystemMessage(
+                content="IMPORTANT: Your response MUST be valid JSON only. "
+                "Do not include any explanation, markdown, or code fences. "
+                "Start your response with { .\n\n" + system_msg.content
+            )
+            response = await _invoke_with_retry(llm, [strict_system, human_msg])
+            return _parse_json_response(response.content)
+
+    async def assess_section_confidence(self, section_key: str, content: str) -> str:
+        """Assess confidence level for a brief section.
+
+        Args:
+            section_key: Section identifier (e.g., "problem_statement", "target_user")
+            content: Section content to assess
+
+        Returns:
+            Confidence level: "strong" | "moderate" | "needs_depth"
+
+        Raises:
+            RuntimeError: If LLM call fails after retries
+        """
+        llm = await create_tracked_llm(
+            user_id="system", role="architect", session_id="assessment"
+        )
+
+        task_instructions = """Assess the confidence level of this Idea Brief section.
+
+Return ONLY one of: "strong", "moderate", "needs_depth"
+
+- "strong": Specific evidence, data points, named customers, or quantified metrics
+- "moderate": Reasonable hypothesis, some supporting logic, but unvalidated
+- "needs_depth": Vague, generic, or missing critical detail"""
+
+        system_msg = SystemMessage(
+            content=COFOUNDER_SYSTEM.format(task_instructions=task_instructions)
+        )
+        human_msg = HumanMessage(
+            content=f"Section: {section_key}\n\nContent: {content}"
+        )
+
+        response = await _invoke_with_retry(llm, [system_msg, human_msg])
+        text = response.content.strip().lower()
+        for level in ("strong", "moderate", "needs_depth"):
+            if level in text:
+                return level
+        return "moderate"  # safe default
+
+    async def generate_execution_options(self, brief: dict, feedback: str | None = None) -> dict:
+        """Generate 2-3 execution plan options from the Idea Brief.
+
+        Args:
+            brief: Rationalised Idea Brief artifact content
+            feedback: Optional feedback on previous options (for regeneration)
+
+        Returns:
+            Dict matching ExecutionPlanOptions schema with 2-3 options
+
+        Raises:
+            RuntimeError: If LLM call fails after retries
+        """
+        user_id = brief.get("_user_id", "system")
+        session_id = brief.get("_session_id", "default")
+        tier = brief.get("_context", {}).get("tier", "bootstrapper") if isinstance(brief.get("_context"), dict) else "bootstrapper"
+
+        # Clean brief for prompt (remove internal keys)
+        clean_brief = {k: v for k, v in brief.items() if not k.startswith("_")}
+
+        llm = await create_tracked_llm(
+            user_id=user_id, role="architect", session_id=session_id
+        )
+
+        feedback_context = ""
+        if feedback:
+            feedback_context = f"\n\nThe founder gave this feedback on previous options: {feedback}"
+
+        task_instructions = f"""Generate 2-3 execution plan options based on the Rationalised Idea Brief.
+Each option represents a different approach to building the MVP.
+
+Use "we" voice: "We'll focus on...", "Our approach here is..."
+
+For each option include:
+- id (kebab-case string), name (human readable)
+- is_recommended (exactly one option must be true)
+- time_to_ship (e.g., "3-4 weeks"), engineering_cost (e.g., "Low (1 engineer, ~80 hours)")
+- risk_level ("low", "medium", or "high"), scope_coverage (0-100 integer percent)
+- pros (array of strings), cons (array of strings)
+- technical_approach (string), tradeoffs (array of strings), engineering_impact (string)
+
+Return ONLY a JSON object:
+{{
+  "options": [...],
+  "recommended_id": "..."
+}}
+
+Tier context: {tier}{feedback_context}"""
+
+        system_msg = SystemMessage(
+            content=COFOUNDER_SYSTEM.format(task_instructions=task_instructions)
+        )
+        human_msg = HumanMessage(
+            content=f"Generate execution plan options from this Idea Brief:\n\n{json.dumps(clean_brief, indent=2)}"
+        )
+
+        try:
+            response = await _invoke_with_retry(llm, [system_msg, human_msg])
+            return _parse_json_response(response.content)
+        except json.JSONDecodeError:
+            logger.warning("RunnerReal.generate_execution_options: JSON parse failed, retrying with strict prompt")
+            strict_system = SystemMessage(
+                content="IMPORTANT: Your response MUST be valid JSON only. "
+                "Do not include any explanation, markdown, or code fences. "
+                "Start your response with { .\n\n" + system_msg.content
+            )
+            response = await _invoke_with_retry(llm, [strict_system, human_msg])
+            return _parse_json_response(response.content)
 
     async def generate_artifacts(self, brief: dict) -> dict:
         """Generate documentation artifacts from the product brief.
-
-        This is a placeholder implementation for Phase 6 (Artifact Generation).
 
         Args:
             brief: The structured product brief
 
         Returns:
-            Artifacts dict with keys: product_brief, mvp_scope, milestones,
-            risk_log, how_it_works
+            Artifacts dict with 5 keys: brief, mvp_scope, milestones, risk_log, how_it_works
 
         Raises:
-            RuntimeError: If LLM call fails
+            RuntimeError: If LLM call fails after retries
         """
-        try:
-            user_id = brief.get("_user_id", "system")
-            session_id = brief.get("_session_id", "default")
+        user_id = brief.get("_user_id", "system")
+        session_id = brief.get("_session_id", "default")
 
-            # Create LLM with tracking
-            llm = await create_tracked_llm(
-                user_id=user_id, role="architect", session_id=session_id
-            )
+        # Filter out internal keys
+        clean_brief = {k: v for k, v in brief.items() if not k.startswith("_")}
 
-            # Generate artifacts using LLM
-            system_msg = SystemMessage(
-                content="""You are a technical product manager generating project artifacts.
+        llm = await create_tracked_llm(
+            user_id=user_id, role="architect", session_id=session_id
+        )
 
-Return ONLY a JSON object with this structure:
+        task_instructions = """Generate a complete set of project artifacts from the product brief.
+These artifacts are the founder's project documentation — they'll share these with advisors,
+investors, and team members.
+
+Use "we" voice throughout. Plain English — no jargon.
+
+Return ONLY a JSON object with these 5 keys:
 {
-  "product_brief": "Executive summary of the product",
-  "mvp_scope": "Description of MVP scope and features",
-  "milestones": ["milestone 1", "milestone 2", "milestone 3"],
-  "risk_log": ["risk 1", "risk 2"],
-  "how_it_works": "Technical overview of how the system works"
-}"""
+  "brief": {
+    "_schema_version": 1,
+    "problem_statement": "...",
+    "target_user": "...",
+    "value_proposition": "...",
+    "key_constraint": "...",
+    "differentiation_points": ["..."],
+    "market_analysis": "...",
+    "competitive_strategy": "..."
+  },
+  "mvp_scope": {
+    "_schema_version": 1,
+    "core_features": [{"name": "...", "description": "...", "priority": "high|medium|low"}],
+    "out_of_scope": ["..."],
+    "success_metrics": ["..."],
+    "technical_architecture": "...",
+    "scalability_plan": "..."
+  },
+  "milestones": {
+    "_schema_version": 1,
+    "milestones": [{"title": "...", "description": "...", "success_criteria": ["..."], "estimated_weeks": 1}],
+    "critical_path": ["..."],
+    "total_duration_weeks": 4,
+    "resource_plan": "...",
+    "risk_mitigation_timeline": "..."
+  },
+  "risk_log": {
+    "_schema_version": 1,
+    "technical_risks": [{"title": "...", "description": "...", "severity": "high|medium|low", "mitigation": "..."}],
+    "market_risks": [{"title": "...", "description": "...", "severity": "high|medium|low", "mitigation": "..."}],
+    "execution_risks": [{"title": "...", "description": "...", "severity": "high|medium|low", "mitigation": "..."}]
+  },
+  "how_it_works": {
+    "_schema_version": 1,
+    "user_journey": [{"step_number": 1, "title": "...", "description": "..."}],
+    "architecture": "...",
+    "data_flow": "...",
+    "integration_points": "..."
+  }
+}
+
+Each artifact should cross-reference others (e.g., milestones reference MVP features,
+risk log references brief assumptions)."""
+
+        system_msg = SystemMessage(
+            content=COFOUNDER_SYSTEM.format(task_instructions=task_instructions)
+        )
+        human_msg = HumanMessage(
+            content=f"Generate project artifacts from this brief:\n\n{json.dumps(clean_brief, indent=2)}"
+        )
+
+        try:
+            response = await _invoke_with_retry(llm, [system_msg, human_msg])
+            return _parse_json_response(response.content)
+        except json.JSONDecodeError:
+            logger.warning("RunnerReal.generate_artifacts: JSON parse failed, retrying with strict prompt")
+            strict_system = SystemMessage(
+                content="IMPORTANT: Your response MUST be valid JSON only. "
+                "Do not include any explanation, markdown, or code fences. "
+                "Start your response with { .\n\n" + system_msg.content
             )
-
-            # Filter out internal keys
-            clean_brief = {k: v for k, v in brief.items() if not k.startswith("_")}
-
-            human_msg = HumanMessage(
-                content=f"Generate project artifacts from this brief: {clean_brief}"
-            )
-
-            response = await llm.ainvoke([system_msg, human_msg])
-            content = response.content
-
-            # Parse JSON response
-            import json
-
-            artifacts = json.loads(content)
-            return artifacts
-
-        except Exception as e:
-            raise RuntimeError(f"Failed to generate artifacts: {str(e)}") from e
+            response = await _invoke_with_retry(llm, [strict_system, human_msg])
+            return _parse_json_response(response.content)
