@@ -17,11 +17,11 @@ Requirements for production readiness. Each maps to roadmap phases.
 - [ ] **LLM-06**: RunnerReal generates artifact cascade (Brief, MVP Scope, Milestones, Risk Log, How It Works) via real Claude
 - [ ] **LLM-07**: RunnerReal.run() executes full LangGraph pipeline with real Claude calls for code generation
 - [x] **LLM-08**: LangGraph uses AsyncPostgresSaver (not MemorySaver) for production checkpointing
-- [ ] **LLM-09**: All RunnerReal methods strip markdown code fences before JSON parsing
-- [ ] **LLM-10**: UsageTrackingCallback logs DB/Redis write failures at WARNING level (no silent swallowing)
+- [x] **LLM-09**: All RunnerReal methods strip markdown code fences before JSON parsing
+- [x] **LLM-10**: UsageTrackingCallback logs DB/Redis write failures at WARNING level (no silent swallowing)
 - [ ] **LLM-11**: detect_llm_risks() returns real risk signals from Redis usage data and UsageLog
 - [ ] **LLM-12**: build_failure_count wired to actual executor failure data (not hardcoded 0)
-- [ ] **LLM-13**: All RunnerReal methods retry on Anthropic 529/overload with tenacity exponential backoff
+- [x] **LLM-13**: All RunnerReal methods retry on Anthropic 529/overload with tenacity exponential backoff
 - [ ] **LLM-14**: All LLM prompts use co-founder "we" voice consistently
 - [ ] **LLM-15**: Higher tiers receive richer analysis in briefs and more execution plan options
 
@@ -97,11 +97,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LLM-06 | Phase 13 | Pending |
 | LLM-07 | Phase 13 | Pending |
 | LLM-08 | Phase 13 | Complete |
-| LLM-09 | Phase 13 | Pending |
-| LLM-10 | Phase 13 | Pending |
+| LLM-09 | Phase 13 | Complete |
+| LLM-10 | Phase 13 | Complete |
 | LLM-11 | Phase 13 | Pending |
 | LLM-12 | Phase 13 | Pending |
-| LLM-13 | Phase 13 | Pending |
+| LLM-13 | Phase 13 | Complete |
 | LLM-14 | Phase 13 | Pending |
 | LLM-15 | Phase 13 | Pending |
 | BILL-01 | Phase 14 | Pending |

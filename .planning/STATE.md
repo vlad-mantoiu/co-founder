@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-18)
 ## Current Position
 
 Phase: 13 of 16 (LLM Activation and Hardening)
-Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-02-18 — v0.2 roadmap created (phases 13-16)
+Plan: 1 of 7 in current phase
+Status: In progress
+Last activity: 2026-02-18 — Phase 13 Plan 01 complete (llm_helpers.py foundation)
 
-Progress: [░░░░░░░░░░] 0% (v0.2) — v0.1 complete (phases 1-12)
+Progress: [█░░░░░░░░░] 10% (v0.2) — v0.1 complete (phases 1-12)
 
 ## Performance Metrics
 
@@ -35,7 +35,12 @@ Progress: [░░░░░░░░░░] 0% (v0.2) — v0.1 complete (phases 1
 - Trend: Stable
 
 *Updated after each plan completion*
-| Phase 13 P02 | 2 | 2 tasks | 2 files |
+
+**Phase 13 (v0.2):**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 13 P01 | 2 min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -53,6 +58,9 @@ Recent decisions affecting v0.2 work:
 - [Phase 13]: Use async context manager split pattern in FastAPI lifespan to persist AsyncPostgresSaver across yield boundary
 - [Phase 13]: Deprecate database_url param in create_production_graph in favor of injected checkpointer from app.state
 - [Phase 13]: Exception fallback to MemorySaver ensures startup never hard-fails due to checkpointer initialization
+- [Phase 13 P01]: _invoke_with_retry uses tenacity stop_after_attempt(4) with reraise=True — OverloadedError propagates after exhausting retries
+- [Phase 13 P01]: UsageTrackingCallback logs failures at WARNING (not ERROR) — operational noise, not bugs
+- [Phase 13 P01]: Import pattern for all subsequent plans: from app.agent.llm_helpers import _strip_json_fences, _parse_json_response, _invoke_with_retry
 
 ### Pending Todos
 
@@ -67,9 +75,9 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Phase 13 context gathered
-Resume file: .planning/phases/13-llm-activation-and-hardening/13-CONTEXT.md
-Next action: `/gsd:plan-phase 13`
+Stopped at: Completed 13-01-PLAN.md (llm_helpers.py foundation)
+Resume file: .planning/phases/13-llm-activation-and-hardening/13-02-PLAN.md
+Next action: `/gsd:execute-phase 13 02`
 
 ---
 *v0.1 COMPLETE — 56 plans, 12 phases, 76/76 requirements (2026-02-17)*
