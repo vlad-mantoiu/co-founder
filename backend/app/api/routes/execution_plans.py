@@ -4,7 +4,11 @@ Provides 6 endpoints for execution plan generation, selection, status, and Deep 
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse
 
+from anthropic._exceptions import OverloadedError
+
+from app.agent.llm_helpers import enqueue_failed_request
 from app.agent.runner import Runner
 from app.agent.runner_fake import RunnerFake
 from app.core.auth import ClerkUser, require_auth
@@ -48,9 +52,24 @@ async def generate_execution_plans(
 
     Enforces 409 if Decision Gate 1 not resolved with 'proceed'.
     """
-    session_factory = get_session_factory()
-    service = ExecutionPlanService(runner, session_factory)
-    return await service.generate_options(user.user_id, request.project_id, request.feedback)
+    try:
+        session_factory = get_session_factory()
+        service = ExecutionPlanService(runner, session_factory)
+        return await service.generate_options(user.user_id, request.project_id, request.feedback)
+    except OverloadedError:
+        await enqueue_failed_request(
+            user_id=user.user_id,
+            session_id=request.project_id,
+            action="generate_options",
+            payload={"project_id": request.project_id, "feedback": request.feedback},
+        )
+        return JSONResponse(
+            status_code=202,
+            content={
+                "status": "queued",
+                "message": "Added to queue \u2014 we'll continue automatically when capacity is available.",
+            },
+        )
 
 
 @router.post("/{project_id}/select", response_model=SelectPlanResponse, status_code=200)
@@ -179,9 +198,24 @@ async def regenerate_execution_plans(
             status_code=422, detail="feedback is required for regeneration"
         )
 
-    session_factory = get_session_factory()
-    service = ExecutionPlanService(runner, session_factory)
-    return await service.regenerate_options(user.user_id, request.project_id, request.feedback)
+    try:
+        session_factory = get_session_factory()
+        service = ExecutionPlanService(runner, session_factory)
+        return await service.regenerate_options(user.user_id, request.project_id, request.feedback)
+    except OverloadedError:
+        await enqueue_failed_request(
+            user_id=user.user_id,
+            session_id=request.project_id,
+            action="regenerate_options",
+            payload={"project_id": request.project_id, "feedback": request.feedback},
+        )
+        return JSONResponse(
+            status_code=202,
+            content={
+                "status": "queued",
+                "message": "Added to queue \u2014 we'll continue automatically when capacity is available.",
+            },
+        )
 
 
 @router.post("/{project_id}/deep-research", status_code=402)

@@ -55,3 +55,33 @@ async def _invoke_with_retry(llm, messages):
     Only retries OverloadedError (529). All other exceptions propagate immediately.
     """
     return await llm.ainvoke(messages)
+
+
+async def enqueue_failed_request(user_id: str, session_id: str, action: str, payload: dict) -> None:
+    """Enqueue a failed LLM request for background retry.
+
+    Stores the request in a Redis list for later processing.
+    Non-blocking: logs and returns on Redis failure.
+
+    Args:
+        user_id: Clerk user ID
+        session_id: Session or project ID for correlation
+        action: Action identifier (e.g., "generate_understanding_questions", "finalize")
+        payload: Request payload to replay
+    """
+    import datetime
+
+    try:
+        from app.db.redis import get_redis
+        r = get_redis()
+        entry = json.dumps({
+            "user_id": user_id,
+            "session_id": session_id,
+            "action": action,
+            "payload": payload,
+            "queued_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        })
+        await r.rpush("cofounder:llm_queue", entry)
+        logger.info("Queued LLM request for retry: user=%s action=%s", user_id, action)
+    except Exception as e:
+        logger.warning("Failed to enqueue LLM request (non-blocking): %s", e)

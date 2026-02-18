@@ -3,8 +3,12 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse
 from sqlalchemy import select
 
+from anthropic._exceptions import OverloadedError
+
+from app.agent.llm_helpers import enqueue_failed_request
 from app.agent.runner import Runner
 from app.agent.runner_fake import RunnerFake
 from app.core.auth import ClerkUser, require_auth
@@ -62,26 +66,41 @@ async def start_onboarding(
         HTTPException(403): If user has reached tier session limit
         HTTPException(422): If idea is empty or whitespace-only
     """
-    # Get user's tier
-    user_settings = await get_or_create_user_settings(user.user_id)
-    tier_slug = user_settings.plan_tier.slug
+    try:
+        # Get user's tier
+        user_settings = await get_or_create_user_settings(user.user_id)
+        tier_slug = user_settings.plan_tier.slug
 
-    # Create service and start session
-    session_factory = get_session_factory()
-    service = OnboardingService(runner, session_factory)
-    session = await service.start_session(user.user_id, request.idea, tier_slug)
+        # Create service and start session
+        session_factory = get_session_factory()
+        service = OnboardingService(runner, session_factory)
+        session = await service.start_session(user.user_id, request.idea, tier_slug)
 
-    # Convert to response
-    return OnboardingSessionResponse(
-        id=str(session.id),
-        status=session.status,
-        current_question_index=session.current_question_index,
-        total_questions=session.total_questions,
-        idea_text=session.idea_text,
-        questions=[OnboardingQuestion(**q) for q in session.questions],
-        answers=session.answers,
-        thesis_snapshot=ThesisSnapshot(**session.thesis_snapshot) if session.thesis_snapshot else None,
-    )
+        # Convert to response
+        return OnboardingSessionResponse(
+            id=str(session.id),
+            status=session.status,
+            current_question_index=session.current_question_index,
+            total_questions=session.total_questions,
+            idea_text=session.idea_text,
+            questions=[OnboardingQuestion(**q) for q in session.questions],
+            answers=session.answers,
+            thesis_snapshot=ThesisSnapshot(**session.thesis_snapshot) if session.thesis_snapshot else None,
+        )
+    except OverloadedError:
+        await enqueue_failed_request(
+            user_id=user.user_id,
+            session_id="new",
+            action="start_onboarding",
+            payload={"idea": request.idea},
+        )
+        return JSONResponse(
+            status_code=202,
+            content={
+                "status": "queued",
+                "message": "Added to queue \u2014 we'll continue automatically when capacity is available.",
+            },
+        )
 
 
 @router.post("/{session_id}/answer", response_model=OnboardingSessionResponse)
@@ -244,24 +263,39 @@ async def finalize_session(
         HTTPException(404): If session not found or user mismatch
         HTTPException(400): If required answers are missing
     """
-    # Get user's tier
-    user_settings = await get_or_create_user_settings(user.user_id)
-    tier_slug = user_settings.plan_tier.slug
+    try:
+        # Get user's tier
+        user_settings = await get_or_create_user_settings(user.user_id)
+        tier_slug = user_settings.plan_tier.slug
 
-    session_factory = get_session_factory()
-    service = OnboardingService(runner, session_factory)
-    session = await service.finalize_session(user.user_id, session_id, tier_slug)
+        session_factory = get_session_factory()
+        service = OnboardingService(runner, session_factory)
+        session = await service.finalize_session(user.user_id, session_id, tier_slug)
 
-    return OnboardingSessionResponse(
-        id=str(session.id),
-        status=session.status,
-        current_question_index=session.current_question_index,
-        total_questions=session.total_questions,
-        idea_text=session.idea_text,
-        questions=[OnboardingQuestion(**q) for q in session.questions],
-        answers=session.answers,
-        thesis_snapshot=ThesisSnapshot(**session.thesis_snapshot) if session.thesis_snapshot else None,
-    )
+        return OnboardingSessionResponse(
+            id=str(session.id),
+            status=session.status,
+            current_question_index=session.current_question_index,
+            total_questions=session.total_questions,
+            idea_text=session.idea_text,
+            questions=[OnboardingQuestion(**q) for q in session.questions],
+            answers=session.answers,
+            thesis_snapshot=ThesisSnapshot(**session.thesis_snapshot) if session.thesis_snapshot else None,
+        )
+    except OverloadedError:
+        await enqueue_failed_request(
+            user_id=user.user_id,
+            session_id=session_id,
+            action="finalize_session",
+            payload={"session_id": session_id},
+        )
+        return JSONResponse(
+            status_code=202,
+            content={
+                "status": "queued",
+                "message": "Added to queue \u2014 we'll continue automatically when capacity is available.",
+            },
+        )
 
 
 @router.patch("/{session_id}/thesis", response_model=OnboardingSessionResponse)

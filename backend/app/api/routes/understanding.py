@@ -1,8 +1,12 @@
 """Understanding interview API routes — 8 endpoints for interview lifecycle."""
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse
 from uuid import UUID
 
+from anthropic._exceptions import OverloadedError
+
+from app.agent.llm_helpers import enqueue_failed_request
 from app.agent.runner import Runner
 from app.agent.runner_fake import RunnerFake
 from app.core.auth import ClerkUser, require_auth
@@ -78,6 +82,20 @@ async def start_understanding(
             question_number=1,
             total_questions=session.total_questions,
         )
+    except OverloadedError:
+        await enqueue_failed_request(
+            user_id=user.user_id,
+            session_id=request.session_id,
+            action="start_session",
+            payload={"session_id": request.session_id},
+        )
+        return JSONResponse(
+            status_code=202,
+            content={
+                "status": "queued",
+                "message": "Added to queue \u2014 we'll continue automatically when capacity is available.",
+            },
+        )
     except RuntimeError as e:
         # LLM failures (UNDR-03)
         raise HTTPException(
@@ -151,19 +169,34 @@ async def edit_answer(
     Raises:
         HTTPException(404): If session not found (UNDR-05)
     """
-    session_factory = get_session_factory()
-    service = UnderstandingService(runner, session_factory)
-    result = await service.edit_answer(user.user_id, session_id, request.question_id, request.new_answer)
+    try:
+        session_factory = get_session_factory()
+        service = UnderstandingService(runner, session_factory)
+        result = await service.edit_answer(user.user_id, session_id, request.question_id, request.new_answer)
 
-    session = result["updated_session"]
-    questions = [UnderstandingQuestion(**q) for q in session.questions]
+        session = result["updated_session"]
+        questions = [UnderstandingQuestion(**q) for q in session.questions]
 
-    return EditAnswerResponse(
-        updated_questions=questions,
-        current_question_number=session.current_question_index + 1,
-        total_questions=session.total_questions,
-        regenerated=result["regenerated"],
-    )
+        return EditAnswerResponse(
+            updated_questions=questions,
+            current_question_number=session.current_question_index + 1,
+            total_questions=session.total_questions,
+            regenerated=result["regenerated"],
+        )
+    except OverloadedError:
+        await enqueue_failed_request(
+            user_id=user.user_id,
+            session_id=session_id,
+            action="edit_answer",
+            payload={"session_id": session_id, "question_id": request.question_id, "new_answer": request.new_answer},
+        )
+        return JSONResponse(
+            status_code=202,
+            content={
+                "status": "queued",
+                "message": "Added to queue \u2014 we'll continue automatically when capacity is available.",
+            },
+        )
 
 
 @router.post("/{session_id}/finalize", response_model=IdeaBriefResponse)
@@ -198,6 +231,20 @@ async def finalize_interview(
             brief=brief,
             artifact_id=result["artifact_id"],
             version=result["version"],
+        )
+    except OverloadedError:
+        await enqueue_failed_request(
+            user_id=user.user_id,
+            session_id=session_id,
+            action="finalize",
+            payload={"session_id": session_id},
+        )
+        return JSONResponse(
+            status_code=202,
+            content={
+                "status": "queued",
+                "message": "Added to queue \u2014 we'll continue automatically when capacity is available.",
+            },
         )
     except RuntimeError as e:
         # LLM failures (UNDR-03)
@@ -293,18 +340,33 @@ async def re_interview(
     Raises:
         HTTPException(404): If session not found (UNDR-05)
     """
-    session_factory = get_session_factory()
-    service = UnderstandingService(runner, session_factory)
-    session = await service.re_interview(user.user_id, session_id)
+    try:
+        session_factory = get_session_factory()
+        service = UnderstandingService(runner, session_factory)
+        session = await service.re_interview(user.user_id, session_id)
 
-    first_question = UnderstandingQuestion(**session.questions[0])
+        first_question = UnderstandingQuestion(**session.questions[0])
 
-    return StartUnderstandingResponse(
-        understanding_session_id=str(session.id),
-        question=first_question,
-        question_number=1,
-        total_questions=session.total_questions,
-    )
+        return StartUnderstandingResponse(
+            understanding_session_id=str(session.id),
+            question=first_question,
+            question_number=1,
+            total_questions=session.total_questions,
+        )
+    except OverloadedError:
+        await enqueue_failed_request(
+            user_id=user.user_id,
+            session_id=session_id,
+            action="re_interview",
+            payload={"session_id": session_id},
+        )
+        return JSONResponse(
+            status_code=202,
+            content={
+                "status": "queued",
+                "message": "Added to queue \u2014 we'll continue automatically when capacity is available.",
+            },
+        )
 
 
 @router.get("/{session_id}", response_model=dict)
