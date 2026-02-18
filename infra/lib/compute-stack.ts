@@ -8,6 +8,7 @@ import * as route53 from "aws-cdk-lib/aws-route53";
 import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as logs from "aws-cdk-lib/aws-logs";
+import * as route53Targets from "aws-cdk-lib/aws-route53-targets";
 import { Construct } from "constructs";
 
 export interface ComputeStackProps extends cdk.StackProps {
@@ -99,6 +100,12 @@ export class ComputeStack extends cdk.Stack {
         REDIS_URL: `redis://${redisEndpoint}:6379`,
         CLERK_PUBLISHABLE_KEY:
           "pk_test_c3VwZXJiLXRpY2stNDUuY2xlcmsuYWNjb3VudHMuZGV2JA",
+        STRIPE_PRICE_BOOTSTRAPPER_MONTHLY: "price_1T126T63L5edW2iAdYPw3Pc6",
+        STRIPE_PRICE_BOOTSTRAPPER_ANNUAL: "price_1T126T63L5edW2iAWH9DDH0U",
+        STRIPE_PRICE_PARTNER_MONTHLY: "price_1T126U63L5edW2iAsPNrUdfM",
+        STRIPE_PRICE_PARTNER_ANNUAL: "price_1T126V63L5edW2iAmeWZT55r",
+        STRIPE_PRICE_CTO_MONTHLY: "price_1T126V63L5edW2iABYmT6Ol9",
+        STRIPE_PRICE_CTO_ANNUAL: "price_1T126W63L5edW2iAbuHnmrHQ",
       },
       secrets: {
         ANTHROPIC_API_KEY: ecs.Secret.fromSecretsManager(
@@ -126,6 +133,14 @@ export class ComputeStack extends cdk.Stack {
         DATABASE_URL: ecs.Secret.fromSecretsManager(
           appSecrets,
           "DATABASE_URL"
+        ),
+        STRIPE_SECRET_KEY: ecs.Secret.fromSecretsManager(
+          appSecrets,
+          "STRIPE_SECRET_KEY"
+        ),
+        STRIPE_WEBHOOK_SECRET: ecs.Secret.fromSecretsManager(
+          appSecrets,
+          "STRIPE_WEBHOOK_SECRET"
         ),
       },
       healthCheck: {
@@ -200,9 +215,13 @@ export class ComputeStack extends cdk.Stack {
       "Allow backend to Redis"
     );
 
-    // SSL certificate for the frontend domain
+    // SSL certificate for the frontend domain (SAN cert covering both subdomains)
     const frontendCertificate = new acm.Certificate(this, "FrontendCertificate", {
       domainName: domainName,
+      subjectAlternativeNames: [
+        `www.${domainName.replace(/^[^.]+\./, "")}`,
+        domainName.replace(/^[^.]+\./, ""),
+      ],
       validation: acm.CertificateValidation.fromDns(hostedZone),
     });
 
@@ -239,6 +258,12 @@ export class ComputeStack extends cdk.Stack {
       healthyHttpCodes: "200",
     });
 
+    // Graceful shutdown: allow 60s for in-flight requests to complete during rolling deploys
+    this.backendService.targetGroup.setAttribute(
+      'deregistration_delay.timeout_seconds',
+      '60'
+    );
+
     // Frontend ALB Service (using same ALB with path routing would be ideal, but separate for simplicity)
     const frontendService =
       new ecsPatterns.ApplicationLoadBalancedFargateService(
@@ -258,6 +283,30 @@ export class ComputeStack extends cdk.Stack {
           },
         }
       );
+
+    // Graceful shutdown: allow 60s for in-flight requests to complete during rolling deploys
+    frontendService.targetGroup.setAttribute(
+      'deregistration_delay.timeout_seconds',
+      '60'
+    );
+
+    // DNS records for www.getinsourced.ai and getinsourced.ai → frontend ALB
+    const parentDomain = domainName.replace(/^[^.]+\./, "");
+    new route53.ARecord(this, "WwwRecord", {
+      zone: hostedZone,
+      recordName: `www.${parentDomain}`,
+      target: route53.RecordTarget.fromAlias(
+        new route53Targets.LoadBalancerTarget(frontendService.loadBalancer)
+      ),
+    });
+
+    new route53.ARecord(this, "ApexRecord", {
+      zone: hostedZone,
+      recordName: parentDomain,
+      target: route53.RecordTarget.fromAlias(
+        new route53Targets.LoadBalancerTarget(frontendService.loadBalancer)
+      ),
+    });
 
     // Auto-scaling for backend
     const backendScaling = this.backendService.service.autoScaleTaskCount({
