@@ -23,7 +23,7 @@ Requirements for production readiness. Each maps to roadmap phases.
 - [x] **LLM-12**: build_failure_count wired to actual executor failure data (not hardcoded 0)
 - [x] **LLM-13**: All RunnerReal methods retry on Anthropic 529/overload with tenacity exponential backoff
 - [x] **LLM-14**: All LLM prompts use co-founder "we" voice consistently
-- [ ] **LLM-15**: Higher tiers receive richer analysis in briefs and more execution plan options
+- [x] **LLM-15**: Higher tiers receive richer analysis in briefs and more execution plan options
 
 ### Stripe Billing
 
@@ -103,7 +103,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LLM-12 | Phase 13 | Complete |
 | LLM-13 | Phase 13 | Complete |
 | LLM-14 | Phase 13 | Complete |
-| LLM-15 | Phase 13 | Pending |
+| LLM-15 | Phase 13 | Complete |
 | BILL-01 | Phase 14 | Pending |
 | BILL-02 | Phase 14 | Pending |
 | BILL-03 | Phase 14 | Pending |

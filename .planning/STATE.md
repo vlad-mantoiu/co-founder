@@ -45,6 +45,7 @@ Progress: [█░░░░░░░░░] 10% (v0.2) — v0.1 complete (phases 
 | Phase 13 P03 | 2 min | 1 task | 1 file |
 | Phase 13 P06 | 2 min | 2 tasks | 4 files |
 | Phase 13 P04 | 3 | 3 tasks | 6 files |
+| Phase 13 P05 | 3 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -73,6 +74,7 @@ Recent decisions affecting v0.2 work:
 - [Phase 13]: get_runner() returns RunnerReal when ANTHROPIC_API_KEY is set; RunnerFake fallback for local dev
 - [Phase 13]: OverloadedError after 4 retries: return 202 with queue message; enqueue to cofounder:llm_queue Redis list
 - [Phase 13]: _tier injected via dict spread into answers/brief/onboarding_data — no runner method signature changes needed
+- [Phase 13]: cto_scale tier gets 14 brief sections; _tier injection pattern avoids runner method signature changes; EXEC_PLAN_DETAIL_BY_TIER provides tier-conditional engineering analysis depth
 
 ### Pending Todos
 
@@ -87,7 +89,7 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Completed 13-06-PLAN.md (risk signal activation — detect_llm_risks + build_failure_count)
+Stopped at: Completed 13-05-PLAN.md (tier-differentiated prompts — QUESTION_COUNT_BY_TIER, BRIEF_SECTIONS_BY_TIER, EXEC_PLAN_DETAIL_BY_TIER, ARTIFACT_TIER_SECTIONS)
 Resume file: .planning/phases/13-llm-activation-and-hardening/13-07-PLAN.md
 Next action: `/gsd:execute-phase 13 07`
 
