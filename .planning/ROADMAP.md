@@ -31,7 +31,7 @@
 
 **Milestone Goal:** Take v0.1 from working-with-fakes to production-live with real LLM calls, real payments, and real ops.
 
-- [ ] **Phase 13: LLM Activation and Hardening** - Wire RunnerReal to real Claude calls, fix silent failures, replace MemorySaver
+- [x] **Phase 13: LLM Activation and Hardening** - Wire RunnerReal to real Claude calls, fix silent failures, replace MemorySaver (completed 2026-02-18)
 - [ ] **Phase 14: Stripe Live Activation** - Activate subscription billing end-to-end with idempotency and async SDK
 - [ ] **Phase 15: CI/CD Hardening** - Add test gate before deploy, path filtering, SHA-pinned ECS deploys, graceful shutdown
 - [ ] **Phase 16: CloudWatch Observability** - SNS alerts, CloudWatch alarms, structured logging, LLM latency metrics
@@ -125,7 +125,7 @@ Phases execute in numeric order: 13 → 14 → 15 → 16
 | 10. Export, Deploy Readiness & E2E Testing | v0.1 | 11/11 | Complete | 2026-02-17 |
 | 11. Cross-Phase Frontend Wiring | v0.1 | 2/2 | Complete | 2026-02-17 |
 | 12. Milestone Audit Gap Closure | v0.1 | 1/1 | Complete | 2026-02-17 |
-| 13. LLM Activation and Hardening | 6/7 | In Progress|  | - |
+| 13. LLM Activation and Hardening | 7/7 | Complete   | 2026-02-18 | - |
 | 14. Stripe Live Activation | v0.2 | 0/TBD | Not started | - |
 | 15. CI/CD Hardening | v0.2 | 0/TBD | Not started | - |
 | 16. CloudWatch Observability | v0.2 | 0/TBD | Not started | - |
