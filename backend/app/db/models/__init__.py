@@ -8,6 +8,7 @@ from app.db.models.plan_tier import PlanTier
 from app.db.models.project import Project
 from app.db.models.stage_config import StageConfig
 from app.db.models.stage_event import StageEvent
+from app.db.models.stripe_event import StripeWebhookEvent
 from app.db.models.understanding_session import UnderstandingSession
 from app.db.models.usage_log import UsageLog
 from app.db.models.user_settings import UserSettings
@@ -21,6 +22,7 @@ __all__ = [
     "Project",
     "StageConfig",
     "StageEvent",
+    "StripeWebhookEvent",
     "UnderstandingSession",
     "UsageLog",
     "UserSettings",
