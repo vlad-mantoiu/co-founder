@@ -1,91 +1,189 @@
 name: Deploy to AWS
 
 on:
-  push:
+  workflow_run:
+    workflows: ["Tests"]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
 env:
   AWS_REGION: us-east-1
+  ECS_CLUSTER: cofounder-cluster
+  # CDK-generated service/task-def names — verify with:
+  #   aws ecs list-services --cluster cofounder-cluster
+  #   aws ecs list-task-definitions --family-prefix CoFounderCompute
+  BACKEND_SERVICE: CoFounderCompute-BackendService
+  FRONTEND_SERVICE: CoFounderCompute-FrontendService
+  BACKEND_TASK_FAMILY: CoFounderComputeBackendTaskDef
+  FRONTEND_TASK_FAMILY: CoFounderComputeFrontendTaskDef
+  BACKEND_CONTAINER: Backend
+  FRONTEND_CONTAINER: Frontend
 
 jobs:
-  deploy:
+  # Gate: only proceed if tests passed (skip check for manual dispatch)
+  gate:
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    steps:
+      - run: echo "Deploy gate passed"
+
+  # Detect what changed (only for workflow_run, not manual dispatch)
+  changes:
+    needs: gate
+    if: github.event_name == 'workflow_run'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - 'docker/Dockerfile.backend'
+              - 'docker/docker-compose.yml'
+              - 'infra/**'
+            frontend:
+              - 'frontend/**'
+              - 'docker/Dockerfile.frontend'
+              - 'docker/docker-compose.yml'
+              - 'infra/**'
+
+  deploy-backend:
+    needs: [gate, changes]
+    if: >-
+      always() &&
+      needs.gate.result == 'success' &&
+      (needs.changes.result == 'skipped' || needs.changes.outputs.backend == 'true')
     runs-on: ubuntu-latest
     permissions:
       id-token: write
       contents: read
+    environment: production
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Login to Amazon ECR
-        id: login-ecr
+      - id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v3
 
-      - name: Build and push backend
+      - name: Build and push backend image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: docker/Dockerfile.backend
           push: true
-          tags: ${{ steps.login-ecr.outputs.registry }}/cofounder-backend:${{ github.sha }},${{ steps.login-ecr.outputs.registry }}/cofounder-backend:latest
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/cofounder-backend:${{ github.event.workflow_run.head_sha || github.sha }}
+            ${{ steps.login-ecr.outputs.registry }}/cofounder-backend:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Build and push frontend
+      - name: Fetch current task definition
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition ${{ env.BACKEND_TASK_FAMILY }} \
+            --query 'taskDefinition' | \
+            jq 'del(.taskDefinitionArn,.revision,.status,.requiresAttributes,.placementConstraints,.compatibilities,.registeredAt,.registeredBy)' \
+            > /tmp/backend-task-definition.json
+
+      - name: Render backend task definition
+        id: render-backend
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: /tmp/backend-task-definition.json
+          container-name: ${{ env.BACKEND_CONTAINER }}
+          image: ${{ steps.login-ecr.outputs.registry }}/cofounder-backend:${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Deploy backend to ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.render-backend.outputs.task-definition }}
+          service: ${{ env.BACKEND_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+
+  deploy-frontend:
+    needs: [gate, changes]
+    if: >-
+      always() &&
+      needs.gate.result == 'success' &&
+      (needs.changes.result == 'skipped' || needs.changes.outputs.frontend == 'true')
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build and push frontend image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: docker/Dockerfile.frontend
           push: true
-          tags: ${{ steps.login-ecr.outputs.registry }}/cofounder-frontend:${{ github.sha }},${{ steps.login-ecr.outputs.registry }}/cofounder-frontend:latest
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/cofounder-frontend:${{ github.event.workflow_run.head_sha || github.sha }}
+            ${{ steps.login-ecr.outputs.registry }}/cofounder-frontend:latest
           build-args: |
             NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
             NEXT_PUBLIC_API_URL=https://api.cofounder.getinsourced.ai
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Fetch current task definition
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition ${{ env.FRONTEND_TASK_FAMILY }} \
+            --query 'taskDefinition' | \
+            jq 'del(.taskDefinitionArn,.revision,.status,.requiresAttributes,.placementConstraints,.compatibilities,.registeredAt,.registeredBy)' \
+            > /tmp/frontend-task-definition.json
+
+      - name: Render frontend task definition
+        id: render-frontend
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          node-version: "20"
-          cache: "npm"
-          cache-dependency-path: infra/package-lock.json
+          task-definition: /tmp/frontend-task-definition.json
+          container-name: ${{ env.FRONTEND_CONTAINER }}
+          image: ${{ steps.login-ecr.outputs.registry }}/cofounder-frontend:${{ github.event.workflow_run.head_sha || github.sha }}
 
-      - name: Install CDK dependencies
-        working-directory: infra
-        run: npm ci
-
-      - name: Deploy CDK stacks
-        working-directory: infra
-        run: npx cdk deploy --all --require-approval never
-
-      - name: Update ECS Backend Service
-        run: |
-          aws ecs update-service \
-            --cluster cofounder-cluster \
-            --service CoFounderCompute-BackendService \
-            --force-new-deployment
-
-      - name: Update ECS Frontend Service
-        run: |
-          aws ecs update-service \
-            --cluster cofounder-cluster \
-            --service CoFounderCompute-FrontendService \
-            --force-new-deployment
-
-      - name: Wait for deployment
-        run: |
-          aws ecs wait services-stable \
-            --cluster cofounder-cluster \
-            --services CoFounderCompute-BackendService CoFounderCompute-FrontendService
+      - name: Deploy frontend to ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.render-frontend.outputs.task-definition }}
+          service: ${{ env.FRONTEND_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
