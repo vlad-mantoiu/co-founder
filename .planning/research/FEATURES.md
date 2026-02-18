@@ -1,418 +1,352 @@
-# Feature Research: AI Co-Founder / Product Builder SaaS
+# Feature Research: v0.2 Production Ready
 
-**Domain:** AI-powered technical co-founder for non-technical founders
-**Researched:** 2026-02-16
+**Domain:** AI Co-Founder SaaS — LLM integration, Stripe billing, CI/CD, CloudWatch monitoring
+**Researched:** 2026-02-18
 **Confidence:** HIGH
 
-## Executive Summary
+---
 
-The AI co-founder/product builder market in 2026 is dominated by tools like Lovable, Bolt.new, Replit Agent, v0, Cursor, and GitHub Copilot Workspace. These platforms have established clear table stakes (natural language to code, live preview, deployment) while differentiating on collaboration, iteration speed, and production readiness.
+## Context: What Already Exists (v0.1)
 
-**Key insight:** Most competitors target developers or "vibe coders" with code-first interfaces. The founder-first, PM-style dashboard approach is largely untapped, creating a significant differentiation opportunity.
+Before mapping the new feature landscape, record what is built and wired:
 
-## Table Stakes Features
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Runner protocol (`Runner`) | Built | 10-method abstract interface — clean seam for swap |
+| RunnerFake | Built | All 10 methods, deterministic, powering all flows |
+| RunnerReal skeleton | Built | `run()` and `step()` wrap LangGraph; `generate_questions/brief/artifacts` are placeholder LLM calls with raw JSON parsing |
+| Stripe routes (`billing.py`) | Built | checkout, portal, status, webhooks — all 4 handlers wired |
+| Stripe price IDs | Wired | In compute-stack.ts and config |
+| Billing page (`/billing`) | Built | Shows plan status, portal button |
+| GitHub Actions test.yml | Built | Runs pytest on push/PR — no lint, no type check |
+| GitHub Actions deploy.yml | Built | Build → ECR push → CDK deploy → ECS force-deploy |
+| CloudWatch log groups | Wired | `awsLogs` on both containers, 1-week retention |
+| ECS autoscaling | Wired | CPU 70%, 1–4 tasks |
+| Artifact generator | Built | Cascade logic, tier filtering, version rotation — uses RunnerFake |
+| Understanding interview | Built | Full session lifecycle — uses RunnerFake |
+| Onboarding service | Built | Full flow — uses RunnerFake |
 
-Features users expect from AI product builders. Missing these = product feels incomplete.
+**The core gap**: RunnerFake powers everything. `RunnerReal` only implements `run()`/`step()` (LangGraph) and has shallow stubs for `generate_questions/brief/artifacts`. The remaining 7 Runner methods (`generate_understanding_questions`, `generate_idea_brief`, `check_question_relevance`, `assess_section_confidence`, `generate_execution_options`) are not implemented in RunnerReal. Zero real LLM calls flow through the interview/artifact path in production.
 
-| Feature | Why Expected | Complexity | Notes | Dependencies |
-|---------|--------------|------------|-------|--------------|
-| **Natural Language to Code** | Core value proposition of AI builders; users describe in plain English, system generates functional code | MEDIUM | Must support iterative refinement, not just single-shot generation | LLM integration, code generation pipeline |
-| **Live Preview** | Immediate feedback is essential; users need to see what they're building without deployment | MEDIUM | Real-time or near-real-time (<3 seconds); mobile preview via QR code is becoming standard | Sandbox execution environment |
-| **Code Execution Sandbox** | Safe execution of AI-generated code without risking production systems or user machines | HIGH | Must use MicroVMs (Firecracker/Kata) or gVisor for security; 150-500ms startup acceptable | E2B, Daytona, or similar platform |
-| **Authentication System** | Every app needs user login; manual auth setup is a dealbreaker for non-technical founders | LOW-MEDIUM | Clerk, Supabase Auth, or similar; granular permissions for complex apps | Database integration |
-| **Database Provisioning** | Apps need data persistence; auto-provisioning Supabase/PostgreSQL is now expected | MEDIUM | Automatic schema generation from natural language description of data needs | Supabase or PostgreSQL instance |
-| **One-Click Deployment** | Non-technical users cannot manually deploy; this must be automatic | MEDIUM | Deploy to Vercel, Netlify, or proprietary hosting; custom domain support | Cloud hosting provider integration |
-| **Responsive UI Generation** | Mobile-first is table stakes; generated apps must work on all screen sizes | LOW-MEDIUM | Tailwind CSS + shadcn/ui is the de facto standard; component libraries handle this | UI component library |
-| **Git Export** | Users need to own their code; export to GitHub/GitLab is minimum | LOW | Basic: download zip or push to new repo. Advanced: two-way sync | Git API integration |
-| **Iteration Loop** | AI gets things wrong; users need fast edit-preview-refine cycles without starting over | MEDIUM | Chat-based iteration with conversation context; sub-5 second response time | Conversation state management |
-| **API/Backend Generation** | Full-stack apps need APIs; frontend-only tools feel incomplete in 2026 | MEDIUM | RESTful or tRPC endpoints; serverless functions for simple use cases | Backend framework (FastAPI, Express, etc.) |
+---
 
-## Differentiating Features
+## Pillar 1: Real LLM Integration
 
-Features that create competitive advantage. Not required, but highly valued.
+### Table Stakes
 
-| Feature | Value Proposition | Complexity | Notes | Dependencies |
-|---------|-------------------|------------|-------|--------------|
-| **Guided Onboarding Interview** | Helps non-technical founders articulate requirements through structured questions (Builder.io Plan mode approach) | MEDIUM | Multi-turn conversation that explores idea, asks clarifying questions, proposes approach before coding | LLM with conversation design |
-| **Decision Tracking & Logs** | Records architectural decisions with rationale (like a real CTO would); builds trust and enables rollback | MEDIUM | Log every major decision (database choice, architecture pattern, third-party service) with timestamp, context, reasoning | Decision log database schema |
-| **Explainable Architecture** | Shows WHY the AI chose specific patterns/technologies; educates founders instead of black-box generation | MEDIUM-HIGH | Natural language explanations of trade-offs; "I chose X because Y, alternatives were Z" | LLM explainability, architecture knowledge base |
-| **PM-Style Dashboard** | Roadmap view, decision console, execution timeline—not a code editor; positions as co-founder not coding tool | HIGH | Company strategy graph, build phases, deployment history, decision history, artifact library | Custom dashboard with graph visualization |
-| **Artifact Generation** | Produces shareable documents (PRD, tech spec, deployment guide) that founders can show investors/team | MEDIUM | Export to PDF/Markdown; professional formatting; automatically updated as project evolves | Document generation, templating system |
-| **Version History with Snapshots** | Named versions ("v0.1 - MVP", "v0.2 - Added payments") not just git commits; non-technical friendly | MEDIUM | Semantic versioning mapped to features; rollback to any version; side-by-side comparison | Git + metadata layer |
-| **Cost/Usage Transparency** | Shows token usage, compute costs, estimated monthly cost to run the app; prevents surprise bills | LOW-MEDIUM | Real-time usage dashboard; project cost over time; alerts at thresholds | Usage tracking, billing integration |
-| **Agentic Planning (Multi-Step)** | AI breaks down complex features into steps, proposes plan, gets approval, then executes (v0's new workflow) | HIGH | Specification → Plan → Code → Test → Deploy pipeline; human-in-the-loop at each gate | Agent orchestration, state machine |
-| **Team Collaboration** | Multiple users editing, commenting, proposing changes; version control for non-coders | HIGH | Real-time multiplayer editing; branch/merge abstracted as "proposals"; conflict resolution | WebSocket sync, CRDT or OT |
-| **Two-Way Git Sync** | Not just export—continuous sync between AI environment and GitHub; developers can work in IDE | HIGH | Lovable's key differentiator; enables handoff to dev team; monitors external changes | GitHub API, file system watchers |
-| **Component Library Awareness** | Knows your design system; generates code using your existing components instead of generic ones | MEDIUM-HIGH | Scan existing codebase, identify reusable components, prefer them in generation | Code analysis, AST parsing |
-| **Cross-File Refactoring** | Changes propagate across entire codebase; rename a component everywhere, update all imports | MEDIUM-HIGH | Cursor/Copilot Workspace level; requires full project understanding | AST manipulation, dependency graph |
-| **Build Path Options** | Offers multiple implementation approaches (monolith vs microservices, SQL vs NoSQL) with trade-offs | MEDIUM | Presents 2-3 options with pros/cons; founder chooses; AI explains implications | Architecture decision framework |
-| **Pre-Deployment Checklist** | Readiness gates (tests pass, security scan, performance check) before allowing deploy | MEDIUM | Automated checks + manual review items; prevents shipping broken code | Testing framework, security scanning |
-| **External Integrations** | Connect to Stripe, Twilio, SendGrid, etc. through natural language ("add Stripe payments") | MEDIUM-HIGH | API key management, secure storage, boilerplate generation for popular services | Secrets management, API integration templates |
-| **Mobile App Generation** | React Native or Flutter output in addition to web; scan QR to test on device | HIGH | Separate track from web; significant complexity; Replit has this, most don't | Mobile build toolchain |
+Features users expect from any AI product that claims to be "powered by Claude."
 
-## Anti-Features
+| Feature | Why Expected | Complexity | Dependencies on Existing | Notes |
+|---------|--------------|------------|--------------------------|-------|
+| **Dynamic onboarding questions** | Static/fake questions instantly reveal the product is hollow; founders expect questions tailored to their idea | MEDIUM | RunnerFake→RunnerReal swap; `generate_questions()` method | Needs structured output: list of `{id, text, input_type, required, options, follow_up_hint}`. The fake returns hardcoded inventory-tracker questions to every user. |
+| **Dynamic understanding questions** | Same reason — current fake returns identical 6 questions regardless of idea | MEDIUM | `generate_understanding_questions()` method | Must use idea text + onboarding answers as context. 6–8 questions minimum per research. |
+| **Real ThesisSnapshot generation** | `generate_brief()` in RunnerReal is a stub; production sends fake inventory tracker content to real founders | MEDIUM | `generate_brief()` method | Output must match existing `ThesisSnapshot` schema (problem, target_user, value_prop, key_constraint, differentiation, monetization_hypothesis, assumptions, risks, smallest_viable_experiment) |
+| **Real Idea Brief generation** | `generate_idea_brief()` not implemented in RunnerReal at all | MEDIUM | `generate_idea_brief()` method | Must match `RationalisedIdeaBrief` schema with confidence_scores dict |
+| **Real artifact cascade** | RunnerReal `generate_artifacts()` stub returns raw JSON — no structured output, no prompts.py used | MEDIUM-HIGH | `generate_artifacts()`, `prompts.py` already has 5 system prompts | Must use the existing system prompts in `prompts.py`. Cascade: Brief → MVP Scope → Milestones → Risk Log → How It Works |
+| **Structured JSON output** | LLM responses must be parseable into Pydantic schemas without brittle regex | MEDIUM | Anthropic SDK, existing Pydantic schemas | Use Anthropic tool-use / structured outputs. Raw `json.loads(response.content)` in RunnerReal is fragile — any preamble text breaks it. |
+| **LLM error handling with retry** | Anthropic API failures (rate limits, timeouts) must degrade gracefully, not 500 | MEDIUM | RunnerReal, existing `RuntimeError` patterns | Exponential backoff (3 retries), user-facing error message, fallback to RunnerFake in test env. |
+| **Section confidence assessment** | `assess_section_confidence()` not in RunnerReal; used during brief editing | LOW | `assess_section_confidence()` method | Simple LLM call: "given this section content, return strong/moderate/needs_depth." |
+| **Question relevance checking** | `check_question_relevance()` not in RunnerReal; used in edit_answer flow | LOW | `check_question_relevance()` method | Determines if earlier answer change makes remaining questions stale. Binary: needs_regeneration bool. |
+| **Execution options generation** | `generate_execution_options()` not in RunnerReal; blocks decision gate | MEDIUM | `generate_execution_options()` method | Generates 2–3 build options from Idea Brief. Must match ExecutionPlanOptions schema. |
 
-Features that seem good but create problems. Deliberately avoid these.
+### Differentiators
+
+| Feature | Value Proposition | Complexity | Dependencies | Notes |
+|---------|-------------------|------------|--------------|-------|
+| **Adaptive question depth** | Questions that get harder/more specific as the founder reveals more context in earlier answers | HIGH | RunnerReal, understanding session state | Pass prior Q&A pairs as context to each new question generation. Current fake returns all 6 at once upfront. |
+| **Co-founder voice consistency** | All LLM outputs use "we" language throughout (not "the user" or "you should") | LOW | All prompts.py prompts | Already designed in prompts.py — just needs to be activated. RunnerReal stubs use generic voice. |
+| **Tier-differentiated output quality** | Higher tiers get richer analysis (more depth in briefs, more options for execution plans) | MEDIUM | Tier-aware prompting, existing tier filter | Currently filtering happens post-generation. Could also vary prompt instructions by tier for richer output on higher plans. |
+| **Regeneration with context preservation** | When a section is regenerated, preserve user edits in other sections; incorporate prior brief as context | MEDIUM | ArtifactService `regenerate_artifact()`, RunnerReal | Currently passes `prior_artifacts` but RunnerReal ignores them in stubs. |
+
+### Anti-Features
 
 | Anti-Feature | Why Requested | Why Problematic | Alternative |
 |--------------|---------------|-----------------|-------------|
-| **Full Code Editor in Dashboard** | "Let me edit the code directly" | Contradicts founder-first positioning; invites spaghetti code; creates expectations of IDE features | Show code as read-only for transparency; all changes via natural language; advanced users can export to git and use real IDE |
-| **"Generate Everything" Button** | "Just build my whole app at once" | Produces unfocused, bloated output; AI lacks context for good decisions; users feel overwhelmed | Guided interview that establishes scope, then phased generation with approval gates between features |
-| **Real-Time Collaboration on Code** | "Multiple people editing code simultaneously" | Code conflicts are hard even for engineers; non-technical users will create merge hell | Collaboration at feature/decision level, not line-by-line code editing; "proposals" that get reviewed/merged |
-| **Unlimited Free Tier** | "Make it free to compete with Lovable" | AI code generation is expensive (see: Bolt users spending $1000+ on tokens); unsustainable unit economics; attracts low-intent users | Generous trial (3 projects or 100 generations); clear usage limits; transparent pricing; focus on value delivery |
-| **Support Every Framework** | "Let me choose React, Vue, Svelte, Angular..." | Dilutes quality; each framework needs different patterns; AI output quality suffers; support burden explodes | Opinionated stack (Next.js + Tailwind + shadcn/ui); optimize for one great experience; allow export if they want to port |
-| **Manual Infrastructure Management** | "Let me configure my own AWS/GCP" | Non-technical users don't want to think about infrastructure; decision paralysis; support nightmare | Managed hosting included; abstract infrastructure entirely; advanced users can export and deploy themselves |
-| **Blockchain/Web3 Features** | "Can it deploy smart contracts?" | Niche use case; regulatory uncertainty; most founders don't need this; adds massive complexity | Focus on 90% use case (web apps); if user needs Web3, suggest specialized tools |
-| **AI-to-AI Handoff** | "Let multiple AI agents work on different parts" | Coordination overhead; conflicting decisions; hard to debug; accountability unclear | Single agent with access to multiple models/tools; unified decision-making; clear audit trail |
-| **Automated Testing Generation** | "Generate full test suite automatically" | AI-generated tests often test implementation not behavior; brittle; false confidence; maintenance burden | Manual test definition via natural language ("users should be able to..."); AI generates implementation; human validates test cases |
-| **100% Production-Ready Output** | "Ship without any human review" | AI makes mistakes; context is limited; edge cases missed; setting false expectations | Position as "MVP generator" or "80% there"; build expectation of review/refinement; provide clear handoff path to developers |
+| **Free-form chat to replace structured interview** | "Let me just describe everything in one message" | Founders ramble; structured questions extract specific signal (problem, target user, monetization) that drives artifact quality | Keep structured Q&A; add a "quick mode" that pre-fills reasonable defaults and asks 3 must-answer questions |
+| **Streaming tokens to browser for interviews** | "I want to see Claude thinking" | Interview Q&A is sequential turn-based — streaming adds complexity with no UX gain; artifacts are better shown complete | Stream only for artifacts (where generation takes 10–30s); show spinner for Q&A (sub-3s target) |
+| **Multiple LLM providers (OpenAI, Gemini)** | "Let me choose my AI" | Each model needs different prompt tuning; quality variance confuses users; doubles testing burden | Opinionated: Anthropic only. Opus for planning, Sonnet for execution — already designed in config.py |
+| **Real-time LLM cost per call shown to user** | "Show me the token cost of each question" | Creates anxiety, discourages use, doesn't map to value delivered | Show aggregate usage at billing level (tokens/day vs. plan limit), not per-interaction cost |
+
+---
+
+## Pillar 2: Stripe Subscription Billing
+
+### Table Stakes
+
+| Feature | Why Expected | Complexity | Dependencies on Existing | Notes |
+|---------|--------------|------------|--------------------------|-------|
+| **Checkout flow completes** | The route exists (`/api/billing/checkout`) but has never been tested end-to-end in production; Stripe price IDs are wired but keys may not be in Secrets Manager | LOW | `billing.py` complete, `billing/page.tsx` partial | Need to verify `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` are in `cofounder/app` secret. Price IDs already in compute-stack.ts. |
+| **Webhook signature verification** | Stripe mandates HTTPS endpoint with signature check; current code has it but it must be reachable | LOW | `_handle_checkout_completed`, `_handle_subscription_updated`, etc. | Webhook endpoint must not be behind `require_auth` — it is not currently (correct). Needs ngrok/tunnel for local testing or production URL registered in Stripe dashboard. |
+| **Plan upgrade after checkout** | `_handle_checkout_completed` updates `plan_tier_id` in DB — this is the critical money path | LOW | `UserSettings`, `PlanTier` models | The handler exists; needs integration test that sends a real Stripe test-mode webhook and verifies DB state changes. |
+| **Downgrade on cancellation** | `_handle_subscription_deleted` downgrades to bootstrapper | LOW | `billing.py` complete | Covered in existing code; needs integration test. |
+| **Past-due handling** | `_handle_payment_failed` sets `past_due` status | LOW | `billing.py` complete | Must verify that `require_subscription` in auth.py gates past-due users correctly. |
+| **Customer portal** | Users must be able to update payment, cancel, view invoices | LOW | `create_portal_session` endpoint complete, billing page has button | Portal URL must redirect back to `/billing` — configured in `create_portal_session`. |
+| **Pricing page checkout button** | Marketing pricing page must link to `POST /api/billing/checkout` | LOW | `pricing-content.tsx` | Current pricing page exists as marketing content; needs real checkout buttons wired. |
+| **Subscription status shown in UI** | Billing page shows plan and status | LOW | `billing/page.tsx` complete | Already done. |
+
+### Differentiators
+
+| Feature | Value Proposition | Complexity | Dependencies | Notes |
+|---------|-------------------|------------|--------------|-------|
+| **Usage meter shown to user** | Non-technical founders panic about "limits" without visibility — showing tokens used vs. allowed builds trust | MEDIUM | `UsageLog` table, Redis daily counters already tracking | Backend has usage tracking; frontend has no usage dashboard yet. Add usage bar to billing page. |
+| **Annual/monthly toggle on pricing** | 20–30% revenue uplift from annual plans; reduces churn | LOW | Price IDs for annual already in compute-stack.ts | Pricing page UI needs toggle; checkout request already accepts `interval` param. |
+| **Checkout success page with upsell** | Post-checkout, show what they unlocked and suggest trying a feature | LOW | Billing page already handles `?session_id=` param | Add a "You're now on Partner — here's what you can do" state. |
+| **Grace period for failed payments** | Don't hard-block users the moment a payment fails — give 3-day window | MEDIUM | `stripe_subscription_status` field, `require_subscription` check | Set grace window in `require_subscription`: allow `past_due` users for 72h after failure event timestamp. |
+
+### Anti-Features
+
+| Anti-Feature | Why Requested | Why Problematic | Alternative |
+|--------------|---------------|-----------------|-------------|
+| **Custom billing (Paddle, LemonSqueezy)** | "Stripe is expensive (2.9%)" | Stripe handles global tax compliance, disputes, refunds — replacing it early wastes engineering; global tax is a legal nightmare | Stay on Stripe; tax handling via Stripe Tax is one config flag |
+| **Crypto payments** | "Accept ETH/USDC" | Regulatory exposure, conversion overhead, tiny market overlap with non-technical founders | Not in scope for v0.2 or v0.3 |
+| **Custom invoice templates** | "I want my company name on invoices" | Stripe portal handles this automatically with customer metadata | Configure Stripe Customer with founder's company name during checkout; no custom invoice code needed |
+| **Per-seat pricing for teams** | "Charge per additional user" | No team features exist yet; adding seat counting before multi-user auth creates orphaned billing state | When team collaboration ships (v0.4+), add seat quantity to existing Stripe subscription |
+
+---
+
+## Pillar 3: CI/CD Pipelines
+
+### Table Stakes
+
+What every production SaaS CI/CD pipeline must have.
+
+| Feature | Why Expected | Complexity | Dependencies on Existing | Notes |
+|---------|--------------|------------|--------------------------|-------|
+| **Tests pass before deploy** | Current deploy.yml does not run tests; a failing commit can deploy to production | LOW | `test.yml` exists but is separate from `deploy.yml` | Add `needs: test` dependency in `deploy.yml`. The test job already spins up postgres+redis services. |
+| **Linting gated on CI** | Ruff is in pyproject.toml dev deps but not in test.yml | LOW | `Ruff 0.8.0+` in stack | Add `ruff check .` step before pytest in test.yml. Failing lint blocks merge. |
+| **Type checking gated on CI** | mypy is in dev deps but not run in CI | LOW | `mypy 1.13.0+` in stack | Add `mypy app/` step. Will require fixing existing type errors first — scope as a separate task. |
+| **Frontend lint/typecheck on CI** | No frontend CI exists at all | LOW | ESLint 9.0.0+, tsc already in package.json | Add `npm run lint && npx tsc --noEmit` as a new `frontend-test` job in test.yml |
+| **Separate test and deploy workflows** | Already separated into test.yml and deploy.yml — good pattern | Done | Already done | No change needed here. |
+| **Deploy only on main** | deploy.yml already gates on `push: branches: [main]` | Done | Already done | Correct. |
+| **Rollback capability** | Current deploy.yml has no rollback — if ECS deployment fails, service is degraded | MEDIUM | ECR tags with `github.sha`, ECS | Add rollback step: on deploy failure, `aws ecs update-service --task-definition <previous>`. Use ECR image tag from last successful deploy stored in SSM Parameter Store. |
+| **Health check after deploy** | `aws ecs wait services-stable` exists but does not verify the app is actually healthy | LOW | `/api/health` endpoint exists | After `services-stable`, curl the health endpoint and fail the job if it returns non-200. |
+| **Secret scanning** | Stripe keys, Anthropic keys must never be committed | LOW | GitHub Actions | Add `gitleaks` or GitHub's built-in secret scanning (free for public repos, available in settings for private). |
+
+### Differentiators
+
+| Feature | Value Proposition | Complexity | Dependencies | Notes |
+|---------|-------------------|------------|--------------|-------|
+| **Docker layer caching** | Current deploy.yml has `cache-from: type=gha` — already configured. Worth verifying it's cutting build times | Done | Already in deploy.yml | Confirm cache hit rates in Actions logs. May need `cache-to: type=gha,mode=max` tuning. |
+| **PR preview environments** | Each PR gets a temporary URL to test against — catches regressions before merge | HIGH | Separate ECS task or Vercel preview | Not worth the infra complexity for a small team pre-PMF. Defer to v0.3. |
+| **Test coverage reporting** | `pytest-cov` is in dev deps; coverage % visible in PRs | LOW | `pytest-cov` already installed | Add `--cov=app --cov-report=xml` to test step; upload to Codecov (free tier). |
+| **Canary deploys** | Route 10% of traffic to new version before full cutover | HIGH | ALB weighted routing, two ECS task definitions | Not needed at current scale (1 task). Add when traffic justifies it. |
+| **Database migration in CI** | Run `alembic upgrade head` as a pre-deploy step with dry-run | MEDIUM | Alembic already in stack | Add `alembic upgrade head --sql` (dry-run to stdout) to CI; actual migration runs on container startup via lifespan. |
+
+### Anti-Features
+
+| Anti-Feature | Why Requested | Why Problematic | Alternative |
+|--------------|---------------|-----------------|-------------|
+| **Multi-environment pipeline (dev/staging/prod)** | "I want a staging environment" | Each environment is another ECS cluster + RDS instance + ~$150/mo; pre-PMF burn is unjustified | Use `workflow_dispatch` with environment input for manual "staging" deploys to same infra with feature flags; add real staging after first paying customers |
+| **Jenkins/CircleCI migration** | "GitHub Actions has limits" | GitHub Actions free tier is 2,000 min/mo — more than enough for this project; migration is pure overhead | Stay on GitHub Actions; optimize job parallelism and caching |
+| **Kubernetes (EKS)** | "Let's be cloud-native" | ECS Fargate already provides container orchestration; EKS adds $70+/mo cluster fee and significant ops overhead | Stay on ECS; migrate to EKS when pod count justifies it (likely never for this product) |
+| **Automatic database migrations in deploy pipeline** | "Run alembic before deploying" | Race condition risk — new ECS task starts before migration completes on old schema | Run migrations in container lifespan startup (already done in `main.py`); migration is idempotent |
+
+---
+
+## Pillar 4: CloudWatch Monitoring
+
+### Table Stakes
+
+| Feature | Why Expected | Complexity | Dependencies on Existing | Notes |
+|---------|--------------|------------|--------------------------|-------|
+| **Application error tracking** | CloudWatch log groups exist (1-week retention) but there are no metric filters or alarms on error rates | LOW | Log groups already in compute-stack.ts | Add CloudWatch Metric Filter: `ERROR` in backend logs → alarm if >5 errors in 5 min → SNS → email |
+| **Health check alarm** | ECS already performs health checks but no alarm notifies on sustained unhealthy state | LOW | ECS health check in compute-stack.ts | ALB unhealthy host count alarm: >0 for 2 consecutive periods → SNS alert |
+| **5xx rate alarm** | ALB metrics expose `HTTPCode_Target_5XX_Count` — no alarm defined | LOW | ALB already created by `ApplicationLoadBalancedFargateService` | Alarm: >10 5xx per 5 min → SNS → email |
+| **Response latency alarm** | `TargetResponseTime` ALB metric — no alarm | LOW | ALB metrics available | Alarm: P99 >5s → warning; P99 >10s → critical |
+| **Stripe webhook failure tracking** | Failed webhook handling (DB write fails) currently silent | LOW | `billing.py` has logger.error calls | Add CloudWatch Metric Filter on `"Stripe webhook"` log events with `ERROR` level |
+| **Anthropic API error tracking** | LLM calls will fail; currently no monitoring | LOW | Will be added in RunnerReal | Log all Anthropic errors with a structured tag; add metric filter + alarm |
+| **Token usage dashboard** | Understanding LLM costs before they surprise you | MEDIUM | `usage_logs` table already tracking tokens | Create CloudWatch dashboard from custom metrics; OR query RDS directly and expose via `/api/admin/usage` |
+| **ECS task restart alarm** | Container crashes produce ECS task restarts; currently invisible | LOW | ECS CloudWatch metrics | Alarm on `RunningTaskCount` dropping to 0 for backend service |
+
+### Differentiators
+
+| Feature | Value Proposition | Complexity | Dependencies | Notes |
+|---------|-------------------|------------|--------------|-------|
+| **Structured JSON logging** | CloudWatch Insights queries are vastly more powerful with structured logs (vs. string search) | LOW | Backend Python logging already configured | Add `python-json-logger` or structlog; emit `{level, message, user_id, correlation_id, duration_ms}` JSON |
+| **Request tracing with correlation IDs** | Correlation ID middleware already exists in `middleware/correlation.py` — expose it in CloudWatch Insights queries | Done | Already built | Ensure correlation_id appears in every log line (confirm middleware is adding it to all logger output) |
+| **LLM latency tracking** | Track P50/P95/P99 for each Runner method separately (questions, brief, artifacts) | MEDIUM | RunnerReal timing hooks | Wrap each LLM call with `time.perf_counter()`; emit custom CloudWatch metric `LLMLatency` with dimension `Method` |
+| **Business metric dashboard** | New signups/day, checkout conversions, artifacts generated — visible in CloudWatch | MEDIUM | Stripe webhooks, usage_logs | On each `checkout.session.completed`, emit custom metric `NewSubscription`; on artifact generation, emit `ArtifactGenerated`. Create CloudWatch Dashboard. |
+| **Cost anomaly detection** | AWS Cost Anomaly Detection is free to set up; alerts when daily spend spikes | LOW | AWS Cost Anomaly Detection service | Enable via AWS Console (or CDK); set threshold at +50% vs. trailing 30-day average. |
+
+### Anti-Features
+
+| Anti-Feature | Why Requested | Why Problematic | Alternative |
+|--------------|---------------|-----------------|-------------|
+| **Datadog/New Relic/Sentry** | "CloudWatch is not a real observability platform" | $50–500+/mo for tools that duplicate what CloudWatch provides for this traffic level; adds APM agent overhead | Use CloudWatch + structured logs; add Sentry for frontend error tracking only (generous free tier) |
+| **OpenTelemetry full instrumentation** | "Industry standard for observability" | Correct for high-scale services; for this product at this stage, adds weeks of setup for marginal gain | Add OTEL when traffic warrants distributed tracing (likely 10k+ req/day). Use `OTEL_EXPORTER_OTLP_ENDPOINT` pointing to CloudWatch OTLP endpoint when ready. |
+| **Custom Grafana on EC2** | "Grafana is better than CloudWatch dashboards" | Runs 24/7 EC2 instance, maintenance burden, more cost | CloudWatch dashboards are sufficient at this scale; revisit when marketing team needs self-serve analytics |
+| **PagerDuty on-call rotation** | "Real companies have on-call" | Single engineer or small team; PagerDuty minimum is ~$19/user/mo; on-call rotation is 1 person | SNS → email/SMS is sufficient; set up a simple phone number via SNS for critical alarms |
+
+---
 
 ## Feature Dependencies
 
 ```
-[Natural Language to Code]
-    └──requires──> [LLM Integration]
-    └──requires──> [Code Generation Pipeline]
+[Real LLM Integration]
+    └──requires──> [RunnerReal: all 10 methods implemented]
+    └──requires──> [Anthropic structured outputs / tool-use]
+    └──enables──> [Real artifact generation]
+    └──enables──> [Real interview quality]
 
-[Live Preview]
-    └──requires──> [Sandbox Execution Environment]
-    └──enhances──> [Iteration Loop]
+[RunnerReal: generate_questions]
+    └──feeds──> [OnboardingService.start_session]
+    └──feeds──> [UnderstandingService.start_session]
 
-[Guided Onboarding Interview]
-    └──produces──> [Decision Tracking & Logs]
-    └──produces──> [Architecture Decisions]
+[RunnerReal: generate_artifacts]
+    └──feeds──> [ArtifactGenerator.generate_cascade]
+    └──feeds──> [ArtifactGenerator.generate_artifact]
 
-[PM-Style Dashboard]
-    └──requires──> [Decision Tracking & Logs]
-    └──requires──> [Artifact Generation]
-    └──requires──> [Version History with Snapshots]
-    └──displays──> [Cost/Usage Transparency]
+[Stripe Billing: Checkout]
+    └──requires──> [STRIPE_SECRET_KEY in Secrets Manager]
+    └──requires──> [Stripe price IDs in config] (already done)
+    └──requires──> [Webhook endpoint reachable via HTTPS] (production only)
+    └──produces──> [plan_tier_id update in UserSettings]
+    └──feeds──> [require_subscription in auth.py]
 
-[Agentic Planning]
-    └──requires──> [Natural Language to Code]
-    └──requires──> [Decision Tracking & Logs]
-    └──produces──> [Explainable Architecture]
+[Stripe Billing: Webhooks]
+    └──requires──> [STRIPE_WEBHOOK_SECRET in Secrets Manager]
+    └──requires──> [Stripe dashboard webhook registration]
+    └──produces──> [plan upgrades, downgrades, past-due status]
 
-[Two-Way Git Sync]
-    └──requires──> [Git Export]
-    └──enables──> [Team Collaboration]
-    └──conflicts──> [Full Code Editor in Dashboard] (anti-feature)
+[CI/CD: Tests before deploy]
+    └──requires──> [deploy.yml needs: test job]
+    └──requires──> [test.yml passes]
+    └──blocks──> [deploy job] until green
 
-[Artifact Generation]
-    └──requires──> [Decision Tracking & Logs]
-    └──requires──> [Architecture Decisions]
+[CI/CD: Linting in CI]
+    └──requires──> [ruff check passes on all Python files]
+    └──requires──> [eslint/tsc passes on frontend]
 
-[Pre-Deployment Checklist]
-    └──requires──> [Testing Framework]
-    └──requires──> [Security Scanning]
-    └──blocks──> [One-Click Deployment] (until checks pass)
+[CloudWatch: Error alarms]
+    └──requires──> [Structured logging format]
+    └──requires──> [SNS topic + email subscription]
+    └──requires──> [CloudWatch Metric Filters on log groups]
+
+[CloudWatch: LLM latency tracking]
+    └──requires──> [RunnerReal implemented]
+    └──requires──> [Custom CloudWatch metrics in RunnerReal]
+
+[Usage meter in billing UI]
+    └──requires──> [usage_logs data being written] (already happening with RunnerFake)
+    └──requires──> [API endpoint to read usage for current user]
+    └──requires──> [billing/page.tsx usage bar component]
 ```
 
-## MVP Definition (Founder-First Flow)
+### Dependency Notes
 
-### Launch With (v1.0 - Core Founder Experience)
+- **RunnerReal must be completed first**: Every other LLM feature depends on it. It is the critical path for Pillar 1.
+- **Stripe verification is low-risk but sequential**: Checkout → verify webhook receipt → verify DB state change. Can be done in a single phase.
+- **CI/CD improvements are independent**: Can be done in parallel with LLM work; no shared dependencies.
+- **CloudWatch alarms require RunnerReal**: LLM error and latency alarms cannot be validated until real LLM calls flow.
+- **Structured logging enables CloudWatch Insights**: Do structured logging before setting up metric filters, or the filters will match nothing.
 
-Minimum viable product to validate founder-first positioning. Focus on differentiation from code-first tools.
+---
 
-- [ ] **Guided Onboarding Interview** — Differentiator; establishes founder-first positioning
-- [ ] **Natural Language to Code** — Table stakes; must work or product has no value
-- [ ] **Live Preview** — Table stakes; immediate feedback is essential
-- [ ] **Sandbox Execution** — Table stakes; required for live preview
-- [ ] **Decision Tracking & Logs** — Differentiator; core to co-founder metaphor
-- [ ] **PM-Style Dashboard (Basic)** — Differentiator; MVP includes project overview, recent decisions, build history
-- [ ] **Authentication + Database** — Table stakes; every app needs these
-- [ ] **One-Click Deployment** — Table stakes; non-negotiable for non-technical users
-- [ ] **Git Export** — Table stakes; users must own their code
-- [ ] **Iteration Loop** — Table stakes; AI never gets it right first try
-- [ ] **Basic Artifact Generation** — Differentiator; generates simple tech spec and README
+## MVP Definition for v0.2
 
-**MVP Goal:** Prove that founders prefer PM-style interaction over code-first tools. Validate willingness to pay for "co-founder" positioning.
+### Launch With (v0.2 core — ship this)
 
-### Add After Validation (v1.1-v1.5 - Polish & Scale)
+These are the minimum changes that make the product not embarrassing to show paying customers.
 
-Features to add once core value is proven and users are retained.
+- [ ] **RunnerReal: all 10 methods** — Without this, every interview and artifact is fake inventory-tracker content shown to real founders. This is the single most critical item.
+- [ ] **Stripe: production verification** — Checkout → webhook → DB update flow verified with Stripe test mode. Founders cannot pay without this.
+- [ ] **CI: tests before deploy** — Gate deploy.yml on test job. Currently broken code can reach production silently.
+- [ ] **CI: ruff lint in CI** — Takes 10 minutes to add, catches real bugs.
+- [ ] **CloudWatch: error rate alarm + health alarm** — Basic outage detection. Without it, the service can be down for hours undetected.
+- [ ] **Stripe webhook registration** — The webhook endpoint is built; it must be registered in the Stripe dashboard pointing at `https://api.cofounder.getinsourced.ai/api/webhooks/stripe`.
 
-- [ ] **Explainable Architecture** — Trigger: Users asking "why did it do X?"; builds trust
-- [ ] **Cost/Usage Transparency** — Trigger: First user complains about unexpected costs
-- [ ] **Version History with Snapshots** — Trigger: User wants to revert; improves confidence
-- [ ] **Agentic Planning (Multi-Step)** — Trigger: Complex features taking too many iterations; improves quality
-- [ ] **Build Path Options** — Trigger: Users want control over architecture decisions
-- [ ] **Pre-Deployment Checklist** — Trigger: User ships broken code; reduces support burden
-- [ ] **Enhanced Artifacts** — Trigger: Users showing docs to investors/co-founders; add PRD, pitch deck export
-- [ ] **External Integrations** — Trigger: Multiple users requesting same integration (likely Stripe first)
+### Add After Core Ships (v0.2 polish)
 
-### Future Consideration (v2.0+ - Advanced & Scale)
+- [ ] **Structured JSON logging** — Enables CloudWatch Insights debugging; worth doing immediately after core
+- [ ] **LLM error handling with retry** — Exponential backoff in RunnerReal; prevents cascading failures on Anthropic rate limits
+- [ ] **Usage meter in billing page** — Token usage vs. plan limit builds trust with founders
+- [ ] **CloudWatch: LLM latency tracking** — Know if generation is too slow before users complain
+- [ ] **CI: frontend typecheck** — Catches TypeScript errors before they reach production
+- [ ] **Annual/monthly toggle on pricing page** — Revenue uplift with minimal work
+- [ ] **Checkout success state in billing page** — Post-checkout UX; currently the `?session_id` param is captured but UI does nothing with it
 
-Features to defer until product-market fit and significant traction.
+### Future Consideration (v0.3+)
 
-- [ ] **Team Collaboration** — Wait until: Users hiring employees, requesting multi-user access
-- [ ] **Two-Way Git Sync** — Wait until: Users hiring developers, need to transition to traditional dev workflow
-- [ ] **Component Library Awareness** — Wait until: Enterprise customers with existing design systems
-- [ ] **Cross-File Refactoring** — Wait until: Generated codebases become large/complex enough to need this
-- [ ] **Mobile App Generation** — Wait until: Significant demand; huge complexity; separate product?
-- [ ] **Custom Deployment Targets** — Wait until: Enterprise customers with compliance requirements
+- [ ] **Adaptive question depth** — Questions get harder as founder reveals more; requires session-aware prompting
+- [ ] **PR preview environments** — Each PR gets a live URL; high infra cost, defer until team grows
+- [ ] **AWS Cost Anomaly Detection** — Free to enable; set up when monthly bill exceeds $500
+- [ ] **OpenTelemetry / distributed tracing** — Add when traffic justifies; OTEL → CloudWatch OTLP path exists
+- [ ] **Canary deploys** — ALB weighted routing; add when 2+ ECS tasks are running
+- [ ] **Grace period for failed payments** — Reduce churn; add when first payment failures occur
+
+---
 
 ## Feature Prioritization Matrix
 
-| Feature | User Value | Implementation Cost | Technical Risk | Priority |
-|---------|------------|---------------------|----------------|----------|
-| Guided Onboarding Interview | HIGH | LOW-MEDIUM | LOW | **P0** (MVP blocker) |
-| Natural Language to Code | HIGH | MEDIUM | MEDIUM | **P0** (MVP blocker) |
-| Live Preview | HIGH | MEDIUM | MEDIUM | **P0** (MVP blocker) |
-| Decision Tracking & Logs | HIGH | LOW-MEDIUM | LOW | **P0** (MVP blocker) |
-| PM-Style Dashboard (Basic) | HIGH | MEDIUM-HIGH | MEDIUM | **P0** (MVP blocker) |
-| Sandbox Execution | HIGH | MEDIUM-HIGH | HIGH | **P0** (MVP blocker) |
-| Authentication + Database | HIGH | LOW | LOW | **P0** (MVP blocker) |
-| One-Click Deployment | HIGH | MEDIUM | MEDIUM | **P0** (MVP blocker) |
-| Git Export | HIGH | LOW | LOW | **P0** (MVP blocker) |
-| Iteration Loop | HIGH | MEDIUM | LOW | **P0** (MVP blocker) |
-| Basic Artifact Generation | MEDIUM-HIGH | MEDIUM | LOW | **P0** (differentiator) |
-| Explainable Architecture | HIGH | MEDIUM | LOW | **P1** (post-MVP) |
-| Cost/Usage Transparency | MEDIUM | LOW | LOW | **P1** (post-MVP) |
-| Version History with Snapshots | MEDIUM-HIGH | MEDIUM | LOW | **P1** (post-MVP) |
-| Agentic Planning | HIGH | HIGH | HIGH | **P1** (wait for agent stability) |
-| Build Path Options | MEDIUM | MEDIUM | MEDIUM | **P2** (nice to have) |
-| Pre-Deployment Checklist | MEDIUM | MEDIUM | LOW | **P2** (quality of life) |
-| Enhanced Artifacts | MEDIUM | MEDIUM | LOW | **P2** (when users request) |
-| External Integrations | HIGH | MEDIUM-HIGH | MEDIUM | **P2** (start with Stripe) |
-| Team Collaboration | LOW (initially) | HIGH | HIGH | **P3** (future) |
-| Two-Way Git Sync | MEDIUM | HIGH | HIGH | **P3** (handoff feature) |
-| Component Library Awareness | LOW | HIGH | MEDIUM | **P3** (enterprise feature) |
-| Cross-File Refactoring | MEDIUM | HIGH | MEDIUM | **P3** (code quality) |
-| Mobile App Generation | MEDIUM | VERY HIGH | HIGH | **P3** (separate product?) |
+| Feature | User Value | Implementation Cost | Priority |
+|---------|------------|---------------------|----------|
+| RunnerReal: all 10 methods | HIGH | MEDIUM | P0 |
+| Stripe production verification | HIGH | LOW | P0 |
+| CI: tests before deploy | HIGH | LOW | P0 |
+| Stripe webhook registration | HIGH | LOW | P0 |
+| CloudWatch: error alarm + health alarm | HIGH | LOW | P0 |
+| CI: ruff lint | MEDIUM | LOW | P0 |
+| Structured JSON logging | MEDIUM | LOW | P1 |
+| LLM error handling with retry | HIGH | LOW | P1 |
+| Usage meter in billing page | MEDIUM | MEDIUM | P1 |
+| CloudWatch: LLM latency metrics | MEDIUM | LOW | P1 |
+| CI: frontend typecheck | MEDIUM | LOW | P1 |
+| Annual/monthly pricing toggle | MEDIUM | LOW | P1 |
+| Checkout success page state | LOW | LOW | P1 |
+| Tier-differentiated output quality | MEDIUM | MEDIUM | P2 |
+| Co-founder voice consistency audit | LOW | LOW | P2 |
+| Adaptive question depth | MEDIUM | HIGH | P2 |
+| CloudWatch business metric dashboard | MEDIUM | MEDIUM | P2 |
+| Grace period for failed payments | MEDIUM | MEDIUM | P2 |
+| PR preview environments | LOW | HIGH | P3 |
+| OpenTelemetry instrumentation | LOW | HIGH | P3 |
+| Canary deploys | LOW | HIGH | P3 |
 
 **Priority Key:**
-- **P0**: MVP blocker — must have for initial launch
-- **P1**: Post-MVP — add in first 3-6 months based on user feedback
-- **P2**: Future — add when specific user demand or usage patterns emerge
-- **P3**: Long-term — defer until significant scale or enterprise demand
+- P0: Must ship for v0.2 to be considered production-ready
+- P1: Should ship in v0.2 polish cycle
+- P2: Target for v0.3
+- P3: Defer until scale justifies
 
-## Competitor Feature Comparison
+---
 
-| Feature Category | Lovable | Bolt.new | Replit Agent | v0 (Vercel) | Cursor | Our Approach |
-|-----------------|---------|----------|--------------|-------------|--------|--------------|
-| **Primary User** | Non-coders, indie hackers | Developers, prototypers | Non-technical "knowledge workers" | Developers | Professional developers | Non-technical founders (co-founder relationship) |
-| **Interface** | Chat + code preview | IDE-like (file tree, editor, terminal) | Chat + live preview | Chat + UI preview | Full IDE (VS Code fork) | PM Dashboard + chat (no code editor) |
-| **Natural Language → Code** | Yes (full-stack) | Yes (frontend-focused) | Yes (full-stack) | Yes (UI + some backend) | Yes (inline + composer) | Yes (full-stack) |
-| **Live Preview** | Yes (browser + mobile) | Yes (browser) | Yes (browser + QR code) | Yes (browser) | No (local dev server) | Yes (browser + mobile QR) |
-| **Authentication** | Auto (Supabase) | Manual setup | Auto (Replit Auth) | Manual setup | Manual code | Auto (Clerk/Supabase) |
-| **Database** | Auto (Supabase) | Manual (Supabase supported) | Auto (Replit DB) | Manual setup | Manual code | Auto (Supabase/PostgreSQL) |
-| **Deployment** | One-click (built-in) | Manual export required | One-click (Replit hosting) | One-click (Vercel) | Manual deploy | One-click (Vercel/managed) |
-| **Git Integration** | Two-way sync (differentiator) | Basic export | Basic export | Push to GitHub | Native (it's git-based) | Export + eventual two-way |
-| **Iteration Speed** | Fast (<5s) | Slow (full rebuilds) | Fast (<5s) | Very fast (<3s) | Instant (inline) | Target: <3s |
-| **Multi-File Refactoring** | Limited | Limited | Limited | Yes (2026 upgrade) | Yes (Composer) | No (v1), Yes (v2) |
-| **Agentic Planning** | No | No | Yes (Agent 3 = 200min autonomy) | Yes (Spec → Plan workflow) | Yes (Composer) | Yes (with human gates) |
-| **Team Collaboration** | Yes (multiplayer) | No | Limited | No | Limited (git-based) | No (v1), Yes (v2) |
-| **Decision Tracking** | No | No | No | No | No | **Yes (core differentiator)** |
-| **PM Dashboard** | No (code-first) | No (IDE-first) | No (code-first) | No (component-first) | No (IDE) | **Yes (core differentiator)** |
-| **Artifact Generation** | No | No | No | No | No | **Yes (differentiator)** |
-| **Explainability** | Limited | Limited | Limited | Limited (shows plan) | Limited | **Yes (explains decisions)** |
-| **Pricing Model** | Subscription ($20-200/mo) | Subscription + usage | Subscription ($25/mo+) | Free tier + subscription | Subscription ($20-40/mo) | Hybrid (sub + usage with transparency) |
-| **Target Outcome** | "Deployed web app" | "Prototype to show investors" | "Working app for non-coders" | "Next.js app on Vercel" | "Professional codebase" | "MVP + understanding + handoff docs" |
+## Cross-Pillar Ordering Notes
 
-### Key Insights from Comparison
+For roadmap phase ordering:
 
-1. **Positioning Gap:** All competitors are code-first or component-first. None position as a "co-founder relationship" with PM-style interaction.
+1. **RunnerReal must be Phase 1** of v0.2. Everything else (LLM error handling, LLM latency tracking, co-founder voice) depends on it.
+2. **Stripe verification can run in parallel** with RunnerReal — they share no dependencies.
+3. **CI improvements are fully independent** — can be a single focused phase before or in parallel with anything.
+4. **CloudWatch alarms should come after RunnerReal** — alarms for LLM errors have nothing to alarm on until real calls flow. Basic health alarms (ECS, ALB 5xx) can be done independently.
+5. **Structured logging should precede CloudWatch metric filters** — otherwise filters match nothing.
 
-2. **Decision Tracking:** Zero competitors track architectural decisions with explanations. This is a clear differentiator for founder-first positioning.
-
-3. **Artifact Generation:** No competitor produces shareable documentation (tech specs, PRDs). Founders currently write these manually or skip them.
-
-4. **Dashboard vs Editor:** All competitors show code prominently. PM-style dashboard is unexplored territory.
-
-5. **Explainability:** Most tools are black boxes. Showing "why" decisions were made builds trust with non-technical users.
-
-6. **Deployment:** One-click deployment is table stakes. Lovable and Replit lead here. We must match.
-
-7. **Authentication/Database:** Auto-provisioning is becoming table stakes. Supabase is the default choice (open source, well-documented).
-
-8. **Iteration Speed:** v0 leads at <3s. This should be our target. Bolt.new's slowness is a known pain point.
-
-9. **Two-Way Git Sync:** Lovable's key differentiator for handoff to dev teams. Not needed for MVP, critical for long-term.
-
-10. **Pricing:** All charge $20-200/mo subscriptions. Usage-based pricing is emerging. Transparency about costs is missing across the board.
-
-## Market Insights & Trends (2026)
-
-### Current State
-
-- **Market size:** Replit reached $150M ARR in <1 year (2.8M → 150M), Cursor crossed 1M DAU and $1B ARR, reaching $29.3B valuation
-- **Adoption:** Lovable raised $22.5M total funding (Feb 2025 Series A: $15M led by Creandum)
-- **Vibe coding:** Mainstream phrase; founders say "I want to vibe code my startup"
-- **Production readiness:** Major criticism across all tools—output requires significant refinement beyond simple projects
-- **Token economics:** Users spending $1000+ on Bolt for complex projects; cost transparency missing
-- **AI model quality:** Claude Opus 4.5 ($5 input, $25 output per 1M tokens) vs Sonnet ($3/$15) drives cost vs quality tradeoffs
-
-### Emerging Patterns
-
-1. **Agentic Planning:** v0, Replit, Cursor all adding "Spec → Plan → Execute" workflows with human approval gates
-2. **Sandbox Security:** MicroVMs (Firecracker, Kata) and gVisor becoming standard; Docker insufficient for untrusted AI code
-3. **Supabase Dominance:** Open-source Firebase alternative is the default backend for AI-generated apps
-4. **Component Libraries:** shadcn/ui + Tailwind CSS is the de facto standard for AI-generated UIs
-5. **Next.js Everywhere:** v0 generates Next.js, Lovable generates Next.js, Bolt generates Next.js—framework choice is settled
-6. **AI Governance:** 75% of enterprises adopting AI governance platforms by 2026 (Gartner); audit trails, explainability mandatory
-7. **Continuous Compliance:** Shift from "audit completion" to "continuous compliance" and decision intelligence
-8. **Context Windows:** Models now handle full projects (200K+ tokens); enables cross-file understanding and refactoring
-9. **Speed Competition:** Response time now <3s (v0) vs 10s+ (Bolt); speed is a quality metric
-10. **Developer Handoff:** All tools struggle with "MVP → production app" transition; no clear handoff path
-
-### Warnings from Research
-
-1. **AI Code Quality:** AI code creates 1.7x more issues than human code (10.83 vs 6.45 issues per PR); lacks edge case handling, null checks, proper error handling
-2. **Logic Hallucinations:** AI generates syntactically correct code with subtle logical errors ("lock that doesn't actually secure the door")
-3. **Blind Trust:** Developers using AI-generated code they don't understand; security vulnerabilities
-4. **Package Hallucinations:** AI invents non-existent dependencies; attackers register fake packages (slopsquatting)
-5. **Architectural Debt:** Without constraints, AI defaults to common inefficient architectures (unnecessary microservices)
-6. **Scaling Pain:** Beyond 15-20 components, all tools struggle; iteration becomes expensive and error-prone
-7. **Context Loss:** Chat-based iteration loses context over long sessions; users restart conversations, losing decisions
-8. **Support Burden:** "Build anything" positioning creates impossible support expectations
-9. **Unit Economics:** 50-60% gross margins (AI SaaS) vs 80-90% (traditional SaaS); COGS matter again
-10. **Over-Promising:** "Production-ready" claims create trust issues; better to position as "MVP generator" or "80% solution"
-
-## Recommendations for Roadmap
-
-### Phase 1: Core Founder Experience (Months 1-3)
-
-**Goal:** Validate founder-first positioning and PM-style interaction model.
-
-**Build:**
-- Guided onboarding interview (collect idea, ask clarifying questions, propose architecture)
-- Decision tracking system (log every architectural choice with reasoning)
-- Basic PM dashboard (project overview, decision log, build history)
-- Natural language to full-stack code (Next.js + Supabase, opinionated stack)
-- Live preview in browser (E2B sandbox)
-- One-click deployment (Vercel)
-- Simple artifact generation (tech spec + README)
-- Basic iteration loop (chat-based refinement)
-
-**Skip for now:**
-- Team collaboration (single founder is MVP user)
-- Advanced artifacts (PRD, pitch deck)
-- Mobile apps (web first)
-- Custom deployment targets (Vercel only)
-
-**Success metrics:**
-- Founders prefer PM interface over code-first tools (survey after onboarding)
-- Users share artifacts with investors/co-founders (usage of export feature)
-- Retention >60% at 30 days (come back to iterate)
-- Willingness to pay $50-100/mo (pricing survey)
-
-### Phase 2: Quality & Trust (Months 4-6)
-
-**Goal:** Address production readiness criticism and build trust through transparency.
-
-**Build:**
-- Explainable architecture (show why AI made decisions, present alternatives)
-- Cost/usage transparency (show token usage, compute costs, monthly estimate)
-- Pre-deployment checklist (tests, security scan, performance check)
-- Version history with snapshots (non-technical friendly versioning)
-- Enhanced artifacts (PRD, deployment guide, handoff documentation)
-- Agentic planning with gates (Spec → Plan → [Approve] → Build → [Review] → Deploy)
-
-**Skip for now:**
-- Two-way git sync (not enough users transitioning to dev teams yet)
-- Component library awareness (no enterprise customers yet)
-
-**Success metrics:**
-- Reduced "app doesn't work" support tickets
-- Users showing artifacts to investors (NPS around artifact quality)
-- Deploy success rate >90% (passes checklist)
-- Understanding architecture decisions (survey: "I understand why AI chose X")
-
-### Phase 3: Handoff & Scale (Months 7-12)
-
-**Goal:** Enable transition from MVP to production app with dev team.
-
-**Build:**
-- Two-way git sync (monitor external changes, merge dev team contributions)
-- Team collaboration (multiplayer editing, proposals, decision review)
-- Cross-file refactoring (handle growing codebases)
-- External integrations (Stripe, SendGrid, Twilio via natural language)
-- Component library awareness (scan existing design system, prefer components)
-
-**Success metrics:**
-- Founders hiring developers and transitioning to git workflow
-- Dev teams contributing code that syncs back
-- Projects growing beyond 50 components
-- Payment for team seats (collaboration revenue)
-
-### Anti-Patterns to Avoid in Roadmap
-
-1. **Don't add code editor** — Contradicts founder-first positioning; creates IDE expectations
-2. **Don't promise "production-ready"** — Position as "MVP generator" or "80% solution" from day one
-3. **Don't support multiple frameworks** — Opinionated stack (Next.js) enables quality; choice creates fragmentation
-4. **Don't build everything AI suggests** — AI doesn't understand founder-first positioning; validate features with actual founders
-5. **Don't skip decision tracking** — Core differentiator; must be in MVP even if basic
-6. **Don't hide costs** — Transparency builds trust; show token usage from day one
-7. **Don't automate testing generation** — AI tests are brittle; let humans define test cases in natural language
-8. **Don't allow unlimited free tier** — Unit economics don't support it; focus on value delivery, charge accordingly
+---
 
 ## Sources
 
-### Competitor Analysis
-- [Best AI App Builders 2026: Lovable vs Bolt vs Replit Comparison](https://vibecoding.app/blog/best-ai-app-builders)
-- [Report: Loveable Business Breakdown & Founding Story](https://research.contrary.com/company/lovable)
-- [Lovable Review 2026: Best AI App Builder?](https://www.nocode.mba/articles/lovable-ai-app-builder)
-- [Bolt.new vs Lovable in 2026: Which AI App Builder Actually Delivers?](https://www.nxcode.io/resources/news/bolt-new-vs-lovable-2026)
-- [V0 vs Bolt: Hands-On Review of Top AI App Builders in 2026](https://www.index.dev/blog/v0-vs-bolt-ai-app-builder-review)
-- [Bolt.new AI Walkthrough: Pricing, Features, and Alternatives](https://uxpilot.ai/blogs/bolt-new-ai)
-- [Replit Review 2026: We Tested Agent 3 AI, Pricing, Performance & Real Development Speed](https://hackceleration.com/replit-review/)
-- [AI startup Replit, known for 'vibe coding,' reaches $3 billion valuation](https://americanbazaaronline.com/2026/01/16/ai-startup-replit-known-for-vibe-coding-3-billion-valuation-473395/)
-- [v0 by Vercel Review (2026): The "Vibe Coding" King for Next.js](https://leaveit2ai.com/ai-tools/code-development/v0)
-- [Introducing the new v0 - Vercel](https://vercel.com/blog/introducing-the-new-v0)
-- [Vercel revamps AI-powered v0 development platform](https://www.infoworld.com/article/4126837/vercel-revamps-ai-powered-v0-development-platform.html)
-- [Cursor AI Code Editor in 2026: The Futuristic AI Pair Programmer](https://aitoolshub.medium.com/cursor-ai-code-editor-in-2026-the-futuristic-ai-pair-programmer-4dda679321c8)
-- [Cursor Review 2026, Features, Pricing, and AI Coding Power](https://work-management.org/software-development/cursor-review/)
-- [GitHub Copilot Workspace Review (2026): Better Than Cursor?](https://leaveit2ai.com/ai-tools/code-development/github-copilot-workspace)
+### LLM Integration Patterns
+- RunnerReal (`/Users/vladcortex/co-founder/backend/app/agent/runner_real.py`) — stub implementations reveal gap
+- Runner protocol (`/Users/vladcortex/co-founder/backend/app/agent/runner.py`) — all 10 method signatures
+- Artifact prompts (`/Users/vladcortex/co-founder/backend/app/artifacts/prompts.py`) — prompts already written, not yet wired to RunnerReal
+- Anthropic tool-use / structured outputs: HIGH confidence (training data + verified via SDK docs)
 
-### Table Stakes Features
-- [Best AI App Builders: 5 Powerful Platforms to Use in 2026](https://emergent.sh/learn/best-ai-app-builders)
-- [AI App Builders: The Complete Guide (2026)](https://designrevision.com/blog/ai-app-builders)
-- [Best AI App Builders 2026: Lovable vs Bolt vs Replit Comparison](https://vibecoding.app/blog/best-ai-app-builders)
+### Stripe Billing
+- Billing routes (`/Users/vladcortex/co-founder/backend/app/api/routes/billing.py`) — all 4 handlers implemented
+- Compute stack (`/Users/vladcortex/co-founder/infra/lib/compute-stack.ts`) — price IDs wired
+- Billing page (`/Users/vladcortex/co-founder/frontend/src/app/(dashboard)/billing/page.tsx`) — status display done
+- Stripe best practices: HIGH confidence (official Stripe docs pattern — webhook signature verification, idempotency keys)
 
-### Differentiating Features
-- [The 2026 Guide to AI Prototyping for Product Managers](https://www.builder.io/blog/ai-prototyping-product-managers)
-- [SaaS Roadmaps 2026: Prioritising AI Features Without Breaking Product](https://itidoltechnologies.com/blog/saas-roadmaps-2026-prioritising-ai-features-without-breaking-product/)
-- [Decision log Template - Create a Decision log](https://www.aha.io/roadmapping/guide/templates/create/decision-log)
-- [What Is A Decision Log And How To Master It In 2026](https://thedigitalprojectmanager.com/project-management/decision-log/)
-- [What Does a CTO Actually Do? A Clear Guide](https://vadimkravcenko.com/shorts/what-cto-does/)
-- [4 CTOs on what a chief technology officer at a startup actually does](https://sifted.eu/articles/chief-technology-officer-startup-actually-does)
-- [Agentic AI - Audit Trail Automation in 50+ Frameworks](https://www.fluxforce.ai/blog/agentic-ai-audit-trail-automation)
-- [The Growing Challenge of Auditing Agentic AI](https://www.isaca.org/resources/news-and-trends/industry-news/2025/the-growing-challenge-of-auditing-agentic-ai)
-- [The AI Audit Trail: How to Ensure Compliance and Transparency with LLM Observability](https://medium.com/@kuldeep.paul08/the-ai-audit-trail-how-to-ensure-compliance-and-transparency-with-llm-observability-74fd5f1968ef)
+### CI/CD
+- Test workflow (`/Users/vladcortex/co-founder/.github/workflows/test.yml`) — gaps identified
+- Deploy workflow (`/Users/vladcortex/co-founder/.github/workflows/deploy.yml`) — no test gate
+- GitHub Actions current-year patterns: MEDIUM confidence (training data, verified patterns)
 
-### Live Preview & Iteration
-- [Best AI App Builders 2026: Lovable vs Bolt vs Replit Comparison](https://vibecoding.app/blog/best-ai-app-builders)
-- [Ralph Wiggum AI Agents: The Coding Loop of 2026](https://www.leanware.co/insights/ralph-wiggum-ai-coding)
-- [The Ralph Loop: Why This Claude Code Plugin Is Defining AI Development in 2026](https://namiru.ai/blog/the-ralph-loop-why-this-claude-code-plugin-is-defining-ai-development-in-2026)
-
-### Artifact Generation
-- [ClickHelp January 2026 Update Introduces AI Widget Enhancements, Markdown Export, and Advanced Publication Management](https://www.pr.com/press-release/959739)
-- [13 Best AI Document Generation Tools for 2026](https://venngage.com/blog/best-ai-document-generator/)
-
-### Security & Sandbox
-- [Top Sandbox Platforms for AI Code Execution in 2026](https://www.koyeb.com/blog/top-sandbox-code-execution-platforms-for-ai-code-execution-2026)
-- [What's the best code execution sandbox for AI agents in 2026?](https://northflank.com/blog/best-code-execution-sandbox-for-ai-agents)
-- [Top AI sandbox platforms in 2026, ranked](https://northflank.com/blog/top-ai-sandbox-platforms-for-code-execution)
-- [Practical Security Guidance for Sandboxing Agentic Workflows and Managing Execution Risk](https://developer.nvidia.com/blog/practical-security-guidance-for-sandboxing-agentic-workflows-and-managing-execution-risk)
-
-### AI Code Quality & Pitfalls
-- [8 AI Code Generation Mistakes Devs Must Fix To Win 2026](https://vocal.media/futurism/8-ai-code-generation-mistakes-devs-must-fix-to-win-2026)
-- [As Coders Adopt AI Agents, Security Pitfalls Lurk in 2026](https://www.darkreading.com/application-security/coders-adopt-ai-agents-security-pitfalls-lurk-2026)
-- [Blind Trust in AI: Most Devs Use AI-Generated Code They Don't Understand](https://clutch.co/resources/devs-use-ai-generated-code-they-dont-understand)
-- [AI vs human code gen report: AI code creates 1.7x more issues](https://www.coderabbit.ai/blog/state-of-ai-vs-human-code-generation-report)
-
-### Pricing & Economics
-- [ChatGPT API Pricing 2026: Token Costs & Rate Limits](https://intuitionlabs.ai/articles/chatgpt-api-pricing-2026-token-costs-limits)
-- [The AI pricing and monetization playbook](https://www.bvp.com/atlas/the-ai-pricing-and-monetization-playbook)
-- [Claude AI Pricing 2026: The Ultimate Guide to Plans, API Costs, and Limits](https://www.glbgpt.com/hub/claude-ai-pricing-2026-the-ultimate-guide-to-plans-api-costs-and-limits/)
-- [LLM API Pricing 2026 - Compare 300+ AI Model Costs](https://pricepertoken.com/)
-
-### Version Control & Collaboration
-- [Version control systems 2026 guide: Git, GitHub & Beyond](https://www.zignuts.com/blog/version-control-systems-2025-guide)
-- [5 Best Collaborative AI App Builders for Teams in 2026](https://emergent.sh/learn/best-collaborative-ai-app-builders-for-teams)
+### CloudWatch Monitoring
+- Compute stack — log groups, ECS autoscaling already configured
+- CloudWatch Metric Filters, Alarms, Dashboards: MEDIUM-HIGH confidence (AWS CDK docs patterns)
 
 ---
-*Feature research for: AI Co-Founder SaaS (cofounder.getinsourced.ai)*
-*Researched: 2026-02-16*
-*Confidence: HIGH (25+ sources, verified across multiple competitors)*
+
+*Feature research for: AI Co-Founder SaaS v0.2 Production Ready*
+*Researched: 2026-02-18*
+*Confidence: HIGH (direct codebase inspection + established patterns for Stripe/CloudWatch/CI)*

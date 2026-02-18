@@ -1,297 +1,213 @@
 # Project Research Summary
 
-**Project:** AI Co-Founder SaaS (cofounder.getinsourced.ai)
-**Domain:** AI-powered product builder with PM-style dashboard, founder-first positioning
-**Researched:** 2026-02-16
+**Project:** AI Co-Founder SaaS — v0.2 Production Ready
+**Domain:** AI SaaS platform — LLM activation, Stripe billing, CI/CD hardening, CloudWatch monitoring
+**Researched:** 2026-02-18
 **Confidence:** HIGH
 
 ## Executive Summary
 
-The AI co-founder/product builder market in 2026 is dominated by code-first tools (Lovable, Bolt.new, Replit Agent, v0, Cursor) that target developers or "vibe coders." A significant positioning gap exists: no competitor offers a PM-style dashboard with decision tracking and artifact generation for non-technical founders. This represents a strong differentiation opportunity.
+The v0.2 work is a production-readiness upgrade, not a feature expansion. The v0.1 codebase is architecturally complete: all services, schemas, routes, and LangGraph nodes are wired — but every real-world capability is either stubbed or operationally unactivated. The `RunnerReal` class has 10 protocol methods; 7 are stubs or shallow skeletons that return fake inventory-tracker content to real founders. Stripe billing routes are fully coded but live keys are not in Secrets Manager and the webhook endpoint is not registered in the Stripe Dashboard. CI deploys to production without running tests. CloudWatch receives logs but has zero alarms. The recommended approach is activate, harden, and gate in strict dependency order: real LLM calls first (everything else depends on it), Stripe live activation in parallel, CI test-gating and path filtering, then CloudWatch alarms as the final observability layer.
 
-The recommended technical approach is a brownfield migration: wrap existing LangGraph agent pipeline (Architect → Coder → Executor → Debugger → Reviewer → GitMgr) with a state machine-driven orchestration layer. This state machine manages five startup stages (Thesis → Validated → MVP → Feedback → Scale), produces versioned artifacts (Product Brief, MVP Scope, Risk Log), and presents progress through a founder-friendly dashboard. The architecture uses queue-based worker capacity to handle scale, implementing "work slows, never halts" UX instead of hard rate limits.
+The primary risk cluster is silent failures. Three of the ten identified pitfalls involve errors being swallowed with no observable signal: `UsageTrackingCallback` catches all DB/Redis exceptions with bare `except: pass`; `architect_node` silently falls back to a 1-step plan when Claude returns JSON wrapped in markdown fences; and `detect_llm_risks()` always returns an empty list, making the risk dashboard completely dark even during LLM failures. These must be addressed before RunnerReal is wired in production — otherwise the system appears healthy while producing broken output. The second major risk is the `MemorySaver` default in `RunnerReal`: it is not thread-safe and will cause state corruption between concurrent users the moment real LangGraph graph invocations begin. Replace with `AsyncPostgresSaver` from `langgraph-checkpoint-postgres` (already installed) before enabling RunnerReal in any environment.
 
-Critical risks center on AI code quality (1.7x more bugs than human code), LLM cost explosion from unbounded questioning ($1800/month at 1000 users without controls), and E2B sandbox costs at scale. Mitigation strategies include test-first generation, aggressive prompt caching and context windowing, sandbox pooling, and founder-facing UX that abstracts technical complexity. The architecture must checkpoint LangGraph state to PostgreSQL to prevent progress loss on failures, and implement per-user queue fairness to avoid "noisy neighbor" monopolization.
+The minimal stack additions required are small: one new Python package (`tenacity>=9.0.0` for Claude 529 retry logic), a constraint bump on the existing `stripe` package to `>=14.0.0` for native async support, and two new GitHub Actions (`amazon-ecs-render-task-definition@v1`, `amazon-ecs-deploy-task-definition@v2`) to replace the fragile `--force-new-deployment` ECS deploy pattern. All CloudWatch and SNS constructs are already in the installed `aws-cdk-lib`. No new frontend dependencies are needed.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The stack is largely established by existing infrastructure, with strategic additions for the new PM-dashboard layer. Core additions focus on queue management (Arq for async-native task queue), rate limiting (aiolimiter + fastapi-redis-rate-limiter), artifact generation (WeasyPrint for PDF export), and frontend dashboard components (dnd-kit for Kanban, react-force-graph for Neo4j strategy visualization, zustand for state management).
+The existing stack requires no structural additions for v0.2. The Anthropic SDK (`0.81.0`), `langchain-anthropic` (`1.3.3`), `stripe` (`14.3.0`), LangGraph, and `langgraph-checkpoint-postgres` are all already installed and at current versions. The sole new backend dependency is `tenacity>=9.0.0` for exponential backoff on Anthropic 529 overload errors — the Anthropic SDK does not auto-retry these by default. The `stripe` version constraint should be bumped from `>=11.0.0` to `>=14.0.0` to unlock native async support (`stripe.checkout.Session.create_async()`), eliminating the current event-loop blocking in async FastAPI handlers. No new frontend packages are needed; the Stripe Checkout redirect pattern (backend returns URL, frontend redirects) avoids any need for `@stripe/stripe-js`.
 
-**Core technologies:**
-- **Arq 0.27+**: Async-first task queue for background jobs — better fit than Celery for FastAPI; lower overhead; built-in rate limiting per task
-- **WeasyPrint 62+**: HTML/CSS to PDF server-side — ideal for artifact export (Product Briefs, tech specs); no browser overhead
-- **@dnd-kit/core 6.3+**: Drag-and-drop for Kanban timeline — modern, accessible, React 18/19 compatible; replaces deprecated react-beautiful-dnd
-- **react-force-graph 1.45+**: WebGL graph visualization — Neo4j-friendly; handles 1000+ nodes for strategy graph
-- **zustand 5.0+**: Lightweight state management — minimal boilerplate for dashboard state (filters, view mode, selected nodes)
-- **transitions 0.9+**: Lightweight Python state machine — clean separation for startup stage FSM (Thesis → Validated → MVP → Feedback → Scale)
-
-**Critical version requirements:**
-- LangGraph checkpointing via `langgraph-checkpoint-postgres` (already in dependencies) — prevents state loss on failure
-- Neo4j indexes on `project_id` and `timestamp` — prevents query degradation beyond 500 decision nodes
-- Python 3.12+ requires `datetime.now(timezone.utc)` (not deprecated `utcnow()`) — prevents DST lock timeout bugs
+**Core technologies (new additions only):**
+- `tenacity>=9.0.0`: retry library — handles Claude 529 overload with exponential backoff + jitter; 3-line decorator; already a transitive dep of `langchain-core`
+- `stripe>=14.0.0` (constraint bump, not new dep): enables native async Stripe API calls; eliminates event loop blocking under concurrent checkouts
+- `aws-actions/amazon-ecs-render-task-definition@v1`: CI action — injects image SHA into task definition JSON for traceable, rollback-capable deploys
+- `aws-actions/amazon-ecs-deploy-task-definition@v2`: CI action — registers new task def revision + deploys with built-in stability wait
+- `aws-cdk-lib/aws-cloudwatch` + `aws-cdk-lib/aws-sns` (already installed, new usage in CDK): SNS topic and CloudWatch alarm constructs
 
 ### Expected Features
 
-Research reveals a clear split between table stakes (features all competitors have) and differentiators (unexplored positioning).
+**Must have (table stakes — P0 for v0.2):**
+- RunnerReal: all 10 methods implemented with real Claude calls — without this, every interview and artifact is fake inventory-tracker content shown to real founders
+- Stripe production activation: checkout → webhook → DB update verified with test-mode keys; webhook endpoint registered at `api.cofounder.getinsourced.ai/api/webhooks/stripe`
+- CI test gate: `deploy.yml` must `needs: test` — currently broken code deploys to production silently
+- CI ruff lint gate: 10 minutes to add, catches real bugs before deploy
+- CloudWatch error rate alarm + ECS health alarm: basic outage detection; service can currently be down for hours undetected
+- Stripe webhook idempotency: `event.id` deduplication before any handler executes; Stripe delivers at-least-once
 
-**Must have (table stakes):**
-- Natural Language to Code — users expect plain English → functional full-stack app
-- Live Preview — immediate feedback <3s (v0 sets bar); browser + mobile QR code
-- Sandbox Execution — E2B or equivalent MicroVM for security; 150-500ms startup acceptable
-- Authentication + Database — auto-provisioning (Clerk + Supabase pattern); manual setup is dealbreaker
-- One-Click Deployment — non-technical users cannot manually deploy; Vercel integration standard
-- Git Export — users must own their code; minimum is download zip or push to GitHub
-- Iteration Loop — chat-based refinement with <5s response time; AI never gets it right first try
+**Should have (v0.2 polish — P1):**
+- Structured JSON logging (`python-json-logger` or `structlog`): enables CloudWatch Insights queries; prerequisite for effective metric filters
+- LLM retry with `tenacity`: exponential backoff in RunnerReal; prevents cascading failures on Anthropic rate limits
+- Usage meter in billing page: token usage vs. plan limit builds trust; data already exists in `UsageLog` and Redis
+- CloudWatch LLM latency tracking: per-method P50/P95/P99; know if generation is slow before users complain
+- Frontend typecheck in CI: `npx tsc --noEmit` — catches TypeScript errors before production
+- Annual/monthly pricing toggle: estimated 20–30% revenue uplift; price IDs already wired in CDK
 
-**Should have (competitive differentiators):**
-- Guided Onboarding Interview — structured questioning that establishes founder-first positioning (not just "build my app")
-- Decision Tracking & Logs — records architectural decisions with rationale (like a real CTO would); zero competitors do this
-- PM-Style Dashboard — roadmap view, decision console, execution timeline (not a code editor); unexplored territory
-- Artifact Generation — shareable documents (PRD, tech spec, deployment guide) for investors/co-founders; no competitor produces these
-- Explainable Architecture — shows "why" AI chose specific patterns; builds trust vs black-box generation
-- Cost/Usage Transparency — shows token usage, compute costs, monthly estimate; missing across all competitors
-
-**Defer (v2+):**
-- Team Collaboration — wait until users hiring employees (multiplayer editing complex)
-- Two-Way Git Sync — Lovable's key differentiator; not needed until users transition to dev teams
-- Component Library Awareness — enterprise feature; scan existing design systems
-- Mobile App Generation — huge complexity; React Native/Flutter separate product
-- Cross-File Refactoring — needed when projects exceed 50 components
+**Defer (v0.3+):**
+- PR preview environments: high infra cost (~$150/mo per env); not justified pre-PMF
+- Adaptive question depth: requires session-aware prompting; medium complexity
+- OpenTelemetry distributed tracing: add when traffic warrants (10k+ req/day)
+- Canary deploys (ALB weighted routing): add when 2+ ECS tasks are continuously running
+- Grace period for failed payments: add when first payment failures occur in production
+- Per-seat team pricing: no team features exist yet
 
 ### Architecture Approach
 
-The architecture is a brownfield migration layering new components above existing LangGraph pipeline. The state machine orchestrates founder journey through five stages, computes progress deterministically from artifacts and build status, and delegates execution to a Runner interface (RunnerReal wraps existing LangGraph, RunnerFake provides test doubles). Capacity queue implements "work slows, never halts" UX via Redis-backed priority queue with tier-based limits.
+The v0.2 architecture is defined by activation and hardening of existing components, not new system design. The `RunnerReal` class is the single critical path: implementing its 7 remaining stub methods using the existing `create_tracked_llm()` pattern (which already handles model resolution, usage tracking, tier enforcement, and suspension checks) activates the entire LLM pipeline. All 6 LangGraph nodes already call `create_tracked_llm()` — real LLM invocations begin the moment `ANTHROPIC_API_KEY` is present and `AsyncPostgresSaver` replaces `MemorySaver`. Stripe is a pure operational activation: code is complete, keys must be set in Secrets Manager, webhook URL registered in Stripe Dashboard. CI/CD is a workflow configuration change (`needs: test`, path filters, SHA-pinned task definitions). CloudWatch monitoring extends `compute-stack.ts` with an SNS topic and 4–5 alarm constructs — no new CDK stacks needed.
 
 **Major components:**
-1. **State Machine Controller** — orchestrates Thesis → Validated → MVP → Feedback → Scale stages; computes progress from artifacts/builds (not user input); enforces decision gate transitions
-2. **Runner Interface** — abstract wrapper around LangGraph; RunnerReal calls existing graph, RunnerFake returns predictable outputs for tests; enables fast deterministic testing
-3. **Artifact Generator** — produces versioned documents (Product Brief v0.1, v0.2, etc.) from state + LLM reasoning; template-driven with Opus for strategic docs, Sonnet for tactical
-4. **Capacity Queue** — Redis-backed priority queue with per-user limits (max 3 concurrent jobs); tier-based priority (CTO > Partner > Bootstrapper); estimated wait times shown in UI
-5. **Strategy Graph** — Neo4j decision nodes recording options, rationale, tradeoffs, outcomes; visualized in dashboard with react-force-graph
-6. **Versioning System** — tracks artifact versions with diffs and rollback; JSONB column stores version history with timestamp + content snapshot
-
-**Key patterns:**
-- **Deterministic Progress:** State machine computes % complete from required artifacts (not manual progress bars)
-- **Queue-Based Capacity:** Redis ZPOPMIN for atomic job claims; round-robin across users prevents monopolization
-- **Checkpointed State:** PostgreSQL checkpointing via `langgraph-checkpoint-postgres` prevents state loss on failures
-- **Async Wrapper:** `asyncio.to_thread()` wraps synchronous Mem0 calls to prevent event loop blocking
+1. `RunnerReal` (`backend/app/agent/runner_real.py`) — implement 5 missing protocol methods + `_parse_json_response()` helper + `AsyncPostgresSaver` wiring; this is the entire LLM activation surface
+2. `billing.py` (`backend/app/api/routes/billing.py`) — add webhook idempotency (`event.id` deduplication), async Stripe calls, startup PRICE_MAP validation; code is otherwise complete
+3. `.github/workflows/deploy.yml` + `test.yml` — add `needs: test` dependency, path filters (`dorny/paths-filter`), `render-task-definition@v1` + `deploy-task-definition@v2`, frontend lint job
+4. `infra/lib/compute-stack.ts` — add SNS topic, 4 CloudWatch alarms (ECS task count, CPU, ALB 5xx, ALB latency), 1 log metric filter for ERROR lines
+5. `UsageTrackingCallback` (`core/llm_config.py`) — fix silent `except: pass` swallowing of DB/Redis write failures; log at WARNING level with error context
+6. `detect_llm_risks()` (`domain/risks.py`) — replace `[]` stub with real Redis usage-check implementation; wire `build_failure_count` to `UsageLog` data
 
 ### Critical Pitfalls
 
-Research identifies eight critical pitfalls with prevention strategies tied to phases.
+1. **`MemorySaver` default in production `RunnerReal`** — `MemorySaver` is documented as test-only and causes state corruption under concurrent users. Replace with `AsyncPostgresSaver.from_conn_string()` before enabling any real LangGraph graph invocation. `create_production_graph()` already exists in `graph.py` but is never called from production code paths.
 
-1. **Silent Logic Failures in AI Code** — AI generates syntactically correct code with subtle bugs; creates 1.7x more issues than human code. **Prevention:** Test-first generation (write tests before implementation), adversarial review node checks for removed safety checks, regression test persistence.
+2. **Claude JSON wrapped in markdown code blocks** — `json.loads(response.content)` fails silently in `architect_node` (falls back to 1-step plan) and will fail in all RunnerReal methods. Apply `_parse_json_response()` helper that strips ` ```json ``` ` fences, or use Anthropic structured outputs beta header. Never silently continue on `JSONDecodeError` — raise and log the malformed content.
 
-2. **LangGraph State Corruption** — 5+ minute executions fail, state vanishes without checkpointing. **Prevention:** Enable `langgraph-checkpoint-postgres`, implement node-level recovery from last checkpoint, session resurrection UI.
+3. **Stripe webhook non-idempotency** — `_handle_checkout_completed()` and all 4 handlers are not idempotent. Stripe delivers at-least-once; a duplicate webhook fires the handler twice. Add a `stripe_events` table with `event_id` unique constraint; check before processing. Revenue-critical: must be in place before live mode.
 
-3. **LLM Cost Explosion** — Dynamic questioning creates unbounded prompt chains; 10 questions/user/day × 1000 users = $1800/month. **Prevention:** Context windowing (last 3 exchanges only), prompt caching (30K token cache = 15-30% reduction), question budget (7 max), Sonnet for clarifying questions (Opus only for strategy).
+4. **`UsageTrackingCallback` silently swallows DB/Redis failures** — bare `except: pass` blocks mean token limits are never enforced if Redis is briefly unavailable. Log failures at WARNING level; implement startup reconciliation between `UsageLog` (Postgres) and Redis daily counters. Bootstrapper users can burn unlimited tokens during a Redis blip.
 
-4. **E2B Sandbox Cost at Scale** — $0.05/hour × 1000 concurrent builds × 5 minutes = $4.15/wave; debugging loops multiply cost 5x. **Prevention:** Sandbox pooling (warm pool of 10), per-user long-lived sandboxes for paid tiers, lazy creation (provision only when code ready), 10-minute timeout enforcement.
-
-5. **Queue Monopolization** — One user with 10 projects starves others; FIFO without fairness. **Prevention:** Per-user limit (3 concurrent jobs), round-robin fair queuing, tier-based priority, job splitting (10-file chunks), Redis Lua scripts for atomic operations.
-
-6. **Dashboard UX Overwhelm** — Builder.ai's $1.5B failure shows founders abandon complex dashboards; 85% of AI projects fail on UX mismatch. **Prevention:** Inverted pyramid (critical info at top), action-oriented language ("Review build" not "Execute reviewer node"), decision templates with tradeoffs, chatbot fallback.
-
-7. **Neo4j Query Degradation** — 500+ decision nodes cause >5s queries without indexes. **Prevention:** Create indexes on `(project_id, timestamp)`, constrain traversal depth (`-[:IMPACTS*1..3]->`), parameterized queries for plan caching, lazy loading (top 5 decisions, "Load more" for full graph).
-
-8. **Async/Await Blocking** — Mem0 synchronous calls inside `async` functions block event loop at scale. **Prevention:** Wrap with `asyncio.to_thread()`, evaluate async alternatives, circuit breaker if search >2s, connection pooling.
+5. **ECS rolling deploy causes 30-second 502s** — default ALB deregistration delay is 300s with 30s health check intervals; old task receives SIGTERM but ALB continues routing traffic for up to 90s. Add SIGTERM handler in `main.py` to immediately return 503 on health check; set `deregistration_delay` to 60s in CDK. `AsyncPostgresSaver` checkpointing (from Pitfall 1) enables mid-execution builds to resume after deploy.
 
 ## Implications for Roadmap
 
-Based on research, suggested phase structure follows dependency chain: Runner Interface → State Machine → Artifacts → Queue → Dashboard. Architecture research provides 13-day critical path with parallelizable Strategy Graph work.
+Based on research, the dependency chain is strict: LLM activation first → parallel Stripe + CI hardening → CloudWatch monitoring last. Features within each phase are grouped by their shared risk surface and code dependencies.
 
-### Phase 1: Foundation (Days 1-3)
-**Rationale:** Set up testable abstractions before building features. Runner interface is dependency for all subsequent work; state machine is central orchestrator; artifact models are data dependency for progress computation.
+### Phase 1: LLM Activation and Hardening
 
-**Delivers:**
-- Runner Interface (RunnerReal wraps LangGraph, RunnerFake for tests)
-- State Machine Core (5 stages, transition logic, startup_stage column)
-- Artifact Models (versioned artifacts table, CRUD API)
+**Rationale:** Every other v0.2 capability depends on RunnerReal working correctly. LLM latency alarms cannot be set up until real calls flow. The risk dashboard is misleading until `detect_llm_risks()` reads real data. This phase has the most dangerous pitfalls (MemorySaver state corruption, silent JSON failures, silent callback failures) that must be fixed before anything else is built on top of them.
 
-**Addresses:**
-- Table stakes: Enables natural language to code via testable runner
-- Pitfall 1: RunnerFake enables test-first generation without LLM costs
-- Pitfall 2: State machine provides foundation for checkpointing
-- Pitfall 8: Identifies and wraps Mem0 blocking calls immediately
+**Delivers:** Real Claude-powered onboarding, understanding interviews, idea briefs, and artifact cascades replacing fake inventory-tracker content in production. Observable LLM errors and usage in logs.
 
-**Avoids:**
-- Direct LangGraph invocation in tests (Pitfall 1 anti-pattern)
-- State machine logic in controllers (Pitfall 2 anti-pattern)
+**Addresses:** RunnerReal all 10 methods, `_parse_json_response()` helper, `AsyncPostgresSaver` wiring, `UsageTrackingCallback` error logging fix, `detect_llm_risks()` implementation, `tenacity` retry logic, `stripe>=14.0.0` bump.
 
-### Phase 2: Artifact Generation (Days 4-5)
-**Rationale:** Founders need visible outputs (Product Brief, MVP Scope) before trusting system. Queue prevents LLM cost explosion and E2B overuse. Background jobs critical for >30s operations.
+**Avoids:** Pitfalls 1 (MemorySaver), 2 (JSON fence parsing), 3 (UsageTrackingCallback silent failures), 9 (detect_llm_risks stub).
 
-**Delivers:**
-- Capacity Queue (Redis-backed priority queue, job submission/claiming)
-- Artifact Generator (Jinja2 templates, background worker, API endpoints)
+**Research flag:** STANDARD PATTERNS — direct codebase inspection identified all gaps; implementation follows existing `create_tracked_llm()` + `Runner` protocol patterns already in the codebase. No additional research phase needed.
 
-**Uses:**
-- Arq for async-native task queue
-- WeasyPrint for PDF generation from templates
-- Existing LangGraph via RunnerReal
+---
 
-**Implements:**
-- Queue-based capacity model (STACK.md worker capacity pattern)
-- Versioned artifacts with diffs (ARCHITECTURE.md Pattern 4)
+### Phase 2: Stripe Live Activation
 
-**Addresses:**
-- Differentiators: Artifact generation (Product Brief, tech specs)
-- Pitfall 3: Queue limits prevent cost explosion
-- Pitfall 4: Lazy sandbox creation (provision only when code ready)
-- Pitfall 5: Per-user queue limits prevent monopolization
+**Rationale:** Can run in parallel with Phase 1 (no shared code dependencies). Stripe routes are code-complete; this phase is almost entirely operational activation plus one code hardening task (idempotency). Sequencing after Phase 1 is preferred so end-to-end integration tests can exercise the full payment → LLM access pathway.
 
-**Avoids:**
-- Synchronous artifact generation in request handler (Pitfall 3 anti-pattern)
+**Delivers:** Working subscription billing end-to-end: checkout → webhook → plan tier upgrade → LLM model tier enforcement in production.
 
-### Phase 3: State Machine Integration (Days 6-9)
-**Rationale:** State machine drives founder journey; progress auto-computed from artifacts. Dashboard is first user-facing piece validating PM-style positioning.
+**Addresses:** `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` in Secrets Manager, Stripe Dashboard webhook registration, `_handle_checkout_completed` idempotency guard, `PRICE_MAP` startup validation in lifespan, async Stripe SDK calls, pricing page checkout button wiring.
 
-**Delivers:**
-- Progress Computation (deterministic % from artifacts/builds)
-- State Machine API (transition, progress endpoints)
-- Frontend Dashboard (Company page with stage card, progress, requirements)
+**Avoids:** Pitfalls 4 (duplicate webhook handlers), 5 (PRICE_MAP lazy global with no validation).
 
-**Uses:**
-- Data-driven stage requirements (not hardcoded)
-- zustand for frontend state management
-- Existing artifacts from Phase 2
+**Research flag:** STANDARD PATTERNS — Stripe webhook idempotency is a well-documented pattern; all code is already written. Operational activation steps are clearly enumerated.
 
-**Implements:**
-- State machine with deterministic progress (ARCHITECTURE.md Pattern 1)
-- Founder-friendly dashboard (FEATURES.md differentiator)
+---
 
-**Addresses:**
-- Differentiators: PM-Style Dashboard, decision tracking foundation
-- Pitfall 6: Inverted pyramid UX, action-oriented language
-- Pitfall 2: Checkpoint-based recovery exposed via API
+### Phase 3: CI/CD Hardening
 
-**Avoids:**
-- Hardcoded stage requirements (Pitfall 4 anti-pattern)
+**Rationale:** Can begin in parallel with Phase 1 and 2 (no code dependencies). The critical gap (no test gate before deploy) is a safety risk independent of LLM or Stripe work. Path filtering prevents wasted CI minutes and unnecessary ECS churn. Must include the SIGTERM handler and ECS deregistration delay fix before automated deploy frequency increases.
 
-### Phase 4: Strategy & Timeline (Days 10-12)
-**Rationale:** Decision history and execution progress complete the "co-founder" metaphor. Independent of core state machine, can build in parallel.
+**Delivers:** A deploy pipeline that cannot ship broken code, that path-filters to only rebuild what changed, and that deploys via SHA-pinned task definitions with rollback capability.
 
-**Delivers:**
-- Strategy Graph (Neo4j decision CRUD, visualization API)
-- Execution Timeline (Kanban board derived from state machine + LangGraph)
-- Decision Console (templated decisions with options/tradeoffs)
+**Addresses:** `deploy.yml` `needs: test`, `dorny/paths-filter` path filtering, `ruff check` + `mypy` + frontend `tsc` lint gates, `amazon-ecs-render-task-definition@v1` + `amazon-ecs-deploy-task-definition@v2` replacing `--force-new-deployment`, pytest mark separation (unit vs integration), SIGTERM handler in `main.py`, ALB deregistration delay reduction to 60s, pytest-asyncio scope fix (`asyncio_default_fixture_loop_scope = "session"`).
 
-**Uses:**
-- react-force-graph for Neo4j visualization
-- @dnd-kit for Kanban drag-drop
-- Neo4j with indexed queries
+**Avoids:** Pitfalls 7 (CI rebuilds both services on every push), 8 (ECS deploy 502s from missing deregistration delay), 10 (long-lived AWS IAM credentials — verify OIDC is already in place).
 
-**Implements:**
-- Decision tracking with graph (FEATURES.md core differentiator)
-- Kanban execution view (STACK.md pattern)
+**Research flag:** STANDARD PATTERNS — GitHub Actions + ECS deploy patterns are well-documented; OIDC setup already exists per `deploy.yml` inspection. No additional research needed.
 
-**Addresses:**
-- Differentiators: Decision Tracking & Logs, Execution Timeline
-- Pitfall 7: Indexes prevent query degradation
-- Pitfall 6: Decision templates with tradeoffs reduce overwhelm
+---
 
-**Avoids:**
-- Unbounded graph traversals (Pitfall 7 anti-pattern)
+### Phase 4: CloudWatch Observability
 
-### Phase 5: Polish & Export (Days 13-14)
-**Rationale:** Value-add features that complete MVP; artifact export enables investor/co-founder sharing. Integration testing validates end-to-end.
+**Rationale:** Must come after Phase 1 (LLM calls must flow to validate LLM alarms) and Phase 3 (monitoring goes live through the hardened deploy pipeline). Basic health alarms (ECS task count, ALB 5xx) can technically be set up earlier, but LLM latency metrics and error metric filters only become meaningful after RunnerReal is active and structured logging is in place.
 
-**Delivers:**
-- Artifact Export (PDF download, version history UI)
-- Integration Testing (end-to-end founder flow, capacity queue load test)
+**Delivers:** Proactive alerting via SNS email on ECS failures, ALB 5xx spikes, high CPU, and high latency. Custom LLM latency metrics per Runner method. Business metric events (new subscriptions, artifacts generated). Structured JSON logging enabling CloudWatch Insights queries.
 
-**Uses:**
-- WeasyPrint for PDF generation
-- Artifact versioning from Phase 2
+**Addresses:** SNS topic + email subscription in `compute-stack.ts`, 4 CloudWatch alarms (ECS RunningTaskCount, CPU, ALB 5xx, ALB P99 latency), CloudWatch log metric filter for Python ERROR lines, structured JSON logging (`python-json-logger`), LLM latency custom metrics in RunnerReal per method, usage meter in billing page.
 
-**Addresses:**
-- Differentiators: Shareable artifacts for investors
-- Table stakes: Git export (basic download)
+**Avoids:** Silent outages (currently zero alarms exist); LLM failures invisible to operators; CloudWatch metric filters matching nothing (requires structured logging first).
+
+**Research flag:** STANDARD PATTERNS — CloudWatch + SNS CDK constructs are well-documented; all constructs are in installed `aws-cdk-lib`. Structured logging patterns are standard Python.
+
+---
 
 ### Phase Ordering Rationale
 
-- **Dependency-driven:** Runner Interface (Day 1) is foundation for all execution; State Machine (Day 2) depends on runner; Artifacts (Day 3) are data dependency for progress; Queue (Day 4) prevents cost explosion before heavy usage; Dashboard (Days 6-9) needs artifacts to display.
-- **Architecture-aligned:** Follows critical path from ARCHITECTURE.md build graph (Runner → State Machine → Artifacts → Queue → Dashboard)
-- **Pitfall-mitigated:** Addresses top pitfalls early (LangGraph checkpointing Phase 1, cost controls Phase 2, queue fairness Phase 2, UX Phase 3)
-- **Validation-focused:** Dashboard in Phase 3 validates founder-first positioning before building advanced features
+- **LLM first** because it is the literal critical path: Stripe plan enforcement depends on LLM tier routing, CloudWatch LLM alarms depend on real calls flowing, the risk dashboard depends on real usage data. Nothing else produces meaningful signal until RunnerReal is live.
+- **Stripe in parallel with Phase 1** because billing routes share zero code with the LLM path; it is operational activation + one idempotency fix with no coupling.
+- **CI before CloudWatch** because monitoring goes live through a deploy — if the deploy pipeline is still broken (no test gate, no path filters), CloudWatch CDK changes can ship alongside a broken backend silently. Fix the pipe before adding instrumentation.
+- **CloudWatch last** because alarms on LLM errors have nothing to alarm on until real calls flow; and structured logging (prerequisite for effective metric filters) should be established first to avoid empty filter matches.
+- **Technical debt items (MemorySaver, JSON parsing, silent callback failures) are all in Phase 1** — they are not separate phases. They are latent bugs in the LLM path that will manifest the moment RunnerReal is enabled; they must be fixed in the same phase.
 
 ### Research Flags
 
-**Phases needing deeper research during planning:**
-- **Phase 2 (Artifact Generation):** Template design for each artifact type (Product Brief, MVP Scope, Risk Log) — needs domain research into standard formats
-- **Phase 4 (Decision Console):** Decision templates for each gate (Proceed/Narrow/Pivot/Park) — requires UX research for non-technical decision presentation
-- **Phase 5 (Integration Testing):** E2E testing patterns for agentic workflows — specialized testing approach for LLM-driven flows
+**Phases with standard patterns (skip `/gsd:research-phase` during planning):**
+- **Phase 1 (LLM Activation):** All gaps identified by direct codebase inspection; implementation follows existing `create_tracked_llm()` protocol pattern already in the codebase. `AsyncPostgresSaver` is already installed.
+- **Phase 2 (Stripe):** Code is complete; operational activation steps and idempotency pattern are well-documented by Stripe official docs.
+- **Phase 3 (CI/CD):** GitHub Actions + ECS patterns are well-documented; OIDC already configured per `deploy.yml`.
+- **Phase 4 (CloudWatch):** CDK alarm constructs are documented; all in installed `aws-cdk-lib`.
 
-**Phases with standard patterns (skip research-phase):**
-- **Phase 1 (Foundation):** State machines, test doubles, database models — well-documented patterns
-- **Phase 3 (Dashboard):** React dashboards, progress meters — established UX patterns
-- **Phase 4 (Strategy Graph):** Neo4j CRUD, graph visualization — standard database + UI patterns
+**No phases require `/gsd:research-phase` during planning.** All research is HIGH confidence based on direct source inspection of the existing codebase.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Based on 25+ verified sources; existing codebase already uses FastAPI, LangGraph, Neo4j, E2B; new additions (Arq, WeasyPrint, dnd-kit) have official docs and production usage |
-| Features | HIGH | 25+ sources across competitor analysis; clear table stakes vs differentiators; market data from Lovable ($22.5M funding), Replit ($150M ARR), Cursor ($1B ARR) validates demand |
-| Architecture | HIGH | Patterns derived from existing codebase analysis + proven multi-stage workflows; brownfield migration approach minimizes risk; dependency graph validated against existing structure |
-| Pitfalls | HIGH | 40+ sources including production incident reports, scaling case studies, cost optimization guides; pitfalls mapped to specific prevention strategies with phase assignments |
+| Stack | HIGH | Verified against installed packages in `pyproject.toml`, `package.json`, and `infra/`; all versions confirmed on PyPI and GitHub. One new package (`tenacity`), one constraint bump (`stripe`). |
+| Features | HIGH | Based on direct inspection of `runner_real.py`, `billing.py`, `test.yml`, `deploy.yml`, and `compute-stack.ts`; gaps are code-evident, not inferred. |
+| Architecture | HIGH | All integration patterns traced through actual source files; no assumptions. `create_tracked_llm()`, `billing.py`, LangGraph nodes, and CDK constructs all read directly. |
+| Pitfalls | HIGH | All 10 pitfalls verified against codebase; warning signs and recovery steps grounded in actual code behavior. Sources include official LangGraph, pytest-asyncio, Stripe, and AWS documentation. |
 
-**Overall confidence:** HIGH
+**Overall confidence: HIGH**
 
 ### Gaps to Address
 
-Research is comprehensive, but several areas need validation during implementation:
-
-- **Artifact template content:** Research identifies that Product Brief, MVP Scope, Risk Log are needed, but exact content structure requires iteration with actual founders (validate in Phase 2 user testing)
-- **Question budget optimization:** 7-question limit for Understanding Interview is estimated; actual optimal number needs A/B testing based on quality vs cost tradeoffs (measure in Phase 1-2)
-- **Sandbox pooling economics:** E2B pricing research shows $0.05/hour, but actual pool size (10 sandboxes recommended) needs load testing to optimize cost vs wait time (validate in Phase 2-3)
-- **Neo4j index strategy:** Indexes on `(project_id, timestamp)` recommended, but query patterns may reveal additional indexes needed (profile in Phase 4)
-- **Queue fairness tuning:** Round-robin fair queuing prevents monopolization, but optimal per-user limit (3 concurrent jobs suggested) needs production data (tune in Phase 2-3)
+- **`ANTHROPIC_API_KEY` presence in `cofounder/app` secret:** Phase 1 cannot be tested in production until this is confirmed set. Operational prerequisite, not a code gap — verify before Phase 1 deploy.
+- **`pytest-asyncio` scope fix:** The 18 deferred integration tests need `asyncio_default_fixture_loop_scope = "session"` in `pyproject.toml` and `@pytest_asyncio.fixture(loop_scope="session")` on the `engine` fixture. Fix before expanding the test suite in Phase 1 — otherwise new tests will also fail in parallel runs.
+- **Stripe price IDs in CDK env vs. Secrets Manager:** Price IDs are currently wired as CDK environment variables in `compute-stack.ts`, visible in CloudFormation console. PITFALLS.md flags this as a low-severity security concern. Trade-off: price IDs are not secrets in the traditional sense. Decision deferred to Phase 2 planning — move to `cofounder/app` Secrets Manager if desired before Phase 2 deploy.
+- **Stripe Dashboard webhook registration ordering:** The webhook endpoint must be reachable via HTTPS before registering in the Stripe Dashboard. Operational ordering within Phase 2: deploy the service, then register the URL at `api.cofounder.getinsourced.ai/api/webhooks/stripe`.
 
 ## Sources
 
-### STACK.md Sources (HIGH confidence)
-- Celery + Redis + FastAPI Production Guide (Medium, 2025)
-- FastAPI Background Tasks: ARQ vs Built-in (davidmuraya.com)
-- Rate Limiting with FastAPI and Redis (Upstash, bryananthonio.com)
-- PDF Generation Libraries Compared 2025 (templated.io, pdfnoodle.com)
-- dnd-kit Kanban Tutorial (LogRocket)
-- Top 5 React Gantt Charts 2026 (svar.dev)
-- LangGraph Conditional Edges Guide (Medium)
-- pytest-faker, factory-boy official docs
-- zustand npm package (official)
+### Primary (HIGH confidence)
 
-### FEATURES.md Sources (HIGH confidence)
-- Best AI App Builders 2026: Lovable vs Bolt vs Replit (vibecoding.app, nxcode.io, index.dev)
-- Lovable Business Breakdown (research.contrary.com)
-- Replit Agent 3 Review (hackceleration.com)
-- v0 by Vercel New Platform (vercel.com/blog, infoworld.com)
-- Cursor AI Code Editor 2026 (work-management.org)
-- AI Code Quality Reports (clutch.co, coderabbit.ai)
-- LLM API Pricing 2026 (pricepertoken.com, intuitionlabs.ai)
-- Decision Log Templates (aha.io, thedigitalprojectmanager.com)
+**Direct codebase inspection:**
+- `backend/pyproject.toml` — installed package versions, confirmed Feb 18 2026
+- `backend/app/core/llm_config.py` — `create_tracked_llm()`, `UsageTrackingCallback`, `MODEL_COSTS`
+- `backend/app/agent/runner_real.py` — stub identification; 7 of 10 methods unimplemented or skeleton
+- `backend/app/agent/runner.py` — 10-method Runner protocol (all method signatures)
+- `backend/app/api/routes/billing.py` — all 4 webhook handlers confirmed complete
+- `infra/lib/compute-stack.ts` — ECS setup, log drivers, confirmed zero existing alarms
+- `.github/workflows/deploy.yml` + `test.yml` — gaps confirmed by inspection
+- `backend/app/domain/risks.py` — `detect_llm_risks()` confirmed as `[]` stub
 
-### ARCHITECTURE.md Sources (HIGH confidence)
-- Existing codebase analysis (`backend/app/agent/graph.py`, `backend/app/db/models/`)
-- LangGraph state management patterns (official docs)
-- Queue-based rate limiting patterns (Redis official, Gravitee blog)
-- Artifact versioning with JSONB (PostgreSQL docs)
-- Neo4j Cypher optimization (official performance guide)
+**Official documentation:**
+- [Anthropic Python SDK releases](https://github.com/anthropics/anthropic-sdk-python/releases) — version 0.81.0 confirmed
+- [stripe PyPI](https://pypi.org/project/stripe/) — 14.3.0 current, Jan 28 2026
+- [tenacity PyPI](https://pypi.org/project/tenacity/) — 9.0.0 current
+- [aws-actions/amazon-ecs-deploy-task-definition v2](https://github.com/aws-actions/amazon-ecs-deploy-task-definition) — official AWS action
+- [CloudWatch Alarm ECS Fargate — AWS docs](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-alarm-failure.html)
+- [CDK FargateService construct — AWS CDK v2 docs](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_ecs.FargateService.html)
+- [Anthropic Structured Outputs](https://platform.claude.com/docs/en/build-with-claude/structured-outputs)
+- [Stripe Webhooks: Handle Events](https://docs.stripe.com/webhooks)
+- [OIDC for GitHub Actions on AWS](https://aws.amazon.com/blogs/security/use-iam-roles-to-connect-github-actions-to-actions-in-aws/)
+- [pytest-asyncio 0.24 Fixture Loop Scope](https://pytest-asyncio.readthedocs.io/en/v0.24.0/how-to-guides/change_default_fixture_loop.html)
+- [LangGraph MemorySaver Thread Safety Discussion #1454](https://github.com/langchain-ai/langgraph/discussions/1454)
+- [LangGraph Persistence Documentation](https://docs.langchain.com/oss/python/langgraph/persistence)
 
-### PITFALLS.md Sources (HIGH confidence)
-- AI Code Quality: 1.7x More Issues (coderabbit.ai report, IEEE Spectrum)
-- LangGraph Production Issues (sider.ai, neurlcreators.substack.com)
-- LLM Cost Optimization (ai.koombea.com, futureagi.com)
-- E2B Sandbox Pricing (e2b.dev/pricing, softwareseni.com)
-- Builder.ai $1.5B Failure Analysis (Medium)
-- MIT AI Projects Report: 85% Fail (mindtheproduct.com)
-- FastAPI Async Pitfalls (Medium, fastro.ai)
-- Neo4j Production Tuning (medium.com/@satanialish)
-- Rate Limiting at Scale (gravitee.io, oneuptime.com)
+### Secondary (MEDIUM confidence)
+
+- [Stripe webhook best practices — Stigg](https://www.stigg.io/blog-posts/best-practices-i-wish-we-knew-when-integrating-stripe-webhooks) — corroborated by official Stripe docs
+- [Monorepo Path Filters in GitHub Actions — OneUptime](https://oneuptime.com/blog/post/2025-12-20-monorepo-path-filters-github-actions/view) — dorny/paths-filter pattern
+- [Zero-Downtime ECS Fargate Rolling Updates — Grammarly Engineering](https://medium.com/engineering-at-grammarly/perfecting-smooth-rolling-updates-in-amazon-elastic-container-service-690d1aeb44cc) — SIGTERM + deregistration delay pattern
+- [Implementing Webhook Idempotency — Hookdeck](https://hookdeck.com/webhooks/guides/implement-webhook-idempotency) — event ID deduplication pattern
+- [LangChain streaming docs](https://docs.langchain.com/oss/python/langgraph/streaming) — streaming pattern for artifact generation
 
 ---
-
-*Research completed: 2026-02-16*
+*Research completed: 2026-02-18*
 *Ready for roadmap: yes*

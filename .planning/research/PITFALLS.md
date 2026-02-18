@@ -1,239 +1,258 @@
 # Pitfalls Research
 
-**Domain:** AI-powered Technical Co-Founder SaaS (code generation, state machines, founder dashboards)
-**Researched:** 2026-02-16
-**Confidence:** HIGH
+**Domain:** AI Co-Founder SaaS v0.2 — Adding real LLM calls, Stripe billing, CI/CD, and monitoring to existing FastAPI + LangGraph + ECS Fargate system
+**Researched:** 2026-02-18
+**Confidence:** HIGH — all pitfalls verified against codebase inspection + official documentation
+
+> **Scope:** This is a v0.2-specific addendum. It covers integration pitfalls for ADDING these features to the existing v0.1 codebase. See the archived v0.1 PITFALLS.md (in `.planning/milestones/`) for generic domain pitfalls.
+
+---
 
 ## Critical Pitfalls
 
-### Pitfall 1: Silent Logic Failures in AI-Generated Code
+### Pitfall 1: RunnerReal Uses MemorySaver in Production (Thread Safety Violation)
 
 **What goes wrong:**
-AI-generated code runs without syntax errors but produces incorrect behavior. Recent research shows AI creates [1.7x more bugs than humans](https://www.coderabbit.ai/blog/state-of-ai-vs-human-code-generation-report), with the most dangerous category being logic errors that pass initial validation but fail under specific conditions. [IEEE reports](https://spectrum.ieee.org/ai-coding-degrades) that LLMs increasingly generate code that "seems to run successfully" by removing safety checks or creating fake output that matches desired format.
+`RunnerReal.__init__` defaults to `MemorySaver()` when no checkpointer is provided. `MemorySaver` is not thread-safe and is explicitly documented as "for debugging or testing purposes only." Under concurrent requests (even 2 users simultaneously), state from one user's session can bleed into another's thread. The graph in `graph.py` also defaults to `MemorySaver()` as a fallback. `create_production_graph()` exists but is never called from the API routes — the routes create their own `RunnerReal()` instances with no checkpointer passed.
 
 **Why it happens:**
-LLMs optimize for pattern matching, not correctness. They generate plausible-looking code that compiles/runs but contains subtle logic flaws, especially in concurrency, error handling, and edge cases. Models reached a quality plateau in 2025 and [recent models show decline](https://futurism.com/artificial-intelligence/ai-code-bug-filled-mess).
+`MemorySaver` was correct for v0.1 with `RunnerFake` (which never invokes the graph). When `RunnerReal` is wired in, the default checkpointer silently becomes a production liability. The bug is invisible until concurrent load is applied.
 
 **How to avoid:**
-- **Execution validation:** Every code generation must include test execution in E2B sandbox with actual validation (not just "does it run")
-- **Reviewer node skepticism:** Implement adversarial review that specifically checks for removed safety checks, missing error handling, and edge case coverage
-- **Regression test suite:** Auto-generate tests for each feature before generating implementation (TDD protocol)
-- **Debugging loop with concrete errors:** When Debugger node receives failures, require concrete error messages and stack traces (not hallucinated fixes)
+- Wire `RunnerReal` with `AsyncPostgresSaver` from `langgraph-checkpoint-postgres` (already in `pyproject.toml` dependencies)
+- Use the async variant: `AsyncPostgresSaver.from_conn_string(settings.database_url)` — the sync `PostgresSaver` from `create_production_graph()` will block the event loop
+- Pass the checkpointer through dependency injection so tests still use `MemorySaver` explicitly
+- The correct initialization: `RunnerReal(checkpointer=await AsyncPostgresSaver.from_conn_string(db_url))`
 
 **Warning signs:**
-- Tests pass but user reports "it doesn't work as expected"
-- Code has fewer lines than expected (possible safety check removal)
-- Error handling blocks are missing or use bare `pass`
-- Coder node completes unusually fast (<30s for complex features)
+- Two concurrent LangGraph runs sharing state (one user sees another's plan steps)
+- `KeyError` or `IndexError` on `state["plan"]` when it should exist
+- Tests pass in isolation but fail when run in parallel (`pytest -n 4`)
+- `create_production_graph()` exists in `graph.py` but nothing calls it
 
-**Phase to address:**
-- Phase 1 (Foundation): Implement test-first generation in Coder node
-- Phase 2 (Execution): Strengthen Reviewer node with adversarial checks
-- Phase 3 (Iteration): Add regression test persistence across builds
+**Phase to address:** LLM Integration phase — fix before any real LangGraph invocation
 
 ---
 
-### Pitfall 2: LangGraph State Corruption Without Checkpointing
+### Pitfall 2: Claude JSON Responses Wrapped in Markdown Code Blocks
 
 **What goes wrong:**
-State machine executes for 5+ minutes across multiple nodes, then fails at Executor or Debugger node. Without checkpointing, entire execution history is lost. User must restart from scratch. [LangGraph production reviews](https://sider.ai/blog/ai-tools/langgraph-review-is-the-agentic-state-machine-worth-your-stack-in-2025) warn: "Failed agent executions can corrupt the shared state or disrupt workflows."
+Every LangGraph node (`architect_node`, `coder_node`, `debugger_node`, etc.) calls `json.loads(response.content)` directly. Claude frequently wraps JSON in markdown code blocks:
+```
+```json
+{"plan": [...]}
+```
+```
+This causes `json.JSONDecodeError: Expecting value: line 1 column 1` in production. The `architect_node` has a `json.JSONDecodeError` fallback that silently creates a single-step plan — the error passes silently and every build becomes "Create [the goal], 1 step."
 
 **Why it happens:**
-LangGraph `StateGraph` execution keeps state in memory. On failure, timeout, or deployment, state vanishes unless explicitly checkpointed to persistent storage. Your codebase analysis shows "no LangGraph state checkpointing (state lost on failure)" in milestone context.
+In v0.1, `RunnerFake` returned pre-built dicts directly — no JSON parsing at all. The nodes were never exercised with real Claude output. Prompts that say "return ONLY JSON" still get markdown wrappers from Claude occasionally, especially with new model versions or complex outputs.
 
 **How to avoid:**
-- **Implement PostgreSQL checkpointing:** Use `langgraph-checkpoint-postgres` (already in dependencies) to persist state after each node
-- **Node-level recovery:** On failure, reload last checkpoint and retry from failed node (not from beginning)
-- **Timeout handling:** Set `graph.invoke(..., timeout=300)` and checkpoint before timeout expires
-- **Session resurrection:** If user refreshes browser, reload state from checkpoint (not new session)
-- **Checkpoint pruning:** Archive checkpoints older than 7 days to S3, keep recent in database
+- Use Anthropic's structured outputs (released 2025-11-13, works with Claude Sonnet 4.5 and Opus 4.1) via the `anthropic-beta: structured-outputs-2025-11-13` header — this constrains token generation to valid JSON
+- Intermediate solution: strip markdown wrappers before parsing with `re.sub(r'^```(?:json)?\n?|\n?```$', '', content.strip())`
+- Use `langchain_core.utils.json.parse_json_markdown` which handles code block extraction
+- Add explicit JSON schema to system prompts and validate against it with `pydantic` after parsing
+- Never silently fall back to single-step plan — raise and log the malformed response content
 
 **Warning signs:**
-- Users report "lost all progress" after errors
-- Redis session exists but CoFounderState is empty
-- Architect creates plan, then Coder re-creates identical plan (state reset symptom)
-- Episodic memory shows duplicate goals (repeated executions)
+- All architect plans have exactly 1 step regardless of complexity
+- Logs show `json.JSONDecodeError` being caught silently
+- `status_message` reads "Plan created with 1 steps" for every build
+- `response.content` starts with ` ```json ` in debug logs
 
-**Phase to address:**
-- Phase 1 (Foundation): Enable PostgreSQL checkpointing on LangGraph
-- Phase 2 (Execution): Add checkpoint-based recovery in API routes
-- Phase 3 (Iteration): Implement session resurrection UI ("Resume where you left off")
+**Phase to address:** LLM Integration phase — must be fixed before enabling RunnerReal in any environment
 
 ---
 
-### Pitfall 3: LLM Cost Explosion from Dynamic Questioning
+### Pitfall 3: UsageTrackingCallback Silently Swallows DB Failures — Token Limits Never Enforced
 
 **What goes wrong:**
-Dynamic LLM-tailored questions (Understanding Interview, Decision Gates) create unbounded prompt chains. Each question depends on previous answer, requiring full context. At 1000 users with 10 questions each daily, costs spiral: 1000 users × 10 questions × 2K tokens × $0.003 (Opus) = $60/day = $1800/month just for interviews. [Research shows](https://ai.koombea.com/blog/llm-cost-optimization) businesses can see costs spiral "with monthly bills that can quickly spiral out of control" without proper controls.
+`UsageTrackingCallback.on_llm_end()` catches all exceptions from the Postgres write and Redis increment with bare `except: pass`. This means: if the DB write fails, `UsageLog` has no record, and if the Redis increment fails, the daily token counter is never updated. The `_check_daily_token_limit()` check at the start of `create_tracked_llm()` reads from Redis — if Redis has 0 (from a failed write), the user never hits their limit. A user on the `bootstrapper` tier can exhaust unlimited tokens if Redis is briefly unavailable during a run.
 
 **Why it happens:**
-Opus for questioning × cumulative context growth × no caching = exponential token usage. Each new question includes full conversation history. 5-question interview = 2K + 4K + 6K + 8K + 10K = 30K tokens (vs. static 5×2K = 10K tokens).
+The pattern "usage logging should never block agent execution" is correct — the execution shouldn't fail over a logging failure. But silently dropping the counter write is different from logging the error and continuing.
 
 **How to avoid:**
-- **Context windowing:** Send only last 3 exchanges to LLM, not full history
-- **Prompt caching:** Use Anthropic's prompt caching for system instructions and conversation prefix (30K token cache = [15-30% cost reduction](https://ai.koombea.com/blog/llm-cost-optimization))
-- **Question budget:** Limit Understanding Interview to 7 questions max per project (enforced in state machine)
-- **Template-first strategy:** Use static templates for 70% of questions, dynamic only for ambiguous cases
-- **Model downshift:** Use Sonnet for clarifying questions, Opus only for strategy synthesis
-- **RAG compression:** Decision Gate context should be [70% smaller](https://ai.koombea.com/blog/llm-cost-optimization) via retrieval (not full document dumps)
+- Log failures at `WARNING` level in both except blocks with the error context
+- For the Redis counter: use a queue-based write (background task) rather than fire-and-forget in the callback
+- Add a reconciliation job that replays missed `UsageLog` entries into Redis daily counters (e.g., on startup)
+- Consider whether token limits should be enforced pre-call (already done via Redis check) and treat the callback failure as a billing audit issue rather than a quota issue
 
 **Warning signs:**
-- UsageLog shows >50K tokens for single Understanding Interview
-- Clarifying questions exceed 10 per project
-- Users report slow response times (large context processing)
-- Monthly LLM costs exceed $5/user
+- Redis `cofounder:usage:{user_id}:{date}` key is 0 but `UsageLog` has entries for that day
+- Bootstrapper users running Opus calls without hitting daily limits
+- CloudWatch shows `UsageLog` table insert errors but no corresponding alerts
 
-**Phase to address:**
-- Phase 1 (Foundation): Implement question budget and context windowing
-- Phase 2 (Execution): Add prompt caching for repeated system prompts
-- Phase 3 (Iteration): Optimize with RAG compression for Decision Gates
+**Phase to address:** LLM Integration phase — fix logging before enabling live token tracking
 
 ---
 
-### Pitfall 4: E2B Sandbox Cost at Scale (1000+ Users)
+### Pitfall 4: Stripe Webhook Delivers `checkout.session.completed` Twice — Plan Upgrade Fires Twice
 
 **What goes wrong:**
-E2B charges per-second of running sandbox. At $0.05/hour (1 vCPU), 1000 concurrent builds × 5 minutes average = 83 hours = $4.15 per deployment wave. [E2B pricing](https://e2b.dev/pricing) shows Pro plan at $150/month includes limited usage, then per-second billing. At production scale with 1000+ users, [costs escalate fast](https://www.softwareseni.com/e2b-daytona-modal-and-sprites-dev-choosing-the-right-ai-agent-sandbox-platform).
+Stripe guarantees at-least-once delivery. The `_handle_checkout_completed()` handler in `billing.py` is not idempotent. If the webhook fires twice (network retry, Stripe retry on non-2xx, or Stripe's "best effort" duplicate), the user's `plan_tier_id` is set to the paid plan twice. This is benign for plan upgrades, but the pattern will corrupt state for `customer.subscription.deleted` (downgrade fires twice, setting `stripe_subscription_id = None` on an active subscription) and `invoice.payment_failed` (marking `past_due` on an already-resolved payment).
 
 **Why it happens:**
-Current architecture creates new E2B sandbox per execution, runs tests, then terminates. No sandbox reuse. Debugging loops (Executor → Debugger → Executor × 5 retries) create 5× sandbox costs per build.
+The billing routes implement signature verification (correctly) but no idempotency check. Stripe explicitly documents that events can be delivered more than once.
 
 **How to avoid:**
-- **Sandbox pooling:** Maintain warm pool of 10 sandboxes, reuse across executions (reset filesystem state)
-- **Per-user sandbox persistence:** Pro/Enterprise tiers get long-lived sandboxes (24-hour sessions), restart only on failure
-- **Lazy sandbox creation:** Don't provision sandbox until Coder produces code (not during Architect/interview phases)
-- **Timeout enforcement:** Kill sandboxes after 10 minutes of execution (current code has no timeout)
-- **Batch testing:** Run all test files in single sandbox session (not new sandbox per test)
-- **Tier gating:** Bootstrapper tier gets shared sandbox pool (slower), Partner/CTO get dedicated (faster)
+- Add a `StripeEvent` table with `event_id` (unique constraint) and `processed_at` timestamp
+- At the start of each webhook handler: check if `event.id` exists in the table; if yes, return `{"status": "ok"}` immediately; if no, insert then process
+- Use `SELECT ... FOR UPDATE SKIP LOCKED` or a unique constraint violation to handle the race condition where two webhook deliveries arrive simultaneously
+- This must be done before adding any real payment flow — double-upgrades are invisible in test mode but revenue-critical in production
 
 **Warning signs:**
-- E2B bill exceeds $500/month with <100 active users
-- Average sandbox lifetime >15 minutes
-- Multiple sandboxes per project_id exist simultaneously
-- Sandboxes persist after user logs out
+- Stripe dashboard shows the same event delivered 2+ times
+- `UserSettings.stripe_subscription_status` oscillates between states without user action
+- Users report "I cancelled but I'm still on the paid plan" (subscription.deleted fired twice, second call hit a missing record)
 
-**Phase to address:**
-- Phase 1 (Foundation): Implement sandbox timeout and cleanup
-- Phase 2 (Execution): Add sandbox pooling for Bootstrapper tier
-- Phase 3 (Iteration): Implement per-user long-lived sandboxes for paid tiers
+**Phase to address:** Stripe Billing phase — implement before registering the webhook endpoint with Stripe's live mode
 
 ---
 
-### Pitfall 5: Queue-Based Rate Limiting Without Fairness
+### Pitfall 5: `PRICE_MAP` Global Dict Is Module-Level Mutable State — Broken Across Workers
 
 **What goes wrong:**
-Queue-based worker capacity model allows "noisy neighbor" problem: One user with 10 concurrent projects monopolizes queue, starving other users. [Research shows](https://www.gravitee.io/blog/rate-limiting-apis-scale-patterns-strategies) distributed counter inconsistency leads to "clients exceeding their intended limits as each service instance maintains its own partial view."
+In `billing.py`, `PRICE_MAP` is a module-level dict that `_build_price_map()` populates once with `PRICE_MAP.update(mapping)`. In a single-process development server this is fine. On ECS Fargate with multiple tasks (or if the process is forked), each task has its own `PRICE_MAP`. If any `stripe_price_*` env var is missing (e.g., a new price ID is added to the Stripe dashboard but not to `Settings`), `_build_price_map()` populates with `None` values and `price_map.get((slug, interval))` returns `None` — triggering a 400 even for valid plan/interval combinations.
 
 **Why it happens:**
-Redis queue is FIFO without per-user fairness. Large projects (100+ files) create long-running jobs that block queue. No priority levels based on subscription tier.
+The mutable module-level caching pattern works in a single-threaded synchronous world. With async FastAPI and multiple workers, the "cache once" assumption is fragile. Missing env vars silently become `None` price IDs.
 
 **How to avoid:**
-- **Per-user queue limits:** Max 3 concurrent jobs per user, queue additional requests
-- **Fair queuing algorithm:** Round-robin across users (not strict FIFO)
-- **Tier-based priority:** CTO tier jobs get priority over Bootstrapper
-- **Job splitting:** Break large projects into 10-file chunks, interleave across users
-- **Wait time estimation:** Calculate queue position × average job time, show "Estimated 3 minutes" in UI
-- **Circuit breaker:** If user's job fails 3x, deprioritize future jobs (prevent retry storms)
-- **Redis Lua atomicity:** Use [Lua scripts for atomic operations](https://redis.io/learn/howtos/ratelimiting) on queue management (current code has race conditions)
+- Move `PRICE_MAP` population to application startup (`lifespan` event) and validate all 6 price IDs are non-empty strings at boot — fail fast if any are missing
+- Raise `ValueError` at startup if any price ID is empty, preventing a deploy with missing Stripe config from serving requests
+- Test this explicitly: in CI, verify all `STRIPE_PRICE_*` env vars are populated before the service starts
 
 **Warning signs:**
-- One user has >5 jobs in queue while others wait
-- Average wait time >5 minutes for simple requests
-- Redis queue depth >50 items
-- Users report "stuck in queue" despite low system load
+- New plan added to Stripe dashboard but not to `Settings` — users get 400 "Invalid plan/interval" on that plan
+- `PRICE_MAP` contains `None` values in logs
+- ECS task starts successfully but `/billing/checkout` returns 400 for valid requests
 
-**Phase to address:**
-- Phase 1 (Foundation): Implement per-user queue limits and fair queuing
-- Phase 2 (Execution): Add tier-based priority and wait time estimation
-- Phase 3 (Iteration): Implement job splitting for large projects
+**Phase to address:** Stripe Billing phase — add startup validation before first live-mode deploy
 
 ---
 
-### Pitfall 6: Non-Technical User Overwhelm (Dashboard UX Failure)
+### Pitfall 6: pytest-asyncio 0.24 Session-Scoped `engine` Fixture Conflicts with Function-Scoped Tests
 
 **What goes wrong:**
-Founders abandon product because dashboard is too complex. [Builder.ai's $1.5B failure](https://medium.com/@tahirbalarabe2/the-truth-behind-builder-ais-1-5b-failure-77817464897e) showed "users found the process frustrating, with one bakery owner giving up after spending weeks trying to get a simple ordering app to work." [MIT research](https://www.mindtheproduct.com/why-most-ai-products-fail-key-findings-from-mits-2025-ai-report/) found "85% of AI projects fail to deliver real business outcomes" largely due to UX that doesn't match user mental models.
+The `api/conftest.py` defines `engine` as an `async` fixture with no explicit scope (defaults to `function` scope). The `db_session` fixture depends on `engine`. But `asyncio_mode = "auto"` in `pyproject.toml` without `asyncio_default_fixture_loop_scope` set creates a scope mismatch: when a test at `session` or `module` scope tries to use `engine`, pytest-asyncio raises `ScopeMismatch: You tried to access the 'function' scoped fixture 'event_loop' with a 'session' scoped request object`. This is the root of the 18 deferred integration tests.
 
 **Why it happens:**
-Technical terminology ("nodes", "state machine", "deployment pipeline") alienates non-technical founders. Too many options paralyze decision-making. No clear "what do I do next?" guidance. [Dashboard UX research](https://www.smashingmagazine.com/2025/09/ux-strategies-real-time-dashboards/) emphasizes: "dashboards should connect metrics with actions" and avoid "overwhelming users with too much information."
+In pytest-asyncio 0.24, async fixtures without explicit `loop_scope` use the default loop scope, which changed across versions. The `asyncio_mode = "auto"` in `pyproject.toml` sets test mode but not fixture loop scope. With `0.24.x`, the default fixture loop scope is `function`, so session-scoped fixtures that touch the same async engine create a new event loop per function — and the engine created in one loop can't be used in another.
 
 **How to avoid:**
-- **Inverted pyramid:** Most critical info at top (stage, completion %, next action), drill-down below
-- **Action-oriented language:** "Review build" not "Execute reviewer node"; "Make pricing decision" not "Configure monetization strategy"
-- **Chatbot-first fallback:** [Emerging trend](https://medium.com/@CarlosSmith24/admin-dashboard-ui-ux-best-practices-for-2025-8bdc6090c57d) for "natural language questions, lowering entry barrier"
-- **Progress storytelling:** "3 of 5 milestones complete" not "60% through Validated Direction stage"
-- **Decision templates with tradeoffs:** Present 2-3 options with "Fast/Expensive" vs "Slow/Cheap" labels (not raw engineering details)
-- **Glossary tooltips:** Hover on "Build v0.2" shows "Second iteration of your MVP with new features"
-- **Empty state guidance:** First login shows checklist: "1. Answer questions about your idea 2. Review strategy 3. Approve build plan"
+- Add `asyncio_default_fixture_loop_scope = "session"` to `[tool.pytest.ini_options]` in `pyproject.toml`
+- Change the `engine` fixture to use `@pytest_asyncio.fixture(scope="session", loop_scope="session")` — this requires importing `pytest_asyncio` explicitly
+- Use a single engine per test session (create once, drop/recreate tables between tests, not the engine itself)
+- Pattern from pytest-asyncio docs: `@pytest_asyncio.fixture(loop_scope="session") async def engine(): ...`
+- The `api_client` fixture uses `asyncio.get_event_loop()` implicitly via `TestClient` — replace with `anyio`-compatible approach or explicit loop management
 
 **Warning signs:**
-- Session duration <2 minutes (user confused, leaves)
-- Users ask support "what do I click next?"
-- High bounce rate on Dashboard page
-- Low Decision Gate completion rate (users stuck at decisions)
+- `ScopeMismatch: You tried to access the 'function' scoped fixture 'event_loop' with a 'session' scoped request object`
+- Tests pass individually (`pytest tests/api/test_auth.py`) but fail together (`pytest tests/api/`)
+- Database tables exist from one test but not visible in the next
+- `ProgrammingError: table "user_settings" does not exist` in tests that shouldn't need table creation
 
-**Phase to address:**
-- Phase 1 (Foundation): Implement inverted pyramid dashboard with action-first language
-- Phase 2 (Execution): Add decision templates with tradeoffs UI
-- Phase 3 (Iteration): Implement chatbot fallback for confused users
+**Phase to address:** Test Infrastructure phase — fix before any other integration tests are written
 
 ---
 
-### Pitfall 7: Neo4j Strategy Graph Query Performance Degradation
+### Pitfall 7: CI/CD Deploys Both Services on Every Push — Frontend Rebuild on Backend-Only Changes
 
 **What goes wrong:**
-Strategy Graph grows to 500+ decision nodes per project (Understanding Interview + Execution Plan + Decision Gates + iterations). Cypher queries for "show all decisions impacting pricing" become slow (>5s). [Production tuning guides](https://medium.com/@satanialish/the-production-ready-neo4j-guide-performance-tuning-and-best-practices-15b78a5fe229) warn about query performance at scale without proper indexing.
+A monorepo CI/CD workflow without path filtering rebuilds and redeploys both the backend and frontend Docker images on every push to `main`. A Python type fix in `backend/app/core/config.py` triggers a Next.js build (3-5 minutes), ECR push, and ECS service update for the frontend — adding 8-10 minutes to a backend-only change. At 10+ commits/day this wastes significant CI minutes and creates unnecessary ECS deployment churn (rolling updates during stable frontend deploys risk brief 502s on the ALB).
 
 **Why it happens:**
-No indexes on node properties. Full graph scans for label-based queries. Relationship traversals without depth limits. Current code creates nodes but doesn't define indexes or constraints for lookup patterns.
+The natural first implementation of a CI/CD workflow is a single file that runs all steps unconditionally. Without path-based filtering, the workflow has no way to distinguish which service was affected.
 
 **How to avoid:**
-- **Define indexes at initialization:** `CREATE INDEX decision_by_project IF NOT EXISTS FOR (d:Decision) ON (d.project_id, d.timestamp)`
-- **Constrain traversal depth:** `MATCH (d:Decision)-[:IMPACTS*1..3]->(m:Milestone)` (not unbounded `*`)
-- **Property-based filtering:** Filter on indexed properties before traversal, not after
-- **Parameterized queries:** Use `$project_id` parameters (enables query plan caching)
-- **Graph projections:** For dashboard queries, use Neo4j Graph Data Science projections (in-memory subgraphs)
-- **Query profiling:** `PROFILE MATCH ...` to identify full scans, add indexes accordingly
-- **Lazy loading:** Dashboard shows top 5 decisions, "Load more" for full graph
+- Use `dorny/paths-filter` action to detect which paths changed: `backend/**`, `frontend/**`, `infra/**`
+- Separate `build-backend` and `build-frontend` jobs with `needs: [detect-changes]` and `if: needs.detect-changes.outputs.backend == 'true'`
+- Always run tests regardless of path (test gate is not a deployment gate)
+- Infra changes (`infra/**`) should have their own job that runs `cdk diff` only — CDK deploy to production should require manual approval
 
 **Warning signs:**
-- Cypher query logs show >1000ms execution times
-- Dashboard "Strategy Graph" section takes >3s to load
-- Neo4j CPU usage >80% during graph queries
-- Graph visualization times out with >100 nodes
+- CI run time >10 minutes for a 5-line Python change
+- ECS `FrontendService` shows a deployment event timestamp matching a backend-only commit
+- ECR frontend image is pushed with `latest` tag when no `frontend/**` files changed
+- GitHub Actions bill shows 2x expected CI minutes usage
 
-**Phase to address:**
-- Phase 1 (Foundation): Define indexes and constraints during Neo4j initialization
-- Phase 2 (Execution): Implement depth-limited traversals in graph queries
-- Phase 3 (Iteration): Add lazy loading and graph projections for large graphs
+**Phase to address:** CI/CD phase — implement path filtering from the first workflow file
 
 ---
 
-### Pitfall 8: Async/Await Blocking in Production (Existing Codebase Issue)
+### Pitfall 8: ECS Rolling Deploy Causes 30-Second 502s Due to Missing Deregistration Delay
 
 **What goes wrong:**
-Mem0 semantic memory uses synchronous API calls inside `async` functions without proper wrapping. [FastAPI async pitfalls research](https://medium.com/@bhagyarana80/10-async-pitfalls-in-fastapi-and-how-to-avoid-them-60d6c67ea48f) shows "blocking calls in async endpoints can block the event loop, causing performance degradation or timeout errors." Your CONCERNS.md already flagged this: "Mem0 Semantic Memory Missing Async Handling" — methods never actually await Mem0 calls.
+The `ApplicationLoadBalancedFargateService` in CDK uses default ALB target group settings. The default `deregistration_delay` is 300 seconds (5 minutes), but the health check `interval` is 30 seconds with `retries=3`. During a rolling deploy, the old task receives SIGTERM, begins shutting down, and stops responding to requests — but the ALB continues routing traffic to it for up to 90 seconds (3 failed health checks × 30 seconds) before marking it unhealthy. Users see 502 Bad Gateway during this window.
+
+Additionally, `RunnerReal.run()` invokes `self.graph.ainvoke()` which can run for several minutes. A deploy mid-execution will SIGTERM the task while LangGraph is in the middle of a node. Without checkpoint-based recovery, the user's build progress is lost.
 
 **Why it happens:**
-Mem0 library is synchronous, but methods are marked `async` for compatibility with FastAPI. Calling `self.client.search(...)` blocks the event loop. At scale, this causes [event loop saturation](https://fastro.ai/blog/fastapi-mistakes).
+CDK's `ApplicationLoadBalancedFargateService` construct does not configure graceful shutdown or deregistration delay by default. The FastAPI app has no SIGTERM handler to stop accepting new requests before shutdown.
 
 **How to avoid:**
-- **Immediate fix:** Wrap Mem0 calls with `await asyncio.to_thread(self.client.search, ...)`
-- **Long-term:** Evaluate async alternatives (LangChain memory, native PostgreSQL RAG) or fork Mem0 with async client
-- **Connection pooling:** Configure Mem0 with connection pool to reduce blocking time
-- **Circuit breaker:** If Mem0 search takes >2s, skip memory context (graceful degradation)
-- **Remove if unused:** Audit if semantic memory actually improves results — if not, remove dependency
+- Add a SIGTERM handler in `main.py` using `signal.signal(signal.SIGTERM, handler)` that sets a flag causing `/api/health` to return 503 immediately — this triggers fast ALB deregistration
+- Set `deregistration_delay` to 60 seconds (not 300) via `target_group.set_attribute("deregistration_delay.timeout_seconds", "60")`
+- Ensure `AsyncPostgresSaver` checkpointing (from Pitfall 1) is in place so mid-execution builds can be resumed after redeploy
+- Consider adding `minimum_healthy_percent=100, maximum_percent=200` to ensure the new task is healthy before the old one is terminated
 
 **Warning signs:**
-- Uvicorn logs show "event loop blocked for >0.5s"
-- API latency spikes during memory-heavy operations
-- Concurrent requests drop (event loop saturated)
-- Thread pool exhaustion errors
+- Monitoring shows 502 spikes that correlate exactly with ECS deployment timestamps
+- Users report "the build started then disappeared" (SIGTERM killed mid-execution)
+- ALB `HTTPCode_Target_5XX_Count` metric spikes during deploys
+- ECS deployment takes >5 minutes to complete with a single task (`desiredCount: 1`)
 
-**Phase to address:**
-- Phase 1 (Foundation): Wrap Mem0 calls with `asyncio.to_thread()` immediately
-- Phase 2 (Execution): Evaluate async memory alternatives
-- Phase 3 (Iteration): Implement circuit breaker for memory operations
+**Phase to address:** CI/CD and Monitoring phases — implement graceful shutdown before first automated deploy
+
+---
+
+### Pitfall 9: `detect_llm_risks()` Returns Empty List — Risk Dashboard Shows No LLM Risks Despite Issues
+
+**What goes wrong:**
+`detect_llm_risks(**kwargs)` in `domain/risks.py` is a stub that always returns `[]`. It is called in `journey.py` and `dashboard_service.py`. When RunnerReal is active and LLM calls are failing (rate limited, malformed JSON, token limit exceeded), the risk dashboard will show "No LLM risks" because the detection function receives no inputs about actual LLM behavior. Additionally, `build_failure_count=0` is hardcoded in both call sites with a `# TODO: integrate build tracking from Phase 3` comment — meaning the `build_failures` risk rule (`>= 3 consecutive failures`) never triggers even when the agent is looping and failing.
+
+**Why it happens:**
+Both stubs were explicitly deferred in v0.1 ("integrate in Phase 3"). The stubs are self-documenting. The pitfall is assuming these are safe to ship to v0.2 production alongside RunnerReal — they are not, because the risk dashboard will now mislead founders who should see LLM failure signals.
+
+**How to avoid:**
+- `build_failure_count`: wire to actual `UsageLog` records where `agent_role = "executor"` and exit code != 0, or add a `build_failures` counter to the `Project` model
+- `detect_llm_risks()`: implement with at minimum: check Redis for `cofounder:usage:{user_id}:{today}` approaching the plan limit (>80% consumed = warning risk); check for any `UsageLog` entries in the last hour with errors
+- These should be addressed in the same phase as LLM integration — risk signals are meaningless without real LLM data, but also misleading without them
+
+**Warning signs:**
+- Risk panel always shows 0 risks even when LLM calls are failing in logs
+- `journey.py` line 581 still has `build_failure_count=0` comment after v0.2
+- User reports "everything looks fine on the dashboard" while their build has failed 5 times
+- `detect_llm_risks` call in `journey.py:587` returns `[]` — no log evidence it was called with any meaningful kwargs
+
+**Phase to address:** LLM Integration phase — implement basic LLM risk signals when wiring RunnerReal
+
+---
+
+### Pitfall 10: GitHub Actions Long-Lived AWS Credentials in Repository Secrets
+
+**What goes wrong:**
+The most common first implementation of GitHub Actions + ECR/ECS deploy uses `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` stored as repository secrets. These are long-lived IAM user credentials: if the repository is ever compromised (malicious PR, secret scanning miss, leaked in a log), an attacker gets permanent AWS access with whatever permissions the IAM user has. In 2025, AWS and GitHub both recommend OIDC federation as the standard approach — long-lived credentials are a security anti-pattern.
+
+**Why it happens:**
+Long-lived credentials are the first result in most GitHub Actions + AWS tutorials. OIDC setup requires an additional IAM configuration step that feels like overhead at CI/CD setup time.
+
+**How to avoid:**
+- Use `aws-actions/configure-aws-credentials` with `role-to-assume` and `web-identity-token-file` (OIDC)
+- Create an IAM Identity Provider for `token.actions.githubusercontent.com` in the AWS account
+- Scope the trust policy: `"Condition": {"StringEquals": {"token.actions.githubusercontent.com:sub": "repo:vladcortex/co-founder:ref:refs/heads/main"}}`
+- Grant the role only: `ecr:GetAuthorizationToken`, `ecr:BatchCheckLayerAvailability`, `ecr:PutImage`, `ecs:UpdateService`, `ecs:RegisterTaskDefinition`, `iam:PassRole` (for task role)
+- Never store `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` as repo secrets
+
+**Warning signs:**
+- `AWS_ACCESS_KEY_ID` appears in repository secrets list
+- GitHub Actions workflow uses `aws-configure` step with `aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}`
+- IAM user exists with `AmazonEC2ContainerRegistryPowerUser` attached (overly broad)
+- No IAM Identity Provider for `token.actions.githubusercontent.com` in the AWS account
+
+**Phase to address:** CI/CD phase — must be the first IAM decision when writing the workflow
 
 ---
 
@@ -243,14 +262,14 @@ Shortcuts that seem reasonable but create long-term problems.
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Silent exception swallowing (`except: pass`) | "Works" in happy path | Debugging production failures impossible; silent data loss | **Never** — always log at minimum |
-| `datetime.utcnow()` (deprecated in 3.12) | Simple syntax | Naive datetimes cause lock timeout bugs during DST; multi-region failures | **Never** — use `datetime.now(timezone.utc)` |
-| No distributed lock ownership validation | Simpler Redis logic | Two users edit same file simultaneously; data corruption | **Never** — implement UUID-based lock tokens |
-| Full state in Redis (no compression) | Easy serialization | Redis memory exhaustion at 1000+ sessions; slow deserializes | **MVP only** — compress or move to Postgres |
-| Hard-coded model strings (not Enums) | Quick prototyping | Typos cause wrong model usage; no autocomplete | **Never** — use ModelRole enum from start |
-| Readiness probe that doesn't check DB | Faster startup | Load balancer routes to unhealthy instances; cascading failures | **Never** — always validate dependencies |
-| Static question forms (not dynamic LLM) | Cheaper, faster | Misses context-specific questions; poor requirement extraction | **Acceptable for MVP** if budget-constrained |
-| Global admin flag (not RBAC) | Simple auth | Can't delegate permissions; all-or-nothing access | **Acceptable for MVP** — add RBAC in Phase 3+ |
+| `MemorySaver` as default in RunnerReal | Works for single-process dev | State corruption under concurrent users | **Never in production** — replace with `AsyncPostgresSaver` before enabling RunnerReal |
+| Direct `json.loads(response.content)` on LLM output | Simple parsing code | Silent fallback to 1-step plan; hidden JSON errors in prod | **Never** — always strip markdown wrapper or use structured outputs |
+| Stripe webhook handlers with no idempotency check | Simpler code | Double-upgrades, double-downgrades on Stripe retries | **Never** — add event ID deduplication before live mode |
+| Long-lived AWS IAM user credentials in GitHub Secrets | Fast to set up | Permanent compromise risk if secret leaks | **Never** — use OIDC from day one |
+| Global `PRICE_MAP` with no startup validation | Lazy initialization | Missing Stripe price IDs cause silent 400s at runtime | **Never** — validate at `lifespan` startup |
+| `detect_llm_risks()` stub returning `[]` | Deferred complexity | Risk dashboard shows no LLM risks even during LLM failures | **Only while RunnerFake is active** — must implement with RunnerReal |
+| Single CI/CD job for both backend and frontend | Simple workflow file | 10+ minute deploys for 1-line changes; excess cost | **Never in a monorepo** — add path filters from day one |
+| No SIGTERM handler on FastAPI app | No extra code | 502 spikes on every ECS rolling deploy | **Never after first automated deploy** |
 
 ---
 
@@ -260,14 +279,15 @@ Common mistakes when connecting to external services.
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| **Anthropic Claude** | Not handling rate limits (429) | Implement exponential backoff; cache responses; use tier limits to prevent bursts |
-| **E2B Sandbox** | Creating new sandbox per request | Maintain warm pool; reuse sandboxes with filesystem reset |
-| **Neo4j** | Not using parameterized queries | Always use `$param` syntax; prevents injection and enables query plan caching |
-| **Redis** | Non-atomic check-then-set | Use Lua scripts or `WATCH`/`MULTI`/`EXEC` for atomicity |
-| **Clerk** | Caching JWT validation results too long | Refresh JWKS every 1 hour; validate on every request (fast with key caching) |
-| **GitHub API** | No handling for PR create failures | Check for existing PR before create; handle branch conflicts; retry with backoff |
-| **Mem0** | Assuming search is instant | Add timeout; implement fallback to episodic memory if Mem0 fails |
-| **Stripe Webhooks** | Not verifying signature | Always verify `stripe.Webhook.construct_event()`; prevents forged webhooks |
+| **Claude via ChatAnthropic** | Calling `json.loads(response.content)` directly | Strip markdown wrappers first; use structured outputs beta header; validate with Pydantic |
+| **LangGraph checkpointing** | `MemorySaver` in production RunnerReal | `AsyncPostgresSaver` with a dedicated connection pool; `MemorySaver` only in test fixtures |
+| **Stripe Webhooks** | No idempotency check on event handlers | Store `event.id` in a `stripe_events` table with unique constraint; check before processing |
+| **Stripe Billing** | Lazy `PRICE_MAP` with no validation | Validate all 6 price IDs at startup via `lifespan`; fail fast if any are `None` or empty |
+| **GitHub Actions + AWS ECR** | `AWS_ACCESS_KEY_ID` in repository secrets | OIDC federation with `role-to-assume`; scope trust policy to specific repo and branch |
+| **ECS Fargate Rolling Deploy** | Default ALB deregistration delay (300s) | Add SIGTERM handler to fail health check; set deregistration delay to 60s |
+| **pytest-asyncio 0.24** | Missing `asyncio_default_fixture_loop_scope` | Add `asyncio_default_fixture_loop_scope = "session"` to `pyproject.toml`; use `@pytest_asyncio.fixture(loop_scope="session")` for DB engine |
+| **CloudWatch + ECS** | Only watching CPU/memory metrics | Add custom application metrics: LLM call latency, Stripe webhook failures, queue depth |
+| **UsageTrackingCallback** | Silent `except: pass` swallowing counter failures | Log all failures at WARNING level; implement reconciliation between Postgres and Redis |
 
 ---
 
@@ -277,163 +297,120 @@ Patterns that work at small scale but fail as usage grows.
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| **Semantic memory on every message** | >500ms latency per chat message | Cache memory context for 5 minutes; refresh in background | >10 concurrent users |
-| **Full state serialization to Redis** | Redis memory growth, slow writes | Store only session metadata in Redis, full state in Postgres | >100 active sessions |
-| **Linear lock scanning (`SCAN cofounder:lock:*`)** | Lock queries take >1s | Use sorted sets indexed by project_id; O(log N) lookup | >1000 locks per project |
-| **N+1 UserSettings queries** | DB connection pool exhaustion | Cache UserSettings with 1-hour TTL in Redis; eager load with JOIN | >50 concurrent users |
-| **No LangGraph timeout** | Runaway agents consume resources indefinitely | Set `timeout=300` on graph invoke; checkpoint before timeout | First infinite loop bug |
-| **Unbounded graph traversal in Neo4j** | Graph queries timeout | Always set max depth (`-[*1..3]->`) and result limits (`LIMIT 100`) | >500 nodes in graph |
-| **Creating E2B sandbox during Architect phase** | Unnecessary sandbox costs | Lazy create: provision sandbox only when Coder produces code | >100 builds/day |
+| **`MemorySaver` for concurrent LangGraph** | State corruption, wrong plan steps returned | `AsyncPostgresSaver` in production | 2+ concurrent users |
+| **`_build_price_map()` called on every request** | Repeated env var reads, no caching | Build once at startup, store in app state | >100 billing requests/hour |
+| **`stripe.Customer.create()` synchronous call in async route** | Event loop blocked during customer creation | Wrap with `asyncio.to_thread()` or use `stripe`'s async client | >5 concurrent checkouts |
+| **No path filtering in CI** | Every push rebuilds both images | `dorny/paths-filter` with separate backend/frontend jobs | >10 commits/day |
+| **ECS default deregistration delay 300s** | 30-90s 502s on every deploy | Reduce to 60s + SIGTERM handler | Every automated deploy |
+| **`detect_llm_risks()` returning `[]` always** | Risk panel never updates | Wire to real UsageLog data | When RunnerReal is active |
 
 ---
 
 ## Security Mistakes
 
-Domain-specific security issues beyond general web security.
+Domain-specific security issues relevant to v0.2.
 
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| **Storing API keys in CoFounderState** | Keys logged to episodic memory, visible in dashboard | Store secrets in AWS Secrets Manager; inject at runtime only |
-| **No sandbox path validation** | User-provided paths escape sandbox root | Validate all paths with `os.path.abspath()` and check prefix |
-| **Admin flag in JWT public metadata** | User can modify Clerk metadata via API | Verify admin status server-side against database, not just JWT |
-| **GitHub App private key in environment** | Key exposed in logs, error traces | Use AWS Secrets Manager rotation; never log key material |
-| **No rate limiting on Understanding Interview** | Attacker exhausts LLM quota with bogus questions | Enforce 1 interview per project; 3 projects per user per day |
-| **Executing user-provided code without limits** | Fork bombs, infinite loops, resource exhaustion | E2B enforces limits; add timeout, memory cap, CPU cap per execution |
-| **Allowing arbitrary Neo4j Cypher** | Cypher injection if user input in query | Use parameterized queries; whitelist allowed node labels and properties |
-
----
-
-## UX Pitfalls
-
-Common user experience mistakes in this domain.
-
-| Pitfall | User Impact | Better Approach |
-|---------|-------------|-----------------|
-| **"Building..." with no progress** | User assumes it's frozen, refreshes (loses state) | Show estimated time ("~3 minutes"), progress steps ("2 of 5 tests passing") |
-| **Technical error messages** | "StateGraph execution failed at node coder" confuses non-technical founders | "We couldn't generate code for this feature. Our team has been notified." |
-| **No "why" for decisions** | Founder doesn't trust AI choices, manually overrides everything | Decision Cards show 2-3 options with tradeoffs ("Fast but expensive" vs "Slow but cheap") |
-| **Chat-only interface** | Founders think in roadmaps, not conversations | Dashboard-first UX with chat as secondary fallback |
-| **Artifacts buried in JSON** | Can't share Product Brief with investors | PDF export with branding; Markdown for technical stakeholders |
-| **No abort/pause** | User wants to stop long-running build, can't | "Pause build" button checkpoints state, allows resume |
-| **Version confusion** | "Which build am I looking at? v0.1 or v0.2?" | Version badge everywhere; timeline shows all versions with dates |
-| **Hidden costs** | Founder surprised by $500 bill, churns | Usage dashboard shows tokens used, cost estimate, tier limits in real-time |
+| **Long-lived AWS IAM credentials in GitHub Secrets** | Permanent AWS compromise if secret leaks | OIDC federation, scoped to repo+branch+ref |
+| **Stripe price IDs hardcoded in `compute-stack.ts` environment block** | Price IDs visible in CDK source code and CloudFormation console | Move to `cofounder/app` Secrets Manager entry |
+| **Stripe webhook secret rotation not planned** | Stale secret if ever compromised | Document rotation procedure; Stripe supports rolling secrets with up to 24h overlap |
+| **`stripe.api_key` set via `_get_stripe()` on each request** | No validation that key is non-empty before use | Assert `settings.stripe_secret_key` is non-empty at startup |
+| **OIDC trust policy without `sub` condition** | Any GitHub repo in the org can assume the deploy role | Add `StringEquals` condition scoping to exact `repo:org/repo:ref:refs/heads/main` |
+| **CloudWatch log groups with no retention** | Logs accumulate indefinitely, cost grows unbounded | Set retention policy on all log groups (already done for ECS, but verify for new lambda/custom metrics) |
 
 ---
 
 ## "Looks Done But Isn't" Checklist
 
-Things that appear complete but are missing critical pieces.
+For v0.2 specifically — things that appear complete but have missing critical pieces.
 
-- [ ] **State machine transitions:** Verified all edge conditions trigger correct transitions (not just happy path)
-- [ ] **Decision Gates:** Tested "Pivot" and "Park" paths (not just "Proceed")
-- [ ] **Artifact generation:** PDFs render correctly with all content (not truncated), Markdown escapes special chars
-- [ ] **Live preview URLs:** E2B sandbox URL is accessible from browser (not just localhost references)
-- [ ] **Queue fairness:** Verified round-robin across users (not FIFO monopolization)
-- [ ] **Error recovery:** Tested all failure modes checkpoint state (not just success path)
-- [ ] **Async operations:** Profiled event loop blocking (all blocking calls wrapped with `asyncio.to_thread()`)
-- [ ] **Rate limits:** Verified tier limits enforced per user per day (not global counters)
-- [ ] **Strategy Graph indexes:** Ran `PROFILE` on all Cypher queries (no full scans)
-- [ ] **Timezone handling:** All datetimes use `timezone.utc` (no naive datetimes in database)
-- [ ] **Lock ownership:** Tested concurrent lock acquisition (UUID validation prevents conflicts)
-- [ ] **Cost tracking:** UsageLog records tokens for all LLM calls (not just chat endpoints)
-- [ ] **Sandbox cleanup:** Verified sandboxes terminate on timeout (no orphaned sandboxes)
-- [ ] **Health checks:** Readiness probe returns 503 when DB/Redis down (not always 200)
+- [ ] **RunnerReal wired in:** Verify `MemorySaver` is NOT the active checkpointer in any production code path — check that `RunnerReal.__init__` receives a non-default checkpointer
+- [ ] **JSON parsing:** Verify each LangGraph node handles `response.content` with markdown wrapper stripping — check that `json.JSONDecodeError` fallback logs the malformed content, not just silently continues
+- [ ] **Stripe webhook idempotency:** Verify `stripe_events` table (or equivalent) exists and is checked before any handler executes — test by replaying the same event ID twice
+- [ ] **Stripe live mode:** Verify `STRIPE_WEBHOOK_SECRET` points to the live endpoint secret (not CLI local secret) — check that the endpoint URL registered in Stripe Dashboard matches `api.cofounder.getinsourced.ai/api/webhooks/stripe`
+- [ ] **Startup validation:** Verify all 6 `stripe_price_*` env vars are non-empty in the ECS task definition before deploy — verify `PRICE_MAP` is populated at startup, not lazily
+- [ ] **pytest-asyncio fix:** Verify `asyncio_default_fixture_loop_scope = "session"` is in `pyproject.toml` and the 18 deferred tests now pass — run `pytest tests/api/` and confirm no `ScopeMismatch` errors
+- [ ] **CI path filtering:** Verify a backend-only commit does not trigger frontend image build — check GitHub Actions run summary shows only backend job steps executing
+- [ ] **OIDC setup:** Verify no `AWS_ACCESS_KEY_ID` exists in repository secrets — verify IAM Identity Provider for GitHub OIDC exists in AWS account 837175765586
+- [ ] **SIGTERM handler:** Verify FastAPI gracefully fails health check on SIGTERM — test by deploying a new task and watching for 502 spikes in ALB metrics during rollover
+- [ ] **`detect_llm_risks()` implemented:** Verify the function returns non-empty results when LLM errors are present — check that `journey.py` passes real kwargs, not empty
 
 ---
 
 ## Recovery Strategies
 
-When pitfalls occur despite prevention, how to recover.
+When pitfalls occur despite prevention.
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| **State corruption from no checkpointing** | HIGH | 1. Enable PostgreSQL checkpointing 2. Notify affected users 3. Provide "Resume" UI |
-| **LLM cost explosion** | MEDIUM | 1. Implement emergency circuit breaker (disable Opus) 2. Add prompt caching 3. Refund overcharged users |
-| **E2B sandbox cost spiral** | MEDIUM | 1. Kill all running sandboxes 2. Implement timeout enforcement 3. Add budget alerts |
-| **Queue monopolization** | LOW | 1. Flush queue 2. Implement per-user limits 3. Restart with fair queuing |
-| **Neo4j query slowdown** | LOW | 1. Add missing indexes via `CREATE INDEX` 2. Add `LIMIT` to slow queries 3. Monitor query performance |
-| **Event loop saturation** | HIGH | 1. Identify blocking calls via profiling 2. Wrap with `asyncio.to_thread()` 3. Add event loop monitoring |
-| **Silent logic failures in generated code** | HIGH | 1. Implement test-first generation 2. Strengthen Reviewer node 3. Notify users of past failures |
-| **Dashboard confusion (user churn)** | MEDIUM | 1. Add onboarding checklist 2. Simplify language 3. User research sessions |
+| **MemorySaver state corruption in production** | HIGH | 1. Roll back to RunnerFake 2. Notify affected users their builds are reset 3. Deploy with AsyncPostgresSaver 4. Add concurrent test suite |
+| **JSON parse silent fallback flood** | MEDIUM | 1. Add logging to fallback branch 2. Check logs for frequency 3. Deploy markdown-stripping fix 4. Monitor architect plan step counts |
+| **Stripe double-upgrade from duplicate webhooks** | LOW | 1. Query Stripe API for actual subscription status 2. Correct `UserSettings` to match 3. Deploy idempotency fix 4. Replay event to verify no-op behavior |
+| **Stripe missing price ID causes 400 in production** | LOW | 1. Add missing env var to `cofounder/app` secret 2. Force new ECS task deployment 3. Add startup validation to prevent recurrence |
+| **pytest ScopeMismatch blocks 18 tests** | LOW | 1. Add `asyncio_default_fixture_loop_scope = "session"` to pyproject.toml 2. Update engine fixture to use `@pytest_asyncio.fixture(loop_scope="session")` 3. Re-run test suite |
+| **Long-lived AWS creds leaked** | CRITICAL | 1. Immediately deactivate IAM user access key in AWS console 2. Rotate all secrets 3. Audit CloudTrail for unauthorized actions 4. Switch to OIDC |
+| **502s on every ECS deploy** | MEDIUM | 1. Add SIGTERM handler hotfix 2. Deploy with `minimum_healthy_percent=100` to ensure new task is healthy before SIGTERM to old 3. Reduce `deregistration_delay` to 60s |
 
 ---
 
 ## Pitfall-to-Phase Mapping
 
-How roadmap phases should address these pitfalls.
-
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| Silent logic failures in AI code | Phase 2 (Execution) | Run test suite on all generated code; adversarial review enabled |
-| No LangGraph checkpointing | Phase 1 (Foundation) | Session recovery works after simulated failure |
-| LLM cost explosion | Phase 1 (Foundation) | UsageLog shows <30K tokens per Understanding Interview |
-| E2B sandbox cost spiral | Phase 1 (Foundation) | Max sandbox lifetime <10 minutes; pool reuse confirmed |
-| Queue fairness issues | Phase 2 (Execution) | Load test: 10 users with equal job completion times |
-| Dashboard UX overwhelm | Phase 1 (Foundation) | User testing: non-technical founder completes flow in <5 minutes |
-| Neo4j query performance | Phase 1 (Foundation) | All graph queries <500ms with 500-node test graph |
-| Async/await blocking | Phase 1 (Foundation) | Event loop never blocked >100ms under load |
-| Datetime timezone bugs | Phase 1 (Foundation) | All timestamps in DB have timezone info |
-| Lock race conditions | Phase 1 (Foundation) | Concurrency test: 100 simultaneous lock attempts, no duplicates |
-| Health check inadequacy | Phase 1 (Foundation) | Kill DB container, readiness returns 503 |
-| Session serialization failures | Phase 1 (Foundation) | All state types JSON round-trip without errors |
-| Exception swallowing | Phase 1 (Foundation) | No bare `except: pass` in codebase, all errors logged |
-| Missing usage tracking | Phase 2 (Execution) | Every LLM call logged to UsageLog |
-| Artifact export failures | Phase 2 (Execution) | PDF renders correctly with multi-page content |
+| MemorySaver in production RunnerReal | LLM Integration | `RunnerReal(checkpointer=AsyncPostgresSaver...)` in production DI; concurrent test with 2 users passes |
+| Claude JSON markdown wrapping | LLM Integration | All nodes handle `response.content` with markdown stripping; `json.JSONDecodeError` fallback logs and re-raises |
+| UsageTrackingCallback silent failures | LLM Integration | Both except blocks log at WARNING; Redis/Postgres write failures are observable in CloudWatch |
+| `detect_llm_risks()` stub | LLM Integration | Function returns non-empty list when LLM usage > 80% of daily limit |
+| `build_failure_count=0` hardcode | LLM Integration | `build_failure_count` wired to real executor failure count from UsageLog |
+| Stripe webhook non-idempotent | Stripe Billing | Replay same `event.id` twice; second call returns 200 without re-processing |
+| `PRICE_MAP` lazy with no validation | Stripe Billing | App fails to start with missing price ID; all 6 validated in `lifespan` |
+| `stripe.Customer.create()` blocking async | Stripe Billing | No event loop blocking under concurrent checkouts |
+| pytest-asyncio ScopeMismatch | Test Infrastructure | All 18 deferred tests pass; `pytest tests/api/` runs without ScopeMismatch errors |
+| CI deploys both services always | CI/CD | Backend-only commit: only backend job runs; frontend job is skipped |
+| Long-lived AWS creds in CI | CI/CD | No `AWS_ACCESS_KEY_ID` in repository secrets; OIDC role assumption visible in Actions logs |
+| ECS deploy 502s | CI/CD + Monitoring | Zero 502s in ALB `HTTPCode_Target_5XX_Count` metric during rolling deploys |
+| SIGTERM kills mid-execution builds | CI/CD + Monitoring | Deploy during active LangGraph run; build resumes from checkpoint after new task starts |
 
 ---
 
 ## Sources
 
-**AI Code Generation Quality:**
-- [AI Code Is a Bug-Filled Mess - Futurism](https://futurism.com/artificial-intelligence/ai-code-bug-filled-mess)
-- [AI vs Human Code Gen Report - CodeRabbit](https://www.coderabbit.ai/blog/state-of-ai-vs-human-code-generation-report)
-- [AI Coding Degrades: Silent Failures - IEEE Spectrum](https://spectrum.ieee.org/ai-coding-degrades)
-- [Are Bugs Inevitable with AI Coding Agents? - Stack Overflow](https://stackoverflow.blog/2026/01/28/are-bugs-and-incidents-inevitable-with-ai-coding-agents)
+**pytest-asyncio Scope Issues:**
+- [pytest-asyncio 0.24 Fixture Loop Scope Documentation](https://pytest-asyncio.readthedocs.io/en/v0.24.0/how-to-guides/change_default_fixture_loop.html)
+- [Session-Scoped Event Loop Issue #944](https://github.com/pytest-dev/pytest-asyncio/issues/944)
+- [Async Fixtures Migration Guide](https://thinhdanggroup.github.io/pytest-asyncio-v1-migrate/)
 
-**LangGraph Production Issues:**
-- [LangGraph Review: Worth Your Stack in 2025? - Sider.ai](https://sider.ai/blog/ai-tools/langgraph-review-is-the-agentic-state-machine-worth-your-stack-in-2025)
-- [LangGraph 2025 Review: State-Machine Agents - NeurlCreators](https://neurlcreators.substack.com/p/langgraph-agent-state-machine-review)
-- [Mastering LangGraph State Management 2025 - Sparkco](https://sparkco.ai/blog/mastering-langgraph-state-management-in-2025)
+**LangGraph Checkpointing:**
+- [LangGraph MemorySaver Thread Safety Discussion #1454](https://github.com/langchain-ai/langgraph/discussions/1454)
+- [LangGraph Persistence Documentation](https://docs.langchain.com/oss/python/langgraph/persistence)
+- [Mastering LangGraph Checkpointing Best Practices 2025](https://sparkco.ai/blog/mastering-langgraph-checkpointing-best-practices-for-2025)
 
-**Rate Limiting at Scale:**
-- [Rate Limiting at Scale - Gravitee](https://www.gravitee.io/blog/rate-limiting-apis-scale-patterns-strategies)
-- [Not All at Once! Redis Semaphores - Wolk](https://www.wolk.work/blog/posts/not-all-at-once-user-friendly-rate-limiting-with-redis-semaphores)
-- [How to Implement Rate Limiting with Redis - OneUptime](https://oneuptime.com/blog/post/2026-01-21-redis-rate-limiting/view)
+**Claude JSON / Structured Outputs:**
+- [Anthropic Structured Outputs Documentation](https://platform.claude.com/docs/en/build-with-claude/structured-outputs)
+- [Zero-Error JSON with Claude: Structured Outputs in Practice](https://medium.com/@meshuggah22/zero-error-json-with-claude-how-anthropics-structured-outputs-actually-work-in-real-code-789cde7aff13)
+- [ChatAnthropic and JSONOutputParser Discussion #20581](https://github.com/langchain-ai/langchain/discussions/20581)
 
-**LLM Cost Optimization:**
-- [LLM Cost Optimization Guide - Koombea](https://ai.koombea.com/blog/llm-cost-optimization)
-- [LLM Cost Optimization 2025 - FutureAGI](https://futureagi.com/blogs/llm-cost-optimization-2025)
+**Stripe Webhooks:**
+- [Stripe Webhooks: Handle Events Documentation](https://docs.stripe.com/webhooks)
+- [Implementing Webhook Idempotency](https://hookdeck.com/webhooks/guides/implement-webhook-idempotency)
+- [Handling Payment Webhooks Reliably: Idempotency and Retries](https://medium.com/@sohail_saifii/handling-payment-webhooks-reliably-idempotency-retries-validation-69b762720bf5)
 
-**E2B Sandbox Scaling:**
-- [E2B Pricing](https://e2b.dev/pricing)
-- [Choosing the Right AI Agent Sandbox Platform - SoftwareSeni](https://www.softwareseni.com/e2b-daytona-modal-and-sprites-dev-choosing-the-right-ai-agent-sandbox-platform/)
-- [E2B Review 2026 - AI Agents List](https://aiagentslist.com/agents/e2b)
+**GitHub Actions + AWS CI/CD:**
+- [OIDC for GitHub Actions on AWS: IAM Best Practices](https://aws.amazon.com/blogs/security/use-iam-roles-to-connect-github-actions-to-actions-in-aws/)
+- [Monorepo Path Filters in GitHub Actions](https://oneuptime.com/blog/post/2025-12-20-monorepo-path-filters-github-actions/view)
+- [dorny/paths-filter Action](https://github.com/dorny/paths-filter)
 
-**AI Builder UX Failures:**
-- [Builder.ai's $1.5B Failure - Medium](https://medium.com/@tahirbalarabe2/the-truth-behind-builder-ais-1-5b-failure-77817464897e)
-- [Why Most AI Products Fail - Mind the Product](https://www.mindtheproduct.com/why-most-ai-products-fail-key-findings-from-mits-2025-ai-report/)
-- [Why AI Agent Pilots Fail - Composio](https://composio.dev/blog/why-ai-agent-pilots-fail-2026-integration-roadmap)
+**ECS Fargate Deployments:**
+- [Zero-Downtime ECS Fargate with Blue-Green Deployment](https://medium.com/@jimmywcho/mastering-aws-ecs-fargate-part-2-achieving-zero-downtime-with-blue-green-deployment-b2f2a04f7758)
+- [Perfecting Smooth Rolling Updates in ECS (Grammarly)](https://medium.com/engineering-at-grammarly/perfecting-smooth-rolling-updates-in-amazon-elastic-container-service-690d1aeb44cc)
+- [CDK Issue: Add Deregistration Delay to FargateService](https://github.com/aws/aws-cdk/issues/31529)
 
-**Dashboard UX Best Practices:**
-- [From Data to Decisions: UX for Real-Time Dashboards - Smashing Magazine](https://www.smashingmagazine.com/2025/09/ux-strategies-real-time-dashboards/)
-- [20 Principles Modern Dashboard UI/UX 2025 - Medium](https://medium.com/@allclonescript/20-best-dashboard-ui-ux-design-principles-you-need-in-2025-30b661f2f795)
-- [Admin Dashboard UI/UX Best Practices 2025 - Medium](https://medium.com/@CarlosSmith24/admin-dashboard-ui-ux-best-practices-for-2025-8bdc6090c57d)
-
-**Neo4j Scaling:**
-- [Production-Ready Neo4j Guide - Medium](https://medium.com/@satanialish/the-production-ready-neo4j-guide-performance-tuning-and-best-practices-15b78a5fe229)
-- [Neo4j Infinigraph Architecture - BigDataWire](https://www.bigdatawire.com/2025/09/05/neo4j-cranks-up-the-scaling-factor-with-new-infinigraph-architecture/)
-- [Neo4j Performance Tuning - Graphable](https://graphable.ai/blog/neo4j-performance/)
-
-**FastAPI Async Pitfalls:**
-- [10 Async Pitfalls in FastAPI - Medium](https://medium.com/@bhagyarana80/10-async-pitfalls-in-fastapi-and-how-to-avoid-them-60d6c67ea48f)
-- [FastAPI Mistakes That Kill Performance - FastroAI](https://fastro.ai/blog/fastapi-mistakes)
-- [Async APIs with FastAPI: Patterns & Pitfalls - Medium](https://shiladityamajumder.medium.com/async-apis-with-fastapi-patterns-pitfalls-best-practices-2d72b2b66f25)
-
-**Distributed Systems Antipatterns:**
-- [Common Antipatterns in Distributed Systems - GeeksforGeeks](https://www.geeksforgeeks.org/system-design/common-antipatterns-in-distributed-systems/)
-- [Distributed Systems Antipatterns - Thoughtworks](https://www.thoughtworks.com/insights/podcasts/technology-podcasts/distributed-systems-antipattern)
+**CloudWatch Monitoring:**
+- [ECS Application Metrics with CloudWatch](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/application-metrics-cloudwatch.html)
+- [Configuring Fargate Custom Application Metrics via Prometheus](https://medium.com/cloud-native-daily/configuring-fargate-custom-application-metrics-in-cloudwatch-using-prometheus-6340530a701b)
 
 ---
 
-*Pitfalls research for: AI-powered Technical Co-Founder SaaS*
-*Researched: 2026-02-16*
+*Pitfalls research for: AI Co-Founder SaaS v0.2 — LLM Integration, Stripe Billing, CI/CD, Monitoring*
+*Researched: 2026-02-18*
