@@ -53,6 +53,7 @@ Progress: [█░░░░░░░░░] 10% (v0.2) — v0.1 complete (phases 
 | Plan | Duration | Tasks | Files |
 |------|----------|-------|-------|
 | Phase 14 P01 | 3 min | 2 tasks | 5 files |
+| Phase 14 P02 | 4 min | 1 task | 1 file |
 | Phase 14 P03 | 3 | 2 tasks | 3 files |
 
 ## Accumulated Context
@@ -90,6 +91,9 @@ Recent decisions affecting v0.2 work:
 - [Phase 14 P01]: validate_price_map() returns early if settings.debug=True so local dev and tests are never blocked
 - [Phase 14 P01]: success_url redirects to /dashboard?checkout_success=true (locked decision — main dashboard with success toast)
 - [Phase 14 P01]: Payment failure sets plan_tier_id to bootstrapper immediately — no grace period; stripe_subscription_id preserved for Stripe recovery
+- [Phase 14 P02]: Use stripe.SignatureVerificationError (not generic Exception) in webhook signature mocks — billing.py only catches specific exception types
+- [Phase 14 P02]: Unit-test _handle_payment_failed directly via patched session factory to avoid asyncio event-loop conflicts with sync TestClient
+- [Phase 14 P02]: Billing webhook tests: patch stripe.Webhook.construct_event with return_value=fake_event dict; async SDK tests: AsyncMock with assert_called_once()
 - [Phase 14]: UsageMeter shown as first visual element for subscribed users — token usage is the primary billing signal
 - [Phase 14]: CheckoutSuccessDetector and CheckoutAutoRedirector are separate client components in Suspense — Next.js 15 requires useSearchParams callers to be inside Suspense
 - [Phase 14]: Billing page upgrade section references $99/mo explicitly — no 'free tier' framing for bootstrapper
