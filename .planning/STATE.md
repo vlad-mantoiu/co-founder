@@ -63,8 +63,8 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: v0.2 roadmap created — phases 13-16 defined, ROADMAP.md + STATE.md + REQUIREMENTS.md written
-Resume file: None
+Stopped at: Phase 13 context gathered
+Resume file: .planning/phases/13-llm-activation-and-hardening/13-CONTEXT.md
 Next action: `/gsd:plan-phase 13`
 
 ---
