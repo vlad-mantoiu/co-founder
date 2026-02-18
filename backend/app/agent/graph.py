@@ -152,34 +152,36 @@ def create_cofounder_graph(checkpointer=None):
 
 
 # Convenience function to create a production-ready graph
-def create_production_graph(database_url: str | None = None):
-    """Create a graph with PostgreSQL-backed checkpointing.
+def create_production_graph(database_url: str | None = None, checkpointer=None):
+    """Create a graph with optional production checkpointing.
+
+    In production, the checkpointer is provided by app.state (AsyncPostgresSaver).
+    For local dev/testing, falls back to MemorySaver.
 
     Args:
-        database_url: PostgreSQL connection string. If None, uses config.
+        database_url: Deprecated — checkpointer is now injected from lifespan.
+        checkpointer: Optional checkpointer instance (from app.state).
 
     Returns:
-        Compiled LangGraph with persistent state.
+        Compiled LangGraph with state persistence.
     """
-    from app.core.config import get_settings
+    if checkpointer is not None:
+        return create_cofounder_graph(checkpointer)
 
-    settings = get_settings()
-    db_url = database_url or settings.database_url
+    # Legacy fallback: try sync PostgresSaver for backward compat
+    if database_url is not None:
+        from app.core.config import get_settings
+        settings = get_settings()
+        db_url = database_url or settings.database_url
 
-    if db_url and "postgresql" in db_url:
-        try:
-            from langgraph.checkpoint.postgres import PostgresSaver
-
-            # Convert async URL to sync for checkpointer
-            sync_url = db_url.replace("+asyncpg", "").replace("+psycopg", "")
-            checkpointer = PostgresSaver.from_conn_string(sync_url)
-            return create_cofounder_graph(checkpointer)
-        except ImportError:
-            # Postgres checkpointer not installed
-            pass
-        except Exception:
-            # Connection failed, fall back to memory
-            pass
+        if db_url and "postgresql" in db_url:
+            try:
+                from langgraph.checkpoint.postgres import PostgresSaver
+                sync_url = db_url.replace("+asyncpg", "").replace("+psycopg", "")
+                ckpt = PostgresSaver.from_conn_string(sync_url)
+                return create_cofounder_graph(ckpt)
+            except (ImportError, Exception):
+                pass
 
     # Fallback to memory saver
     return create_cofounder_graph()
