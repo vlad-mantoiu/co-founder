@@ -10,13 +10,10 @@ on:
 env:
   AWS_REGION: us-east-1
   ECS_CLUSTER: cofounder-cluster
-  # CDK-generated service/task-def names — verify with:
-  #   aws ecs list-services --cluster cofounder-cluster
-  #   aws ecs list-task-definitions --family-prefix CoFounderCompute
-  BACKEND_SERVICE: CoFounderCompute-BackendService
-  FRONTEND_SERVICE: CoFounderCompute-FrontendService
-  BACKEND_TASK_FAMILY: CoFounderComputeBackendTaskDef
-  FRONTEND_TASK_FAMILY: CoFounderComputeFrontendTaskDef
+  BACKEND_SERVICE: CoFounderCompute-BackendService2147DAF9-NvCs2OXdtYgG
+  FRONTEND_SERVICE: CoFounderCompute-FrontendService31F14A33-wYO91JMvViAK
+  BACKEND_TASK_FAMILY: CoFounderComputeBackendTaskDef3CF3FBDF
+  FRONTEND_TASK_FAMILY: CoFounderComputeFrontendTaskDef517B4B7B
   BACKEND_CONTAINER: Backend
   FRONTEND_CONTAINER: Frontend
 
