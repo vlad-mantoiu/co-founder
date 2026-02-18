@@ -17,6 +17,8 @@ from app.queue.schemas import JobStatus
 from app.queue.state_machine import JobStateMachine
 from app.services.generation_service import GenerationService
 
+pytestmark = pytest.mark.unit
+
 
 # ---------------------------------------------------------------------------
 # FakeSandboxRuntime — in-process stand-in for E2BSandboxRuntime

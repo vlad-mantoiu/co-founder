@@ -22,6 +22,7 @@ from fastapi.testclient import TestClient
 from app.core.auth import ClerkUser, require_auth
 from app.core.feature_flags import get_feature_flags, require_feature
 
+pytestmark = pytest.mark.integration
 
 # ---------------------------------------------------------------------------
 # Helpers

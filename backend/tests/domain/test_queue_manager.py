@@ -6,6 +6,8 @@ from fakeredis import aioredis
 from app.queue.manager import QueueManager
 from app.queue.schemas import GLOBAL_QUEUE_CAP
 
+pytestmark = pytest.mark.unit
+
 
 @pytest.fixture
 async def redis_client():

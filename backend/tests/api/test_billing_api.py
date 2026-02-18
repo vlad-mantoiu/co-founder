@@ -16,6 +16,8 @@ from fastapi.testclient import TestClient
 
 from app.core.auth import ClerkUser, require_auth
 
+pytestmark = pytest.mark.integration
+
 # ---------------------------------------------------------------------------
 # Module-level env setup: prevent startup failures in conftest api_client
 # ---------------------------------------------------------------------------

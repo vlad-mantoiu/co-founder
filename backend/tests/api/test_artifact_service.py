@@ -18,6 +18,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agent.runner_fake import RunnerFake
 from app.db.models.artifact import Artifact
 from app.db.models.project import Project
+
+pytestmark = pytest.mark.integration
 from app.schemas.artifacts import ArtifactType
 from app.services.artifact_service import ArtifactService
 from app.artifacts.generator import ArtifactGenerator

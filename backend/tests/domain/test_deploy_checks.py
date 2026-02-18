@@ -12,6 +12,8 @@ from app.domain.deploy_checks import (
     run_deploy_checks,
 )
 
+pytestmark = pytest.mark.unit
+
 
 def test_all_checks_pass_with_complete_workspace():
     files = {

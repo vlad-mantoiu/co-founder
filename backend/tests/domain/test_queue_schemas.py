@@ -16,6 +16,8 @@ from app.queue.schemas import (
     UsageCounters,
 )
 
+pytestmark = pytest.mark.unit
+
 
 def test_job_status_has_9_states():
     """JobStatus enum must have exactly 9 states."""

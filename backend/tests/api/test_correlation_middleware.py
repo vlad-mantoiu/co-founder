@@ -8,9 +8,13 @@ Verifies:
 """
 
 import uuid
+
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
+
+pytestmark = pytest.mark.integration
 
 
 def test_response_includes_correlation_id_header():

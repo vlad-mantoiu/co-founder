@@ -5,6 +5,8 @@ Tests enforce pure function behavior:
 - Deterministic outputs
 - All decision types handled
 """
+import pytest
+
 from app.domain.gates import (
     GateDecision,
     GateResolution,
@@ -12,6 +14,8 @@ from app.domain.gates import (
     resolve_gate,
 )
 from app.domain.stages import Stage
+
+pytestmark = pytest.mark.unit
 
 
 def test_gate_decision_enum_has_all_types():

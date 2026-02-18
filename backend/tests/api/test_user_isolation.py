@@ -17,11 +17,13 @@ from dataclasses import dataclass
 from unittest.mock import MagicMock, Mock, patch
 
 import jwt as pyjwt
+import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 
 from app.core.auth import ClerkUser, require_auth, require_subscription
 
+pytestmark = pytest.mark.integration
 
 # ---------------------------------------------------------------------------
 # RSA keypair for test JWT signing

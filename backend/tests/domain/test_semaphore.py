@@ -7,6 +7,8 @@ from fakeredis import FakeAsyncRedis
 
 from app.queue.semaphore import RedisSemaphore, project_semaphore, user_semaphore
 
+pytestmark = pytest.mark.unit
+
 
 @pytest.fixture
 async def redis():

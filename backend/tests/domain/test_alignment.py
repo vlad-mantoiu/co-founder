@@ -7,6 +7,8 @@ import pytest
 
 from app.domain.alignment import compute_alignment_score
 
+pytestmark = pytest.mark.unit
+
 
 def test_no_changes_returns_100():
     score, creep = compute_alignment_score({"core_features": [{"name": "Auth"}, {"name": "Dashboard"}]}, [])

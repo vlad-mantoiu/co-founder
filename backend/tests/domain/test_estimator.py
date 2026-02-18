@@ -5,6 +5,8 @@ from fakeredis import FakeAsyncRedis
 
 from app.queue.estimator import WaitTimeEstimator
 
+pytestmark = pytest.mark.unit
+
 
 @pytest.fixture
 async def redis():

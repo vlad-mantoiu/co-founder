@@ -9,6 +9,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.agent.runner_real import RunnerReal
 
+pytestmark = pytest.mark.unit
+
 
 def _mock_llm_response(content: str):
     """Create a mock LLM response with .content attribute."""
@@ -34,6 +36,7 @@ def runner():
 
 
 class TestGenerateUnderstandingQuestions:
+    @pytest.mark.asyncio
     async def test_returns_question_list(self, runner):
         questions = [
             {"id": "uq1", "text": "Who have we talked to?", "input_type": "textarea", "required": True, "options": None, "follow_up_hint": "Be specific"},
@@ -53,6 +56,7 @@ class TestGenerateUnderstandingQuestions:
         assert len(result) == 2
         assert result[0]["id"] == "uq1"
 
+    @pytest.mark.asyncio
     async def test_handles_fenced_json(self, runner):
         questions = [{"id": "uq1", "text": "Test?", "input_type": "text", "required": True, "options": None, "follow_up_hint": None}]
         fenced = f"```json\n{json.dumps(questions)}\n```"
@@ -67,6 +71,7 @@ class TestGenerateUnderstandingQuestions:
 
 
 class TestGenerateIdeaBrief:
+    @pytest.mark.asyncio
     async def test_returns_brief_with_confidence(self, runner):
         brief = {
             "problem_statement": "Small shops waste time on inventory",
@@ -93,6 +98,7 @@ class TestGenerateIdeaBrief:
 
 
 class TestCheckQuestionRelevance:
+    @pytest.mark.asyncio
     async def test_returns_relevance_dict(self, runner):
         relevance = {"needs_regeneration": False, "preserve_indices": [0, 1]}
         factory, _ = _mock_create_tracked_llm(json.dumps(relevance))
@@ -110,6 +116,7 @@ class TestCheckQuestionRelevance:
 
 
 class TestAssessSectionConfidence:
+    @pytest.mark.asyncio
     async def test_returns_strong(self, runner):
         factory, _ = _mock_create_tracked_llm("strong")
 
@@ -121,6 +128,7 @@ class TestAssessSectionConfidence:
 
         assert result == "strong"
 
+    @pytest.mark.asyncio
     async def test_extracts_from_verbose_response(self, runner):
         factory, _ = _mock_create_tracked_llm("Based on the evidence, I would assess this as moderate confidence.")
 
@@ -129,6 +137,7 @@ class TestAssessSectionConfidence:
 
         assert result == "moderate"
 
+    @pytest.mark.asyncio
     async def test_defaults_to_moderate(self, runner):
         factory, _ = _mock_create_tracked_llm("I'm not sure how to assess this.")
 
@@ -139,6 +148,7 @@ class TestAssessSectionConfidence:
 
 
 class TestGenerateExecutionOptions:
+    @pytest.mark.asyncio
     async def test_returns_options(self, runner):
         options = {
             "options": [
@@ -160,6 +170,7 @@ class TestGenerateExecutionOptions:
 
 
 class TestGenerateArtifacts:
+    @pytest.mark.asyncio
     async def test_returns_artifact_cascade(self, runner):
         artifacts = {
             "brief": {"problem_statement": "Test", "_schema_version": 1},
@@ -183,6 +194,7 @@ class TestGenerateArtifacts:
 
 
 class TestJsonRetryOnMalformedOutput:
+    @pytest.mark.asyncio
     async def test_retries_with_strict_prompt_on_bad_json(self, runner):
         """First call returns bad JSON, second call returns valid JSON."""
         bad_response = _mock_llm_response("Here are the questions:\n{invalid json}")
@@ -204,6 +216,7 @@ class TestJsonRetryOnMalformedOutput:
 
 
 class TestTierDifferentiation:
+    @pytest.mark.asyncio
     async def test_bootstrapper_gets_6_8_questions(self, runner):
         """Bootstrapper tier produces 6-8 question count in prompt."""
         questions = [{"id": f"uq{i}", "text": f"Q{i}?", "input_type": "textarea", "required": True, "options": None, "follow_up_hint": None} for i in range(7)]
@@ -219,6 +232,7 @@ class TestTierDifferentiation:
         system_content = call_args[0].content
         assert "6-8" in system_content
 
+    @pytest.mark.asyncio
     async def test_cto_scale_gets_14_16_questions(self, runner):
         """cto_scale tier produces 14-16 question count in prompt."""
         questions = [{"id": f"uq{i}", "text": f"Q{i}?", "input_type": "textarea", "required": True, "options": None, "follow_up_hint": None} for i in range(15)]
@@ -236,6 +250,7 @@ class TestTierDifferentiation:
 
 
 class TestCofounderVoice:
+    @pytest.mark.asyncio
     async def test_system_prompt_uses_we_voice(self, runner):
         """Verify system prompts contain co-founder voice markers."""
         factory, mock_llm = _mock_create_tracked_llm('[]')

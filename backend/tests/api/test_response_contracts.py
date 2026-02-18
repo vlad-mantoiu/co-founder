@@ -14,6 +14,8 @@ from app.schemas.decision_gates import CreateGateResponse, GateStatusResponse, G
 from app.schemas.timeline import TimelineResponse
 from app.schemas.strategy_graph import GraphResponse
 
+pytestmark = pytest.mark.unit
+
 
 # ---------------------------------------------------------------------------
 # Dashboard contract tests

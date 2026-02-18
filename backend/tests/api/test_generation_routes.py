@@ -27,6 +27,7 @@ from app.db.redis import get_redis
 from app.queue.schemas import JobStatus
 from app.queue.state_machine import JobStateMachine
 
+pytestmark = pytest.mark.integration
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Fixtures

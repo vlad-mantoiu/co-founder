@@ -21,6 +21,8 @@ from app.db.models.stage_config import StageConfig
 from app.db.models.stage_event import StageEvent
 from app.services.journey import JourneyService
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.fixture
 async def engine() -> AsyncEngine:

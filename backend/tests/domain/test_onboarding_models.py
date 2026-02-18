@@ -12,6 +12,8 @@ from app.schemas.onboarding import (
     OnboardingSessionResponse,
 )
 
+pytestmark = pytest.mark.unit
+
 
 class TestQuestionSetValidation:
     """Test QuestionSet min/max validation."""

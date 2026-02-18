@@ -24,6 +24,8 @@ from app.db.models.onboarding_session import OnboardingSession
 from app.db.models.project import Project
 from sqlalchemy.ext.asyncio import AsyncSession
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.fixture
 def mock_runner():

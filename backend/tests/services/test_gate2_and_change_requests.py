@@ -15,6 +15,8 @@ import pytest
 
 from app.schemas.decision_gates import GATE_2_OPTIONS
 
+pytestmark = pytest.mark.unit
+
 
 # ---------------------------------------------------------------------------
 # Helpers

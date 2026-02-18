@@ -22,6 +22,8 @@ from app.api.routes.artifacts import get_runner
 from app.api.routes.onboarding import get_runner as get_onboarding_runner
 from app.core.auth import ClerkUser, require_auth
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.fixture
 def mock_runner():

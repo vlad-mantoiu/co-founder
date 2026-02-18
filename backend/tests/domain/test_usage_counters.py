@@ -7,6 +7,8 @@ from fakeredis import FakeAsyncRedis
 from app.queue.schemas import TIER_DAILY_LIMIT, TIER_ITERATION_DEPTH
 from app.queue.usage import UsageTracker
 
+pytestmark = pytest.mark.unit
+
 
 @pytest.fixture
 async def redis():

@@ -16,6 +16,7 @@ import pytest
 
 from app.core.auth import ClerkUser, require_auth, require_subscription
 
+pytestmark = pytest.mark.integration
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Fixtures & helpers

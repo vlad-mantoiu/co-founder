@@ -11,6 +11,8 @@ from cryptography.hazmat.primitives import serialization
 from fastapi import HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
 
+pytestmark = pytest.mark.unit
+
 # ---------------------------------------------------------------------------
 # RSA keypair generated once for entire test module
 # ---------------------------------------------------------------------------

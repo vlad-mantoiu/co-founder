@@ -11,6 +11,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.domain.risks import detect_llm_risks, detect_system_risks
 
+pytestmark = pytest.mark.unit
+
 
 def test_detect_system_risks_no_conditions_returns_empty():
     """When no risk conditions are met, return empty list."""

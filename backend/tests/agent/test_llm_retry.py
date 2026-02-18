@@ -7,6 +7,8 @@ from anthropic._exceptions import OverloadedError
 from tenacity import wait_none
 from app.agent.llm_helpers import _invoke_with_retry
 
+pytestmark = pytest.mark.unit
+
 
 def _make_overloaded_error():
     """Create a realistic OverloadedError instance using httpx request/response."""
@@ -16,6 +18,7 @@ def _make_overloaded_error():
 
 
 class TestInvokeWithRetry:
+    @pytest.mark.asyncio
     async def test_success_on_first_try(self):
         """Normal call succeeds without retry."""
         mock_llm = AsyncMock()
@@ -28,6 +31,7 @@ class TestInvokeWithRetry:
         assert result.content == "OK"
         assert mock_llm.ainvoke.call_count == 1
 
+    @pytest.mark.asyncio
     async def test_retries_on_overloaded(self):
         """Retries on OverloadedError and succeeds on second attempt."""
         response = MagicMock()
@@ -45,6 +49,7 @@ class TestInvokeWithRetry:
         assert result.content == "OK"
         assert mock_llm.ainvoke.call_count == 2
 
+    @pytest.mark.asyncio
     async def test_does_not_retry_on_other_errors(self):
         """Non-overload exceptions propagate immediately without retry."""
         mock_llm = AsyncMock()
@@ -55,6 +60,7 @@ class TestInvokeWithRetry:
 
         assert mock_llm.ainvoke.call_count == 1
 
+    @pytest.mark.asyncio
     async def test_exhausted_retries_reraise(self):
         """After max retries, OverloadedError is re-raised."""
         mock_llm = AsyncMock()

@@ -5,6 +5,8 @@ import pytest
 from app.agent.graph import create_cofounder_graph
 from app.agent.state import CoFounderState, create_initial_state
 
+pytestmark = pytest.mark.unit
+
 
 class TestCoFounderState:
     """Tests for CoFounderState creation and management."""

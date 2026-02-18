@@ -24,6 +24,8 @@ from app.queue.manager import QueueManager
 from app.queue.schemas import JobStatus
 from app.queue.worker import process_next_job
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.fixture
 def fake_redis():

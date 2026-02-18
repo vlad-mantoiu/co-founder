@@ -13,6 +13,8 @@ from app.agent.runner import Runner
 from app.agent.runner_fake import RunnerFake
 from app.agent.state import create_initial_state
 
+pytestmark = pytest.mark.unit
+
 
 # =============================================================================
 # HAPPY PATH SCENARIO TESTS

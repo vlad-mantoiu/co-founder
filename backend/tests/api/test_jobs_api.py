@@ -24,6 +24,8 @@ from app.core.auth import ClerkUser, require_auth, require_subscription
 from app.db.redis import get_redis
 from app.queue.schemas import JobStatus
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.fixture
 def fake_redis():

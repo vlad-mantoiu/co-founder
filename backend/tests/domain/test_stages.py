@@ -7,6 +7,8 @@ from app.domain.stages import (
     validate_transition,
 )
 
+pytestmark = pytest.mark.unit
+
 
 class TestStageEnum:
     """Test Stage enum definitions."""

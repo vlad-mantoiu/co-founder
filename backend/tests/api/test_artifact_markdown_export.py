@@ -14,6 +14,8 @@ from uuid import uuid4
 
 from app.artifacts.markdown_exporter import MarkdownExporter
 
+pytestmark = pytest.mark.unit
+
 
 class TestMarkdownExporter:
     """Unit tests for MarkdownExporter template rendering."""

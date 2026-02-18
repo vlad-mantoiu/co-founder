@@ -8,6 +8,8 @@ import pytest
 
 from app.agent.runner_fake import RunnerFake
 from app.artifacts.generator import ArtifactGenerator
+
+pytestmark = pytest.mark.unit
 from app.schemas.artifacts import (
     ArtifactType,
     HowItWorksContent,

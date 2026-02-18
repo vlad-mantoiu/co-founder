@@ -17,6 +17,8 @@ from app.schemas.artifacts import (
 )
 from app.agent.runner_fake import RunnerFake
 
+pytestmark = pytest.mark.unit
+
 
 class TestArtifactTypeEnum:
     """Test artifact type enum has all five values."""

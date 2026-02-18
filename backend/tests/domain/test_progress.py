@@ -3,6 +3,8 @@ import pytest
 from app.domain.progress import compute_stage_progress, compute_global_progress
 from app.domain.stages import Stage
 
+pytestmark = pytest.mark.unit
+
 
 class TestComputeStageProgress:
     """Test stage progress computation from milestones."""

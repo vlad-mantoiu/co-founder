@@ -8,6 +8,8 @@ from fakeredis import FakeAsyncRedis
 from app.queue.schemas import TIER_ITERATION_DEPTH, JobStatus
 from app.queue.state_machine import IterationTracker, JobStateMachine
 
+pytestmark = pytest.mark.unit
+
 
 @pytest.fixture
 async def redis():

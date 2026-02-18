@@ -8,6 +8,8 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.fixture
 def client():

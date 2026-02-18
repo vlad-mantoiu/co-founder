@@ -19,6 +19,8 @@ from app.agent.runner_fake import RunnerFake
 from app.api.routes.onboarding import get_runner
 from app.core.auth import ClerkUser, require_auth, require_subscription
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.fixture
 def mock_runner():

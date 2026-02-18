@@ -10,8 +10,12 @@ These tests verify:
 import inspect
 from typing import get_type_hints
 
+import pytest
+
 from app.agent.runner import Runner
 from app.agent.state import CoFounderState
+
+pytestmark = pytest.mark.unit
 
 
 def test_runner_is_runtime_checkable():

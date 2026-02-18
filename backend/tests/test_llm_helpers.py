@@ -5,6 +5,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 from app.agent.llm_helpers import _strip_json_fences, _parse_json_response
 
+pytestmark = pytest.mark.unit
+
 
 class TestStripJsonFences:
     def test_no_fences(self):

@@ -20,6 +20,8 @@ from app.db.base import Base
 from app.db.models.plan_tier import PlanTier
 from app.db.models.user_settings import UserSettings
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.fixture
 async def engine() -> AsyncEngine:

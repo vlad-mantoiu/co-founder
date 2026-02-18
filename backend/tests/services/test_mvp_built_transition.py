@@ -22,6 +22,8 @@ from app.db.models.project import Project
 from app.db.models.stage_event import StageEvent
 from app.services.generation_service import GenerationService
 
+pytestmark = pytest.mark.integration
+
 
 # ---------------------------------------------------------------------------
 # DB fixtures
