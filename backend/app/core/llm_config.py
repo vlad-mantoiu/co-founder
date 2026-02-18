@@ -6,6 +6,7 @@ Resolution order:
 3. Settings.*_model                    (global fallback)
 """
 
+import logging
 from datetime import date, datetime
 from typing import Any
 
@@ -20,6 +21,8 @@ from app.db.models.plan_tier import PlanTier
 from app.db.models.usage_log import UsageLog
 from app.db.models.user_settings import UserSettings
 from app.db.redis import get_redis
+
+logger = logging.getLogger(__name__)
 
 # Cost per million tokens in microdollars (1 microdollar = $0.000001)
 MODEL_COSTS: dict[str, dict[str, int]] = {
@@ -185,8 +188,8 @@ class UsageTrackingCallback(AsyncCallbackHandler):
                 )
                 session.add(log)
                 await session.commit()
-        except Exception:
-            pass  # Usage logging should never block agent execution
+        except Exception as e:
+            logger.warning("UsageTrackingCallback: DB write failed (non-blocking): %s", e)
 
         # Increment Redis daily counter
         try:
@@ -195,8 +198,8 @@ class UsageTrackingCallback(AsyncCallbackHandler):
             key = f"cofounder:usage:{self.user_id}:{today}"
             await r.incrby(key, total_tokens)
             await r.expire(key, 90_000)  # 25h TTL for safety
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("UsageTrackingCallback: Redis write failed (non-blocking): %s", e)
 
 
 def _extract_usage(response: LLMResult) -> dict | None:
