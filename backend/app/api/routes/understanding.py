@@ -1,6 +1,6 @@
 """Understanding interview API routes — 8 endpoints for interview lifecycle."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from uuid import UUID
 
 from app.agent.runner import Runner
@@ -25,13 +25,22 @@ from app.services.understanding_service import UnderstandingService
 router = APIRouter()
 
 
-def get_runner() -> Runner:
+def get_runner(request: Request) -> Runner:
     """Dependency that provides Runner instance.
 
-    Returns RunnerFake for now (will swap to RunnerReal when LLM integration ready).
+    Returns RunnerReal in production (when ANTHROPIC_API_KEY is set).
+    Falls back to RunnerFake for local dev without API key.
     Override this dependency in tests via app.dependency_overrides.
     """
-    return RunnerFake()
+    from app.core.config import get_settings
+    settings = get_settings()
+
+    if settings.anthropic_api_key:
+        from app.agent.runner_real import RunnerReal
+        checkpointer = getattr(request.app.state, "checkpointer", None)
+        return RunnerReal(checkpointer=checkpointer)
+    else:
+        return RunnerFake()
 
 
 @router.post("/start", response_model=StartUnderstandingResponse)

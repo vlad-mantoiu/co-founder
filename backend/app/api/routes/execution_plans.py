@@ -3,7 +3,7 @@
 Provides 6 endpoints for execution plan generation, selection, status, and Deep Research stub.
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.agent.runner import Runner
 from app.agent.runner_fake import RunnerFake
@@ -20,12 +20,22 @@ from app.services.execution_plan_service import ExecutionPlanService
 router = APIRouter()
 
 
-def get_runner() -> Runner:
+def get_runner(request: Request) -> Runner:
     """Dependency that provides Runner instance.
 
+    Returns RunnerReal in production (when ANTHROPIC_API_KEY is set).
+    Falls back to RunnerFake for local dev without API key.
     Override this dependency in tests via app.dependency_overrides.
     """
-    return RunnerFake()
+    from app.core.config import get_settings
+    settings = get_settings()
+
+    if settings.anthropic_api_key:
+        from app.agent.runner_real import RunnerReal
+        checkpointer = getattr(request.app.state, "checkpointer", None)
+        return RunnerReal(checkpointer=checkpointer)
+    else:
+        return RunnerFake()
 
 
 @router.post("/generate", response_model=GeneratePlansResponse, status_code=200)

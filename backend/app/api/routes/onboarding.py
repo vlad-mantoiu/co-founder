@@ -1,6 +1,9 @@
 """Onboarding API routes — session lifecycle endpoints."""
 
-from fastapi import APIRouter, Depends
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy import select
 
 from app.agent.runner import Runner
 from app.agent.runner_fake import RunnerFake
@@ -21,13 +24,22 @@ from app.services.onboarding_service import OnboardingService
 router = APIRouter()
 
 
-def get_runner() -> Runner:
+def get_runner(request: Request) -> Runner:
     """Dependency that provides Runner instance.
 
-    Returns RunnerFake for now (will swap to RunnerReal in Phase 6).
+    Returns RunnerReal in production (when ANTHROPIC_API_KEY is set).
+    Falls back to RunnerFake for local dev without API key.
     Override this dependency in tests via app.dependency_overrides.
     """
-    return RunnerFake()
+    from app.core.config import get_settings
+    settings = get_settings()
+
+    if settings.anthropic_api_key:
+        from app.agent.runner_real import RunnerReal
+        checkpointer = getattr(request.app.state, "checkpointer", None)
+        return RunnerReal(checkpointer=checkpointer)
+    else:
+        return RunnerFake()
 
 
 @router.post("/start", response_model=OnboardingSessionResponse)
@@ -141,6 +153,40 @@ async def list_sessions(
         )
         for s in sessions
     ]
+
+
+@router.get("/by-project/{project_id}", response_model=OnboardingSessionResponse)
+async def get_session_by_project(
+    project_id: str,
+    user: ClerkUser = Depends(require_auth),
+):
+    """Get the completed onboarding session for a project."""
+    from app.db.models.onboarding_session import OnboardingSession
+
+    factory = get_session_factory()
+    async with factory() as session:
+        result = await session.execute(
+            select(OnboardingSession).where(
+                OnboardingSession.project_id == UUID(project_id),
+                OnboardingSession.clerk_user_id == user.user_id,
+                OnboardingSession.status == "completed",
+            )
+        )
+        onboarding = result.scalar_one_or_none()
+
+    if not onboarding:
+        raise HTTPException(status_code=404, detail="No completed onboarding session for this project")
+
+    return OnboardingSessionResponse(
+        id=str(onboarding.id),
+        status=onboarding.status,
+        current_question_index=onboarding.current_question_index,
+        total_questions=onboarding.total_questions,
+        idea_text=onboarding.idea_text,
+        questions=[OnboardingQuestion(**q) for q in onboarding.questions],
+        answers=onboarding.answers,
+        thesis_snapshot=ThesisSnapshot(**onboarding.thesis_snapshot) if onboarding.thesis_snapshot else None,
+    )
 
 
 @router.get("/{session_id}", response_model=OnboardingSessionResponse)
