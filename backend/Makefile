@@ -1,7 +1,13 @@
-.PHONY: test test-domain test-api test-orchestration test-e2e test-cov lint
+.PHONY: test test-unit test-integration test-domain test-api test-orchestration test-e2e test-cov lint
 
 test:
-	python -m pytest tests/ -v
+	python -m pytest tests/ --ignore=tests/e2e -v
+
+test-unit:
+	python -m pytest tests/ -m unit -v
+
+test-integration:
+	python -m pytest tests/ -m integration -v
 
 test-domain:
 	python -m pytest tests/domain/ -v
