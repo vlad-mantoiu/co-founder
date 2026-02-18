@@ -65,12 +65,13 @@ Plans:
   3. The billing page displays the founder's current token usage versus their plan limit
   4. A duplicate Stripe webhook delivery does not trigger the subscription handler twice (event.id idempotency enforced)
   5. The pricing page offers an annual/monthly toggle and the backend rejects startup with missing price IDs at launch time
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 14-01: TBD
-- [ ] 14-02: TBD
-- [ ] 14-03: TBD
+- [ ] 14-01-PLAN.md — Backend hardening: idempotency table, async SDK, PRICE_MAP validation, payment failure fix
+- [ ] 14-02-PLAN.md — TDD: Billing API tests (idempotency, async, startup validation)
+- [ ] 14-03-PLAN.md — Usage meter endpoint + billing page overhaul + checkout success toast
+- [ ] 14-04-PLAN.md — Pricing page verification, annual billing clarification, webhook registration
 
 ### Phase 15: CI/CD Hardening
 **Goal**: No broken code can reach production — deploys are test-gated, path-filtered, and traceable to a specific image SHA
@@ -126,7 +127,7 @@ Phases execute in numeric order: 13 → 14 → 15 → 16
 | 11. Cross-Phase Frontend Wiring | v0.1 | 2/2 | Complete | 2026-02-17 |
 | 12. Milestone Audit Gap Closure | v0.1 | 1/1 | Complete | 2026-02-17 |
 | 13. LLM Activation and Hardening | 7/7 | Complete   | 2026-02-18 | - |
-| 14. Stripe Live Activation | v0.2 | 0/TBD | Not started | - |
+| 14. Stripe Live Activation | v0.2 | 0/4 | Planned | - |
 | 15. CI/CD Hardening | v0.2 | 0/TBD | Not started | - |
 | 16. CloudWatch Observability | v0.2 | 0/TBD | Not started | - |
 
