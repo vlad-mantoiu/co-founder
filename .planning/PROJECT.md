@@ -8,6 +8,17 @@ An AI-powered Technical Co-Founder SaaS that turns a non-technical founder's ide
 
 A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions (not coding decisions) the entire way.
 
+## Current Milestone: v0.2 Production Ready
+
+**Goal:** Take the v0.1 MVP from working-with-fakes to production-live with real LLM calls, real payments, and real ops.
+
+**Target features:**
+- End-to-end real LLM integration (true dynamic interview, real artifacts, real code gen)
+- Full Stripe subscription billing (checkout, webhooks, tiers, upgrade/downgrade, portal)
+- CI/CD pipeline (GitHub Actions CI, automated ECS deploy)
+- AWS native monitoring (CloudWatch metrics, SNS alerts)
+- Tech debt cleanup (deferred tests, stubs)
+
 ## Current State
 
 **Shipped:** v0.1 MVP (2026-02-17)
@@ -63,20 +74,25 @@ A non-technical founder can go from idea to running MVP preview in under 10 minu
 
 ### Active
 
-<!-- Next milestone scope. To be defined via /gsd:new-milestone -->
+<!-- v0.2 Production Ready scope -->
 
-(None yet — define next milestone requirements)
+- [ ] Real LLM integration — true dynamic Claude-powered interview, real artifact generation, RunnerReal wired to LangGraph
+- [ ] Real code generation via existing LangGraph pipeline with E2B sandbox execution
+- [ ] Full Stripe billing — checkout, webhooks, tier enforcement, upgrade/downgrade, billing portal
+- [ ] CI/CD pipeline — GitHub Actions for tests on PR, automated ECS deploy
+- [ ] AWS monitoring — CloudWatch metrics, SNS alerts, health check alarms
+- [ ] Tech debt cleanup — fix deferred tests, address stubs
 
 ### Out of Scope
 
 - Scale & Optimize stage — beyond MVP, deploy is enough
 - Real-time collaborative editing — single-founder tool for now
-- Stripe one-time purchases — subscriptions only, stub Deep Research with 402
 - Mobile app — web-first
 - OAuth social login beyond Clerk — Clerk handles auth complexity
 - Custom domain for previews — E2B sandbox URLs sufficient for MVP
 - Export to Figma/design tools — PDF and Markdown cover sharing needs
 - Multi-project concurrent builds — one active build per project for MVP
+- Stripe one-time purchases — subscriptions only
 
 ## Context
 
@@ -121,4 +137,4 @@ Non-technical, product-led founders who think in roadmaps, reports, and artifact
 | Pydantic aliases for reserved keywords | GraphEdge uses from/to which are Python reserved words | ✓ Good — Field(alias="from") with populate_by_name=True |
 
 ---
-*Last updated: 2026-02-17 after v0.1 milestone*
+*Last updated: 2026-02-18 after v0.2 milestone started*
