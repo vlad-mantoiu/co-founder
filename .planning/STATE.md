@@ -61,7 +61,7 @@ Progress: [█░░░░░░░░░] 10% (v0.2) — v0.1 complete (phases 
 
 | Plan | Duration | Tasks | Files |
 |------|----------|-------|-------|
-| Phase 15 P01 | — | — | — |
+| Phase 15 P01 | 18 min | 2 tasks | 51 files |
 | Phase 15 P02 | 1 min | 2 tasks | 3 files |
 
 ## Accumulated Context
@@ -107,6 +107,9 @@ Recent decisions affecting v0.2 work:
 - [Phase 14]: Billing page upgrade section references $99/mo explicitly — no 'free tier' framing for bootstrapper
 - [Phase 14 P04]: Annual pricing cards show 'billed annually' beneath price figure — clarifies lump-sum annual charge to founders
 - [Phase 14 P04]: Webhook endpoint registered at https://api.cofounder.getinsourced.ai/api/webhooks/stripe; signing secret in cofounder/app Secrets Manager
+- [Phase 15 P01]: asyncio_default_fixture_loop_scope="function" — each test gets isolated event loop, prevents cross-test contamination
+- [Phase 15 P01]: Test categorization correction — test_auth.py, test_response_contracts.py, test_artifact_markdown_export.py, test_generation_service.py, test_gate2_and_change_requests.py, test_iteration_build.py marked unit (plan said integration)
+- [Phase 15 P01]: test_feature_flags.py and test_provisioning.py in domain/ marked integration (require real PostgreSQL)
 - [Phase 15 P02]: SIGTERM handler sets app.state.shutting_down bool in main thread; health check reads it defensively via getattr with False default
 - [Phase 15 P02]: ALB setAttribute() workaround for 60s deregistration delay (CDK Issue #4015 — no first-class prop on ApplicationLoadBalancedFargateService)
 
@@ -118,14 +121,14 @@ None yet.
 
 - [Phase 13 prereq]: ANTHROPIC_API_KEY must be confirmed set in `cofounder/app` Secrets Manager before Phase 13 deploy
 - [Phase 14 prereq]: Stripe Dashboard webhook URL must be registered after service deploy (operational ordering: deploy first, then register URL)
-- [Phase 13 tech debt]: pytest-asyncio scope fix (CICD-08) needed before expanding test suite — deferred to Phase 15 but can be pulled into Phase 13 if tests fail
+- [Phase 15 P01 - RESOLVED]: pytest-asyncio scope fix (CICD-08) complete; 16 pre-existing test failures remain (documented in deferred-items.md, not caused by Plan 01)
 
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: Completed 15-02-PLAN.md
-Resume file: .planning/phases/15-ci-cd-hardening/15-02-SUMMARY.md
-Next action: Execute Phase 15 Plan 03 (Smoke Test GitHub Actions workflow)
+Stopped at: Completed 15-01-PLAN.md (pytest marker infrastructure, asyncio scope fix)
+Resume file: .planning/phases/15-ci-cd-hardening/15-01-SUMMARY.md
+Next action: Execute Phase 15 Plan 03 (Smoke Test GitHub Actions workflow) — Plan 01 and 02 complete, only Plan 03 remains
 
 ---
 *v0.1 COMPLETE — 56 plans, 12 phases, 76/76 requirements (2026-02-17)*

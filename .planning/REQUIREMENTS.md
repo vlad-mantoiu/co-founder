@@ -45,8 +45,8 @@ Requirements for production readiness. Each maps to roadmap phases.
 - [ ] **CICD-05**: Path filtering ensures backend-only changes don't rebuild frontend (and vice versa)
 - [x] **CICD-06**: FastAPI SIGTERM handler fails health check immediately for graceful shutdown
 - [x] **CICD-07**: ALB deregistration delay set to 60s in CDK
-- [ ] **CICD-08**: pytest-asyncio scope fix resolves 18 deferred integration tests
-- [ ] **CICD-09**: pytest marks separate unit tests from integration tests (unit runs in CI, integration nightly)
+- [x] **CICD-08**: pytest-asyncio scope fix resolves 18 deferred integration tests
+- [x] **CICD-09**: pytest marks separate unit tests from integration tests (unit runs in CI, integration nightly)
 
 ### Monitoring
 
@@ -119,8 +119,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CICD-05 | Phase 15 | Pending |
 | CICD-06 | Phase 15 | Complete |
 | CICD-07 | Phase 15 | Complete |
-| CICD-08 | Phase 15 | Pending |
-| CICD-09 | Phase 15 | Pending |
+| CICD-08 | Phase 15 | Complete |
+| CICD-09 | Phase 15 | Complete |
 | MON-01 | Phase 16 | Pending |
 | MON-02 | Phase 16 | Pending |
 | MON-03 | Phase 16 | Pending |
