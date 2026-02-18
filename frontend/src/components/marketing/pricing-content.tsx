@@ -1,15 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import { useAuth } from "@clerk/nextjs";
 import { motion } from "framer-motion";
-import { Check, Zap, Star, Building2 } from "lucide-react";
+import { Check, Zap, Star, Building2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { apiFetch } from "@/lib/api";
 import { FadeIn, StaggerContainer, StaggerItem } from "./fade-in";
 
 const plans = [
   {
     name: "The Bootstrapper",
+    slug: "bootstrapper",
     icon: Zap,
     monthlyPrice: 99,
     annualPrice: 79,
@@ -26,6 +28,7 @@ const plans = [
   },
   {
     name: "Autonomous Partner",
+    slug: "partner",
     icon: Star,
     monthlyPrice: 299,
     annualPrice: 239,
@@ -45,6 +48,7 @@ const plans = [
   },
   {
     name: "CTO Scale",
+    slug: "cto_scale",
     icon: Building2,
     monthlyPrice: 999,
     annualPrice: 799,
@@ -86,6 +90,34 @@ const faqs = [
 
 export default function PricingContent() {
   const [annual, setAnnual] = useState(false);
+  const { isSignedIn, getToken } = useAuth();
+  const [loadingSlug, setLoadingSlug] = useState<string | null>(null);
+
+  async function handleCheckout(slug: string) {
+    const interval = annual ? "annual" : "monthly";
+
+    if (!isSignedIn) {
+      window.location.href = `/sign-up?plan=${slug}&interval=${interval}`;
+      return;
+    }
+
+    setLoadingSlug(slug);
+    try {
+      const res = await apiFetch("/api/billing/checkout", getToken, {
+        method: "POST",
+        body: JSON.stringify({ plan_slug: slug, interval }),
+      });
+      const data = await res.json();
+      if (data.checkout_url) {
+        window.location.href = data.checkout_url;
+      }
+    } catch {
+      // Fallback to sign-up
+      window.location.href = `/sign-up?plan=${slug}&interval=${interval}`;
+    } finally {
+      setLoadingSlug(null);
+    }
+  }
 
   return (
     <>
@@ -202,6 +234,11 @@ export default function PricingContent() {
                       ${annual ? plan.annualPrice : plan.monthlyPrice}
                     </span>
                     <span className="text-white/40 text-sm ml-1">/month</span>
+                    {annual && (
+                      <div className="mt-1">
+                        <span className="text-xs text-white/30">billed annually</span>
+                      </div>
+                    )}
                   </div>
                   <p className="text-sm text-white/40 mb-6 leading-relaxed">
                     {plan.description}
@@ -221,17 +258,22 @@ export default function PricingContent() {
                     ))}
                   </ul>
 
-                  <Link
-                    href="/sign-up"
+                  <button
+                    onClick={() => handleCheckout(plan.slug)}
+                    disabled={loadingSlug === plan.slug}
                     className={cn(
-                      "block text-center py-3.5 rounded-xl font-semibold text-sm transition-all duration-200",
+                      "block w-full text-center py-3.5 rounded-xl font-semibold text-sm transition-all duration-200 disabled:opacity-60",
                       plan.popular
                         ? "bg-brand text-white hover:bg-brand-dark shadow-glow hover:shadow-glow-lg"
                         : "glass hover:bg-white/5 text-white"
                     )}
                   >
-                    Get Started
-                  </Link>
+                    {loadingSlug === plan.slug ? (
+                      <Loader2 className="w-4 h-4 animate-spin mx-auto" />
+                    ) : (
+                      "Get Started"
+                    )}
+                  </button>
                 </div>
               </StaggerItem>
             ))}
