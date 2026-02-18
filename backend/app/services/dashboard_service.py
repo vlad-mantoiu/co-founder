@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.artifact import Artifact
@@ -16,7 +16,7 @@ from app.db.models.job import Job
 from app.db.models.project import Project
 from app.db.models.stage_config import StageConfig
 from app.domain.progress import compute_stage_progress
-from app.domain.risks import detect_system_risks
+from app.domain.risks import detect_llm_risks, detect_system_risks
 from app.schemas.dashboard import (
     ArtifactSummary,
     DashboardResponse,
@@ -149,12 +149,32 @@ class DashboardService:
         last_gate = result.scalar_one_or_none()
         last_gate_decision_at = last_gate.decided_at if last_gate else None
 
+        # Count failed jobs for this project
+        failed_jobs_result = await session.execute(
+            select(func.count(Job.id)).where(
+                and_(
+                    Job.project_id == project_id,
+                    Job.status == "failed",
+                )
+            )
+        )
+        build_failure_count = failed_jobs_result.scalar() or 0
+
         risks = detect_system_risks(
             last_gate_decision_at=last_gate_decision_at,
-            build_failure_count=0,  # TODO: integrate build tracking from Phase 3
+            build_failure_count=build_failure_count,
             last_activity_at=project.updated_at,
             now=datetime.now(timezone.utc),
         )
+
+        # Detect LLM risks
+        llm_risks = await detect_llm_risks(user_id, session)
+
+        # Combine system + LLM risks
+        all_risks = risks + [
+            {"type": r["type"], "rule": r["rule"], "message": r["message"]}
+            for r in llm_risks
+        ]
 
         risk_flags = [
             RiskFlagResponse(
@@ -162,7 +182,7 @@ class DashboardService:
                 rule=risk["rule"],
                 message=risk["message"],
             )
-            for risk in risks
+            for risk in all_risks
         ]
 
         # Compute suggested focus

@@ -8,11 +8,12 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.db.models.decision_gate import DecisionGate
+from app.db.models.job import Job
 from app.db.models.project import Project
 from app.db.models.stage_config import StageConfig
 from app.db.models.stage_event import StageEvent
@@ -575,16 +576,28 @@ class JourneyService:
         last_gate = result.scalar_one_or_none()
         last_gate_decision_at = last_gate.decided_at if last_gate else None
 
+        # Count failed jobs for this project
+        failed_jobs_result = await self.session.execute(
+            select(func.count(Job.id)).where(
+                and_(
+                    Job.project_id == project_id,
+                    Job.status == "failed",
+                )
+            )
+        )
+        build_failure_count = failed_jobs_result.scalar() or 0
+
         # Detect system risks
         system_risks = detect_system_risks(
             last_gate_decision_at=last_gate_decision_at,
-            build_failure_count=0,  # TODO: integrate build tracking from Phase 3
+            build_failure_count=build_failure_count,
             last_activity_at=project.updated_at,
             now=datetime.now(timezone.utc),
         )
 
-        # Detect LLM risks (stub)
-        llm_risks = detect_llm_risks()
+        # Detect LLM risks
+        user_id = project.clerk_user_id
+        llm_risks = await detect_llm_risks(user_id, self.session)
 
         # Load dismissed risks from stage configs
         result = await self.session.execute(
