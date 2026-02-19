@@ -1,9 +1,9 @@
-import logging
+import structlog
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 router = APIRouter()
 
@@ -34,7 +34,7 @@ async def readiness_check():
             await session.execute(text("SELECT 1"))
         checks["database"] = True
     except Exception as e:
-        logger.error(f"Database health check failed: {e}")
+        logger.error("db_health_check_failed", error=str(e), error_type=type(e).__name__)
 
     try:
         from app.db.redis import get_redis
@@ -43,7 +43,7 @@ async def readiness_check():
         await redis.ping()
         checks["redis"] = True
     except Exception as e:
-        logger.error(f"Redis health check failed: {e}")
+        logger.error("redis_health_check_failed", error=str(e), error_type=type(e).__name__)
 
     all_healthy = all(checks.values())
     status_code = 200 if all_healthy else 503

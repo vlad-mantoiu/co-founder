@@ -4,9 +4,9 @@ Queries PostgreSQL for project timeline data and maps to unified TimelineItem Py
 Supports text search, type filter, and date range filter. Items sorted newest-first.
 """
 
-import logging
 from datetime import datetime
 
+import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -15,7 +15,7 @@ from app.db.models.decision_gate import DecisionGate
 from app.db.models.stage_event import StageEvent
 from app.schemas.timeline import TimelineItem
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 def _strip_tz(dt: datetime) -> datetime:
@@ -133,7 +133,7 @@ class TimelineService:
         try:
             project_uuid = uuid_mod.UUID(project_id)
         except (ValueError, AttributeError):
-            logger.warning("Invalid project_id format: %s", project_id)
+            logger.warning("invalid_project_id_format", project_id=project_id)
             return []
 
         items: list[TimelineItem] = []

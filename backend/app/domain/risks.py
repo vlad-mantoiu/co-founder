@@ -4,13 +4,15 @@ Pure domain functions for detecting project risks.
 detect_system_risks: No DB access, fully deterministic.
 detect_llm_risks: Async, reads Redis usage + user settings.
 """
-import logging
+
 from datetime import date, datetime, timedelta, timezone
+
+import structlog
 
 from app.core.llm_config import get_or_create_user_settings
 from app.db.redis import get_redis
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 def detect_system_risks(
@@ -110,6 +112,7 @@ async def detect_llm_risks(user_id: str, session) -> list[dict]:
                     "message": f"We're at {ratio:.0%} of today's token budget. Consider upgrading to avoid interruptions.",
                 })
     except Exception as e:
-        logger.warning("detect_llm_risks check failed (non-blocking): %s", e)
+        logger.warning("detect_llm_risks_failed", user_id=user_id, error=str(e),
+                       error_type=type(e).__name__)
 
     return risks

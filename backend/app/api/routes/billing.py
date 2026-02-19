@@ -1,9 +1,9 @@
 """Billing routes — Stripe Checkout, Customer Portal, webhooks, and status."""
 
-import logging
 from datetime import datetime, timedelta, timezone
 
 import stripe
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy import func, select
@@ -17,7 +17,7 @@ from app.db.models.stripe_event import StripeWebhookEvent
 from app.db.models.usage_log import UsageLog
 from app.db.models.user_settings import UserSettings
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 router = APIRouter()
 
@@ -316,13 +316,13 @@ async def stripe_webhook(request: Request):
         raise HTTPException(status_code=400, detail="Invalid signature")
 
     if not await _claim_event(event["id"]):
-        logger.info("Duplicate Stripe event ignored: %s", event["id"])
+        logger.info("stripe_duplicate_event_ignored", event_id=event["id"])
         return {"status": "ok"}
 
     event_type = event["type"]
     data = event["data"]["object"]
 
-    logger.info("Stripe webhook received: %s", event_type)
+    logger.info("stripe_webhook_received", event_type=event_type)
 
     if event_type == "checkout.session.completed":
         await _handle_checkout_completed(data)
@@ -345,7 +345,8 @@ async def _handle_checkout_completed(session_data: dict) -> None:
     subscription_id = session_data.get("subscription")
 
     if not clerk_user_id or not plan_slug:
-        logger.warning("checkout.session.completed missing metadata: %s", session_data.get("id"))
+        logger.warning("checkout_completed_missing_metadata",
+                       event_id=session_data.get("id"))
         return
 
     factory = get_session_factory()
@@ -356,7 +357,7 @@ async def _handle_checkout_completed(session_data: dict) -> None:
         )
         tier = tier_result.scalar_one_or_none()
         if tier is None:
-            logger.error("Unknown plan slug from checkout: %s", plan_slug)
+            logger.error("checkout_unknown_plan_slug", plan_slug=plan_slug)
             return
 
         # Update user settings
@@ -365,7 +366,7 @@ async def _handle_checkout_completed(session_data: dict) -> None:
         )
         user_settings = result.scalar_one_or_none()
         if user_settings is None:
-            logger.error("No UserSettings for clerk_user_id: %s", clerk_user_id)
+            logger.error("checkout_user_settings_not_found", user_id=clerk_user_id)
             return
 
         user_settings.plan_tier_id = tier.id
@@ -378,7 +379,7 @@ async def _handle_checkout_completed(session_data: dict) -> None:
             user_settings.stripe_customer_id = customer_id
 
         await session.commit()
-        logger.info("Plan upgraded to %s for user %s", plan_slug, clerk_user_id)
+        logger.info("plan_upgraded", plan_slug=plan_slug, user_id=clerk_user_id)
 
 
 async def _handle_subscription_updated(subscription: dict) -> None:
@@ -396,13 +397,13 @@ async def _handle_subscription_updated(subscription: dict) -> None:
         )
         user_settings = result.scalar_one_or_none()
         if user_settings is None:
-            logger.warning("subscription.updated for unknown customer: %s", customer_id)
+            logger.warning("subscription_updated_unknown_customer", customer_id=customer_id)
             return
 
         user_settings.stripe_subscription_status = status
         user_settings.stripe_subscription_id = subscription.get("id")
         await session.commit()
-        logger.info("Subscription status updated to %s for customer %s", status, customer_id)
+        logger.info("subscription_status_updated", status=status, customer_id=customer_id)
 
 
 async def _handle_subscription_deleted(subscription: dict) -> None:
@@ -425,14 +426,14 @@ async def _handle_subscription_deleted(subscription: dict) -> None:
         )
         user_settings = result.scalar_one_or_none()
         if user_settings is None:
-            logger.warning("subscription.deleted for unknown customer: %s", customer_id)
+            logger.warning("subscription_deleted_unknown_customer", customer_id=customer_id)
             return
 
         user_settings.plan_tier_id = bootstrapper.id
         user_settings.stripe_subscription_id = None
         user_settings.stripe_subscription_status = None
         await session.commit()
-        logger.info("Downgraded to bootstrapper for customer %s", customer_id)
+        logger.info("plan_downgraded_to_bootstrapper", customer_id=customer_id)
 
 
 async def _handle_payment_failed(invoice: dict) -> None:
@@ -461,4 +462,4 @@ async def _handle_payment_failed(invoice: dict) -> None:
         user_settings.stripe_subscription_status = "past_due"
         # Do NOT clear stripe_subscription_id — Stripe may still recover the subscription
         await session.commit()
-        logger.info("Payment failed — restricted to bootstrapper for customer %s", customer_id)
+        logger.info("payment_failed_restricted_to_bootstrapper", customer_id=customer_id)

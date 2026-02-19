@@ -1,9 +1,9 @@
 """GateService — orchestrates decision gate lifecycle with domain logic."""
 
-import logging
 import uuid
 from datetime import datetime, timezone
 
+import structlog
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -27,7 +27,7 @@ from app.schemas.decision_gates import (
 from app.services.graph_service import GraphService
 from app.services.journey import JourneyService
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class GateService:
@@ -286,7 +286,7 @@ class GateService:
             await graph_service.sync_decision_to_graph(gate, str(project_id))
         except Exception:
             logger.warning(
-                "Neo4j sync failed for gate %s", gate.id, exc_info=True
+                "neo4j_sync_failed", entity="gate", gate_id=str(gate.id), exc_info=True
             )
 
     async def _handle_narrow(

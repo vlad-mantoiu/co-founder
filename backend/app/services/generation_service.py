@@ -4,12 +4,12 @@ Wires Runner (LLM code generation) + E2BSandboxRuntime (execution) into
 the JobStateMachine transitions, persisting sandbox build results.
 """
 
-import logging
 import uuid
 from datetime import datetime, timezone
 from typing import Callable
 from uuid import uuid4
 
+import structlog
 from sqlalchemy import select
 
 from app.agent.runner import Runner
@@ -19,7 +19,7 @@ from app.queue.schemas import JobStatus
 from app.queue.state_machine import JobStateMachine
 from app.sandbox.e2b_runtime import E2BSandboxRuntime
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class GenerationService:
@@ -135,9 +135,7 @@ class GenerationService:
                 )
             except Exception:
                 logger.warning(
-                    "MVP Built post-build hook failed for job %s (non-fatal)",
-                    job_id,
-                    exc_info=True,
+                    "mvp_built_hook_failed", job_id=job_id, exc_info=True
                 )
 
             return {
@@ -150,9 +148,12 @@ class GenerationService:
         except Exception as exc:
             debug_id = str(uuid4())
             logger.error(
-                f"GenerationService.execute_build failed for job {job_id}: {exc}",
+                "execute_build_failed",
+                job_id=job_id,
+                debug_id=debug_id,
+                error=str(exc),
+                error_type=type(exc).__name__,
                 exc_info=True,
-                extra={"debug_id": debug_id},
             )
             await state_machine.transition(
                 job_id,
@@ -210,12 +211,15 @@ class GenerationService:
                     sandbox = self.sandbox_runtime_factory()
                     await sandbox.connect(previous_sandbox_id)
                     sandbox_reconnected = True
-                    logger.info("Iteration build: reconnected to sandbox %s", previous_sandbox_id)
+                    logger.info("iteration_sandbox_reconnected", job_id=job_id,
+                                previous_sandbox_id=previous_sandbox_id)
                 except Exception as connect_exc:
                     logger.warning(
-                        "Iteration build: sandbox %s unavailable (%s), falling back to full rebuild",
-                        previous_sandbox_id,
-                        connect_exc,
+                        "iteration_sandbox_unavailable",
+                        job_id=job_id,
+                        previous_sandbox_id=previous_sandbox_id,
+                        error=str(connect_exc),
+                        error_type=type(connect_exc).__name__,
                     )
                     sandbox = None
                     sandbox_reconnected = False
@@ -273,7 +277,7 @@ class GenerationService:
             check_passed = check_result.get("exit_code", 0) == 0
 
             if not check_passed:
-                logger.warning("Iteration build %s: health check failed, attempting rollback", job_id)
+                logger.warning("iteration_health_check_failed", job_id=job_id)
                 # Attempt one rollback: revert files (re-run without the patch)
                 try:
                     rollback_state = create_initial_state(
@@ -296,7 +300,8 @@ class GenerationService:
                         )
                         await sandbox.write_file(abs_path, content)
                 except Exception as rollback_exc:
-                    logger.error("Iteration build %s: rollback failed: %s", job_id, rollback_exc)
+                    logger.error("iteration_rollback_failed", job_id=job_id,
+                                 error=str(rollback_exc), error_type=type(rollback_exc).__name__)
 
                 # Mark as needs-review even if rollback ran
                 await state_machine.transition(
@@ -324,9 +329,7 @@ class GenerationService:
                 )
             except Exception:
                 logger.warning(
-                    "Iteration timeline event failed for job %s (non-fatal)",
-                    job_id,
-                    exc_info=True,
+                    "iteration_timeline_event_failed", job_id=job_id, exc_info=True
                 )
 
             return {
@@ -342,9 +345,12 @@ class GenerationService:
                 raise
             debug_id = str(uuid4())
             logger.error(
-                f"GenerationService.execute_iteration_build failed for job {job_id}: {exc}",
+                "execute_iteration_build_failed",
+                job_id=job_id,
+                debug_id=debug_id,
+                error=str(exc),
+                error_type=type(exc).__name__,
                 exc_info=True,
-                extra={"debug_id": debug_id},
             )
             await state_machine.transition(
                 job_id,
@@ -436,7 +442,7 @@ class GenerationService:
             )
             project = result.scalar_one_or_none()
             if project is None:
-                logger.warning("MVP Built hook: project %s not found", project_id)
+                logger.warning("mvp_built_hook_project_not_found", project_id=project_id)
                 return
 
             # Only advance if project is currently at stage 2 (Validated Direction)
@@ -444,15 +450,13 @@ class GenerationService:
             current_stage = project.stage_number if project.stage_number is not None else 0
             if current_stage >= 3:
                 logger.info(
-                    "MVP Built hook: project %s already at stage %d, skipping",
-                    project_id,
-                    current_stage,
+                    "mvp_built_hook_already_advanced",
+                    project_id=project_id,
+                    current_stage=current_stage,
                 )
                 return
 
             # Directly advance stage to 3 (MVP Built / Development)
-            # Bypass JourneyService._transition_stage validation since
-            # a completed build is the authoritative trigger for this transition.
             from_stage_value = project.stage_number
             project.stage_number = 3
             project.stage_entered_at = datetime.now(timezone.utc)
@@ -499,8 +503,7 @@ class GenerationService:
                 "created_at": datetime.now(timezone.utc).isoformat(),
             })
         except Exception:
-            logger.warning("Neo4j sync failed for MVP Built milestone", exc_info=True)
-
+            logger.warning("neo4j_mvp_built_sync_failed", project_id=project_id, exc_info=True)
 
     async def _log_iteration_event(
         self,

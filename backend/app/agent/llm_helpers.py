@@ -7,8 +7,8 @@ This module provides:
 """
 
 import json
-import logging
 
+import structlog
 from anthropic._exceptions import OverloadedError
 from tenacity import (
     retry,
@@ -17,7 +17,7 @@ from tenacity import (
     wait_exponential,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 def _strip_json_fences(content: str) -> str:
@@ -43,9 +43,9 @@ def _parse_json_response(content: str) -> dict | list:
     wait=wait_exponential(multiplier=2, min=2, max=30),
     reraise=True,
     before_sleep=lambda rs: logger.warning(
-        "Claude overloaded (attempt %d/4), retrying in %.1fs",
-        rs.attempt_number,
-        rs.next_action.sleep,
+        "claude_overloaded_retrying",
+        attempt=rs.attempt_number,
+        sleep_seconds=rs.next_action.sleep,
     ),
 )
 async def _invoke_with_retry(llm, messages):
@@ -82,6 +82,7 @@ async def enqueue_failed_request(user_id: str, session_id: str, action: str, pay
             "queued_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         })
         await r.rpush("cofounder:llm_queue", entry)
-        logger.info("Queued LLM request for retry: user=%s action=%s", user_id, action)
+        logger.info("llm_request_queued_for_retry", user_id=user_id, action=action)
     except Exception as e:
-        logger.warning("Failed to enqueue LLM request (non-blocking): %s", e)
+        logger.warning("llm_request_enqueue_failed", user_id=user_id, action=action,
+                       error=str(e), error_type=type(e).__name__)

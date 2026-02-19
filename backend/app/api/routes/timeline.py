@@ -3,10 +3,10 @@
 GET /api/timeline/{project_id} - Aggregated timeline items with search and filter support
 """
 
-import logging
 import uuid
 from datetime import datetime
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 
@@ -17,7 +17,7 @@ from app.schemas.timeline import TimelineResponse
 from app.services.timeline_service import TimelineService
 
 router = APIRouter()
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 @router.get("/{project_id}", response_model=TimelineResponse)

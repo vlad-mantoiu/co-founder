@@ -4,14 +4,14 @@ All sync operations are non-fatal: exceptions are caught and logged as warnings.
 Neo4j is never the source of truth; PostgreSQL is.
 """
 
-import logging
+import structlog
 
 from app.db.graph.strategy_graph import StrategyGraph
 from app.db.models.artifact import Artifact
 from app.db.models.decision_gate import DecisionGate
 from app.db.models.stage_event import StageEvent
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 def _artifact_graph_status(artifact: Artifact) -> str:
@@ -77,7 +77,7 @@ class GraphService:
             await self.strategy_graph.upsert_decision_node(node_data)
         except Exception:
             logger.warning(
-                "Neo4j sync failed for decision gate %s", gate.id, exc_info=True
+                "neo4j_sync_failed", entity="decision_gate", gate_id=str(gate.id), exc_info=True
             )
 
     async def sync_milestone_to_graph(self, event: StageEvent, project_id: str) -> None:
@@ -105,7 +105,7 @@ class GraphService:
             await self.strategy_graph.upsert_milestone_node(node_data)
         except Exception:
             logger.warning(
-                "Neo4j sync failed for milestone event %s", event.id, exc_info=True
+                "neo4j_sync_failed", entity="milestone_event", event_id=str(event.id), exc_info=True
             )
 
     async def sync_artifact_to_graph(self, artifact: Artifact, project_id: str) -> None:
@@ -132,7 +132,7 @@ class GraphService:
             await self.strategy_graph.upsert_artifact_node(node_data)
         except Exception:
             logger.warning(
-                "Neo4j sync failed for artifact %s", artifact.id, exc_info=True
+                "neo4j_sync_failed", entity="artifact", artifact_id=str(artifact.id), exc_info=True
             )
 
     async def create_decision_edge(self, from_id: str, to_id: str, relation: str) -> None:
@@ -149,5 +149,6 @@ class GraphService:
             await self.strategy_graph.create_edge(from_id, to_id, relation)
         except Exception:
             logger.warning(
-                "Neo4j edge creation failed %s -> %s (%s)", from_id, to_id, relation, exc_info=True
+                "neo4j_edge_creation_failed", from_id=from_id, to_id=to_id,
+                relation=relation, exc_info=True
             )

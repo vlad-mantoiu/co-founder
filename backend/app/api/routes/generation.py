@@ -1,10 +1,11 @@
 """Generation API routes — start, status, cancel, preview-viewed."""
 
-import logging
 import uuid as _uuid
 
+import structlog
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, Field
+from sqlalchemy import select
 
 from app.core.auth import ClerkUser, require_auth, require_subscription
 from app.db.base import get_session_factory
@@ -14,9 +15,7 @@ from app.queue.manager import QueueManager
 from app.queue.schemas import JobStatus
 from app.queue.state_machine import JobStateMachine
 
-from sqlalchemy import select
-
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 router = APIRouter()
 
@@ -299,7 +298,7 @@ async def cancel_generation(
             sandbox.kill()
         except Exception:
             # Non-fatal: sandbox may have already expired or been cleaned up
-            logger.info(f"Could not kill sandbox {sandbox_id} for cancelled job {job_id}")
+            logger.info("sandbox_kill_failed", sandbox_id=sandbox_id, job_id=job_id)
 
     return CancelGenerationResponse(
         job_id=job_id,

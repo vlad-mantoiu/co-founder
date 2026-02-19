@@ -4,9 +4,9 @@ GET /api/graph/{project_id}              - Full graph for a project (nodes + edg
 GET /api/graph/{project_id}/nodes/{node_id} - Node detail with why, tradeoffs, alternatives
 """
 
-import logging
 import uuid
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 
@@ -17,7 +17,7 @@ from app.db.models.project import Project
 from app.schemas.strategy_graph import GraphEdge, GraphNode, GraphResponse, NodeDetailResponse
 
 router = APIRouter()
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 @router.get("/{project_id}", response_model=GraphResponse)
@@ -51,10 +51,10 @@ async def get_project_graph(
         raw = await get_strategy_graph().get_project_graph(str(project_id))
     except ValueError:
         # Neo4j not configured — return empty graph
-        logger.info("Neo4j not configured, returning empty graph for project %s", project_id)
+        logger.info("neo4j_not_configured_returning_empty_graph", project_id=str(project_id))
         return GraphResponse(project_id=str(project_id), nodes=[], edges=[])
     except Exception:
-        logger.warning("Neo4j query failed for project %s", project_id, exc_info=True)
+        logger.warning("neo4j_query_failed", project_id=str(project_id), exc_info=True)
         return GraphResponse(project_id=str(project_id), nodes=[], edges=[])
 
     nodes = []
@@ -123,7 +123,7 @@ async def get_node_detail(
         # Neo4j not configured
         raise HTTPException(status_code=404, detail="Node not found")
     except Exception:
-        logger.warning("Neo4j node detail query failed for node %s", node_id, exc_info=True)
+        logger.warning("neo4j_node_detail_query_failed", node_id=node_id, exc_info=True)
         raise HTTPException(status_code=404, detail="Node not found")
 
     if node_dict is None:

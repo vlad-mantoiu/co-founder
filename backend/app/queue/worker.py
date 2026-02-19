@@ -1,9 +1,10 @@
 """JobWorker: pulls jobs from queue, enforces concurrency, executes via GenerationService."""
 
 import json
-import logging
 import time
 import uuid
+
+import structlog
 
 from app.agent.runner import Runner
 from app.db.redis import get_redis
@@ -13,7 +14,7 @@ from app.queue.schemas import JobStatus
 from app.queue.semaphore import project_semaphore, user_semaphore
 from app.queue.state_machine import JobStateMachine
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 async def process_next_job(runner: Runner | None = None, redis=None) -> bool:
@@ -50,7 +51,7 @@ async def process_next_job(runner: Runner | None = None, redis=None) -> bool:
 
     job_data = await state_machine.get_job(job_id)
     if job_data is None:
-        logger.error(f"Dequeued job {job_id} but no metadata found")
+        logger.error("job_metadata_missing", job_id=job_id)
         return False
 
     user_id = job_data.get("user_id")
@@ -65,14 +66,14 @@ async def process_next_job(runner: Runner | None = None, redis=None) -> bool:
     if not user_acquired:
         # Re-enqueue with same priority
         await queue.enqueue(job_id, tier)
-        logger.info(f"Job {job_id}: user concurrency limit, re-enqueued")
+        logger.info("job_user_concurrency_limit_reenqueued", job_id=job_id, user_id=user_id)
         return False
 
     project_acquired = await project_sem.acquire(job_id)
     if not project_acquired:
         await user_sem.release(job_id)
         await queue.enqueue(job_id, tier)
-        logger.info(f"Job {job_id}: project concurrency limit, re-enqueued")
+        logger.info("job_project_concurrency_limit_reenqueued", job_id=job_id, project_id=project_id)
         return False
 
     start_time = time.time()
@@ -123,7 +124,8 @@ async def process_next_job(runner: Runner | None = None, redis=None) -> bool:
         )
 
     except Exception as exc:
-        logger.error(f"Job {job_id} failed: {exc}", exc_info=True)
+        logger.error("job_failed", job_id=job_id, error=str(exc),
+                     error_type=type(exc).__name__, exc_info=True)
 
         # If GenerationService already transitioned to FAILED, don't double-transition.
         # We detect this by checking if exc carries a debug_id (set by GenerationService).
@@ -201,4 +203,5 @@ async def _persist_job_to_postgres(
             session.add(job)
             await session.commit()
     except Exception as exc:
-        logger.error(f"Failed to persist job {job_id}: {exc}", exc_info=True)
+        logger.error("job_persist_failed", job_id=job_id, error=str(exc),
+                     error_type=type(exc).__name__, exc_info=True)

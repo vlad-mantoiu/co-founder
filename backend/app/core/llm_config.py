@@ -6,10 +6,10 @@ Resolution order:
 3. Settings.*_model                    (global fallback)
 """
 
-import logging
 from datetime import date, datetime
 from typing import Any
 
+import structlog
 from langchain_anthropic import ChatAnthropic
 from langchain_core.callbacks import AsyncCallbackHandler
 from langchain_core.outputs import LLMResult
@@ -22,7 +22,7 @@ from app.db.models.usage_log import UsageLog
 from app.db.models.user_settings import UserSettings
 from app.db.redis import get_redis
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 # Cost per million tokens in microdollars (1 microdollar = $0.000001)
 MODEL_COSTS: dict[str, dict[str, int]] = {
@@ -189,7 +189,8 @@ class UsageTrackingCallback(AsyncCallbackHandler):
                 session.add(log)
                 await session.commit()
         except Exception as e:
-            logger.warning("UsageTrackingCallback: DB write failed (non-blocking): %s", e)
+            logger.warning("usage_tracking_db_write_failed", user_id=self.user_id,
+                           error=str(e), error_type=type(e).__name__)
 
         # Increment Redis daily counter
         try:
@@ -199,7 +200,8 @@ class UsageTrackingCallback(AsyncCallbackHandler):
             await r.incrby(key, total_tokens)
             await r.expire(key, 90_000)  # 25h TTL for safety
         except Exception as e:
-            logger.warning("UsageTrackingCallback: Redis write failed (non-blocking): %s", e)
+            logger.warning("usage_tracking_redis_write_failed", user_id=self.user_id,
+                           error=str(e), error_type=type(e).__name__)
 
 
 def _extract_usage(response: LLMResult) -> dict | None:

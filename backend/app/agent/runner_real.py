@@ -9,8 +9,8 @@ Implements all 10 Runner protocol methods with:
 """
 
 import json
-import logging
 
+import structlog
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.checkpoint.memory import MemorySaver
 
@@ -27,7 +27,7 @@ from app.agent.nodes import (
 from app.agent.state import CoFounderState
 from app.core.llm_config import create_tracked_llm
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 COFOUNDER_SYSTEM = """You are the founder's AI co-founder — a senior technical partner invested in their success.
 
@@ -163,6 +163,7 @@ class RunnerReal:
         Raises:
             RuntimeError: If LLM call fails after retries
         """
+        log = logger.bind(method="generate_questions")
         user_id = context.get("user_id", "system")
         session_id = context.get("session_id", "default")
         idea_keywords = context.get("idea_keywords", "")
@@ -201,7 +202,7 @@ Return ONLY a JSON array of objects:
             response = await _invoke_with_retry(llm, [system_msg, human_msg])
             return _parse_json_response(response.content)
         except json.JSONDecodeError:
-            logger.warning("RunnerReal.generate_questions: JSON parse failed, retrying with strict prompt")
+            log.warning("json_parse_failed_retrying", user_id=user_id, session_id=session_id)
             strict_system = SystemMessage(
                 content="IMPORTANT: Your response MUST be valid JSON only. "
                 "Do not include any explanation, markdown, or code fences. "
@@ -224,6 +225,7 @@ Return ONLY a JSON array of objects:
         Raises:
             RuntimeError: If LLM call fails after retries
         """
+        log = logger.bind(method="generate_brief")
         user_id = answers.get("_user_id", "system")
         session_id = answers.get("_session_id", "default")
 
@@ -264,7 +266,7 @@ Return ONLY a JSON object:
             response = await _invoke_with_retry(llm, [system_msg, human_msg])
             return _parse_json_response(response.content)
         except json.JSONDecodeError:
-            logger.warning("RunnerReal.generate_brief: JSON parse failed, retrying with strict prompt")
+            log.warning("json_parse_failed_retrying", user_id=user_id, session_id=session_id)
             strict_system = SystemMessage(
                 content="IMPORTANT: Your response MUST be valid JSON only. "
                 "Do not include any explanation, markdown, or code fences. "
@@ -285,6 +287,7 @@ Return ONLY a JSON object:
         Raises:
             RuntimeError: If LLM call fails after retries
         """
+        log = logger.bind(method="generate_understanding_questions")
         user_id = context.get("user_id", "system")
         session_id = context.get("session_id", "default")
         tier = context.get("tier", "bootstrapper")
@@ -329,7 +332,7 @@ End the interview with a closing question like: "I have enough to build your bri
             response = await _invoke_with_retry(llm, [system_msg, human_msg])
             return _parse_json_response(response.content)
         except json.JSONDecodeError:
-            logger.warning("RunnerReal.generate_understanding_questions: JSON parse failed, retrying with strict prompt")
+            log.warning("json_parse_failed_retrying", user_id=user_id, session_id=session_id, tier=tier)
             strict_system = SystemMessage(
                 content="IMPORTANT: Your response MUST be valid JSON only. "
                 "Do not include any explanation, markdown, or code fences. "
@@ -352,6 +355,7 @@ End the interview with a closing question like: "I have enough to build your bri
         Raises:
             RuntimeError: If LLM call fails after retries
         """
+        log = logger.bind(method="generate_idea_brief")
         user_id = answers.get("_user_id", "system")
         session_id = answers.get("_session_id", "default")
         tier = answers.get("_tier", "bootstrapper")
@@ -424,7 +428,7 @@ For confidence_scores, assess each section as:
             response = await _invoke_with_retry(llm, [system_msg, human_msg])
             return _parse_json_response(response.content)
         except json.JSONDecodeError:
-            logger.warning("RunnerReal.generate_idea_brief: JSON parse failed, retrying with strict prompt")
+            log.warning("json_parse_failed_retrying", user_id=user_id, session_id=session_id, tier=tier)
             strict_system = SystemMessage(
                 content="IMPORTANT: Your response MUST be valid JSON only. "
                 "Do not include any explanation, markdown, or code fences. "
@@ -451,6 +455,7 @@ For confidence_scores, assess each section as:
         Raises:
             RuntimeError: If LLM call fails after retries
         """
+        log = logger.bind(method="check_question_relevance")
         user_id = answers.get("_user_id", "system")
         session_id = answers.get("_session_id", "default")
 
@@ -499,7 +504,7 @@ Return ONLY a JSON object:
             response = await _invoke_with_retry(llm, [system_msg, human_msg])
             return _parse_json_response(response.content)
         except json.JSONDecodeError:
-            logger.warning("RunnerReal.check_question_relevance: JSON parse failed, retrying with strict prompt")
+            log.warning("json_parse_failed_retrying", user_id=user_id, session_id=session_id)
             strict_system = SystemMessage(
                 content="IMPORTANT: Your response MUST be valid JSON only. "
                 "Do not include any explanation, markdown, or code fences. "
@@ -560,6 +565,7 @@ Return ONLY one of: "strong", "moderate", "needs_depth"
         Raises:
             RuntimeError: If LLM call fails after retries
         """
+        log = logger.bind(method="generate_execution_options")
         user_id = brief.get("_user_id", "system")
         session_id = brief.get("_session_id", "default")
         # _tier is injected by service layer; fall back to _context dict for backwards compat
@@ -616,7 +622,7 @@ Return ONLY a JSON object:
             response = await _invoke_with_retry(llm, [system_msg, human_msg])
             return _parse_json_response(response.content)
         except json.JSONDecodeError:
-            logger.warning("RunnerReal.generate_execution_options: JSON parse failed, retrying with strict prompt")
+            log.warning("json_parse_failed_retrying", user_id=user_id, session_id=session_id, tier=tier)
             strict_system = SystemMessage(
                 content="IMPORTANT: Your response MUST be valid JSON only. "
                 "Do not include any explanation, markdown, or code fences. "
@@ -637,6 +643,7 @@ Return ONLY a JSON object:
         Raises:
             RuntimeError: If LLM call fails after retries
         """
+        log = logger.bind(method="generate_artifacts")
         user_id = brief.get("_user_id", "system")
         session_id = brief.get("_session_id", "default")
         # _tier is injected by service layer
@@ -717,7 +724,7 @@ risk log references brief assumptions)."""
             response = await _invoke_with_retry(llm, [system_msg, human_msg])
             return _parse_json_response(response.content)
         except json.JSONDecodeError:
-            logger.warning("RunnerReal.generate_artifacts: JSON parse failed, retrying with strict prompt")
+            log.warning("json_parse_failed_retrying", user_id=user_id, session_id=session_id, tier=tier)
             strict_system = SystemMessage(
                 content="IMPORTANT: Your response MUST be valid JSON only. "
                 "Do not include any explanation, markdown, or code fences. "

@@ -6,9 +6,9 @@ Implements:
   DEPL-03: User isolation enforced via 404 pattern
 """
 
-import logging
 import uuid as _uuid
 
+import structlog
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -23,7 +23,7 @@ from app.domain.deploy_checks import (
 )
 from app.queue.schemas import JobStatus
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 def _recommend_path(working_files: dict[str, str]) -> str:

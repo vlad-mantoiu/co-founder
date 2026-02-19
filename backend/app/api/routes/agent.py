@@ -1,11 +1,11 @@
 """Agent API routes for interacting with the AI Co-Founder."""
 
 import json
-import logging
 import uuid
 from datetime import date
 from typing import AsyncGenerator
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -18,7 +18,7 @@ from app.db.redis import get_redis
 from app.memory.episodic import get_episodic_memory
 from app.memory.mem0_client import get_semantic_memory
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 router = APIRouter()
 
@@ -139,7 +139,8 @@ async def chat(request: ChatRequest, user: ClerkUser = Depends(require_subscript
             )
             session["episode_id"] = episode_id
         except Exception as e:
-            logger.warning(f"Failed to start episodic memory episode (non-blocking): {e}")
+            logger.warning("episodic_memory_start_failed", error=str(e),
+                           error_type=type(e).__name__, user_id=user_id)
     else:
         state = session["state"]
         episode_id = session.get("episode_id")
@@ -166,7 +167,8 @@ async def chat(request: ChatRequest, user: ClerkUser = Depends(require_subscript
                     files_created=list(result.get("working_files", {}).keys()),
                 )
             except Exception as e:
-                logger.warning(f"Failed to update episodic memory (non-blocking): {e}")
+                logger.warning("episodic_memory_update_failed", error=str(e),
+                               error_type=type(e).__name__, user_id=user_id)
 
         # Store in semantic memory
         try:
@@ -177,7 +179,8 @@ async def chat(request: ChatRequest, user: ClerkUser = Depends(require_subscript
                 project_id=request.project_id,
             )
         except Exception as e:
-            logger.warning(f"Failed to store in semantic memory (non-blocking): {e}")
+            logger.warning("semantic_memory_store_failed", error=str(e),
+                           error_type=type(e).__name__, user_id=user_id)
 
         return ChatResponse(
             session_id=session_id,
@@ -196,7 +199,8 @@ async def chat(request: ChatRequest, user: ClerkUser = Depends(require_subscript
                     final_error=str(e),
                 )
             except Exception as ex:
-                logger.warning(f"Failed to mark episode as failed (non-blocking): {ex}")
+                logger.warning("episodic_memory_complete_failed", error=str(ex),
+                               error_type=type(ex).__name__, user_id=user_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 

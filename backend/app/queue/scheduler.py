@@ -6,16 +6,17 @@ thundering herd (see 05-RESEARCH.md Pitfall 2).
 """
 
 import asyncio
-import logging
 import random
 from datetime import datetime, timezone
+
+import structlog
 
 from app.db.redis import get_redis
 from app.queue.manager import QueueManager
 from app.queue.schemas import JobStatus
 from app.queue.state_machine import JobStateMachine
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 async def process_scheduled_jobs(now: datetime | None = None) -> int:
@@ -61,7 +62,7 @@ async def process_scheduled_jobs(now: datetime | None = None) -> int:
             break
 
     if not scheduled_jobs:
-        logger.info("No scheduled jobs to process")
+        logger.info("no_scheduled_jobs_to_process")
         return 0
 
     moved = 0
@@ -69,7 +70,7 @@ async def process_scheduled_jobs(now: datetime | None = None) -> int:
     for job_id in scheduled_jobs:
         job_data = await state_machine.get_job(job_id)
         if job_data is None:
-            logger.warning(f"Scheduled job {job_id} not found in Redis")
+            logger.warning("scheduled_job_not_found", job_id=job_id)
             continue
 
         tier = job_data.get("tier", "bootstrapper")
@@ -90,13 +91,13 @@ async def process_scheduled_jobs(now: datetime | None = None) -> int:
                 await state_machine.transition(
                     job_id, JobStatus.SCHEDULED, "Queue at capacity — will retry"
                 )
-                logger.warning(f"Failed to enqueue {job_id}: queue at capacity")
+                logger.warning("scheduled_job_queue_full", job_id=job_id)
                 continue
 
             moved += 1
-            logger.info(f"Scheduled job {job_id} moved to queue (tier={tier})")
+            logger.info("scheduled_job_moved_to_queue", job_id=job_id, tier=tier)
 
-    logger.info(f"Processed {moved} scheduled jobs out of {len(scheduled_jobs)} found")
+    logger.info("scheduled_jobs_processed", moved=moved, total=len(scheduled_jobs))
     return moved
 
 
@@ -147,15 +148,16 @@ async def cleanup_stale_jobs(max_age_hours: int = 48) -> int:
                         # Don't delete events channel (auto-expires)
 
                         cleaned += 1
-                        logger.info(f"Cleaned stale job {job_id} (age={age_hours:.1f}h)")
+                        logger.info("stale_job_cleaned", job_id=job_id, age_hours=round(age_hours, 1))
 
                 except (ValueError, TypeError) as e:
-                    logger.warning(f"Failed to parse created_at for {key_str}: {e}")
+                    logger.warning("stale_job_parse_failed", key=key_str,
+                                   error=str(e), error_type=type(e).__name__)
 
         if cursor == 0:
             break
 
     if cleaned > 0:
-        logger.info(f"Cleaned {cleaned} stale jobs")
+        logger.info("stale_jobs_cleanup_complete", cleaned=cleaned)
 
     return cleaned

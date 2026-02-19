@@ -10,10 +10,10 @@ Implements:
   ITER-03: Recorded in context
 """
 
-import logging
 import uuid
 from datetime import datetime, timezone
 
+import structlog
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -25,7 +25,7 @@ from app.db.models.project import Project
 from app.domain.alignment import compute_alignment_score
 from app.queue.schemas import TIER_ITERATION_DEPTH
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class ChangeRequestService:

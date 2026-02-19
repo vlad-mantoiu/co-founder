@@ -10,8 +10,7 @@ Implements:
 Per locked decision: Instructions only for MVP — no one-click deploy automation.
 """
 
-import logging
-
+import structlog
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
@@ -19,7 +18,7 @@ from app.core.auth import ClerkUser, require_auth
 from app.db.base import get_session_factory
 from app.services.deploy_readiness_service import DeployReadinessService
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 router = APIRouter()
 
