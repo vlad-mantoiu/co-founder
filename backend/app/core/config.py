@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:3000"
 
     # Anthropic
-    anthropic_api_key: str
+    anthropic_api_key: str = ""
 
     # Database
     database_url: str = "postgresql+asyncpg://cofounder:cofounder@localhost:5432/cofounder"
