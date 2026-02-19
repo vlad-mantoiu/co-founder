@@ -151,12 +151,13 @@ Plans:
   4. Visiting getinsourced.ai/about, /contact, /privacy, and /terms each return valid pages without 404
   5. Running `next build` in /marketing produces a fully static /out directory with no server-side dependencies
   6. A second product page can be added by creating getinsourced.ai/{product-slug} without structural changes to the marketing site
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 18-01: /marketing Next.js app scaffold with static export config, layout, and shared components
-- [ ] 18-02: Parent brand landing page (getinsourced.ai) and Co-Founder product page (/cofounder)
-- [ ] 18-03: Pricing, about, contact, privacy, and terms pages with CTA links
+- [ ] 18-01-PLAN.md — Scaffold /marketing Next.js app with static export config, shared assets, and root layout
+- [ ] 18-02-PLAN.md — Context-aware Navbar + Footer, marketing layout wrapper, and build verification
+- [ ] 18-03-PLAN.md — Parent brand landing page (getinsourced.ai/) and Co-Founder product page (/cofounder)
+- [ ] 18-04-PLAN.md — Pricing, about, contact, privacy, and terms pages with CTA links
 
 ### Phase 19: CloudFront + S3 Infrastructure
 **Goal**: getinsourced.ai resolves to a CloudFront distribution backed by a private S3 bucket, with TLS via ACM and no public bucket access
@@ -225,7 +226,7 @@ Phases execute in numeric order: 18 → 19 → 20 → 21
 | 15. CI/CD Hardening | v0.2 | 3/3 | Complete | 2026-02-18 |
 | 16. CloudWatch Observability | v0.2 | 3/3 | Complete | 2026-02-19 |
 | 17. CI/Deploy Pipeline Fix | v0.2 | 3/3 | Complete | 2026-02-19 |
-| 18. Marketing Site Build | v0.3 | 0/3 | Not started | - |
+| 18. Marketing Site Build | v0.3 | 0/4 | Not started | - |
 | 19. CloudFront + S3 Infrastructure | v0.3 | 0/2 | Not started | - |
 | 20. App Cleanup | v0.3 | 0/2 | Not started | - |
 | 21. Marketing CI/CD | v0.3 | 0/1 | Not started | - |
