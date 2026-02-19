@@ -1,3 +1,5 @@
+import InsourcedHomeContent from "@/components/marketing/insourced-home-content";
+
 export default function HomePage() {
-  return <div>Insourced AI — Coming in Plan 03</div>;
+  return <InsourcedHomeContent />;
 }
