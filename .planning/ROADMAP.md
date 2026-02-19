@@ -45,7 +45,7 @@
 
 **Milestone Goal:** Separate static marketing pages from the authenticated app so marketing loads instantly without Clerk overhead, and the parent brand (getinsourced.ai) has its own fast static site on CloudFront + S3.
 
-- [ ] **Phase 18: Marketing Site Build** - Create the /marketing Next.js static export with all public pages and multi-product structure
+- [x] **Phase 18: Marketing Site Build** - Create the /marketing Next.js static export with all public pages and multi-product structure
 - [ ] **Phase 19: CloudFront + S3 Infrastructure** - CDK stack provisioning S3 bucket, CloudFront distribution, and Route53 records for getinsourced.ai
 - [ ] **Phase 20: App Cleanup** - Strip marketing routes from cofounder.getinsourced.ai, add root redirect, and narrow Clerk middleware scope
 - [ ] **Phase 21: Marketing CI/CD** - GitHub Actions workflow to deploy /marketing to S3 and invalidate CloudFront on push to main
@@ -154,10 +154,10 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 18-01-PLAN.md — Scaffold /marketing Next.js app with static export config, shared assets, and root layout
-- [ ] 18-02-PLAN.md — Context-aware Navbar + Footer, marketing layout wrapper, and build verification
-- [ ] 18-03-PLAN.md — Parent brand landing page (getinsourced.ai/) and Co-Founder product page (/cofounder)
-- [ ] 18-04-PLAN.md — Pricing, about, contact, privacy, and terms pages with CTA links
+- [x] 18-01-PLAN.md — Scaffold /marketing Next.js app with static export config, shared assets, and root layout
+- [x] 18-02-PLAN.md — Context-aware Navbar + Footer, marketing layout wrapper, and build verification
+- [x] 18-03-PLAN.md — Parent brand landing page (getinsourced.ai/) and Co-Founder product page (/cofounder)
+- [x] 18-04-PLAN.md — Pricing, about, contact, privacy, and terms pages with CTA links
 
 ### Phase 19: CloudFront + S3 Infrastructure
 **Goal**: getinsourced.ai resolves to a CloudFront distribution backed by a private S3 bucket, with TLS via ACM and no public bucket access
@@ -226,7 +226,7 @@ Phases execute in numeric order: 18 → 19 → 20 → 21
 | 15. CI/CD Hardening | v0.2 | 3/3 | Complete | 2026-02-18 |
 | 16. CloudWatch Observability | v0.2 | 3/3 | Complete | 2026-02-19 |
 | 17. CI/Deploy Pipeline Fix | v0.2 | 3/3 | Complete | 2026-02-19 |
-| 18. Marketing Site Build | 3/4 | In Progress|  | - |
+| 18. Marketing Site Build | v0.3 | 4/4 | Complete | 2026-02-19 |
 | 19. CloudFront + S3 Infrastructure | v0.3 | 0/2 | Not started | - |
 | 20. App Cleanup | v0.3 | 0/2 | Not started | - |
 | 21. Marketing CI/CD | v0.3 | 0/1 | Not started | - |
