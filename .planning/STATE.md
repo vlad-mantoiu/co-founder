@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-18)
 ## Current Position
 
 Phase: 17 of 17 (CI/Deploy Pipeline Fix) — COMPLETE
-Plan: 2 of 2 in current phase (All plans COMPLETE)
+Plan: 3 of 3 in current phase (All plans COMPLETE)
 Status: Complete
-Last activity: 2026-02-19 — Phase 17 Plan 02 complete: dynamic ECS service name resolution in deploy.yml
+Last activity: 2026-02-19 — Phase 17 Plan 03 complete: ruff lint/format CI gate unblocked (751 → 0 errors)
 
 Progress: [██████████] 100% (v0.2) — v0.1 complete (phases 1-12), phases 13-17 all complete
 
@@ -79,6 +79,7 @@ Progress: [██████████] 100% (v0.2) — v0.1 complete (phases
 |------|----------|-------|-------|
 | Phase 17 P01 | 25 min | 2 tasks | 13 files |
 | Phase 17 P02 | 2 min | 2 tasks | 1 file |
+| Phase 17 P03 | 15 min | 2 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -147,13 +148,17 @@ Recent decisions affecting v0.2 work:
 - [Phase 17 P01]: Ruff CI lint gate had 751 pre-existing errors before this plan — not in scope; ruff was already failing CI
 - [Phase 17 P02]: Use JMESPath contains(@, BackendService) filter (not Backend) for more specific ECS service name matching — avoids ambiguity if other services share the prefix
 - [Phase 17 P02]: Dynamic ECS service resolution placed AFTER configure-aws-credentials and BEFORE ECR login — minimal scope for AWS API call
+- [Phase 17 P03]: extend-ignore E501 correct: ruff format enforces 120-char wrapping for reformattable code; string/f-string literals cannot be auto-split so E501 is redundant noise
+- [Phase 17 P03]: per-file-ignores E402 for app/main.py and tests/*: load_dotenv before imports is intentional; pytestmark before imports is standard pytest pattern
+- [Phase 17 P03]: StrEnum migration safe for Python 3.12 target: GateDecision, ProjectStatus, JobStatus — Pydantic serialization unchanged
+- [Phase 17 P03]: sandbox_reconnected removed (not prefixed with _): variable was dead code — assigned at 3 sites, never read; reconnect success already logged via structlog
 
 ### Pending Todos
 
 - [ ] Verify workflow_run gate: push a commit with a failing test and confirm deploy.yml does NOT trigger
 - [ ] Verify path filtering: push a backend-only change and confirm deploy-frontend job is skipped in Actions UI
 - [RESOLVED] Fix 16 pre-existing unit test failures — all fixed in Phase 17 Plan 01 (commit c8e7a38)
-- [ ] Fix ruff CI lint gate: 751 pre-existing errors blocking CI lint step (separate from test gate)
+- [RESOLVED] Fix ruff CI lint gate: 751 errors eliminated in Phase 17 Plan 03 (commits 2a5168a, efa3081)
 
 ### Blockers/Concerns
 
@@ -161,14 +166,14 @@ Recent decisions affecting v0.2 work:
 - [Phase 14 prereq]: Stripe Dashboard webhook URL must be registered after service deploy (operational ordering: deploy first, then register URL)
 - [Phase 15 P01 - RESOLVED]: pytest-asyncio scope fix (CICD-08) complete
 - [Phase 17 P01 - RESOLVED]: 16 pre-existing unit test failures fixed (c8e7a38)
-- [Phase 17 ACTIVE]: Ruff CI lint gate has 751 pre-existing errors — CI lint step will fail until resolved
+- [Phase 17 RESOLVED]: Ruff CI lint gate had 751 pre-existing errors — all fixed in Plan 03 (2a5168a, efa3081)
 
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: Phase 17 Plan 02 complete — v0.2 COMPLETE, all phases done
-Resume file: .planning/phases/17-ci-deploy-pipeline-fix/17-02-SUMMARY.md
-Next action: v0.2 production readiness complete — verify CI passes on main
+Stopped at: Phase 17 Plan 03 complete — ruff lint/format CI gate fully unblocked
+Resume file: .planning/phases/17-ci-deploy-pipeline-fix/17-03-SUMMARY.md
+Next action: Push to main — CI test gate (lint + format + pytest) will now pass end-to-end
 
 ---
 *v0.1 COMPLETE — 56 plans, 12 phases, 76/76 requirements (2026-02-17)*

@@ -121,7 +121,7 @@ Plans:
 Plans:
 - [x] 17-01-PLAN.md — Fix 16 pre-existing test failures + git cleanup
 - [x] 17-02-PLAN.md — Dynamic ECS service name resolution in deploy.yml
-- [ ] 17-03-PLAN.md — Fix all ruff lint + format errors to unblock CI gate (gap closure)
+- [x] 17-03-PLAN.md — Fix all ruff lint + format errors to unblock CI gate (gap closure)
 
 ## Progress
 
@@ -146,7 +146,7 @@ Phases execute in numeric order: 13 → 14 → 15 → 16 → 17
 | 14. Stripe Live Activation | 3/4 | Complete    | 2026-02-18 | - |
 | 15. CI/CD Hardening | 3/3 | Complete    | 2026-02-18 | - |
 | 16. CloudWatch Observability | 3/3 | Complete    | 2026-02-19 | - |
-| 17. CI/Deploy Pipeline Fix | 2/2 | Complete   | 2026-02-19 | - |
+| 17. CI/Deploy Pipeline Fix | 3/3 | Complete   | 2026-02-19 | - |
 
 ---
 *Created: 2026-02-16*
