@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 ## Current Position
 
 Phase: 18 of 21 (Marketing Site Build)
-Plan: 0 of 3 in current phase
-Status: Ready to plan
-Last activity: 2026-02-19 — v0.3 roadmap created (phases 18-21)
+Plan: 1 of 3 in current phase
+Status: In progress
+Last activity: 2026-02-19 — 18-01 complete: /marketing scaffold with static export, shared assets, root layout
 
-Progress: [████████░░] 81% (phases 1-17 complete, phases 18-21 remaining)
+Progress: [████████░░] 82% (phases 1-17 complete, 18-01 done, phases 18-21 remaining)
 
 ## Performance Metrics
 
@@ -23,11 +23,11 @@ Progress: [████████░░] 81% (phases 1-17 complete, phases 18-
 - v0.1: 47 plans across 12 phases
 - v0.2: 20 plans across 5 phases
 
-**By Phase (v0.3 — not yet started):**
+**By Phase (v0.3 — in progress):**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 18. Marketing Site Build | 0/3 | - | - |
+| 18. Marketing Site Build | 1/3 | 12min | 12min |
 | 19. CloudFront + S3 Infra | 0/2 | - | - |
 | 20. App Cleanup | 0/2 | - | - |
 | 21. Marketing CI/CD | 0/1 | - | - |
@@ -45,6 +45,9 @@ Recent decisions affecting v0.3 work:
 - [v0.3]: Next.js static export (`output: 'export'`) for marketing site — same stack, monorepo at /marketing
 - [v0.3]: Multi-product URL structure: getinsourced.ai/{product} — parent brand hosts multiple AI agent products
 - [v0.3]: cofounder.getinsourced.ai root redirects to /dashboard (authed) or /sign-in (not authed)
+- [18-01]: globals.css copied verbatim from frontend — single source of truth for design tokens, not maintained separately
+- [18-01]: Zero Clerk in /marketing — ClerkProvider adds ~200KB JS and forces dynamic SSR, defeating static export
+- [18-01]: Insourced AI branding in marketing metadata (not Co-Founder.ai) — marketing site is getinsourced.ai root
 
 ### Pending Todos
 
@@ -58,8 +61,8 @@ None for v0.3.
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: v0.3 roadmap created — phases 18-21 defined, ready to plan Phase 18
-Next action: `/gsd:plan-phase 18`
+Stopped at: 18-01-PLAN.md complete — /marketing scaffold with static export, shared assets, root layout
+Next action: `/gsd:execute-phase 18` (plan 02: Navbar, Footer, layout wrapper)
 
 ---
 *v0.1 COMPLETE — 56 plans, 12 phases, 76/76 requirements (2026-02-17)*
