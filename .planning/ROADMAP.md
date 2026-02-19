@@ -171,8 +171,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 19-01-PLAN.md — CDK MarketingStack code: S3 bucket, CloudFront distribution with OAC, ACM certificate, Route53 records, CloudFront Function
-- [ ] 19-02-PLAN.md — Deploy ComputeStack update + MarketingStack, upload site to S3, verify live
+- [x] 19-01-PLAN.md — CDK MarketingStack code: S3 bucket, CloudFront distribution with OAC, ACM certificate, Route53 records, CloudFront Function
+- [x] 19-02-PLAN.md — Deploy ComputeStack update + MarketingStack, upload site to S3, verify live
 
 ### Phase 20: App Cleanup
 **Goal**: cofounder.getinsourced.ai serves only authenticated app routes — no marketing pages, no unnecessary Clerk overhead on routes that don't need it
@@ -226,8 +226,8 @@ Phases execute in numeric order: 18 → 19 → 20 → 21
 | 15. CI/CD Hardening | v0.2 | 3/3 | Complete | 2026-02-18 |
 | 16. CloudWatch Observability | v0.2 | 3/3 | Complete | 2026-02-19 |
 | 17. CI/Deploy Pipeline Fix | v0.2 | 3/3 | Complete | 2026-02-19 |
-| 18. Marketing Site Build | v0.3 | Complete    | 2026-02-19 | 2026-02-19 |
-| 19. CloudFront + S3 Infrastructure | 2/2 | Complete   | 2026-02-19 | - |
+| 18. Marketing Site Build | v0.3 | 4/4 | Complete | 2026-02-19 |
+| 19. CloudFront + S3 Infrastructure | v0.3 | 2/2 | Complete | 2026-02-20 |
 | 20. App Cleanup | v0.3 | 0/2 | Not started | - |
 | 21. Marketing CI/CD | v0.3 | 0/1 | Not started | - |
 
