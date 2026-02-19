@@ -14,7 +14,7 @@ Requirements for marketing/app separation. Each maps to roadmap phases.
 - [ ] **MKT-03**: Visitor can view pricing page at getinsourced.ai/pricing with CTAs linking to cofounder.getinsourced.ai/sign-up
 - [ ] **MKT-04**: Visitor can view about, contact, privacy, and terms pages on getinsourced.ai
 - [x] **MKT-05**: Marketing site is a Next.js static export (`output: 'export'`) in /marketing directory
-- [ ] **MKT-06**: Marketing site supports multi-product structure (getinsourced.ai/{product} pattern)
+- [x] **MKT-06**: Marketing site supports multi-product structure (getinsourced.ai/{product} pattern)
 
 ### Infrastructure
 
@@ -62,7 +62,7 @@ Requirements for marketing/app separation. Each maps to roadmap phases.
 | MKT-03 | Phase 18 | Pending |
 | MKT-04 | Phase 18 | Pending |
 | MKT-05 | Phase 18 | Complete |
-| MKT-06 | Phase 18 | Pending |
+| MKT-06 | Phase 18 | Complete |
 | INFRA-01 | Phase 19 | Pending |
 | INFRA-02 | Phase 19 | Pending |
 | INFRA-03 | Phase 19 | Pending |

@@ -10,16 +10,16 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 ## Current Position
 
 Phase: 18 of 21 (Marketing Site Build)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-02-19 — 18-01 complete: /marketing scaffold with static export, shared assets, root layout
+Last activity: 2026-02-19 — 18-02 complete: Navbar, Footer, (marketing) layout wrapper, verified static build
 
-Progress: [████████░░] 82% (phases 1-17 complete, 18-01 done, phases 18-21 remaining)
+Progress: [████████░░] 84% (phases 1-17 complete, 18-01 and 18-02 done, phases 18-21 remaining)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 51
+- Total plans completed: 52
 - v0.1: 47 plans across 12 phases
 - v0.2: 20 plans across 5 phases
 
@@ -27,7 +27,7 @@ Progress: [████████░░] 82% (phases 1-17 complete, 18-01 done
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 18. Marketing Site Build | 1/3 | 12min | 12min |
+| 18. Marketing Site Build | 2/3 | 14min | 7min |
 | 19. CloudFront + S3 Infra | 0/2 | - | - |
 | 20. App Cleanup | 0/2 | - | - |
 | 21. Marketing CI/CD | 0/1 | - | - |
@@ -48,6 +48,9 @@ Recent decisions affecting v0.3 work:
 - [18-01]: globals.css copied verbatim from frontend — single source of truth for design tokens, not maintained separately
 - [18-01]: Zero Clerk in /marketing — ClerkProvider adds ~200KB JS and forces dynamic SSR, defeating static export
 - [18-01]: Insourced AI branding in marketing metadata (not Co-Founder.ai) — marketing site is getinsourced.ai root
+- [18-02]: pathname === "/" for brand detection — single domain makes hostname useless; only root "/" shows Insourced, all other pages get Co-Founder branding
+- [18-02]: Footer rewritten as 'use client' — async server component with next/headers is incompatible with output: 'export'
+- [18-02]: External <a href> for CTA links — cofounder.getinsourced.ai is a separate app, not an internal Next.js route
 
 ### Pending Todos
 
@@ -61,8 +64,8 @@ None for v0.3.
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: 18-01-PLAN.md complete — /marketing scaffold with static export, shared assets, root layout
-Next action: `/gsd:execute-phase 18` (plan 02: Navbar, Footer, layout wrapper)
+Stopped at: 18-02-PLAN.md complete — Navbar, Footer, (marketing) layout wrapper, verified static build
+Next action: `/gsd:execute-phase 18` (plan 03: full page content)
 
 ---
 *v0.1 COMPLETE — 56 plans, 12 phases, 76/76 requirements (2026-02-17)*
