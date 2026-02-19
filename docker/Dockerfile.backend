@@ -34,6 +34,7 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 COPY backend/app ./app
 COPY backend/alembic.ini ./alembic.ini
 COPY backend/alembic ./alembic
+COPY backend/scripts ./scripts
 
 # Create sandbox directory
 RUN mkdir -p /tmp/cofounder
