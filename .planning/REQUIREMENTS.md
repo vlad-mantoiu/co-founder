@@ -57,28 +57,28 @@ Requirements for marketing/app separation. Each maps to roadmap phases.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| MKT-01 | — | Pending |
-| MKT-02 | — | Pending |
-| MKT-03 | — | Pending |
-| MKT-04 | — | Pending |
-| MKT-05 | — | Pending |
-| MKT-06 | — | Pending |
-| INFRA-01 | — | Pending |
-| INFRA-02 | — | Pending |
-| INFRA-03 | — | Pending |
-| INFRA-04 | — | Pending |
-| APP-01 | — | Pending |
-| APP-02 | — | Pending |
-| APP-03 | — | Pending |
-| APP-04 | — | Pending |
-| CICD-01 | — | Pending |
-| CICD-02 | — | Pending |
+| MKT-01 | Phase 18 | Pending |
+| MKT-02 | Phase 18 | Pending |
+| MKT-03 | Phase 18 | Pending |
+| MKT-04 | Phase 18 | Pending |
+| MKT-05 | Phase 18 | Pending |
+| MKT-06 | Phase 18 | Pending |
+| INFRA-01 | Phase 19 | Pending |
+| INFRA-02 | Phase 19 | Pending |
+| INFRA-03 | Phase 19 | Pending |
+| INFRA-04 | Phase 19 | Pending |
+| APP-01 | Phase 20 | Pending |
+| APP-02 | Phase 20 | Pending |
+| APP-03 | Phase 20 | Pending |
+| APP-04 | Phase 20 | Pending |
+| CICD-01 | Phase 21 | Pending |
+| CICD-02 | Phase 21 | Pending |
 
 **Coverage:**
 - v0.3 requirements: 16 total
-- Mapped to phases: 0
-- Unmapped: 16
+- Mapped to phases: 16
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-19*
-*Last updated: 2026-02-19 after initial definition*
+*Last updated: 2026-02-19 — traceability filled after roadmap creation (phases 18-21)*
