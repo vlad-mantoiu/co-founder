@@ -145,7 +145,7 @@ Phases execute in numeric order: 13 → 14 → 15 → 16 → 17
 | 14. Stripe Live Activation | 3/4 | Complete    | 2026-02-18 | - |
 | 15. CI/CD Hardening | 3/3 | Complete    | 2026-02-18 | - |
 | 16. CloudWatch Observability | 3/3 | Complete    | 2026-02-19 | - |
-| 17. CI/Deploy Pipeline Fix | v0.2 | 0/1 | Not started | - |
+| 17. CI/Deploy Pipeline Fix | 1/2 | In Progress|  | - |
 
 ---
 *Created: 2026-02-16*

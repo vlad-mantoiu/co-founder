@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-18)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** v0.2 Production Ready — Phase 13: LLM Activation and Hardening
+**Current focus:** v0.2 Production Ready — Phase 17: CI/Deploy Pipeline Fix
 
 ## Current Position
 
 Phase: 17 of 17 (CI/Deploy Pipeline Fix)
-Plan: 0 of 1 in current phase (NOT STARTED)
-Status: Planning
-Last activity: 2026-02-19 — Gap closure phase created from v0.2 milestone audit
+Plan: 1 of 2 in current phase (Plan 01 COMPLETE, Plan 02 remaining)
+Status: In Progress
+Last activity: 2026-02-19 — Phase 17 Plan 01 complete: 16 test failures fixed, clean working tree
 
-Progress: [████████░░] 80% (v0.2) — v0.1 complete (phases 1-12), phases 13-16 complete
+Progress: [█████████░] 90% (v0.2) — v0.1 complete (phases 1-12), phases 13-17P01 complete
 
 ## Performance Metrics
 
@@ -72,6 +72,12 @@ Progress: [████████░░] 80% (v0.2) — v0.1 complete (phases 
 | Phase 16 P02 | 2 min | 2 tasks | 3 files |
 | Phase 16 P01 | 14 | 2 tasks | 23 files |
 | Phase 16 P03 | 8 | 2 tasks | 6 files |
+
+**Phase 17 (v0.2):**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 17 P01 | 25 min | 2 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -135,26 +141,32 @@ Recent decisions affecting v0.2 work:
 - [Phase 16]: ThreadPoolExecutor(max_workers=2) dispatches boto3 put_metric_data calls off async event loop for fire-and-forget metric emission
 - [Phase 16]: llm.model property (ChatAnthropic) used to extract resolved model name in RunnerReal LLM latency metrics — no extra params needed
 - [Phase 16]: artifact_generated metric only emitted on successful build completion in execute_build — not on failure or in finally block
+- [Phase 17 P01]: Future-date pattern for fakeredis: use datetime(2030, 6, 15) to avoid expireat expiring keys immediately when test date is in the past
+- [Phase 17 P01]: Patch app.core.provisioning.provision_user_on_first_login (not app.core.auth.*) — lazy import inside require_auth means module-level auth patch misses the function
+- [Phase 17 P01]: Ruff CI lint gate had 751 pre-existing errors before this plan — not in scope; ruff was already failing CI
 
 ### Pending Todos
 
 - [ ] Verify workflow_run gate: push a commit with a failing test and confirm deploy.yml does NOT trigger
 - [ ] Verify path filtering: push a backend-only change and confirm deploy-frontend job is skipped in Actions UI
-- [ ] Fix 16 pre-existing unit test failures (test_auth 4, test_usage_counters 8, test_runner_protocol 1, test_runner_fake 2, test_artifact_models 1) — CI gate will fail on every push until resolved
+- [RESOLVED] Fix 16 pre-existing unit test failures — all fixed in Phase 17 Plan 01 (commit c8e7a38)
+- [ ] Fix ruff CI lint gate: 751 pre-existing errors blocking CI lint step (separate from test gate)
 
 ### Blockers/Concerns
 
 - [Phase 13 prereq]: ANTHROPIC_API_KEY must be confirmed set in `cofounder/app` Secrets Manager before Phase 13 deploy
 - [Phase 14 prereq]: Stripe Dashboard webhook URL must be registered after service deploy (operational ordering: deploy first, then register URL)
-- [Phase 15 P01 - RESOLVED]: pytest-asyncio scope fix (CICD-08) complete; 16 pre-existing test failures remain (documented in deferred-items.md, not caused by Plan 01)
+- [Phase 15 P01 - RESOLVED]: pytest-asyncio scope fix (CICD-08) complete
+- [Phase 17 P01 - RESOLVED]: 16 pre-existing unit test failures fixed (c8e7a38)
+- [Phase 17 ACTIVE]: Ruff CI lint gate has 751 pre-existing errors — CI lint step will fail until resolved
 
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: Gap closure phase 17 created from v0.2 milestone audit
-Resume file: .planning/v0.2-MILESTONE-AUDIT.md
-Next action: Plan Phase 17 (CI/Deploy Pipeline Fix) — fix 16 failing tests + verify ECS service names
+Stopped at: Phase 17 Plan 01 complete — 16 test failures fixed, clean working tree
+Resume file: .planning/phases/17-ci-deploy-pipeline-fix/17-01-SUMMARY.md
+Next action: Execute Phase 17 Plan 02 — dynamic ECS service name resolution in deploy.yml
 
 ---
 *v0.1 COMPLETE — 56 plans, 12 phases, 76/76 requirements (2026-02-17)*
-*v0.2 IN PROGRESS — 5 phases (13-17), 43 requirements, phases 13-16 complete (2026-02-19)*
+*v0.2 IN PROGRESS — 5 phases (13-17), 43 requirements, phases 13-16 complete, phase 17 P01 complete (2026-02-19)*
