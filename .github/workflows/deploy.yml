@@ -10,8 +10,6 @@ on:
 env:
   AWS_REGION: us-east-1
   ECS_CLUSTER: cofounder-cluster
-  BACKEND_SERVICE: CoFounderCompute-BackendService2147DAF9-NvCs2OXdtYgG
-  FRONTEND_SERVICE: CoFounderCompute-FrontendService31F14A33-wYO91JMvViAK
   BACKEND_TASK_FAMILY: CoFounderComputeBackendTaskDef3CF3FBDF
   FRONTEND_TASK_FAMILY: CoFounderComputeFrontendTaskDef517B4B7B
   BACKEND_CONTAINER: Backend
@@ -78,6 +76,23 @@ jobs:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Resolve backend ECS service name
+        run: |
+          BACKEND_SERVICE=$(aws ecs list-services \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --query 'serviceArns[?contains(@, `BackendService`)]' \
+            --output text | xargs basename)
+
+          if [ -z "$BACKEND_SERVICE" ]; then
+            echo "::error::Failed to resolve backend ECS service name from cluster ${{ env.ECS_CLUSTER }}"
+            echo "Available services:"
+            aws ecs list-services --cluster ${{ env.ECS_CLUSTER }} --output text
+            exit 1
+          fi
+
+          echo "Resolved backend service: $BACKEND_SERVICE"
+          echo "BACKEND_SERVICE=$BACKEND_SERVICE" >> $GITHUB_ENV
+
       - id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
@@ -140,6 +155,23 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
+
+      - name: Resolve frontend ECS service name
+        run: |
+          FRONTEND_SERVICE=$(aws ecs list-services \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --query 'serviceArns[?contains(@, `FrontendService`)]' \
+            --output text | xargs basename)
+
+          if [ -z "$FRONTEND_SERVICE" ]; then
+            echo "::error::Failed to resolve frontend ECS service name from cluster ${{ env.ECS_CLUSTER }}"
+            echo "Available services:"
+            aws ecs list-services --cluster ${{ env.ECS_CLUSTER }} --output text
+            exit 1
+          fi
+
+          echo "Resolved frontend service: $FRONTEND_SERVICE"
+          echo "FRONTEND_SERVICE=$FRONTEND_SERVICE" >> $GITHUB_ENV
 
       - id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
