@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-19)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** v0.3 Marketing Separation — Phase 18: Marketing Site Build
+**Current focus:** v0.3 Marketing Separation — Phase 19: CloudFront + S3 Infrastructure
 
 ## Current Position
 
-Phase: 18 of 21 (Marketing Site Build)
-Plan: 4 of 4 in current phase (18-01, 18-02, 18-03, 18-04 complete) — Phase 18 COMPLETE
+Phase: 19 of 21 (CloudFront + S3 Infrastructure)
+Plan: 1 of 2 in current phase (19-01 complete) — Plan 19-01 COMPLETE
 Status: In progress
-Last activity: 2026-02-19 — 18-04 complete: pricing, contact, about, privacy, terms pages — 8-page marketing site fully built
+Last activity: 2026-02-19 — 19-01 complete: CoFounderMarketing CDK stack with S3, CloudFront OAC, ACM cert, Route53 records, CF Function
 
-Progress: [████████░░] 88% (phases 1-18 complete, phases 19-21 remaining)
+Progress: [████████░░] 90% (phases 1-19 plan 1 complete, 19-02, 20, 21 remaining)
 
 ## Performance Metrics
 
@@ -28,7 +28,7 @@ Progress: [████████░░] 88% (phases 1-18 complete, phases 19-
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 18. Marketing Site Build | 4/4 | 25min | 6min |
-| 19. CloudFront + S3 Infra | 0/2 | - | - |
+| 19. CloudFront + S3 Infra | 1/2 | 2min | 2min |
 | 20. App Cleanup | 0/2 | - | - |
 | 21. Marketing CI/CD | 0/1 | - | - |
 
@@ -57,6 +57,12 @@ Recent decisions affecting v0.3 work:
 - [18-04]: Static checkout links via getPricingHref() — no Clerk, no API call; CheckoutAutoRedirector in co-founder app handles the redirect to Stripe
 - [18-04]: Contact page has no form — marketing site has no backend; mailto: link is simpler and works without infrastructure
 - [18-04]: About/privacy/terms copied verbatim from frontend — no Clerk, no next/headers, pure static
+- [19-01]: S3BucketOrigin.withOriginAccessControl() (L2 OAC) — not deprecated S3Origin/OAI — auto-creates OAC and scoped bucket policy
+- [19-01]: CloudFront Function (not S3 redirect bucket) for www-to-apex redirect — cheaper, no second distribution
+- [19-01]: SSE-S3 not KMS — avoids OAC KMS complexity for public marketing content
+- [19-01]: RemovalPolicy.RETAIN for production S3 bucket — hash-busting handles versioning
+- [19-01]: 403 mapped to 404 in errorResponses — S3 returns 403 for missing keys with OAC (bucket enumeration protection)
+- [19-01]: Removed WwwRecord + ApexRecord from ComputeStack — MarketingStack now owns getinsourced.ai routing
 
 ### Pending Todos
 
@@ -70,8 +76,8 @@ None for v0.3.
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: 18-04-PLAN.md complete — Phase 18 done: full 8-page marketing site (/, /cofounder, /cofounder/how-it-works, /pricing, /about, /contact, /privacy, /terms)
-Next action: `/gsd:execute-phase 19` (CloudFront + S3 Infra)
+Stopped at: 19-01-PLAN.md complete — CoFounderMarketing CDK stack: S3+OAC+CloudFront+ACM+Route53+CF Function, cdk synth passes
+Next action: `/gsd:execute-phase 19` plan 02 (Deploy CoFounderMarketing stack)
 
 ---
 *v0.1 COMPLETE — 56 plans, 12 phases, 76/76 requirements (2026-02-17)*

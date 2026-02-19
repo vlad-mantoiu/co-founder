@@ -18,10 +18,10 @@ Requirements for marketing/app separation. Each maps to roadmap phases.
 
 ### Infrastructure
 
-- [ ] **INFRA-01**: Marketing site is hosted on CloudFront + S3 serving static HTML/CSS/JS
-- [ ] **INFRA-02**: CDK stack provisions S3 bucket, CloudFront distribution, and Route53 records for getinsourced.ai
-- [ ] **INFRA-03**: CloudFront distribution uses ACM certificate for getinsourced.ai and www.getinsourced.ai
-- [ ] **INFRA-04**: S3 bucket is private with CloudFront OAC (Origin Access Control) — no public bucket access
+- [x] **INFRA-01**: Marketing site is hosted on CloudFront + S3 serving static HTML/CSS/JS
+- [x] **INFRA-02**: CDK stack provisions S3 bucket, CloudFront distribution, and Route53 records for getinsourced.ai
+- [x] **INFRA-03**: CloudFront distribution uses ACM certificate for getinsourced.ai and www.getinsourced.ai
+- [x] **INFRA-04**: S3 bucket is private with CloudFront OAC (Origin Access Control) — no public bucket access
 
 ### App Cleanup
 
@@ -63,10 +63,10 @@ Requirements for marketing/app separation. Each maps to roadmap phases.
 | MKT-04 | Phase 18 | Complete |
 | MKT-05 | Phase 18 | Complete |
 | MKT-06 | Phase 18 | Complete |
-| INFRA-01 | Phase 19 | Pending |
-| INFRA-02 | Phase 19 | Pending |
-| INFRA-03 | Phase 19 | Pending |
-| INFRA-04 | Phase 19 | Pending |
+| INFRA-01 | Phase 19 | Complete |
+| INFRA-02 | Phase 19 | Complete |
+| INFRA-03 | Phase 19 | Complete |
+| INFRA-04 | Phase 19 | Complete |
 | APP-01 | Phase 20 | Pending |
 | APP-02 | Phase 20 | Pending |
 | APP-03 | Phase 20 | Pending |
