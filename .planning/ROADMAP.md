@@ -116,10 +116,11 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. `pytest tests/ --ignore=tests/e2e` passes with zero failures on the current main branch
   2. deploy.yml `BACKEND_SERVICE` and `FRONTEND_SERVICE` env vars contain the actual CDK-generated ECS service names (with random suffixes), verified against live AWS
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 17-01: TBD
+- [ ] 17-01-PLAN.md — Fix 16 pre-existing test failures + git cleanup
+- [ ] 17-02-PLAN.md — Dynamic ECS service name resolution in deploy.yml
 
 ## Progress
 
