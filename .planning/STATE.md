@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-19)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** v0.3 Marketing Separation — Phase 19: CloudFront + S3 Infrastructure
+**Current focus:** v0.3 Marketing Separation — Phase 20: App Cleanup
 
 ## Current Position
 
-Phase: 19 of 21 (CloudFront + S3 Infrastructure)
-Plan: 1 of 2 in current phase (19-01 complete) — Plan 19-01 COMPLETE
+Phase: 19 of 21 (CloudFront + S3 Infrastructure) — COMPLETE
+Plan: 2 of 2 in current phase (19-02 complete) — Plan 19-02 COMPLETE
 Status: In progress
-Last activity: 2026-02-19 — 19-01 complete: CoFounderMarketing CDK stack with S3, CloudFront OAC, ACM cert, Route53 records, CF Function
+Last activity: 2026-02-19 — 19-02 complete: CoFounderMarketing deployed to AWS, getinsourced.ai live on CloudFront (HTTPS/200), www 301 redirect, S3 OAC 403
 
-Progress: [████████░░] 90% (phases 1-19 plan 1 complete, 19-02, 20, 21 remaining)
+Progress: [█████████░] 95% (phases 1-19 complete, 20, 21 remaining)
 
 ## Performance Metrics
 
@@ -28,7 +28,7 @@ Progress: [████████░░] 90% (phases 1-19 plan 1 complete, 19-
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 18. Marketing Site Build | 4/4 | 25min | 6min |
-| 19. CloudFront + S3 Infra | 1/2 | 2min | 2min |
+| 19. CloudFront + S3 Infra | 2/2 | 12min | 6min |
 | 20. App Cleanup | 0/2 | - | - |
 | 21. Marketing CI/CD | 0/1 | - | - |
 
@@ -63,6 +63,8 @@ Recent decisions affecting v0.3 work:
 - [19-01]: RemovalPolicy.RETAIN for production S3 bucket — hash-busting handles versioning
 - [19-01]: 403 mapped to 404 in errorResponses — S3 returns 403 for missing keys with OAC (bucket enumeration protection)
 - [19-01]: Removed WwwRecord + ApexRecord from ComputeStack — MarketingStack now owns getinsourced.ai routing
+- [19-02]: Deploy ComputeStack first before MarketingStack — removes conflicting Route53 records before new ones are created (prevents CloudFormation duplicate record error)
+- [19-02]: CloudFront Distribution ID E1BF4KDBGHEQPX, Bucket getinsourced-marketing — values for Phase 21 CI/CD
 
 ### Pending Todos
 
@@ -76,8 +78,8 @@ None for v0.3.
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: 19-01-PLAN.md complete — CoFounderMarketing CDK stack: S3+OAC+CloudFront+ACM+Route53+CF Function, cdk synth passes
-Next action: `/gsd:execute-phase 19` plan 02 (Deploy CoFounderMarketing stack)
+Stopped at: 19-02-PLAN.md complete — CoFounderMarketing deployed to AWS, getinsourced.ai live, awaiting human browser verification (Task 2 checkpoint)
+Next action: `/gsd:execute-phase 20` (App Cleanup)
 
 ---
 *v0.1 COMPLETE — 56 plans, 12 phases, 76/76 requirements (2026-02-17)*

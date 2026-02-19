@@ -46,7 +46,7 @@
 **Milestone Goal:** Separate static marketing pages from the authenticated app so marketing loads instantly without Clerk overhead, and the parent brand (getinsourced.ai) has its own fast static site on CloudFront + S3.
 
 - [x] **Phase 18: Marketing Site Build** - Create the /marketing Next.js static export with all public pages and multi-product structure
-- [ ] **Phase 19: CloudFront + S3 Infrastructure** - CDK stack provisioning S3 bucket, CloudFront distribution, and Route53 records for getinsourced.ai
+- [x] **Phase 19: CloudFront + S3 Infrastructure** - CDK stack provisioning S3 bucket, CloudFront distribution, and Route53 records for getinsourced.ai (completed 2026-02-19)
 - [ ] **Phase 20: App Cleanup** - Strip marketing routes from cofounder.getinsourced.ai, add root redirect, and narrow Clerk middleware scope
 - [ ] **Phase 21: Marketing CI/CD** - GitHub Actions workflow to deploy /marketing to S3 and invalidate CloudFront on push to main
 
@@ -227,7 +227,7 @@ Phases execute in numeric order: 18 → 19 → 20 → 21
 | 16. CloudWatch Observability | v0.2 | 3/3 | Complete | 2026-02-19 |
 | 17. CI/Deploy Pipeline Fix | v0.2 | 3/3 | Complete | 2026-02-19 |
 | 18. Marketing Site Build | v0.3 | Complete    | 2026-02-19 | 2026-02-19 |
-| 19. CloudFront + S3 Infrastructure | 1/2 | In Progress|  | - |
+| 19. CloudFront + S3 Infrastructure | 2/2 | Complete   | 2026-02-19 | - |
 | 20. App Cleanup | v0.3 | 0/2 | Not started | - |
 | 21. Marketing CI/CD | v0.3 | 0/1 | Not started | - |
 
