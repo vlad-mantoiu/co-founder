@@ -57,8 +57,8 @@ Requirements for production readiness. Each maps to roadmap phases.
 - [x] **MON-05**: CloudWatch alarm fires on ALB P99 response time exceeding 30s
 - [x] **MON-06**: CloudWatch log metric filter counts ERROR-level log lines with alarm
 - [x] **MON-07**: Backend emits structured JSON logs for CloudWatch Insights queries
-- [ ] **MON-08**: LLM latency tracked per Runner method as custom CloudWatch metrics
-- [ ] **MON-09**: Business metric events emitted (new subscriptions, artifacts generated)
+- [x] **MON-08**: LLM latency tracked per Runner method as custom CloudWatch metrics
+- [x] **MON-09**: Business metric events emitted (new subscriptions, artifacts generated)
 
 ## Future Requirements
 
@@ -128,8 +128,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MON-05 | Phase 16 | Complete |
 | MON-06 | Phase 16 | Complete |
 | MON-07 | Phase 16 | Complete |
-| MON-08 | Phase 16 | Pending |
-| MON-09 | Phase 16 | Pending |
+| MON-08 | Phase 16 | Complete |
+| MON-09 | Phase 16 | Complete |
 
 **Coverage:**
 - v0.2 requirements: 41 total

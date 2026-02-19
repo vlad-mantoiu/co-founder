@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-18)
 ## Current Position
 
 Phase: 16 of 16 (CloudWatch Observability)
-Plan: 2 of 3 in current phase
-Status: In Progress
-Last activity: 2026-02-19 — Phase 16 Plan 02 complete (ObservabilityStack — SNS topic, 5 CloudWatch alarms, 30-day log retention)
+Plan: 3 of 3 in current phase (COMPLETE)
+Status: Phase Complete
+Last activity: 2026-02-19 — Phase 16 Plan 03 complete (CloudWatch custom metrics — LLM latency for 8 RunnerReal methods, business events for subscriptions and artifact generation)
 
 Progress: [████░░░░░░] 40% (v0.2) — v0.1 complete (phases 1-12)
 
@@ -71,6 +71,7 @@ Progress: [████░░░░░░] 40% (v0.2) — v0.1 complete (phases 
 |------|----------|-------|-------|
 | Phase 16 P02 | 2 min | 2 tasks | 3 files |
 | Phase 16 P01 | 14 | 2 tasks | 23 files |
+| Phase 16 P03 | 8 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -131,6 +132,9 @@ Recent decisions affecting v0.2 work:
 - [Phase 16]: structlog 25.5.0 with stdlib bridge replaces all stdlib logging in backend
 - [Phase 16]: configure_structlog() called before all app imports in main.py to prevent processor cache pitfall
 - [Phase 16]: All log calls use snake_case event names with keyword args; error_type= on every error/warning
+- [Phase 16]: ThreadPoolExecutor(max_workers=2) dispatches boto3 put_metric_data calls off async event loop for fire-and-forget metric emission
+- [Phase 16]: llm.model property (ChatAnthropic) used to extract resolved model name in RunnerReal LLM latency metrics — no extra params needed
+- [Phase 16]: artifact_generated metric only emitted on successful build completion in execute_build — not on failure or in finally block
 
 ### Pending Todos
 
@@ -147,9 +151,9 @@ Recent decisions affecting v0.2 work:
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: Completed 16-01-PLAN.md (structlog migration — stdlib bridge, JSON logs, correlation_id injection across 22 backend files)
-Resume file: .planning/phases/16-cloudwatch-observability/16-01-SUMMARY.md
-Next action: Execute Phase 16 Plan 02 (ObservabilityStack CDK — SNS topic, 5 CloudWatch alarms, log retention)
+Stopped at: Completed 16-03-PLAN.md (CloudWatch custom metrics — LLM latency for 8 RunnerReal methods, business events for subscriptions and artifact generation)
+Resume file: .planning/phases/16-cloudwatch-observability/16-03-SUMMARY.md
+Next action: Phase 16 COMPLETE — v0.2 Production Ready milestone achieved
 
 ---
 *v0.1 COMPLETE — 56 plans, 12 phases, 76/76 requirements (2026-02-17)*
