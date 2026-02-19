@@ -25,10 +25,10 @@ Requirements for marketing/app separation. Each maps to roadmap phases.
 
 ### App Cleanup
 
-- [ ] **APP-01**: cofounder.getinsourced.ai/ redirects to /dashboard when authenticated or /sign-in when not
-- [ ] **APP-02**: Marketing route group `(marketing)/` removed from frontend app — no marketing pages served from cofounder.getinsourced.ai
-- [ ] **APP-03**: ClerkProvider stays in root layout (needed for sign-in/sign-up) but `force-dynamic` removed from routes that don't need it
-- [ ] **APP-04**: Clerk middleware narrowed — only runs on authenticated routes, not on removed marketing paths
+- [x] **APP-01**: cofounder.getinsourced.ai/ redirects to /dashboard when authenticated or /sign-in when not
+- [x] **APP-02**: Marketing route group `(marketing)/` removed from frontend app — no marketing pages served from cofounder.getinsourced.ai
+- [x] **APP-03**: ClerkProvider stays in root layout (needed for sign-in/sign-up) but `force-dynamic` removed from routes that don't need it
+- [x] **APP-04**: Clerk middleware narrowed — only runs on authenticated routes, not on removed marketing paths
 
 ### CI/CD
 
@@ -67,10 +67,10 @@ Requirements for marketing/app separation. Each maps to roadmap phases.
 | INFRA-02 | Phase 19 | Complete |
 | INFRA-03 | Phase 19 | Complete |
 | INFRA-04 | Phase 19 | Complete |
-| APP-01 | Phase 20 | Pending |
-| APP-02 | Phase 20 | Pending |
-| APP-03 | Phase 20 | Pending |
-| APP-04 | Phase 20 | Pending |
+| APP-01 | Phase 20 | Complete |
+| APP-02 | Phase 20 | Complete |
+| APP-03 | Phase 20 | Complete |
+| APP-04 | Phase 20 | Complete |
 | CICD-01 | Phase 21 | Pending |
 | CICD-02 | Phase 21 | Pending |
 

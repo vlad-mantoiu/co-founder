@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 
 ## Current Position
 
-Phase: 19 of 21 (CloudFront + S3 Infrastructure) — COMPLETE
-Plan: 2 of 2 in current phase (19-02 complete) — Plan 19-02 COMPLETE
+Phase: 20 of 21 (App Cleanup) — IN PROGRESS
+Plan: 1 of 2 in current phase (20-01 complete) — Plan 20-01 COMPLETE
 Status: In progress
-Last activity: 2026-02-19 — 19-02 complete: CoFounderMarketing deployed to AWS, getinsourced.ai live on CloudFront (HTTPS/200), www 301 redirect, S3 OAC 403
+Last activity: 2026-02-19 — 20-01 complete: marketing routes deleted, isProtectedRoute middleware, next.config.ts redirects, not-found.tsx, force-dynamic removed from root layout
 
-Progress: [█████████░] 95% (phases 1-19 complete, 20, 21 remaining)
+Progress: [█████████░] 96% (phases 1-20-01 complete, 20-02, 21 remaining)
 
 ## Performance Metrics
 
@@ -29,7 +29,7 @@ Progress: [█████████░] 95% (phases 1-19 complete, 20, 21 rem
 |-------|-------|-------|----------|
 | 18. Marketing Site Build | 4/4 | 25min | 6min |
 | 19. CloudFront + S3 Infra | 2/2 | 12min | 6min |
-| 20. App Cleanup | 0/2 | - | - |
+| 20. App Cleanup | 1/2 | 2min | 2min |
 | 21. Marketing CI/CD | 0/1 | - | - |
 
 *Updated after each plan completion*
@@ -65,6 +65,10 @@ Recent decisions affecting v0.3 work:
 - [19-01]: Removed WwwRecord + ApexRecord from ComputeStack — MarketingStack now owns getinsourced.ai routing
 - [19-02]: Deploy ComputeStack first before MarketingStack — removes conflicting Route53 records before new ones are created (prevents CloudFormation duplicate record error)
 - [19-02]: CloudFront Distribution ID E1BF4KDBGHEQPX, Bucket getinsourced-marketing — values for Phase 21 CI/CD
+- [20-01]: isProtectedRoute blocklist replaces isPublicRoute allowlist in middleware — only list what needs protection
+- [20-01]: next.config.ts handles static marketing path redirects (no auth needed) — middleware handles auth-aware / root redirect only
+- [20-01]: force-dynamic kept on dashboard layout — child pages use useSearchParams() which causes prerender errors without it; root layout force-dynamic removed (no server calls)
+- [20-01]: pathname === "/" guard before await auth() in clerkMiddleware — prevents Clerk token verification on every request
 
 ### Pending Todos
 
@@ -77,9 +81,9 @@ None for v0.3.
 
 ## Session Continuity
 
-Last session: 2026-02-20
-Stopped at: 19-02-PLAN.md complete — CoFounderMarketing deployed and browser-verified. getinsourced.ai live on CloudFront (HTTPS/200), www 301 redirect, S3 OAC 403, cofounder subdomain unaffected
-Next action: `/gsd:execute-phase 20` (App Cleanup)
+Last session: 2026-02-19
+Stopped at: 20-01-PLAN.md complete — marketing routes stripped from frontend, redirects configured, middleware rewritten, next build passes
+Next action: Execute 20-02 (ECS frontend deploy + browser verification)
 
 ---
 *v0.1 COMPLETE — 56 plans, 12 phases, 76/76 requirements (2026-02-17)*
