@@ -310,7 +310,7 @@ async def confirm_iteration(
 
     depth = TIER_ITERATION_DEPTH.get(tier, 2)
 
-    user_settings = await get_or_create_user_settings(user.user_id)
+    _user_settings = await get_or_create_user_settings(user.user_id)
     usage_tracker = UsageTracker(redis)
     counters = await usage_tracker.get_usage_counters(user.user_id, tier, job_id)
 

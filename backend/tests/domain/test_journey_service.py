@@ -345,8 +345,8 @@ async def test_multiple_gates_coexist(
     await journey_service.initialize_journey(sample_project)
 
     # Create two gates
-    gate_id_1 = await journey_service.create_gate(sample_project, "stage_advance", 0)
-    gate_id_2 = await journey_service.create_gate(sample_project, "direction", 0)
+    _gate_id_1 = await journey_service.create_gate(sample_project, "stage_advance", 0)
+    _gate_id_2 = await journey_service.create_gate(sample_project, "direction", 0)
 
     # Check both exist
     result = await session.execute(select(DecisionGate).where(DecisionGate.project_id == sample_project))

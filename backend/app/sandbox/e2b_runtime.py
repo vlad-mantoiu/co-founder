@@ -289,7 +289,7 @@ class E2BSandboxRuntime:
         if pid not in self._background_processes:
             raise SandboxError(f"Process {pid} not found")
 
-        handle = self._background_processes[pid]
+        _handle = self._background_processes[pid]
         # CommandHandle tracks the process - check if it's still running
         # by checking if pid is in the list of running processes
         try:

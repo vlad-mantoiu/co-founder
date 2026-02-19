@@ -4,7 +4,7 @@ Pure domain logic with no external dependencies.
 """
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, StrEnum
 
 
 class Stage(int, Enum):
@@ -18,7 +18,7 @@ class Stage(int, Enum):
     SCALE_AND_OPTIMIZE = 5  # Locked in MVP
 
 
-class ProjectStatus(str, Enum):
+class ProjectStatus(StrEnum):
     """Project lifecycle status, orthogonal to stage."""
 
     ACTIVE = "active"

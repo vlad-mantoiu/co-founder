@@ -28,7 +28,7 @@ class GitOperationError(CoFounderError):
     pass
 
 
-class RetryLimitExceeded(CoFounderError):
+class RetryLimitExceededError(CoFounderError):
     """Raised when retry limit is exceeded during debugging."""
 
     def __init__(self, step: str, attempts: int):

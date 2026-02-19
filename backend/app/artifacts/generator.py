@@ -152,7 +152,7 @@ class ArtifactGenerator:
         """
         # Core fields are always included, business/strategic are tier-gated
         # Field lists per artifact type
-        CORE_FIELDS = {
+        core_fields_map = {
             ArtifactType.BRIEF: [
                 "_schema_version",
                 "problem_statement",
@@ -187,7 +187,7 @@ class ArtifactGenerator:
             ],
         }
 
-        BUSINESS_FIELDS = {
+        business_fields_map = {
             ArtifactType.BRIEF: ["market_analysis"],
             ArtifactType.MVP_SCOPE: ["technical_architecture"],
             ArtifactType.MILESTONES: ["resource_plan"],
@@ -195,7 +195,7 @@ class ArtifactGenerator:
             ArtifactType.HOW_IT_WORKS: ["integration_points"],
         }
 
-        STRATEGIC_FIELDS = {
+        strategic_fields_map = {
             ArtifactType.BRIEF: ["competitive_strategy"],
             ArtifactType.MVP_SCOPE: ["scalability_plan"],
             ArtifactType.MILESTONES: ["risk_mitigation_timeline"],
@@ -206,12 +206,12 @@ class ArtifactGenerator:
         filtered = {}
 
         # Always include core fields
-        core_fields = CORE_FIELDS.get(artifact_type, [])
+        core_fields = core_fields_map.get(artifact_type, [])
         for field in core_fields:
             filtered[field] = content.get(field)
 
         # Business fields for partner+
-        business_fields = BUSINESS_FIELDS.get(artifact_type, [])
+        business_fields = business_fields_map.get(artifact_type, [])
         if tier in ("partner", "cto_scale"):
             for field in business_fields:
                 filtered[field] = content.get(field)
@@ -220,7 +220,7 @@ class ArtifactGenerator:
                 filtered[field] = None
 
         # Strategic fields for cto_scale only
-        strategic_fields = STRATEGIC_FIELDS.get(artifact_type, [])
+        strategic_fields = strategic_fields_map.get(artifact_type, [])
         if tier == "cto_scale":
             for field in strategic_fields:
                 filtered[field] = content.get(field)

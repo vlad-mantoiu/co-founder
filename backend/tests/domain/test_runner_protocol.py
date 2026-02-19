@@ -95,23 +95,23 @@ def test_runner_method_signatures():
     assert "state" in step_hints
     assert "stage" in step_hints
     assert step_hints["state"] == CoFounderState
-    assert step_hints["stage"] == str
+    assert step_hints["stage"] is str
     assert step_hints["return"] == CoFounderState
 
     questions_hints = get_type_hints(Runner.generate_questions)
     assert "context" in questions_hints
-    assert questions_hints["context"] == dict
+    assert questions_hints["context"] is dict
     assert questions_hints["return"] == list[dict]
 
     brief_hints = get_type_hints(Runner.generate_brief)
     assert "answers" in brief_hints
-    assert brief_hints["answers"] == dict
-    assert brief_hints["return"] == dict
+    assert brief_hints["answers"] is dict
+    assert brief_hints["return"] is dict
 
     artifacts_hints = get_type_hints(Runner.generate_artifacts)
     assert "brief" in artifacts_hints
-    assert artifacts_hints["brief"] == dict
-    assert artifacts_hints["return"] == dict
+    assert artifacts_hints["brief"] is dict
+    assert artifacts_hints["return"] is dict
 
 
 def test_runner_real_satisfies_protocol():

@@ -128,7 +128,7 @@ def _setup_job_in_state(fake_redis, job_id: str, user_id: str, project_id: str, 
         return
 
     # Walk valid transition path: QUEUED → STARTING → SCAFFOLD → CODE → DEPS → CHECKS → READY
-    VALID_ORDER = [
+    valid_order = [
         JobStatus.STARTING,
         JobStatus.SCAFFOLD,
         JobStatus.CODE,
@@ -136,7 +136,7 @@ def _setup_job_in_state(fake_redis, job_id: str, user_id: str, project_id: str, 
         JobStatus.CHECKS,
         JobStatus.READY,
     ]
-    for next_status in VALID_ORDER:
+    for next_status in valid_order:
         asyncio.run(state_machine.transition(job_id, next_status, f"Walk to {next_status.value}"))
         if next_status == status:
             return

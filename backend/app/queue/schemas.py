@@ -1,6 +1,6 @@
 """Queue schemas and tier-based capacity constants."""
 
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel
 
@@ -43,7 +43,7 @@ TIER_BOOST = {
 GLOBAL_QUEUE_CAP = 100
 
 
-class JobStatus(str, Enum):
+class JobStatus(StrEnum):
     """Job lifecycle states."""
 
     QUEUED = "queued"

@@ -96,7 +96,7 @@ class TestCoFounderGraph:
 @pytest.mark.asyncio
 async def test_graph_entry_point():
     """Test that the graph starts at architect node."""
-    graph = create_cofounder_graph()
+    _graph = create_cofounder_graph()
 
     initial_state = create_initial_state(
         user_id="test",

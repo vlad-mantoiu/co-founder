@@ -200,7 +200,6 @@ class GenerationService:
                 job_id, JobStatus.SCAFFOLD, "Reconnecting to existing sandbox or scaffolding fresh state"
             )
 
-            sandbox_reconnected = False
             sandbox = None
 
             if previous_sandbox_id:
@@ -208,7 +207,6 @@ class GenerationService:
                     # Attempt to reconnect to previous sandbox (GENL-02: patch workspace)
                     sandbox = self.sandbox_runtime_factory()
                     await sandbox.connect(previous_sandbox_id)
-                    sandbox_reconnected = True
                     logger.info("iteration_sandbox_reconnected", job_id=job_id, previous_sandbox_id=previous_sandbox_id)
                 except Exception as connect_exc:
                     logger.warning(
@@ -219,7 +217,6 @@ class GenerationService:
                         error_type=type(connect_exc).__name__,
                     )
                     sandbox = None
-                    sandbox_reconnected = False
 
             if sandbox is None:
                 # Full rebuild from scratch (fallback or no prior sandbox)

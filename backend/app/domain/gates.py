@@ -5,12 +5,12 @@ No DB access, fully deterministic.
 """
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 from app.domain.stages import Stage
 
 
-class GateDecision(str, Enum):
+class GateDecision(StrEnum):
     """Decision types for resolving gates."""
 
     PROCEED = "proceed"

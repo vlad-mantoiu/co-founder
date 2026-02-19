@@ -337,7 +337,7 @@ async def test_all_scenarios_return_instantly():
     )
 
     start = time.time()
-    result = await runner.run(state)
+    _result = await runner.run(state)
     duration_ms = (time.time() - start) * 1000
 
     assert duration_ms < 100, f"RunnerFake took {duration_ms:.2f}ms (expected <100ms)"
