@@ -18,6 +18,7 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from app.agent.runner import Runner
 from app.db.models.onboarding_session import OnboardingSession
+from app.db.models.plan_tier import PlanTier
 from app.db.models.project import Project
 from app.schemas.onboarding import OnboardingQuestion, ThesisSnapshot
 
@@ -378,15 +379,12 @@ class OnboardingService:
                     detail="Project already created from this session.",
                 )
 
-            # Check project limit for user's tier
-            # Get tier limits from TIER_PROJECT_LIMITS (should be defined or imported)
-            # For now, use hardcoded values matching projects.py pattern
-            tier_limits = {
-                "bootstrapper": 1,
-                "partner": 5,
-                "cto_scale": -1,  # unlimited
-            }
-            max_projects = tier_limits.get(tier_slug, 1)
+            # Check project limit for user's tier (read from DB)
+            tier_result = await session.execute(
+                select(PlanTier).where(PlanTier.slug == tier_slug)
+            )
+            tier = tier_result.scalar_one()
+            max_projects = tier.max_projects
 
             if max_projects != -1:
                 # Count active projects for user

@@ -29,8 +29,6 @@ Output your analysis in this format:
 
 async def debugger_node(state: CoFounderState) -> dict:
     """Analyze errors and prepare fix instructions for the coder."""
-    settings = get_settings()
-
     # Check retry count
     new_retry_count = state["retry_count"] + 1
 

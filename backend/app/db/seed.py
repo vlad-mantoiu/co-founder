@@ -9,9 +9,9 @@ PLAN_TIERS = [
     {
         "slug": "bootstrapper",
         "name": "Bootstrapper",
-        "price_monthly_cents": 0,
-        "price_yearly_cents": 0,
-        "max_projects": 1,
+        "price_monthly_cents": 9900,
+        "price_yearly_cents": 94800,
+        "max_projects": 3,
         "max_sessions_per_day": 10,
         "max_tokens_per_day": 500_000,
         "default_models": {
@@ -27,8 +27,8 @@ PLAN_TIERS = [
     {
         "slug": "partner",
         "name": "Partner",
-        "price_monthly_cents": 4900,
-        "price_yearly_cents": 49900,
+        "price_monthly_cents": 29900,
+        "price_yearly_cents": 286800,
         "max_projects": 3,
         "max_sessions_per_day": 50,
         "max_tokens_per_day": 2_000_000,
@@ -46,8 +46,8 @@ PLAN_TIERS = [
     {
         "slug": "cto_scale",
         "name": "CTO Scale",
-        "price_monthly_cents": 19900,
-        "price_yearly_cents": 199900,
+        "price_monthly_cents": 99900,
+        "price_yearly_cents": 958800,
         "max_projects": -1,
         "max_sessions_per_day": -1,
         "max_tokens_per_day": 10_000_000,
