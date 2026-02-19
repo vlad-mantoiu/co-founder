@@ -196,10 +196,10 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. After a push to main that changes a file under /marketing, the GitHub Actions workflow builds the static export, syncs to S3, and creates a CloudFront invalidation — all without manual intervention
   2. A push to main that changes only /frontend or /backend does not trigger the marketing deploy workflow
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 21-01: marketing-deploy.yml GitHub Actions workflow with path filter, S3 sync, and CloudFront invalidation
+- [ ] 21-01-PLAN.md — Update CDK GitHubDeployStack with S3/CloudFront IAM permissions + create deploy-marketing.yml path-filtered workflow
 
 ## Progress
 
