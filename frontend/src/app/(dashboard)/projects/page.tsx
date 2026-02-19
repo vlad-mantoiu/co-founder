@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@clerk/nextjs";
+import Link from "next/link";
 import { Plus, Github, ExternalLink, FolderOpen, X } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { GlassCard } from "@/components/ui/glass-card";
@@ -168,50 +169,46 @@ export default function ProjectsPage() {
       ) : (
         <div className="grid sm:grid-cols-2 gap-4">
           {projects.map((project) => (
-            <GlassCard
-              key={project.id}
-              variant="strong"
-              className="group hover:ring-1 hover:ring-brand/30 transition-all"
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="font-display font-semibold text-white group-hover:text-brand transition-colors">
-                    {project.name}
-                  </h3>
-                  {project.description && (
-                    <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                      {project.description}
-                    </p>
-                  )}
-                </div>
-                <span
-                  className={`flex-shrink-0 px-2.5 py-1 text-xs rounded-full font-medium ${
-                    project.status === "active"
-                      ? "bg-neon-green/10 text-neon-green"
-                      : "bg-white/5 text-muted-foreground"
-                  }`}
-                >
-                  {project.status}
-                </span>
-              </div>
-              <div className="mt-4 flex items-center gap-3 text-xs text-muted-foreground">
-                {project.github_repo && (
-                  <a
-                    href={`https://github.com/${project.github_repo}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 hover:text-brand transition-colors"
+            <Link key={project.id} href={`/projects/${project.id}`}>
+              <GlassCard
+                variant="strong"
+                className="group hover:ring-1 hover:ring-brand/30 transition-all cursor-pointer"
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="font-display font-semibold text-white group-hover:text-brand transition-colors">
+                      {project.name}
+                    </h3>
+                    {project.description && (
+                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                        {project.description}
+                      </p>
+                    )}
+                  </div>
+                  <span
+                    className={`flex-shrink-0 px-2.5 py-1 text-xs rounded-full font-medium ${
+                      project.status === "active"
+                        ? "bg-neon-green/10 text-neon-green"
+                        : "bg-white/5 text-muted-foreground"
+                    }`}
                   >
-                    <Github className="w-3.5 h-3.5" />
-                    {project.github_repo}
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                )}
-                <span>
-                  Created {new Date(project.created_at).toLocaleDateString()}
-                </span>
-              </div>
-            </GlassCard>
+                    {project.status}
+                  </span>
+                </div>
+                <div className="mt-4 flex items-center gap-3 text-xs text-muted-foreground">
+                  {project.github_repo && (
+                    <span className="flex items-center gap-1">
+                      <Github className="w-3.5 h-3.5" />
+                      {project.github_repo}
+                      <ExternalLink className="w-3 h-3" />
+                    </span>
+                  )}
+                  <span>
+                    Created {new Date(project.created_at).toLocaleDateString()}
+                  </span>
+                </div>
+              </GlassCard>
+            </Link>
           ))}
         </div>
       )}

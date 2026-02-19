@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useSearchParams, useRouter, useParams } from "next/navigation";
+import { useAuth } from "@clerk/nextjs";
 import { ArrowLeft, Loader2, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
+import { apiFetch } from "@/lib/api";
 import { useUnderstandingInterview } from "@/hooks/useUnderstandingInterview";
 import { InterviewQuestion } from "@/components/understanding/InterviewQuestion";
 import { InterviewHistory } from "@/components/understanding/InterviewHistory";
@@ -37,6 +39,7 @@ export default function ProjectUnderstandingPage() {
   const params = useParams<{ id: string }>();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { getToken } = useAuth();
 
   // projectId comes from URL path segment — always present
   const projectId = params.id;
@@ -67,8 +70,31 @@ export default function ProjectUnderstandingPage() {
     regeneratePlans,
   } = useExecutionPlans();
 
-  // onboarding session ID comes from query param
-  const onboardingSessionId = searchParams.get("sessionId");
+  // onboarding session ID — from query param or auto-resolved from project
+  const sessionIdFromUrl = searchParams.get("sessionId");
+  const [resolvedSessionId, setResolvedSessionId] = useState<string | null>(sessionIdFromUrl);
+  const lookupDone = useRef(false);
+
+  // Auto-resolve onboarding session ID from project if not in URL
+  useEffect(() => {
+    if (sessionIdFromUrl || lookupDone.current || !projectId) return;
+    lookupDone.current = true;
+
+    async function lookupSession() {
+      try {
+        const res = await apiFetch(`/api/onboarding/by-project/${projectId}`, getToken);
+        if (res.ok) {
+          const data = await res.json();
+          setResolvedSessionId(data.id);
+        }
+      } catch {
+        // No onboarding session found for this project
+      }
+    }
+    lookupSession();
+  }, [sessionIdFromUrl, getToken, projectId]);
+
+  const onboardingSessionId = resolvedSessionId;
 
   // Local UI phase tracking
   const [uiPhase, setUiPhase] = useState<
