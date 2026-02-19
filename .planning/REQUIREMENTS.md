@@ -32,8 +32,8 @@ Requirements for marketing/app separation. Each maps to roadmap phases.
 
 ### CI/CD
 
-- [ ] **CICD-01**: GitHub Actions workflow deploys marketing site to S3 and invalidates CloudFront cache on push to main
-- [ ] **CICD-02**: Marketing deploy is path-filtered — only triggers on changes to /marketing directory
+- [x] **CICD-01**: GitHub Actions workflow deploys marketing site to S3 and invalidates CloudFront cache on push to main
+- [x] **CICD-02**: Marketing deploy is path-filtered — only triggers on changes to /marketing directory
 
 ## Future Requirements
 
@@ -71,8 +71,8 @@ Requirements for marketing/app separation. Each maps to roadmap phases.
 | APP-02 | Phase 20 | Complete |
 | APP-03 | Phase 20 | Complete |
 | APP-04 | Phase 20 | Complete |
-| CICD-01 | Phase 21 | Pending |
-| CICD-02 | Phase 21 | Pending |
+| CICD-01 | Phase 21 | Complete |
+| CICD-02 | Phase 21 | Complete |
 
 **Coverage:**
 - v0.3 requirements: 16 total
