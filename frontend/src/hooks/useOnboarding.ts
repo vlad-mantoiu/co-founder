@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { apiFetch } from "@/lib/api";
 
@@ -183,6 +183,41 @@ export function useOnboarding() {
   }, [getToken, state.idea]);
 
   /**
+   * Finalize session and generate ThesisSnapshot.
+   */
+  const finalize = useCallback(async () => {
+    if (!state.sessionId) return;
+
+    setState((s) => ({ ...s, phase: "finalizing", isLoading: true, error: null }));
+
+    try {
+      const response = await apiFetch(`/api/onboarding/${state.sessionId}/finalize`, getToken, {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || `API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setState((s) => ({
+        ...s,
+        phase: "viewing_snapshot",
+        thesisSnapshot: data.thesis_snapshot,
+        isLoading: false,
+      }));
+    } catch (err) {
+      setState((s) => ({
+        ...s,
+        phase: "error",
+        error: (err as Error).message,
+        isLoading: false,
+      }));
+    }
+  }, [getToken, state.sessionId]);
+
+  /**
    * Submit answer to current question.
    */
   const submitAnswer = useCallback(
@@ -234,7 +269,7 @@ export function useOnboarding() {
         }));
       }
     },
-    [getToken, state.sessionId, state.totalQuestions],
+    [getToken, state.sessionId, state.totalQuestions, finalize],
   );
 
   /**
@@ -247,41 +282,6 @@ export function useOnboarding() {
       currentQuestionIndex: questionIndex,
     }));
   }, []);
-
-  /**
-   * Finalize session and generate ThesisSnapshot.
-   */
-  const finalize = useCallback(async () => {
-    if (!state.sessionId) return;
-
-    setState((s) => ({ ...s, phase: "finalizing", isLoading: true, error: null }));
-
-    try {
-      const response = await apiFetch(`/api/onboarding/${state.sessionId}/finalize`, getToken, {
-        method: "POST",
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || `API error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      setState((s) => ({
-        ...s,
-        phase: "viewing_snapshot",
-        thesisSnapshot: data.thesis_snapshot,
-        isLoading: false,
-      }));
-    } catch (err) {
-      setState((s) => ({
-        ...s,
-        phase: "error",
-        error: (err as Error).message,
-        isLoading: false,
-      }));
-    }
-  }, [getToken, state.sessionId]);
 
   /**
    * Edit a field in the thesis snapshot.
@@ -408,7 +408,7 @@ export function useOnboarding() {
       } else {
         setState((s) => ({ ...s, phase: "idea_input", isLoading: false }));
       }
-    } catch (err) {
+    } catch {
       // On error, just go to idea_input
       setState((s) => ({ ...s, phase: "idea_input", isLoading: false }));
     }

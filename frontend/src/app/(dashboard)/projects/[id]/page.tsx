@@ -11,7 +11,6 @@ import {
   Clock,
   ArrowRight,
   CheckCircle2,
-  Circle,
 } from "lucide-react";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api";

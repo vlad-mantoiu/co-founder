@@ -52,7 +52,6 @@ export default function ProjectUnderstandingPage() {
     navigateBack,
     editBriefSection,
     reInterview,
-    resumeSession,
   } = useUnderstandingInterview();
 
   const {

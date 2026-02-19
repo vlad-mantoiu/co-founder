@@ -22,7 +22,7 @@ interface ArtifactContent {
   updated_at: string;
 }
 
-export function ArtifactPanel({ artifactId, projectId, onClose }: ArtifactPanelProps) {
+export function ArtifactPanel({ artifactId, onClose }: ArtifactPanelProps) {
   const { getToken } = useAuth();
   const [artifact, setArtifact] = useState<ArtifactContent | null>(null);
   const [loading, setLoading] = useState(true);
@@ -112,7 +112,7 @@ export function ArtifactPanel({ artifactId, projectId, onClose }: ArtifactPanelP
       });
 
       toast.success("Section saved successfully");
-    } catch (err) {
+    } catch {
       toast.error("Failed to save section");
     } finally {
       setSavingSection(null);
@@ -131,7 +131,7 @@ export function ArtifactPanel({ artifactId, projectId, onClose }: ArtifactPanelP
 
       toast.success("Regeneration started");
       onClose(); // Close panel and let dashboard polling show progress
-    } catch (err) {
+    } catch {
       toast.error("Failed to start regeneration");
     }
   };
@@ -155,7 +155,7 @@ export function ArtifactPanel({ artifactId, projectId, onClose }: ArtifactPanelP
       document.body.removeChild(a);
 
       toast.success("PDF downloaded");
-    } catch (err) {
+    } catch {
       toast.error("Failed to export PDF");
     }
   };
@@ -179,7 +179,7 @@ export function ArtifactPanel({ artifactId, projectId, onClose }: ArtifactPanelP
       document.body.removeChild(a);
 
       toast.success("Markdown downloaded");
-    } catch (err) {
+    } catch {
       toast.error("Failed to export Markdown");
     }
   };

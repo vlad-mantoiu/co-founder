@@ -6,6 +6,7 @@ import { DatabaseStack } from "../lib/database-stack";
 import { ComputeStack } from "../lib/compute-stack";
 import { DnsStack } from "../lib/dns-stack";
 import { ObservabilityStack } from "../lib/observability-stack";
+import { GitHubDeployStack } from "../lib/github-deploy-stack";
 
 const app = new cdk.App();
 
@@ -71,3 +72,11 @@ const observabilityStack = new ObservabilityStack(app, "CoFounderObservability",
   description: "CloudWatch alarms and SNS alerts for AI Co-Founder",
 });
 observabilityStack.addDependency(computeStack);
+
+// 6. GitHub Deploy Stack (OIDC + IAM role for GitHub Actions → ECS deploys)
+new GitHubDeployStack(app, "CoFounderGitHubDeploy", {
+  env,
+  githubOrg: "vlad-mantoiu",
+  githubRepo: "co-founder",
+  description: "GitHub Actions OIDC deploy role for AI Co-Founder",
+});

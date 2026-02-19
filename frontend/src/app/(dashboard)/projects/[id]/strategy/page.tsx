@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useSearchParams, useRouter, useParams } from "next/navigation";
+import { useSearchParams, useParams } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { GitBranch, AlertCircle, RefreshCw } from "lucide-react";
 import { StrategyGraphCanvas, type GraphNode, type GraphLink } from "@/components/strategy-graph/StrategyGraphCanvas";

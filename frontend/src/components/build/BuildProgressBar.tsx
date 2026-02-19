@@ -3,7 +3,6 @@
 import { motion } from "framer-motion";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { STAGE_ORDER, STAGE_DISPLAY_NAMES } from "@/hooks/useBuildProgress";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Stepper stages (excludes terminal "ready" — shown via BuildSummary instead)

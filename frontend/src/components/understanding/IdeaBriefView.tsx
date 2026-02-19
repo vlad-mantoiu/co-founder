@@ -29,7 +29,6 @@ export function IdeaBriefView({
   onEditSection,
   onReInterview,
   onProceedToDecision,
-  artifactId,
   version,
   projectId,
 }: IdeaBriefViewProps) {

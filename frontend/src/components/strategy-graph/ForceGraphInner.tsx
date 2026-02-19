@@ -185,6 +185,7 @@ export default function ForceGraphInner({
   return (
     <div ref={containerRef} className="w-full h-full">
       <ForceGraph2D
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ref={graphRef as React.MutableRefObject<ForceGraphMethods<any, any>>}
         graphData={graphData}
         nodeCanvasObject={nodeCanvasObject}

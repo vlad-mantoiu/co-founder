@@ -101,7 +101,7 @@ export function PlanComparisonTable({
             </tr>
           </thead>
           <tbody>
-            {COMPARISON_ROWS.map((row, rowIndex) => (
+            {COMPARISON_ROWS.map((row) => (
               <tr key={row.key} className="border-b border-white/5">
                 <td className="p-4 font-medium text-sm text-white">
                   {row.label}

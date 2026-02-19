@@ -23,7 +23,7 @@ interface IdeaBriefCardProps {
  * Expanded: full content with inline editing
  * Manual expansion pattern matching Phase 4 onboarding.
  */
-export function IdeaBriefCard({ section, onEdit, isEditing = false }: IdeaBriefCardProps) {
+export function IdeaBriefCard({ section, onEdit }: IdeaBriefCardProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editValue, setEditValue] = useState("");

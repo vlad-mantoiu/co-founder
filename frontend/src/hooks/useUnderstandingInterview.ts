@@ -124,6 +124,45 @@ export function useUnderstandingInterview() {
   );
 
   /**
+   * Finalize interview and generate Rationalised Idea Brief.
+   */
+  const finalize = useCallback(async () => {
+    if (!state.sessionId) return;
+
+    setState((s) => ({ ...s, phase: "finalizing", error: null }));
+
+    try {
+      const response = await apiFetch(
+        `/api/understanding/${state.sessionId}/finalize`,
+        getToken,
+        {
+          method: "POST",
+        },
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || `API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setState((s) => ({
+        ...s,
+        phase: "viewing_brief",
+        brief: data.brief,
+        artifactId: data.artifact_id,
+        briefVersion: data.version,
+      }));
+    } catch (err) {
+      setState((s) => ({
+        ...s,
+        phase: "error",
+        error: (err as Error).message,
+      }));
+    }
+  }, [getToken, state.sessionId]);
+
+  /**
    * Submit answer to current question.
    */
   const submitAnswer = useCallback(
@@ -186,7 +225,7 @@ export function useUnderstandingInterview() {
         }));
       }
     },
-    [getToken, state.sessionId, state.currentQuestion, state.answeredQuestions],
+    [getToken, state.sessionId, state.currentQuestion, state.answeredQuestions, finalize],
   );
 
   /**
@@ -265,45 +304,6 @@ export function useUnderstandingInterview() {
     },
     [state.answeredQuestions],
   );
-
-  /**
-   * Finalize interview and generate Rationalised Idea Brief.
-   */
-  const finalize = useCallback(async () => {
-    if (!state.sessionId) return;
-
-    setState((s) => ({ ...s, phase: "finalizing", error: null }));
-
-    try {
-      const response = await apiFetch(
-        `/api/understanding/${state.sessionId}/finalize`,
-        getToken,
-        {
-          method: "POST",
-        },
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || `API error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      setState((s) => ({
-        ...s,
-        phase: "viewing_brief",
-        brief: data.brief,
-        artifactId: data.artifact_id,
-        briefVersion: data.version,
-      }));
-    } catch (err) {
-      setState((s) => ({
-        ...s,
-        phase: "error",
-        error: (err as Error).message,
-      }));
-    }
-  }, [getToken, state.sessionId]);
 
   /**
    * Edit a section in the Rationalised Idea Brief.
