@@ -290,23 +290,9 @@ export class ComputeStack extends cdk.Stack {
       '60'
     );
 
-    // DNS records for www.getinsourced.ai and getinsourced.ai → frontend ALB
-    const parentDomain = domainName.replace(/^[^.]+\./, "");
-    new route53.ARecord(this, "WwwRecord", {
-      zone: hostedZone,
-      recordName: `www.${parentDomain}`,
-      target: route53.RecordTarget.fromAlias(
-        new route53Targets.LoadBalancerTarget(frontendService.loadBalancer)
-      ),
-    });
-
-    new route53.ARecord(this, "ApexRecord", {
-      zone: hostedZone,
-      recordName: parentDomain,
-      target: route53.RecordTarget.fromAlias(
-        new route53Targets.LoadBalancerTarget(frontendService.loadBalancer)
-      ),
-    });
+    // NOTE: Route53 A records for getinsourced.ai and www.getinsourced.ai were removed here.
+    // They are now managed by CoFounderMarketing stack (CloudFront distribution).
+    // The cofounder.getinsourced.ai subdomain record is managed by FrontendService above (domainName prop).
 
     // Auto-scaling for backend
     const backendScaling = this.backendService.service.autoScaleTaskCount({

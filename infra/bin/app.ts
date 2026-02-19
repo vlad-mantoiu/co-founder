@@ -7,6 +7,7 @@ import { ComputeStack } from "../lib/compute-stack";
 import { DnsStack } from "../lib/dns-stack";
 import { ObservabilityStack } from "../lib/observability-stack";
 import { GitHubDeployStack } from "../lib/github-deploy-stack";
+import { MarketingStack } from "../lib/marketing-stack";
 
 const app = new cdk.App();
 
@@ -79,4 +80,11 @@ new GitHubDeployStack(app, "CoFounderGitHubDeploy", {
   githubOrg: "vlad-mantoiu",
   githubRepo: "co-founder",
   description: "GitHub Actions OIDC deploy role for AI Co-Founder",
+});
+
+// 7. Marketing Stack (CloudFront + S3 for getinsourced.ai)
+// No dependency on other stacks — uses HostedZone.fromLookup (cached in cdk.context.json)
+new MarketingStack(app, "CoFounderMarketing", {
+  env,
+  description: "CloudFront + S3 marketing site for getinsourced.ai",
 });
