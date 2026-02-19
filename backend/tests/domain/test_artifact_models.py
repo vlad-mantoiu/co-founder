@@ -21,17 +21,17 @@ pytestmark = pytest.mark.unit
 
 
 class TestArtifactTypeEnum:
-    """Test artifact type enum has all five values."""
+    """Test artifact type enum has all seven values."""
 
     def test_artifact_type_enum_has_five_values(self):
-        """ArtifactType enum has brief, mvp_scope, milestones, risk_log, how_it_works."""
+        """ArtifactType enum has brief, mvp_scope, milestones, risk_log, how_it_works, idea_brief, execution_plan."""
         assert ArtifactType.BRIEF == "brief"
         assert ArtifactType.MVP_SCOPE == "mvp_scope"
         assert ArtifactType.MILESTONES == "milestones"
         assert ArtifactType.RISK_LOG == "risk_log"
         assert ArtifactType.HOW_IT_WORKS == "how_it_works"
-        # Ensure exactly 5 values
-        assert len(list(ArtifactType)) == 5
+        # Ensure exactly 7 values (5 original + IDEA_BRIEF + EXECUTION_PLAN added in v0.2)
+        assert len(list(ArtifactType)) == 7
         # Ensure GENERATION_ORDER exists and has 5 items
         assert len(GENERATION_ORDER) == 5
 

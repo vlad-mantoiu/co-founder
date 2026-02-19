@@ -44,6 +44,23 @@ def test_runner_is_runtime_checkable():
         async def generate_artifacts(self, brief: dict) -> dict:
             return {}
 
+        async def generate_understanding_questions(self, context: dict) -> list[dict]:
+            return []
+
+        async def generate_idea_brief(self, idea: str, questions: list[dict], answers: dict) -> dict:
+            return {}
+
+        async def check_question_relevance(
+            self, idea: str, answered: list[dict], answers: dict, remaining: list[dict]
+        ) -> dict:
+            return {"needs_regeneration": False, "preserve_indices": []}
+
+        async def assess_section_confidence(self, section_key: str, content: str) -> str:
+            return "moderate"
+
+        async def generate_execution_options(self, brief: dict, feedback: str | None = None) -> dict:
+            return {"options": [], "recommended_id": ""}
+
     complete = CompleteRunner()
     # If runtime_checkable is working, isinstance should return True
     assert isinstance(

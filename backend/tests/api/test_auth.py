@@ -2,7 +2,7 @@
 
 import time
 from dataclasses import dataclass
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import jwt as pyjwt
 import pytest
@@ -190,12 +190,15 @@ class TestRequireAuth:
         })
 
         creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
+        mock_request = MagicMock()
+        mock_request.state = MagicMock()
 
         with (
             patch("app.core.auth.get_jwks_client", _mock_jwks_client),
             patch("app.core.auth.get_settings", _mock_settings),
+            patch("app.core.provisioning.provision_user_on_first_login", new_callable=AsyncMock),
         ):
-            user = await require_auth(credentials=creds)
+            user = await require_auth(request=mock_request, credentials=creds)
 
         assert user.user_id == "user_xyz"
 
@@ -203,8 +206,11 @@ class TestRequireAuth:
     async def test_missing_credentials_raises_401(self):
         from app.core.auth import require_auth
 
+        mock_request = MagicMock()
+        mock_request.state = MagicMock()
+
         with pytest.raises(HTTPException) as exc_info:
-            await require_auth(credentials=None)
+            await require_auth(request=mock_request, credentials=None)
         assert exc_info.value.status_code == 401
 
     @pytest.mark.asyncio
@@ -212,13 +218,15 @@ class TestRequireAuth:
         from app.core.auth import require_auth
 
         creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials="garbage.token.here")
+        mock_request = MagicMock()
+        mock_request.state = MagicMock()
 
         with (
             patch("app.core.auth.get_jwks_client", _mock_jwks_client),
             patch("app.core.auth.get_settings", _mock_settings),
         ):
             with pytest.raises(HTTPException) as exc_info:
-                await require_auth(credentials=creds)
+                await require_auth(request=mock_request, credentials=creds)
             assert exc_info.value.status_code == 401
 
     @pytest.mark.asyncio
@@ -235,12 +243,14 @@ class TestRequireAuth:
         })
 
         creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
+        mock_request = MagicMock()
+        mock_request.state = MagicMock()
 
         with (
             patch("app.core.auth.get_jwks_client", _mock_jwks_client),
             patch("app.core.auth.get_settings", _mock_settings),
         ):
             with pytest.raises(HTTPException) as exc_info:
-                await require_auth(credentials=creds)
+                await require_auth(request=mock_request, credentials=creds)
             assert exc_info.value.status_code == 401
             assert "origin" in exc_info.value.detail.lower()

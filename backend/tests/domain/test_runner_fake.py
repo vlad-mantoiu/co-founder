@@ -87,11 +87,12 @@ async def test_happy_path_generate_brief_returns_brief():
 
     brief = await runner.generate_brief(answers)
 
-    # Verify all 8 required keys exist
+    # Verify all 9 required keys exist
     required_keys = [
-        "problem_statement",
+        "problem",
         "target_user",
         "value_prop",
+        "key_constraint",
         "differentiation",
         "monetization_hypothesis",
         "assumptions",
@@ -100,8 +101,8 @@ async def test_happy_path_generate_brief_returns_brief():
     ]
     for key in required_keys:
         assert key in brief
-        assert isinstance(brief[key], str)
-        assert len(brief[key]) > 0
+        # Some fields are strings, others (assumptions, risks) are lists
+        assert brief[key], f"Expected non-empty value for key '{key}'"
 
 
 @pytest.mark.asyncio
@@ -113,11 +114,11 @@ async def test_happy_path_generate_artifacts_returns_artifacts():
     artifacts = await runner.generate_artifacts(brief)
 
     # Verify all 5 artifact keys exist
-    required_keys = ["product_brief", "mvp_scope", "milestones", "risk_log", "how_it_works"]
+    required_keys = ["brief", "mvp_scope", "milestones", "risk_log", "how_it_works"]
     for key in required_keys:
         assert key in artifacts
-        assert isinstance(artifacts[key], str)
-        assert len(artifacts[key]) > 0
+        # Artifacts are structured dicts (matching Pydantic schemas), not plain strings
+        assert artifacts[key], f"Expected non-empty value for key '{key}'"
 
 
 @pytest.mark.asyncio
