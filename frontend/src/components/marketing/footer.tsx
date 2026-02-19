@@ -1,9 +1,12 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { Terminal } from "lucide-react";
 
-const footerLinks = {
+const INSOURCED_HOSTS = ["www.getinsourced.ai", "getinsourced.ai"];
+
+const insourcedFooterLinks = {
   Platform: [
-    { label: "Co-Founder", href: "/#hero" },
+    { label: "Co-Founder", href: "https://cofounder.getinsourced.ai" },
     { label: "Swarm Agents", href: "/#suite" },
     { label: "Pricing", href: "/pricing" },
   ],
@@ -17,7 +20,40 @@ const footerLinks = {
   ],
 };
 
-export function Footer() {
+const cofounderFooterLinks = {
+  Product: [
+    { label: "Features", href: "/#features" },
+    { label: "Pricing", href: "/pricing" },
+    { label: "How It Works", href: "/#how-it-works" },
+    { label: "Integrations", href: "/#integrations" },
+  ],
+  Company: [
+    { label: "About", href: "/about" },
+    { label: "Contact", href: "/contact" },
+  ],
+  Legal: [
+    { label: "Privacy Policy", href: "/privacy" },
+    { label: "Terms of Service", href: "/terms" },
+  ],
+};
+
+export async function Footer() {
+  const headersList = await headers();
+  const host = headersList.get("host") ?? "";
+  const hostname = host.split(":")[0];
+  const isInsourced = INSOURCED_HOSTS.includes(hostname);
+
+  const footerLinks = isInsourced ? insourcedFooterLinks : cofounderFooterLinks;
+  const brandName = isInsourced ? (
+    <>getinsourced<span className="text-brand">.ai</span></>
+  ) : (
+    <>Co-Founder<span className="text-brand">.ai</span></>
+  );
+  const tagline = isInsourced
+    ? "A suite of autonomous AI agents replacing the roles startups can\u2019t afford to fill."
+    : "The autonomous dev system that turns your ideas into shipped products. No equity required.";
+  const copyright = isInsourced ? "Insourced AI Inc." : "Co-Founder.ai";
+
   return (
     <footer className="border-t border-white/5">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -28,12 +64,11 @@ export function Footer() {
                 <Terminal className="h-4 w-4 text-brand" />
               </div>
               <span className="text-lg font-bold text-white tracking-tight">
-                getinsourced<span className="text-brand">.ai</span>
+                {brandName}
               </span>
             </Link>
             <p className="mt-4 text-sm text-white/40 leading-relaxed max-w-xs">
-              The autonomous dev system that turns your ideas into shipped
-              products. No equity required.
+              {tagline}
             </p>
           </div>
 
@@ -60,7 +95,7 @@ export function Footer() {
 
         <div className="mt-16 pt-8 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-xs text-white/30">
-            &copy; {new Date().getFullYear()} Insourced AI Inc. All rights
+            &copy; {new Date().getFullYear()} {copyright}. All rights
             reserved.
           </p>
           <div className="flex items-center gap-6">

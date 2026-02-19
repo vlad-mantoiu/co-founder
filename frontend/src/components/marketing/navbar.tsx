@@ -7,9 +7,18 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Terminal, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const navLinks = [
+const INSOURCED_HOSTS = ["www.getinsourced.ai", "getinsourced.ai"];
+
+const insourcedLinks = [
   { href: "/#hero", label: "Vision" },
   { href: "/#suite", label: "Suite" },
+  { href: "/pricing", label: "Pricing" },
+  { href: "/about", label: "About" },
+];
+
+const cofounderLinks = [
+  { href: "/#features", label: "Features" },
+  { href: "/#how-it-works", label: "How It Works" },
   { href: "/pricing", label: "Pricing" },
   { href: "/about", label: "About" },
 ];
@@ -17,7 +26,13 @@ const navLinks = [
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+  const [isInsourced, setIsInsourced] = useState(false);
   const pathname = usePathname();
+
+  useEffect(() => {
+    const hostname = window.location.hostname;
+    setIsInsourced(INSOURCED_HOSTS.includes(hostname));
+  }, []);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -28,6 +43,13 @@ export function Navbar() {
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
+
+  const navLinks = isInsourced ? insourcedLinks : cofounderLinks;
+  const brandName = isInsourced ? (
+    <>getinsourced<span className="text-brand">.ai</span></>
+  ) : (
+    <>Co-Founder<span className="text-brand">.ai</span></>
+  );
 
   const isActive = (href: string) => {
     if (href.startsWith("/#")) return pathname === "/";
@@ -47,7 +69,7 @@ export function Navbar() {
             <Terminal className="h-4 w-4 text-brand" />
           </div>
           <span className="text-lg font-bold text-white tracking-tight">
-            getinsourced<span className="text-brand">.ai</span>
+            {brandName}
           </span>
         </Link>
 
