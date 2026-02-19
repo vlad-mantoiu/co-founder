@@ -51,7 +51,7 @@ Requirements for production readiness. Each maps to roadmap phases.
 ### Pipeline Fix (Gap Closure)
 
 - [x] **PIPE-01**: All unit tests pass — 16 pre-existing failures in test_auth, test_usage_counters, test_runner_protocol, test_runner_fake, test_artifact_models fixed
-- [ ] **PIPE-02**: deploy.yml ECS service names match actual CDK-generated names (with random suffixes) verified against live AWS
+- [x] **PIPE-02**: deploy.yml ECS service names match actual CDK-generated names (with random suffixes) verified against live AWS
 
 ### Monitoring
 
@@ -136,7 +136,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MON-08 | Phase 16 | Complete |
 | MON-09 | Phase 16 | Complete |
 | PIPE-01 | Phase 17 | Complete |
-| PIPE-02 | Phase 17 | Pending |
+| PIPE-02 | Phase 17 | Complete |
 
 **Coverage:**
 - v0.2 requirements: 43 total

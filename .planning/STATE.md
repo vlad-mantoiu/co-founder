@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-18)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** v0.2 Production Ready — Phase 17: CI/Deploy Pipeline Fix
+**Current focus:** v0.2 Production Ready — COMPLETE
 
 ## Current Position
 
-Phase: 17 of 17 (CI/Deploy Pipeline Fix)
-Plan: 1 of 2 in current phase (Plan 01 COMPLETE, Plan 02 remaining)
-Status: In Progress
-Last activity: 2026-02-19 — Phase 17 Plan 01 complete: 16 test failures fixed, clean working tree
+Phase: 17 of 17 (CI/Deploy Pipeline Fix) — COMPLETE
+Plan: 2 of 2 in current phase (All plans COMPLETE)
+Status: Complete
+Last activity: 2026-02-19 — Phase 17 Plan 02 complete: dynamic ECS service name resolution in deploy.yml
 
-Progress: [█████████░] 90% (v0.2) — v0.1 complete (phases 1-12), phases 13-17P01 complete
+Progress: [██████████] 100% (v0.2) — v0.1 complete (phases 1-12), phases 13-17 all complete
 
 ## Performance Metrics
 
@@ -78,6 +78,7 @@ Progress: [█████████░] 90% (v0.2) — v0.1 complete (phases 
 | Plan | Duration | Tasks | Files |
 |------|----------|-------|-------|
 | Phase 17 P01 | 25 min | 2 tasks | 13 files |
+| Phase 17 P02 | 2 min | 2 tasks | 1 file |
 
 ## Accumulated Context
 
@@ -144,6 +145,8 @@ Recent decisions affecting v0.2 work:
 - [Phase 17 P01]: Future-date pattern for fakeredis: use datetime(2030, 6, 15) to avoid expireat expiring keys immediately when test date is in the past
 - [Phase 17 P01]: Patch app.core.provisioning.provision_user_on_first_login (not app.core.auth.*) — lazy import inside require_auth means module-level auth patch misses the function
 - [Phase 17 P01]: Ruff CI lint gate had 751 pre-existing errors before this plan — not in scope; ruff was already failing CI
+- [Phase 17 P02]: Use JMESPath contains(@, BackendService) filter (not Backend) for more specific ECS service name matching — avoids ambiguity if other services share the prefix
+- [Phase 17 P02]: Dynamic ECS service resolution placed AFTER configure-aws-credentials and BEFORE ECR login — minimal scope for AWS API call
 
 ### Pending Todos
 
@@ -163,10 +166,10 @@ Recent decisions affecting v0.2 work:
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: Phase 17 Plan 01 complete — 16 test failures fixed, clean working tree
-Resume file: .planning/phases/17-ci-deploy-pipeline-fix/17-01-SUMMARY.md
-Next action: Execute Phase 17 Plan 02 — dynamic ECS service name resolution in deploy.yml
+Stopped at: Phase 17 Plan 02 complete — v0.2 COMPLETE, all phases done
+Resume file: .planning/phases/17-ci-deploy-pipeline-fix/17-02-SUMMARY.md
+Next action: v0.2 production readiness complete — verify CI passes on main
 
 ---
 *v0.1 COMPLETE — 56 plans, 12 phases, 76/76 requirements (2026-02-17)*
-*v0.2 IN PROGRESS — 5 phases (13-17), 43 requirements, phases 13-16 complete, phase 17 P01 complete (2026-02-19)*
+*v0.2 COMPLETE — 5 phases (13-17), 43 requirements, all phases complete (2026-02-19)*
