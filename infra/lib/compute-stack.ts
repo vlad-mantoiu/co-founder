@@ -91,7 +91,7 @@ export class ComputeStack extends cdk.Stack {
       image: ecs.ContainerImage.fromEcrRepository(backendRepo, "latest"),
       logging: ecs.LogDrivers.awsLogs({
         streamPrefix: "backend",
-        logRetention: logs.RetentionDays.ONE_WEEK,
+        logRetention: logs.RetentionDays.ONE_MONTH,
       }),
       environment: {
         ENVIRONMENT: "production",
@@ -174,7 +174,7 @@ export class ComputeStack extends cdk.Stack {
       image: ecs.ContainerImage.fromEcrRepository(frontendRepo, "latest"),
       logging: ecs.LogDrivers.awsLogs({
         streamPrefix: "frontend",
-        logRetention: logs.RetentionDays.ONE_WEEK,
+        logRetention: logs.RetentionDays.ONE_MONTH,
       }),
       environment: {
         NEXT_PUBLIC_API_URL: `https://api.${domainName}`,

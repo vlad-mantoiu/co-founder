@@ -5,6 +5,7 @@ import { NetworkStack } from "../lib/network-stack";
 import { DatabaseStack } from "../lib/database-stack";
 import { ComputeStack } from "../lib/compute-stack";
 import { DnsStack } from "../lib/dns-stack";
+import { ObservabilityStack } from "../lib/observability-stack";
 
 const app = new cdk.App();
 
@@ -58,3 +59,15 @@ const computeStack = new ComputeStack(app, "CoFounderCompute", {
 });
 computeStack.addDependency(databaseStack);
 computeStack.addDependency(dnsStack);
+
+// 5. Observability Stack (CloudWatch alarms, SNS alerts)
+const observabilityStack = new ObservabilityStack(app, "CoFounderObservability", {
+  env,
+  alertEmail: "vlad@getinsourced.ai",
+  backendLogGroupName: "CoFounderCompute-BackendTaskDefBackendLogGroup3DA27187-AzPTCt7RdOns",
+  backendAlbSuffix: "app/CoFoun-Backe-n6gwgzoJnTEp/e397cf8dbd83a010",
+  backendServiceName: "CoFounderCompute-BackendService2147DAF9-NvCs2OXdtYgG",
+  clusterName: "cofounder-cluster",
+  description: "CloudWatch alarms and SNS alerts for AI Co-Founder",
+});
+observabilityStack.addDependency(computeStack);
