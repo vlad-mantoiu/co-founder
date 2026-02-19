@@ -50,12 +50,12 @@ Requirements for production readiness. Each maps to roadmap phases.
 
 ### Monitoring
 
-- [ ] **MON-01**: SNS topic created with ops email subscription for alerts
-- [ ] **MON-02**: CloudWatch alarm fires when backend ECS running task count drops to 0
-- [ ] **MON-03**: CloudWatch alarm fires on ALB 5xx error rate exceeding threshold
-- [ ] **MON-04**: CloudWatch alarm fires on backend CPU utilization exceeding 85%
-- [ ] **MON-05**: CloudWatch alarm fires on ALB P99 response time exceeding 30s
-- [ ] **MON-06**: CloudWatch log metric filter counts ERROR-level log lines with alarm
+- [x] **MON-01**: SNS topic created with ops email subscription for alerts
+- [x] **MON-02**: CloudWatch alarm fires when backend ECS running task count drops to 0
+- [x] **MON-03**: CloudWatch alarm fires on ALB 5xx error rate exceeding threshold
+- [x] **MON-04**: CloudWatch alarm fires on backend CPU utilization exceeding 85%
+- [x] **MON-05**: CloudWatch alarm fires on ALB P99 response time exceeding 30s
+- [x] **MON-06**: CloudWatch log metric filter counts ERROR-level log lines with alarm
 - [ ] **MON-07**: Backend emits structured JSON logs for CloudWatch Insights queries
 - [ ] **MON-08**: LLM latency tracked per Runner method as custom CloudWatch metrics
 - [ ] **MON-09**: Business metric events emitted (new subscriptions, artifacts generated)
@@ -121,12 +121,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CICD-07 | Phase 15 | Complete |
 | CICD-08 | Phase 15 | Complete |
 | CICD-09 | Phase 15 | Complete |
-| MON-01 | Phase 16 | Pending |
-| MON-02 | Phase 16 | Pending |
-| MON-03 | Phase 16 | Pending |
-| MON-04 | Phase 16 | Pending |
-| MON-05 | Phase 16 | Pending |
-| MON-06 | Phase 16 | Pending |
+| MON-01 | Phase 16 | Complete |
+| MON-02 | Phase 16 | Complete |
+| MON-03 | Phase 16 | Complete |
+| MON-04 | Phase 16 | Complete |
+| MON-05 | Phase 16 | Complete |
+| MON-06 | Phase 16 | Complete |
 | MON-07 | Phase 16 | Pending |
 | MON-08 | Phase 16 | Pending |
 | MON-09 | Phase 16 | Pending |

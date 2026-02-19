@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-18)
 
 ## Current Position
 
-Phase: 15 of 16 (CI/CD Hardening)
-Plan: 3 of 3 in current phase (COMPLETE)
-Status: Phase Complete
-Last activity: 2026-02-19 — Phase 15 Plan 03 complete (test-gated, path-filtered, SHA-pinned CI/CD workflows)
+Phase: 16 of 16 (CloudWatch Observability)
+Plan: 2 of 3 in current phase
+Status: In Progress
+Last activity: 2026-02-19 — Phase 16 Plan 02 complete (ObservabilityStack — SNS topic, 5 CloudWatch alarms, 30-day log retention)
 
-Progress: [█░░░░░░░░░] 10% (v0.2) — v0.1 complete (phases 1-12)
+Progress: [████░░░░░░] 40% (v0.2) — v0.1 complete (phases 1-12)
 
 ## Performance Metrics
 
@@ -64,6 +64,12 @@ Progress: [█░░░░░░░░░] 10% (v0.2) — v0.1 complete (phases 
 | Phase 15 P01 | 18 min | 2 tasks | 51 files |
 | Phase 15 P02 | 1 min | 2 tasks | 3 files |
 | Phase 15 P03 | 2 min | 3 tasks | 4 files |
+
+**Phase 16 (v0.2):**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 16 P02 | 2 min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -118,6 +124,9 @@ Recent decisions affecting v0.2 work:
 - [Phase 15 P03]: CDK deploy step removed from deploy.yml — infrastructure changes require deliberate CDK runs, not every code push
 - [Phase 15 P03]: ECS task definitions fetched dynamically from ECS at deploy time via describe-task-definition — avoids staleness when CDK updates infra
 - [Phase 15 P03]: always() + needs.result == 'success' + changes.result == 'skipped' pattern handles skipped changes job on manual dispatch
+- [Phase 16]: ObservabilityStack uses physical resource ID props (not Fn.importValue) to avoid circular dependency risk
+- [Phase 16]: ECS task count alarm uses BREACHING for missing data; ALB/latency alarms use NOT_BREACHING (absence of traffic != alert)
+- [Phase 16]: FilterPattern.anyTerm(ERROR, level:error) covers both stdlib and structlog JSON logs during migration window
 
 ### Pending Todos
 
@@ -134,9 +143,9 @@ Recent decisions affecting v0.2 work:
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: Completed 15-03-PLAN.md (CI/CD workflow restructure — test gate, path filter, SHA-pinned ECS deploy, nightly integration tests)
-Resume file: .planning/phases/15-ci-cd-hardening/15-03-SUMMARY.md
-Next action: Execute Phase 16 (CloudWatch Alarms) — Phase 15 complete, all 3 plans done
+Stopped at: Completed 16-02-PLAN.md (ObservabilityStack — SNS topic, 5 CloudWatch alarms, 30-day log retention)
+Resume file: .planning/phases/16-cloudwatch-observability/16-02-SUMMARY.md
+Next action: Execute Phase 16 Plan 03 (custom LLM/business metrics via boto3 put_metric_data)
 
 ---
 *v0.1 COMPLETE — 56 plans, 12 phases, 76/76 requirements (2026-02-17)*
