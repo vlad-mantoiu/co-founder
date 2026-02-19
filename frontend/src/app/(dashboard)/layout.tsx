@@ -1,6 +1,8 @@
 import { BrandNav } from "@/components/ui/brand-nav";
 import { FloatingChat } from "@/components/chat/FloatingChat";
 
+// Dashboard pages are "use client" components that use useSearchParams() —
+// force-dynamic prevents Next.js from attempting static prerendering of these pages.
 export const dynamic = "force-dynamic";
 
 export default function DashboardLayout({
