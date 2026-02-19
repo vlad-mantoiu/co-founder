@@ -124,6 +124,35 @@ export class GitHubDeployStack extends cdk.Stack {
       })
     );
 
+    // S3 permissions — sync marketing static site to bucket
+    this.deployRole.addToPolicy(
+      new iam.PolicyStatement({
+        sid: "MarketingS3Sync",
+        actions: [
+          "s3:PutObject",
+          "s3:GetObject",
+          "s3:DeleteObject",
+          "s3:ListBucket",
+        ],
+        resources: [
+          "arn:aws:s3:::getinsourced-marketing",
+          "arn:aws:s3:::getinsourced-marketing/*",
+        ],
+      })
+    );
+
+    // CloudFront permissions — invalidate marketing distribution cache
+    // Distribution ID E1BF4KDBGHEQPX from CoFounderMarketing stack output (Phase 19)
+    this.deployRole.addToPolicy(
+      new iam.PolicyStatement({
+        sid: "MarketingCFInvalidation",
+        actions: ["cloudfront:CreateInvalidation"],
+        resources: [
+          `arn:aws:cloudfront::${this.account}:distribution/E1BF4KDBGHEQPX`,
+        ],
+      })
+    );
+
     // Output the role ARN — this goes into GitHub secrets
     new cdk.CfnOutput(this, "DeployRoleArn", {
       value: this.deployRole.roleArn,
