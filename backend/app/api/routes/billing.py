@@ -12,6 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from app.core.auth import ClerkUser, require_auth
 from app.core.config import get_settings
 from app.db.base import get_session_factory
+from app.metrics.cloudwatch import emit_business_event
 from app.db.models.plan_tier import PlanTier
 from app.db.models.stripe_event import StripeWebhookEvent
 from app.db.models.usage_log import UsageLog
@@ -381,6 +382,8 @@ async def _handle_checkout_completed(session_data: dict) -> None:
         await session.commit()
         logger.info("plan_upgraded", plan_slug=plan_slug, user_id=clerk_user_id)
 
+    await emit_business_event("new_subscription", user_id=clerk_user_id)
+
 
 async def _handle_subscription_updated(subscription: dict) -> None:
     """Sync subscription status (active, past_due, trialing, etc.)."""
@@ -429,11 +432,14 @@ async def _handle_subscription_deleted(subscription: dict) -> None:
             logger.warning("subscription_deleted_unknown_customer", customer_id=customer_id)
             return
 
+        clerk_user_id = user_settings.clerk_user_id
         user_settings.plan_tier_id = bootstrapper.id
         user_settings.stripe_subscription_id = None
         user_settings.stripe_subscription_status = None
         await session.commit()
         logger.info("plan_downgraded_to_bootstrapper", customer_id=customer_id)
+
+    await emit_business_event("subscription_cancelled", user_id=clerk_user_id)
 
 
 async def _handle_payment_failed(invoice: dict) -> None:

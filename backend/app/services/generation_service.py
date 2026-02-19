@@ -15,6 +15,7 @@ from sqlalchemy import select
 from app.agent.runner import Runner
 from app.agent.state import create_initial_state
 from app.db.base import get_session_factory
+from app.metrics.cloudwatch import emit_business_event
 from app.queue.schemas import JobStatus
 from app.queue.state_machine import JobStateMachine
 from app.sandbox.e2b_runtime import E2BSandboxRuntime
@@ -137,6 +138,9 @@ class GenerationService:
                 logger.warning(
                     "mvp_built_hook_failed", job_id=job_id, exc_info=True
                 )
+
+            # Emit artifact_generated business event on successful build
+            await emit_business_event("artifact_generated", user_id=user_id)
 
             return {
                 "sandbox_id": sandbox_id,

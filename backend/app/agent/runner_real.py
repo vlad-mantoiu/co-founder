@@ -9,6 +9,7 @@ Implements all 10 Runner protocol methods with:
 """
 
 import json
+import time
 
 import structlog
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -16,6 +17,7 @@ from langgraph.checkpoint.memory import MemorySaver
 
 from app.agent.graph import create_cofounder_graph
 from app.agent.llm_helpers import _invoke_with_retry, _parse_json_response
+from app.metrics.cloudwatch import emit_llm_latency
 from app.agent.nodes import (
     architect_node,
     coder_node,
@@ -198,9 +200,10 @@ Return ONLY a JSON array of objects:
             content=f"Generate onboarding questions for an idea with these keywords: {idea_keywords or 'general software product'}"
         )
 
+        t0 = time.perf_counter()
         try:
             response = await _invoke_with_retry(llm, [system_msg, human_msg])
-            return _parse_json_response(response.content)
+            result = _parse_json_response(response.content)
         except json.JSONDecodeError:
             log.warning("json_parse_failed_retrying", user_id=user_id, session_id=session_id)
             strict_system = SystemMessage(
@@ -209,7 +212,13 @@ Return ONLY a JSON array of objects:
                 "Start your response with [ .\n\n" + system_msg.content
             )
             response = await _invoke_with_retry(llm, [strict_system, human_msg])
-            return _parse_json_response(response.content)
+            result = _parse_json_response(response.content)
+        await emit_llm_latency(
+            method_name="generate_questions",
+            duration_ms=(time.perf_counter() - t0) * 1000,
+            model=llm.model,
+        )
+        return result
 
     async def generate_brief(self, answers: dict) -> dict:
         """Generate a structured product brief from onboarding answers.
@@ -262,9 +271,10 @@ Return ONLY a JSON object:
             content=f"Generate a product brief from these onboarding answers: {clean_answers}"
         )
 
+        t0 = time.perf_counter()
         try:
             response = await _invoke_with_retry(llm, [system_msg, human_msg])
-            return _parse_json_response(response.content)
+            result = _parse_json_response(response.content)
         except json.JSONDecodeError:
             log.warning("json_parse_failed_retrying", user_id=user_id, session_id=session_id)
             strict_system = SystemMessage(
@@ -273,7 +283,13 @@ Return ONLY a JSON object:
                 "Start your response with { .\n\n" + system_msg.content
             )
             response = await _invoke_with_retry(llm, [strict_system, human_msg])
-            return _parse_json_response(response.content)
+            result = _parse_json_response(response.content)
+        await emit_llm_latency(
+            method_name="generate_brief",
+            duration_ms=(time.perf_counter() - t0) * 1000,
+            model=llm.model,
+        )
+        return result
 
     async def generate_understanding_questions(self, context: dict) -> list[dict]:
         """Generate adaptive understanding questions (deeper than onboarding).
@@ -328,9 +344,10 @@ End the interview with a closing question like: "I have enough to build your bri
             content=f"Idea: {idea_text}\n\nOnboarding answers: {onboarding_answers}"
         )
 
+        t0 = time.perf_counter()
         try:
             response = await _invoke_with_retry(llm, [system_msg, human_msg])
-            return _parse_json_response(response.content)
+            result = _parse_json_response(response.content)
         except json.JSONDecodeError:
             log.warning("json_parse_failed_retrying", user_id=user_id, session_id=session_id, tier=tier)
             strict_system = SystemMessage(
@@ -339,7 +356,13 @@ End the interview with a closing question like: "I have enough to build your bri
                 "Start your response with [ .\n\n" + system_msg.content
             )
             response = await _invoke_with_retry(llm, [strict_system, human_msg])
-            return _parse_json_response(response.content)
+            result = _parse_json_response(response.content)
+        await emit_llm_latency(
+            method_name="generate_understanding_questions",
+            duration_ms=(time.perf_counter() - t0) * 1000,
+            model=llm.model,
+        )
+        return result
 
     async def generate_idea_brief(self, idea: str, questions: list[dict], answers: dict) -> dict:
         """Generate Rationalised Idea Brief from understanding interview answers.
@@ -424,9 +447,10 @@ For confidence_scores, assess each section as:
             content=f"Idea: {idea}\n\nUnderstanding interview answers:\n\n{formatted_qa}"
         )
 
+        t0 = time.perf_counter()
         try:
             response = await _invoke_with_retry(llm, [system_msg, human_msg])
-            return _parse_json_response(response.content)
+            result = _parse_json_response(response.content)
         except json.JSONDecodeError:
             log.warning("json_parse_failed_retrying", user_id=user_id, session_id=session_id, tier=tier)
             strict_system = SystemMessage(
@@ -435,7 +459,13 @@ For confidence_scores, assess each section as:
                 "Start your response with { .\n\n" + system_msg.content
             )
             response = await _invoke_with_retry(llm, [strict_system, human_msg])
-            return _parse_json_response(response.content)
+            result = _parse_json_response(response.content)
+        await emit_llm_latency(
+            method_name="generate_idea_brief",
+            duration_ms=(time.perf_counter() - t0) * 1000,
+            model=llm.model,
+        )
+        return result
 
     async def check_question_relevance(
         self, idea: str, answered: list[dict], answers: dict, remaining: list[dict]
@@ -500,9 +530,10 @@ Return ONLY a JSON object:
             )
         )
 
+        t0 = time.perf_counter()
         try:
             response = await _invoke_with_retry(llm, [system_msg, human_msg])
-            return _parse_json_response(response.content)
+            result = _parse_json_response(response.content)
         except json.JSONDecodeError:
             log.warning("json_parse_failed_retrying", user_id=user_id, session_id=session_id)
             strict_system = SystemMessage(
@@ -511,7 +542,13 @@ Return ONLY a JSON object:
                 "Start your response with { .\n\n" + system_msg.content
             )
             response = await _invoke_with_retry(llm, [strict_system, human_msg])
-            return _parse_json_response(response.content)
+            result = _parse_json_response(response.content)
+        await emit_llm_latency(
+            method_name="check_question_relevance",
+            duration_ms=(time.perf_counter() - t0) * 1000,
+            model=llm.model,
+        )
+        return result
 
     async def assess_section_confidence(self, section_key: str, content: str) -> str:
         """Assess confidence level for a brief section.
@@ -545,7 +582,13 @@ Return ONLY one of: "strong", "moderate", "needs_depth"
             content=f"Section: {section_key}\n\nContent: {content}"
         )
 
+        t0 = time.perf_counter()
         response = await _invoke_with_retry(llm, [system_msg, human_msg])
+        await emit_llm_latency(
+            method_name="assess_section_confidence",
+            duration_ms=(time.perf_counter() - t0) * 1000,
+            model=llm.model,
+        )
         text = response.content.strip().lower()
         for level in ("strong", "moderate", "needs_depth"):
             if level in text:
@@ -618,9 +661,10 @@ Return ONLY a JSON object:
             content=f"Generate execution plan options from this Idea Brief:\n\n{json.dumps(clean_brief, indent=2)}"
         )
 
+        t0 = time.perf_counter()
         try:
             response = await _invoke_with_retry(llm, [system_msg, human_msg])
-            return _parse_json_response(response.content)
+            result = _parse_json_response(response.content)
         except json.JSONDecodeError:
             log.warning("json_parse_failed_retrying", user_id=user_id, session_id=session_id, tier=tier)
             strict_system = SystemMessage(
@@ -629,7 +673,13 @@ Return ONLY a JSON object:
                 "Start your response with { .\n\n" + system_msg.content
             )
             response = await _invoke_with_retry(llm, [strict_system, human_msg])
-            return _parse_json_response(response.content)
+            result = _parse_json_response(response.content)
+        await emit_llm_latency(
+            method_name="generate_execution_options",
+            duration_ms=(time.perf_counter() - t0) * 1000,
+            model=llm.model,
+        )
+        return result
 
     async def generate_artifacts(self, brief: dict) -> dict:
         """Generate documentation artifacts from the product brief.
@@ -720,9 +770,10 @@ risk log references brief assumptions)."""
             content=f"Generate project artifacts from this brief:\n\n{json.dumps(clean_brief, indent=2)}"
         )
 
+        t0 = time.perf_counter()
         try:
             response = await _invoke_with_retry(llm, [system_msg, human_msg])
-            return _parse_json_response(response.content)
+            result = _parse_json_response(response.content)
         except json.JSONDecodeError:
             log.warning("json_parse_failed_retrying", user_id=user_id, session_id=session_id, tier=tier)
             strict_system = SystemMessage(
@@ -731,4 +782,10 @@ risk log references brief assumptions)."""
                 "Start your response with { .\n\n" + system_msg.content
             )
             response = await _invoke_with_retry(llm, [strict_system, human_msg])
-            return _parse_json_response(response.content)
+            result = _parse_json_response(response.content)
+        await emit_llm_latency(
+            method_name="generate_artifacts",
+            duration_ms=(time.perf_counter() - t0) * 1000,
+            model=llm.model,
+        )
+        return result
