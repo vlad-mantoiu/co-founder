@@ -10,16 +10,16 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 ## Current Position
 
 Phase: 18 of 21 (Marketing Site Build)
-Plan: 2 of 3 in current phase
+Plan: 3 of 4 in current phase (18-01, 18-02, 18-03 complete)
 Status: In progress
-Last activity: 2026-02-19 — 18-02 complete: Navbar, Footer, (marketing) layout wrapper, verified static build
+Last activity: 2026-02-19 — 18-03 complete: InsourcedHomeContent, HomeContent, HowItWorksSection, three pages (/, /cofounder, /cofounder/how-it-works), static build verified
 
-Progress: [████████░░] 84% (phases 1-17 complete, 18-01 and 18-02 done, phases 18-21 remaining)
+Progress: [████████░░] 86% (phases 1-17 complete, 18-01, 18-02, 18-03 done, phases 18-04 and 19-21 remaining)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 52
+- Total plans completed: 53
 - v0.1: 47 plans across 12 phases
 - v0.2: 20 plans across 5 phases
 
@@ -27,7 +27,7 @@ Progress: [████████░░] 84% (phases 1-17 complete, 18-01 and 
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 18. Marketing Site Build | 2/3 | 14min | 7min |
+| 18. Marketing Site Build | 3/4 | 18min | 6min |
 | 19. CloudFront + S3 Infra | 0/2 | - | - |
 | 20. App Cleanup | 0/2 | - | - |
 | 21. Marketing CI/CD | 0/1 | - | - |
@@ -51,6 +51,9 @@ Recent decisions affecting v0.3 work:
 - [18-02]: pathname === "/" for brand detection — single domain makes hostname useless; only root "/" shows Insourced, all other pages get Co-Founder branding
 - [18-02]: Footer rewritten as 'use client' — async server component with next/headers is incompatible with output: 'export'
 - [18-02]: External <a href> for CTA links — cofounder.getinsourced.ai is a separate app, not an internal Next.js route
+- [18-03]: No useState in InsourcedHomeContent — BottomCTA waitlist form replaced with simple CTA to onboarding; static marketing site has no backend
+- [18-03]: HowItWorksSection extracted as standalone component — used both inline in HomeContent and as the full /cofounder/how-it-works page
+- [18-03]: All onboarding CTAs are external <a> pointing to cofounder.getinsourced.ai/onboarding; internal navigation uses <Link>
 
 ### Pending Todos
 
@@ -64,8 +67,8 @@ None for v0.3.
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: 18-02-PLAN.md complete — Navbar, Footer, (marketing) layout wrapper, verified static build
-Next action: `/gsd:execute-phase 18` (plan 03: full page content)
+Stopped at: 18-03-PLAN.md complete — InsourcedHomeContent, HomeContent, HowItWorksSection, /, /cofounder, /cofounder/how-it-works pages, static build verified
+Next action: `/gsd:execute-phase 18` (plan 04: remaining marketing pages)
 
 ---
 *v0.1 COMPLETE — 56 plans, 12 phases, 76/76 requirements (2026-02-17)*

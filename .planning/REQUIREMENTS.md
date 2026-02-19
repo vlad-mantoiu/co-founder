@@ -9,8 +9,8 @@ Requirements for marketing/app separation. Each maps to roadmap phases.
 
 ### Marketing Site
 
-- [ ] **MKT-01**: Visitor can view parent brand landing page at getinsourced.ai with zero Clerk JS loaded
-- [ ] **MKT-02**: Visitor can view Co-Founder product page at getinsourced.ai/cofounder
+- [x] **MKT-01**: Visitor can view parent brand landing page at getinsourced.ai with zero Clerk JS loaded
+- [x] **MKT-02**: Visitor can view Co-Founder product page at getinsourced.ai/cofounder
 - [ ] **MKT-03**: Visitor can view pricing page at getinsourced.ai/pricing with CTAs linking to cofounder.getinsourced.ai/sign-up
 - [ ] **MKT-04**: Visitor can view about, contact, privacy, and terms pages on getinsourced.ai
 - [x] **MKT-05**: Marketing site is a Next.js static export (`output: 'export'`) in /marketing directory
@@ -57,8 +57,8 @@ Requirements for marketing/app separation. Each maps to roadmap phases.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| MKT-01 | Phase 18 | Pending |
-| MKT-02 | Phase 18 | Pending |
+| MKT-01 | Phase 18 | Complete |
+| MKT-02 | Phase 18 | Complete |
 | MKT-03 | Phase 18 | Pending |
 | MKT-04 | Phase 18 | Pending |
 | MKT-05 | Phase 18 | Complete |
