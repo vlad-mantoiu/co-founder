@@ -168,11 +168,11 @@ Plans:
   2. Navigating to https://www.getinsourced.ai also resolves to the marketing site (www redirect or alias)
   3. Direct S3 object URLs return 403 — only CloudFront can read the bucket (OAC enforced)
   4. A `cdk deploy` of the marketing stack provisions bucket, distribution, OAC, and Route53 records without manual AWS console steps
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 19-01: CDK MarketingStack — S3 bucket (private), CloudFront distribution with OAC, ACM certificate
-- [ ] 19-02: Route53 records for getinsourced.ai and www.getinsourced.ai pointing to CloudFront
+- [ ] 19-01-PLAN.md — CDK MarketingStack code: S3 bucket, CloudFront distribution with OAC, ACM certificate, Route53 records, CloudFront Function
+- [ ] 19-02-PLAN.md — Deploy ComputeStack update + MarketingStack, upload site to S3, verify live
 
 ### Phase 20: App Cleanup
 **Goal**: cofounder.getinsourced.ai serves only authenticated app routes — no marketing pages, no unnecessary Clerk overhead on routes that don't need it
@@ -233,4 +233,4 @@ Phases execute in numeric order: 18 → 19 → 20 → 21
 
 ---
 *Created: 2026-02-16*
-*Updated: 2026-02-19 — v0.3 milestone roadmap added (phases 18-21)*
+*Updated: 2026-02-20 — Phase 19 plans finalized (2 plans)*
