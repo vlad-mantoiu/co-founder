@@ -83,7 +83,7 @@ Each task was committed atomically:
 1. **Task 1: Create CloudFront Function and MarketingStack CDK code** - `dc6c766` (feat)
 2. **Task 2: Remove conflicting Route53 records and register MarketingStack** - `6ca646d` (feat)
 
-**Plan metadata:** (docs commit — pending)
+**Plan metadata:** `3915149` (docs: complete plan)
 
 ## Files Created/Modified
 
