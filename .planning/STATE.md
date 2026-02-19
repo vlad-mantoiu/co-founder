@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-19)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** v0.3 Marketing Separation — Phase 20: App Cleanup
+**Current focus:** v0.3 Marketing Separation — Phase 21: Marketing CI/CD
 
 ## Current Position
 
-Phase: 20 of 21 (App Cleanup) — IN PROGRESS
-Plan: 1 of 2 in current phase (20-01 complete) — Plan 20-01 COMPLETE
+Phase: 21 of 21 (Marketing CI/CD) — NEXT
+Plan: 0 of 1 in current phase — Phase 20 COMPLETE
 Status: In progress
-Last activity: 2026-02-19 — 20-01 complete: marketing routes deleted, isProtectedRoute middleware, next.config.ts redirects, not-found.tsx, force-dynamic removed from root layout
+Last activity: 2026-02-20 — 20-02 complete: ECS frontend deployed, all curl checks pass, browser verification approved, ALB health check fixed, CloudFront Function rewrite corrected
 
-Progress: [█████████░] 96% (phases 1-20-01 complete, 20-02, 21 remaining)
+Progress: [█████████░] 98% (phases 1-20 complete, 21 remaining)
 
 ## Performance Metrics
 
@@ -29,7 +29,7 @@ Progress: [█████████░] 96% (phases 1-20-01 complete, 20-02, 
 |-------|-------|-------|----------|
 | 18. Marketing Site Build | 4/4 | 25min | 6min |
 | 19. CloudFront + S3 Infra | 2/2 | 12min | 6min |
-| 20. App Cleanup | 1/2 | 2min | 2min |
+| 20. App Cleanup | 2/2 | 32min | 16min |
 | 21. Marketing CI/CD | 0/1 | - | - |
 
 *Updated after each plan completion*
@@ -69,6 +69,8 @@ Recent decisions affecting v0.3 work:
 - [20-01]: next.config.ts handles static marketing path redirects (no auth needed) — middleware handles auth-aware / root redirect only
 - [20-01]: force-dynamic kept on dashboard layout — child pages use useSearchParams() which causes prerender errors without it; root layout force-dynamic removed (no server calls)
 - [20-01]: pathname === "/" guard before await auth() in clerkMiddleware — prevents Clerk token verification on every request
+- [Phase 20-02]: ALB health check path set to /sign-in not / — root path returns 307 redirect which ALB interprets as unhealthy
+- [Phase 20-02]: CloudFront Function rewrites /path to /path/index.html (not /path.html) — S3 static export generates index.html files in directories
 
 ### Pending Todos
 
@@ -81,9 +83,9 @@ None for v0.3.
 
 ## Session Continuity
 
-Last session: 2026-02-19
-Stopped at: 20-01-PLAN.md complete — marketing routes stripped from frontend, redirects configured, middleware rewritten, next build passes
-Next action: Execute 20-02 (ECS frontend deploy + browser verification)
+Last session: 2026-02-20
+Stopped at: 20-02-PLAN.md complete — ECS frontend deployed, all curl checks pass, browser verification approved, Phase 20 complete
+Next action: Execute 21-01 (Marketing CI/CD pipeline)
 
 ---
 *v0.1 COMPLETE — 56 plans, 12 phases, 76/76 requirements (2026-02-17)*
