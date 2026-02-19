@@ -70,6 +70,7 @@ Progress: [████░░░░░░] 40% (v0.2) — v0.1 complete (phases 
 | Plan | Duration | Tasks | Files |
 |------|----------|-------|-------|
 | Phase 16 P02 | 2 min | 2 tasks | 3 files |
+| Phase 16 P01 | 14 | 2 tasks | 23 files |
 
 ## Accumulated Context
 
@@ -127,6 +128,9 @@ Recent decisions affecting v0.2 work:
 - [Phase 16]: ObservabilityStack uses physical resource ID props (not Fn.importValue) to avoid circular dependency risk
 - [Phase 16]: ECS task count alarm uses BREACHING for missing data; ALB/latency alarms use NOT_BREACHING (absence of traffic != alert)
 - [Phase 16]: FilterPattern.anyTerm(ERROR, level:error) covers both stdlib and structlog JSON logs during migration window
+- [Phase 16]: structlog 25.5.0 with stdlib bridge replaces all stdlib logging in backend
+- [Phase 16]: configure_structlog() called before all app imports in main.py to prevent processor cache pitfall
+- [Phase 16]: All log calls use snake_case event names with keyword args; error_type= on every error/warning
 
 ### Pending Todos
 
@@ -143,9 +147,9 @@ Recent decisions affecting v0.2 work:
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: Completed 16-02-PLAN.md (ObservabilityStack — SNS topic, 5 CloudWatch alarms, 30-day log retention)
-Resume file: .planning/phases/16-cloudwatch-observability/16-02-SUMMARY.md
-Next action: Execute Phase 16 Plan 03 (custom LLM/business metrics via boto3 put_metric_data)
+Stopped at: Completed 16-01-PLAN.md (structlog migration — stdlib bridge, JSON logs, correlation_id injection across 22 backend files)
+Resume file: .planning/phases/16-cloudwatch-observability/16-01-SUMMARY.md
+Next action: Execute Phase 16 Plan 02 (ObservabilityStack CDK — SNS topic, 5 CloudWatch alarms, log retention)
 
 ---
 *v0.1 COMPLETE — 56 plans, 12 phases, 76/76 requirements (2026-02-17)*
