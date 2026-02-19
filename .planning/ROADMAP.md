@@ -183,11 +183,11 @@ Plans:
   2. Visiting cofounder.getinsourced.ai/ while not authenticated redirects to /sign-in
   3. No marketing routes (home, pricing, about, contact, privacy, terms) are reachable at cofounder.getinsourced.ai — all return 404 or redirect
   4. Clerk middleware runs only on authenticated route paths — public static assets and sign-in/sign-up pages load without triggering auth checks
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 20-01: Remove (marketing) route group from frontend app, add root redirect logic
-- [ ] 20-02: Narrow Clerk middleware matcher, remove force-dynamic from non-auth routes
+- [ ] 20-01-PLAN.md — Delete marketing routes/components, add redirects in next.config.ts, rewrite middleware, create 404 page, remove force-dynamic
+- [ ] 20-02-PLAN.md — Deploy frontend to ECS, curl verification, browser checkpoint for redirects and CTA flow
 
 ### Phase 21: Marketing CI/CD
 **Goal**: Every push to main that touches /marketing automatically deploys to S3 and invalidates the CloudFront cache — no manual deploys
@@ -233,4 +233,4 @@ Phases execute in numeric order: 18 → 19 → 20 → 21
 
 ---
 *Created: 2026-02-16*
-*Updated: 2026-02-20 — Phase 19 plans finalized (2 plans)*
+*Updated: 2026-02-20 — Phase 20 plans finalized (2 plans)*
