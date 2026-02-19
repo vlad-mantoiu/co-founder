@@ -3,7 +3,7 @@
 ## Milestones
 
 - ✅ **v0.1 MVP** — Phases 1-12 (shipped 2026-02-17)
-- 🚧 **v0.2 Production Ready** — Phases 13-16 (in progress)
+- 🚧 **v0.2 Production Ready** — Phases 13-17 (in progress)
 
 ## Phases
 
@@ -35,6 +35,7 @@
 - [x] **Phase 14: Stripe Live Activation** - Activate subscription billing end-to-end with idempotency and async SDK (completed 2026-02-18)
 - [x] **Phase 15: CI/CD Hardening** - Add test gate before deploy, path filtering, SHA-pinned ECS deploys, graceful shutdown (completed 2026-02-18)
 - [x] **Phase 16: CloudWatch Observability** - SNS alerts, CloudWatch alarms, structured logging, LLM latency metrics (completed 2026-02-19)
+- [ ] **Phase 17: CI/Deploy Pipeline Fix** - Fix 16 pre-existing test failures blocking CI gate, verify ECS service names for first automated deploy
 
 ## Phase Details
 
@@ -107,10 +108,23 @@ Plans:
 - [ ] 16-02-PLAN.md — CDK ObservabilityStack (SNS topic, 5 CloudWatch alarms, metric filter, log retention)
 - [ ] 16-03-PLAN.md — Custom CloudWatch metrics (LLM latency per method, business events)
 
+### Phase 17: CI/Deploy Pipeline Fix
+**Goal**: The CI test gate passes on push to main and the first automated ECS deploy succeeds with correct service names
+**Depends on**: Phase 15, Phase 16
+**Requirements**: PIPE-01, PIPE-02
+**Gap Closure**: Closes tech debt from v0.2 milestone audit
+**Success Criteria** (what must be TRUE):
+  1. `pytest tests/ --ignore=tests/e2e` passes with zero failures on the current main branch
+  2. deploy.yml `BACKEND_SERVICE` and `FRONTEND_SERVICE` env vars contain the actual CDK-generated ECS service names (with random suffixes), verified against live AWS
+**Plans**: TBD
+
+Plans:
+- [ ] 17-01: TBD
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 13 → 14 → 15 → 16
+Phases execute in numeric order: 13 → 14 → 15 → 16 → 17
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -130,6 +144,7 @@ Phases execute in numeric order: 13 → 14 → 15 → 16
 | 14. Stripe Live Activation | 3/4 | Complete    | 2026-02-18 | - |
 | 15. CI/CD Hardening | 3/3 | Complete    | 2026-02-18 | - |
 | 16. CloudWatch Observability | 3/3 | Complete    | 2026-02-19 | - |
+| 17. CI/Deploy Pipeline Fix | v0.2 | 0/1 | Not started | - |
 
 ---
 *Created: 2026-02-16*

@@ -48,6 +48,11 @@ Requirements for production readiness. Each maps to roadmap phases.
 - [x] **CICD-08**: pytest-asyncio scope fix resolves 18 deferred integration tests
 - [x] **CICD-09**: pytest marks separate unit tests from integration tests (unit runs in CI, integration nightly)
 
+### Pipeline Fix (Gap Closure)
+
+- [ ] **PIPE-01**: All unit tests pass — 16 pre-existing failures in test_auth, test_usage_counters, test_runner_protocol, test_runner_fake, test_artifact_models fixed
+- [ ] **PIPE-02**: deploy.yml ECS service names match actual CDK-generated names (with random suffixes) verified against live AWS
+
 ### Monitoring
 
 - [x] **MON-01**: SNS topic created with ops email subscription for alerts
@@ -130,12 +135,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MON-07 | Phase 16 | Complete |
 | MON-08 | Phase 16 | Complete |
 | MON-09 | Phase 16 | Complete |
+| PIPE-01 | Phase 17 | Pending |
+| PIPE-02 | Phase 17 | Pending |
 
 **Coverage:**
-- v0.2 requirements: 41 total
-- Mapped to phases: 41
+- v0.2 requirements: 43 total
+- Mapped to phases: 43
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-18*
-*Last updated: 2026-02-18 — traceability complete after roadmap creation*
+*Last updated: 2026-02-19 — added PIPE-01, PIPE-02 for gap closure phase 17*
