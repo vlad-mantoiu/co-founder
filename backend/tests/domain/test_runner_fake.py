@@ -5,7 +5,6 @@ Tests confirm RunnerFake satisfies Runner protocol and provides realistic conten
 """
 
 import time
-from datetime import timezone
 
 import pytest
 
@@ -41,8 +40,7 @@ async def test_happy_path_run_returns_complete_state():
     assert result["current_node"] == "git_manager"
 
     # Realistic content checks
-    assert any("Product" in step["description"] or "model" in step["description"].lower()
-               for step in result["plan"])
+    assert any("Product" in step["description"] or "model" in step["description"].lower() for step in result["plan"])
     assert result["last_command_exit_code"] == 0
 
 

@@ -1,6 +1,8 @@
 """Tests for deterministic progress computation."""
+
 import pytest
-from app.domain.progress import compute_stage_progress, compute_global_progress
+
+from app.domain.progress import compute_global_progress, compute_stage_progress
 from app.domain.stages import Stage
 
 pytestmark = pytest.mark.unit

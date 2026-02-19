@@ -9,7 +9,8 @@ Provides deterministic, instant responses for 4 named scenarios:
 All scenarios return instantly (no LLM calls, no delays) with realistic content.
 """
 
-from app.agent.runner import Runner
+from datetime import UTC
+
 from app.agent.state import CoFounderState, ErrorInfo, FileChange, PlanStep
 
 
@@ -35,9 +36,7 @@ class RunnerFake:
             ValueError: If scenario is not recognized
         """
         if scenario not in self.VALID_SCENARIOS:
-            raise ValueError(
-                f"Unknown scenario: {scenario}. Valid scenarios: {self.VALID_SCENARIOS}"
-            )
+            raise ValueError(f"Unknown scenario: {scenario}. Valid scenarios: {self.VALID_SCENARIOS}")
         self.scenario = scenario
 
     async def run(self, state: CoFounderState) -> CoFounderState:
@@ -56,9 +55,7 @@ class RunnerFake:
             raise RuntimeError("Anthropic API rate limit exceeded. Retry after 60 seconds.")
 
         if self.scenario == "rate_limited":
-            raise RuntimeError(
-                "Worker capacity exceeded. Estimated wait: 5 minutes. Current queue depth: 12."
-            )
+            raise RuntimeError("Worker capacity exceeded. Estimated wait: 5 minutes. Current queue depth: 12.")
 
         # Build scenario-specific state
         if self.scenario == "happy_path":
@@ -85,17 +82,13 @@ class RunnerFake:
             RuntimeError: For llm_failure and rate_limited scenarios
         """
         if stage not in self.VALID_STAGES:
-            raise ValueError(
-                f"Invalid stage: {stage}. Valid stages: {self.VALID_STAGES}"
-            )
+            raise ValueError(f"Invalid stage: {stage}. Valid stages: {self.VALID_STAGES}")
 
         if self.scenario == "llm_failure":
             raise RuntimeError("Anthropic API rate limit exceeded. Retry after 60 seconds.")
 
         if self.scenario == "rate_limited":
-            raise RuntimeError(
-                "Worker capacity exceeded. Estimated wait: 5 minutes. Current queue depth: 12."
-            )
+            raise RuntimeError("Worker capacity exceeded. Estimated wait: 5 minutes. Current queue depth: 12.")
 
         # Return stage-specific partial state
         updated_state = {**state, "current_node": stage}
@@ -124,9 +117,7 @@ class RunnerFake:
             raise RuntimeError("Anthropic API rate limit exceeded. Retry after 60 seconds.")
 
         if self.scenario == "rate_limited":
-            raise RuntimeError(
-                "Worker capacity exceeded. Estimated wait: 5 minutes. Current queue depth: 12."
-            )
+            raise RuntimeError("Worker capacity exceeded. Estimated wait: 5 minutes. Current queue depth: 12.")
 
         return [
             {
@@ -195,9 +186,7 @@ class RunnerFake:
             raise RuntimeError("Anthropic API rate limit exceeded. Retry after 60 seconds.")
 
         if self.scenario == "rate_limited":
-            raise RuntimeError(
-                "Worker capacity exceeded. Estimated wait: 5 minutes. Current queue depth: 12."
-            )
+            raise RuntimeError("Worker capacity exceeded. Estimated wait: 5 minutes. Current queue depth: 12.")
 
         return {
             # Core fields (always present)
@@ -239,9 +228,7 @@ class RunnerFake:
             raise RuntimeError("Anthropic API rate limit exceeded. Retry after 60 seconds.")
 
         if self.scenario == "rate_limited":
-            raise RuntimeError(
-                "Worker capacity exceeded. Estimated wait: 5 minutes. Current queue depth: 12."
-            )
+            raise RuntimeError("Worker capacity exceeded. Estimated wait: 5 minutes. Current queue depth: 12.")
 
         # Return structured data matching Pydantic schemas with cross-references
         return {
@@ -256,14 +243,13 @@ class RunnerFake:
                 "differentiation_points": [
                     "Inventory-first focus vs POS bundled solutions",
                     "10-minute setup vs weeks of ERP configuration",
-                    "Affordable at $49/mo vs $300+ enterprise tools"
+                    "Affordable at $49/mo vs $300+ enterprise tools",
                 ],
                 # Business tier (Partner+)
                 "market_analysis": "We identified a $2B TAM in SMB inventory software. Our SAM (retail shops with <10 employees) is $400M. We're targeting a 1% market share ($4M ARR) within 3 years. The market is growing 12% annually as retailers digitize post-pandemic.",
                 # Strategic tier (CTO)
-                "competitive_strategy": "We will compete on depth of inventory features rather than breadth like POS systems. Our advantage: we can iterate faster on inventory-specific workflows (cycle counting, lot tracking, multi-location transfers) without POS baggage. We'll defend our position through network effects (supplier integrations) and switching costs (historical data)."
+                "competitive_strategy": "We will compete on depth of inventory features rather than breadth like POS systems. Our advantage: we can iterate faster on inventory-specific workflows (cycle counting, lot tracking, multi-location transfers) without POS baggage. We'll defend our position through network effects (supplier integrations) and switching costs (historical data).",
             },
-
             # MVP Scope (references Brief's value proposition)
             "mvp_scope": {
                 "_schema_version": 1,
@@ -272,46 +258,45 @@ class RunnerFake:
                     {
                         "name": "Product Management",
                         "description": "We'll let users add products with name, SKU, quantity, and reorder point. Supports manual entry and bulk CSV import.",
-                        "priority": "high"
+                        "priority": "high",
                     },
                     {
                         "name": "Stock Adjustments",
                         "description": "We'll track every inventory change with timestamp, quantity delta, reason, and notes. Supports receiving shipments and recording sales.",
-                        "priority": "high"
+                        "priority": "high",
                     },
                     {
                         "name": "Low Stock Alerts",
                         "description": "We'll send email notifications when product quantity falls below reorder point. Delivers on our value proposition of automatic alerts.",
-                        "priority": "high"
+                        "priority": "high",
                     },
                     {
                         "name": "Basic Reporting",
                         "description": "We'll show current stock levels, adjustment history, and low stock summary. Filterable by product category.",
-                        "priority": "medium"
+                        "priority": "medium",
                     },
                     {
                         "name": "CSV Export",
                         "description": "We'll export current inventory and adjustment logs to CSV for offline analysis or migration.",
-                        "priority": "medium"
-                    }
+                        "priority": "medium",
+                    },
                 ],
                 "out_of_scope": [
                     "Multi-location sync (Phase 2)",
                     "Barcode scanning hardware (Phase 2)",
                     "Mobile native app (web-only for MVP)",
-                    "Third-party integrations (Shopify, Square)"
+                    "Third-party integrations (Shopify, Square)",
                 ],
                 "success_metrics": [
                     "100 active users within 6 months",
                     "50% retention after 30 days",
-                    "Average 3 stock adjustments per user per week"
+                    "Average 3 stock adjustments per user per week",
                 ],
                 # Business tier
                 "technical_architecture": "We're building with Next.js 14 (frontend), FastAPI (backend), and PostgreSQL (database). Chosen for team expertise and rapid iteration speed. Hosting on AWS ECS for scalability.",
                 # Strategic tier
-                "scalability_plan": "We'll scale horizontally by sharding database by customer (each shop is independent). When we hit 10k users, we'll add read replicas. At 50k users, we'll migrate to managed Postgres (RDS) with automatic failover."
+                "scalability_plan": "We'll scale horizontally by sharding database by customer (each shop is independent). When we hit 10k users, we'll add read replicas. At 50k users, we'll migrate to managed Postgres (RDS) with automatic failover.",
             },
-
             # Milestones (references MVP features and Brief constraint)
             "milestones": {
                 "_schema_version": 1,
@@ -323,9 +308,9 @@ class RunnerFake:
                         "success_criteria": [
                             "Database migrations run successfully",
                             "User can sign up and log in",
-                            "Product CRUD operations work"
+                            "Product CRUD operations work",
                         ],
-                        "estimated_weeks": 1
+                        "estimated_weeks": 1,
                     },
                     {
                         "title": "Week 2: Core Features",
@@ -333,9 +318,9 @@ class RunnerFake:
                         "success_criteria": [
                             "User can log stock adjustments",
                             "Low stock alerts trigger correctly",
-                            "Email notifications send"
+                            "Email notifications send",
                         ],
-                        "estimated_weeks": 1
+                        "estimated_weeks": 1,
                     },
                     {
                         "title": "Week 3: Reporting & Export",
@@ -343,9 +328,9 @@ class RunnerFake:
                         "success_criteria": [
                             "Stock level report shows accurate data",
                             "Adjustment history is queryable",
-                            "CSV export includes all fields"
+                            "CSV export includes all fields",
                         ],
-                        "estimated_weeks": 1
+                        "estimated_weeks": 1,
                     },
                     {
                         "title": "Week 4: Launch",
@@ -353,23 +338,18 @@ class RunnerFake:
                         "success_criteria": [
                             "5 beta users complete workflows",
                             "No critical bugs in production",
-                            "First 10 paying customers onboarded"
+                            "First 10 paying customers onboarded",
                         ],
-                        "estimated_weeks": 1
-                    }
+                        "estimated_weeks": 1,
+                    },
                 ],
-                "critical_path": [
-                    "Foundation (Week 1)",
-                    "Core Features (Week 2)",
-                    "Launch (Week 4)"
-                ],
+                "critical_path": ["Foundation (Week 1)", "Core Features (Week 2)", "Launch (Week 4)"],
                 "total_duration_weeks": 4,
                 # Business tier
                 "resource_plan": "We'll staff with 1 full-stack engineer (80h total) and 1 designer (20h for UI polish in Week 3). Founder handles user testing and onboarding. Total cost: $12k eng + $2k design = $14k.",
                 # Strategic tier
-                "risk_mitigation_timeline": "We'll address the Customer Acquisition Cost risk in Week 3 by finalizing our local outreach list. We'll mitigate Retention Risk in Week 4 by scheduling weekly check-in calls with first 10 customers."
+                "risk_mitigation_timeline": "We'll address the Customer Acquisition Cost risk in Week 3 by finalizing our local outreach list. We'll mitigate Retention Risk in Week 4 by scheduling weekly check-in calls with first 10 customers.",
             },
-
             # Risk Log (references specific Milestones and Brief assumptions)
             "risk_log": {
                 "_schema_version": 1,
@@ -379,42 +359,42 @@ class RunnerFake:
                         "title": "Offline Sync Complexity",
                         "description": "We identified handling conflict resolution when multiple devices sync after offline edits. References our key constraint in the Brief.",
                         "severity": "high",
-                        "mitigation": "We'll start with last-write-wins strategy in MVP. Phase 2 adds user-driven conflict resolution if needed."
+                        "mitigation": "We'll start with last-write-wins strategy in MVP. Phase 2 adds user-driven conflict resolution if needed.",
                     },
                     {
                         "title": "Email Delivery Reliability",
                         "description": "We risk low stock alerts landing in spam, reducing value proposition effectiveness. Critical for Core Features milestone (Week 2).",
                         "severity": "medium",
-                        "mitigation": "We'll use SendGrid with DKIM/SPF setup. Test deliverability with beta users in Week 4."
-                    }
+                        "mitigation": "We'll use SendGrid with DKIM/SPF setup. Test deliverability with beta users in Week 4.",
+                    },
                 ],
                 "market_risks": [
                     {
                         "title": "Customer Acquisition Cost",
                         "description": "We assume CAC stays below $200, but paid ads may exceed LTV ($588/year). Impacts our monetization hypothesis.",
                         "severity": "high",
-                        "mitigation": "We'll focus on organic channels: local retail associations, word-of-mouth, content marketing. Target 50% organic mix."
+                        "mitigation": "We'll focus on organic channels: local retail associations, word-of-mouth, content marketing. Target 50% organic mix.",
                     },
                     {
                         "title": "Competition from POS Systems",
                         "description": "We risk Square/Shopify adding our inventory features before we scale. Threatens our differentiation strategy.",
                         "severity": "medium",
-                        "mitigation": "We'll build deeper inventory workflows (lot tracking, cycle counting) that POS systems won't prioritize. Create switching costs via data history."
-                    }
+                        "mitigation": "We'll build deeper inventory workflows (lot tracking, cycle counting) that POS systems won't prioritize. Create switching costs via data history.",
+                    },
                 ],
                 "execution_risks": [
                     {
                         "title": "Timeline Slippage",
                         "description": "We risk the 4-week timeline extending to 6+ weeks, delaying revenue and learning. Impacts all milestones.",
                         "severity": "medium",
-                        "mitigation": "We'll cut scope aggressively if Week 1 foundation takes longer than planned. CSV import moves to Phase 2 if needed."
+                        "mitigation": "We'll cut scope aggressively if Week 1 foundation takes longer than planned. CSV import moves to Phase 2 if needed.",
                     },
                     {
                         "title": "Beta User Churn",
                         "description": "We risk losing beta users before launch (Week 4 milestone). Would invalidate product-market fit assumptions.",
                         "severity": "low",
-                        "mitigation": "We'll offer free first 3 months to beta users. Weekly check-ins to address feedback quickly."
-                    }
+                        "mitigation": "We'll offer free first 3 months to beta users. Weekly check-ins to address feedback quickly.",
+                    },
                 ],
                 # Business tier
                 "financial_risks": [
@@ -422,7 +402,7 @@ class RunnerFake:
                         "title": "Burn Rate",
                         "description": "We risk exceeding $14k budget if engineering hours increase. Could delay follow-on funding.",
                         "severity": "medium",
-                        "mitigation": "We'll cap hours at 80 (1 person-month). Defer nice-to-have features to Phase 2."
+                        "mitigation": "We'll cap hours at 80 (1 person-month). Defer nice-to-have features to Phase 2.",
                     }
                 ],
                 # Strategic tier
@@ -431,11 +411,10 @@ class RunnerFake:
                         "title": "Market Timing",
                         "description": "We risk launching during retail off-season (post-holiday) when budgets are tight. Could slow customer acquisition.",
                         "severity": "low",
-                        "mitigation": "We'll target cafes and gift shops that have year-round inventory needs. Avoid seasonal retailers in initial cohort."
+                        "mitigation": "We'll target cafes and gift shops that have year-round inventory needs. Avoid seasonal retailers in initial cohort.",
                     }
-                ]
+                ],
             },
-
             # How It Works (references MVP features, Milestones, architecture)
             "how_it_works": {
                 "_schema_version": 1,
@@ -444,36 +423,36 @@ class RunnerFake:
                     {
                         "step_number": 1,
                         "title": "Sign Up",
-                        "description": "We'll guide users through email/password signup with email verification. Delivered in Foundation milestone (Week 1)."
+                        "description": "We'll guide users through email/password signup with email verification. Delivered in Foundation milestone (Week 1).",
                     },
                     {
                         "step_number": 2,
                         "title": "Add Products",
-                        "description": "We'll let users enter products manually or import via CSV. References Product Management feature from MVP Scope. Completed by Week 1."
+                        "description": "We'll let users enter products manually or import via CSV. References Product Management feature from MVP Scope. Completed by Week 1.",
                     },
                     {
                         "step_number": 3,
                         "title": "Track Stock Changes",
-                        "description": "We'll provide a form to log stock adjustments (receiving shipments, recording sales). Core Features milestone (Week 2). Delivers on our value proposition."
+                        "description": "We'll provide a form to log stock adjustments (receiving shipments, recording sales). Core Features milestone (Week 2). Delivers on our value proposition.",
                     },
                     {
                         "step_number": 4,
                         "title": "Receive Alerts",
-                        "description": "We'll send email when stock falls below reorder point. Low Stock Alerts feature from Week 2. Automatic as promised in Brief."
+                        "description": "We'll send email when stock falls below reorder point. Low Stock Alerts feature from Week 2. Automatic as promised in Brief.",
                     },
                     {
                         "step_number": 5,
                         "title": "Review Reports",
-                        "description": "We'll show current stock levels and adjustment history. Basic Reporting feature from Week 3. Supports data-driven restocking decisions."
-                    }
+                        "description": "We'll show current stock levels and adjustment history. Basic Reporting feature from Week 3. Supports data-driven restocking decisions.",
+                    },
                 ],
                 "architecture": "We're using a three-tier architecture: Next.js 14 frontend (responsive web app), FastAPI backend (async Python for high concurrency), PostgreSQL database (products, adjustments, users). Authentication via JWT tokens with refresh rotation. Email alerts via SendGrid API. Hosted on AWS ECS (Docker containers) behind ALB. References our technical architecture from MVP Scope.",
                 "data_flow": "We designed the flow as: User submits adjustment form → Frontend validates quantity → API authenticates JWT → Backend checks product exists → DB transaction updates quantity and logs adjustment → If quantity < reorder_point, queue email alert → Response confirms success. Supports our offline constraint via local form validation.",
                 # Business tier
                 "integration_points": "We're planning SendGrid (email), Stripe (payments), AWS S3 (CSV storage), and CloudWatch (monitoring) for MVP. Phase 2 adds Shopify webhook integration for automatic stock sync when orders are placed.",
                 # Strategic tier
-                "security_compliance": "We'll implement AES-256 encryption at rest (RDS), TLS 1.3 in transit, and RBAC for multi-user shops. SOC 2 Type II compliance planned for Year 2 to serve enterprise customers. Password hashing via bcrypt with 12 rounds. Session tokens expire after 7 days."
-            }
+                "security_compliance": "We'll implement AES-256 encryption at rest (RDS), TLS 1.3 in transit, and RBAC for multi-user shops. SOC 2 Type II compliance planned for Year 2 to serve enterprise customers. Password hashing via bcrypt with 12 rounds. Session tokens expire after 7 days.",
+            },
         }
 
     # =========================================================================
@@ -493,7 +472,10 @@ class RunnerFake:
                 index=1,
                 description="Implement StockAdjustment model to track inventory changes with timestamps and notes",
                 status="pending",
-                files_to_modify=["src/models/stock_adjustment.py", "src/db/migrations/002_create_stock_adjustments.sql"],
+                files_to_modify=[
+                    "src/models/stock_adjustment.py",
+                    "src/db/migrations/002_create_stock_adjustments.sql",
+                ],
             ),
             PlanStep(
                 index=2,
@@ -742,9 +724,7 @@ PORT=8000
             raise RuntimeError("Anthropic API rate limit exceeded. Retry after 60 seconds.")
 
         if self.scenario == "rate_limited":
-            raise RuntimeError(
-                "Worker capacity exceeded. Estimated wait: 5 minutes. Current queue depth: 12."
-            )
+            raise RuntimeError("Worker capacity exceeded. Estimated wait: 5 minutes. Current queue depth: 12.")
 
         # Return 6 adaptive questions using "we" co-founder language
         return [
@@ -816,12 +796,10 @@ PORT=8000
             raise RuntimeError("Anthropic API rate limit exceeded. Retry after 60 seconds.")
 
         if self.scenario == "rate_limited":
-            raise RuntimeError(
-                "Worker capacity exceeded. Estimated wait: 5 minutes. Current queue depth: 12."
-            )
+            raise RuntimeError("Worker capacity exceeded. Estimated wait: 5 minutes. Current queue depth: 12.")
 
         # Return complete RationalisedIdeaBrief with investor-facing tone and confidence scores
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         return {
             "_schema_version": 1,
@@ -861,7 +839,7 @@ PORT=8000
                 "risks": "strong",  # Comprehensive risk identification
                 "smallest_viable_experiment": "strong",  # Clear, actionable experiment defined
             },
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
         }
 
     async def check_question_relevance(
@@ -887,9 +865,7 @@ PORT=8000
             raise RuntimeError("Anthropic API rate limit exceeded. Retry after 60 seconds.")
 
         if self.scenario == "rate_limited":
-            raise RuntimeError(
-                "Worker capacity exceeded. Estimated wait: 5 minutes. Current queue depth: 12."
-            )
+            raise RuntimeError("Worker capacity exceeded. Estimated wait: 5 minutes. Current queue depth: 12.")
 
         # In fake, no regeneration needed (simplest behavior for testing)
         return {
@@ -916,9 +892,7 @@ PORT=8000
             raise RuntimeError("Anthropic API rate limit exceeded. Retry after 60 seconds.")
 
         if self.scenario == "rate_limited":
-            raise RuntimeError(
-                "Worker capacity exceeded. Estimated wait: 5 minutes. Current queue depth: 12."
-            )
+            raise RuntimeError("Worker capacity exceeded. Estimated wait: 5 minutes. Current queue depth: 12.")
 
         # Simple heuristic for fake: length-based confidence
         content_length = len(content.strip())
@@ -952,9 +926,7 @@ PORT=8000
             raise RuntimeError("Anthropic API rate limit exceeded. Retry after 60 seconds.")
 
         if self.scenario == "rate_limited":
-            raise RuntimeError(
-                "Worker capacity exceeded. Estimated wait: 5 minutes. Current queue depth: 12."
-            )
+            raise RuntimeError("Worker capacity exceeded. Estimated wait: 5 minutes. Current queue depth: 12.")
 
         # Return 3 realistic execution plan options
         return {

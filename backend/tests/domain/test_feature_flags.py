@@ -8,10 +8,9 @@ Requires PostgreSQL running locally or via Docker:
 """
 
 import os
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
 from app.core.auth import ClerkUser
@@ -26,10 +25,7 @@ pytestmark = pytest.mark.integration
 @pytest.fixture
 async def engine() -> AsyncEngine:
     """Create PostgreSQL test engine (supports JSONB)."""
-    db_url = os.getenv(
-        "TEST_DATABASE_URL",
-        "postgresql+asyncpg://cofounder:cofounder@localhost:5432/cofounder_test"
-    )
+    db_url = os.getenv("TEST_DATABASE_URL", "postgresql+asyncpg://cofounder:cofounder@localhost:5432/cofounder_test")
 
     engine = create_async_engine(db_url, echo=False)
 

@@ -2,8 +2,8 @@
 
 from pydantic import BaseModel
 
-
 # ---------- Plan Tiers ----------
+
 
 class PlanTierResponse(BaseModel):
     id: int
@@ -30,6 +30,7 @@ class PlanTierUpdate(BaseModel):
 
 
 # ---------- Users ----------
+
 
 class UserSummary(BaseModel):
     clerk_user_id: str
@@ -65,6 +66,7 @@ class UserUpdate(BaseModel):
 
 
 # ---------- Usage ----------
+
 
 class UsageAggregate(BaseModel):
     total_tokens: int

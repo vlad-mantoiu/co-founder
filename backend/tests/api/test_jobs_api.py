@@ -12,7 +12,6 @@ Tests cover:
 - Input validation
 """
 
-import json
 import uuid
 
 import pytest
@@ -22,7 +21,6 @@ from fastapi.testclient import TestClient
 
 from app.core.auth import ClerkUser, require_auth, require_subscription
 from app.db.redis import get_redis
-from app.queue.schemas import JobStatus
 
 pytestmark = pytest.mark.integration
 
@@ -47,15 +45,19 @@ def user_b():
 
 def override_auth(user: ClerkUser):
     """Create auth override for a specific user."""
+
     async def _override():
         return user
+
     return _override
 
 
 def override_subscription(user: ClerkUser):
     """Override subscription check (bypass for tests)."""
+
     async def _override():
         return user
+
     return _override
 
 
@@ -67,11 +69,7 @@ def test_submit_job_returns_job_id_and_position(api_client: TestClient, fake_red
     app.dependency_overrides[get_redis] = lambda: fake_redis
 
     response = api_client.post(
-        "/api/jobs",
-        json={
-            "project_id": str(uuid.uuid4()),
-            "goal": "Add user authentication with JWT"
-        }
+        "/api/jobs", json={"project_id": str(uuid.uuid4()), "goal": "Add user authentication with JWT"}
     )
 
     assert response.status_code == 201
@@ -94,13 +92,7 @@ def test_submit_job_requires_auth(api_client: TestClient, fake_redis):
     app: FastAPI = api_client.app
     app.dependency_overrides[get_redis] = lambda: fake_redis
 
-    response = api_client.post(
-        "/api/jobs",
-        json={
-            "project_id": str(uuid.uuid4()),
-            "goal": "Add user authentication"
-        }
-    )
+    response = api_client.post("/api/jobs", json={"project_id": str(uuid.uuid4()), "goal": "Add user authentication"})
 
     assert response.status_code == 401
     assert "detail" in response.json()
@@ -119,8 +111,8 @@ def test_submit_job_validates_goal(api_client: TestClient, fake_redis, user_a):
         "/api/jobs",
         json={
             "project_id": str(uuid.uuid4()),
-            "goal": ""  # Empty goal
-        }
+            "goal": "",  # Empty goal
+        },
     )
 
     assert response.status_code == 422
@@ -137,13 +129,7 @@ def test_get_job_status_returns_current_state(api_client: TestClient, fake_redis
     app.dependency_overrides[get_redis] = lambda: fake_redis
 
     # Submit job first
-    submit_response = api_client.post(
-        "/api/jobs",
-        json={
-            "project_id": str(uuid.uuid4()),
-            "goal": "Add authentication"
-        }
-    )
+    submit_response = api_client.post("/api/jobs", json={"project_id": str(uuid.uuid4()), "goal": "Add authentication"})
     job_id = submit_response.json()["job_id"]
 
     # Get status
@@ -170,13 +156,7 @@ def test_get_job_status_enforces_user_isolation(api_client: TestClient, fake_red
     app.dependency_overrides[get_redis] = lambda: fake_redis
 
     # User A submits job
-    submit_response = api_client.post(
-        "/api/jobs",
-        json={
-            "project_id": str(uuid.uuid4()),
-            "goal": "Add authentication"
-        }
-    )
+    submit_response = api_client.post("/api/jobs", json={"project_id": str(uuid.uuid4()), "goal": "Add authentication"})
     job_id = submit_response.json()["job_id"]
 
     # User B tries to access User A's job
@@ -212,18 +192,14 @@ def test_confirm_iteration_grants_batch(api_client: TestClient, fake_redis, user
     app.dependency_overrides[get_redis] = lambda: fake_redis
 
     # Submit job
-    submit_response = api_client.post(
-        "/api/jobs",
-        json={
-            "project_id": str(uuid.uuid4()),
-            "goal": "Add authentication"
-        }
-    )
+    submit_response = api_client.post("/api/jobs", json={"project_id": str(uuid.uuid4()), "goal": "Add authentication"})
     job_id = submit_response.json()["job_id"]
 
     # Manually set iteration count to tier depth to trigger confirmation need
-    from app.queue.state_machine import IterationTracker
     import asyncio
+
+    from app.queue.state_machine import IterationTracker
+
     tracker = IterationTracker(fake_redis)
     asyncio.run(tracker.increment(job_id))
     asyncio.run(tracker.increment(job_id))  # Bootstrapper depth is 2
@@ -249,13 +225,7 @@ def test_confirm_iteration_when_not_at_limit_returns_400(api_client: TestClient,
     app.dependency_overrides[get_redis] = lambda: fake_redis
 
     # Submit job
-    submit_response = api_client.post(
-        "/api/jobs",
-        json={
-            "project_id": str(uuid.uuid4()),
-            "goal": "Add authentication"
-        }
-    )
+    submit_response = api_client.post("/api/jobs", json={"project_id": str(uuid.uuid4()), "goal": "Add authentication"})
     job_id = submit_response.json()["job_id"]
 
     # Try to confirm without reaching depth limit
@@ -277,16 +247,10 @@ def test_daily_limit_exceeded_returns_scheduled(api_client: TestClient, fake_red
     # Submit 5 jobs to reach limit
     project_id = str(uuid.uuid4())
     for i in range(5):
-        api_client.post(
-            "/api/jobs",
-            json={"project_id": project_id, "goal": f"Task {i+1}"}
-        )
+        api_client.post("/api/jobs", json={"project_id": project_id, "goal": f"Task {i + 1}"})
 
     # 6th job should be scheduled
-    response = api_client.post(
-        "/api/jobs",
-        json={"project_id": project_id, "goal": "Task 6"}
-    )
+    response = api_client.post("/api/jobs", json={"project_id": project_id, "goal": "Task 6"})
 
     assert response.status_code == 201
     data = response.json()
@@ -308,20 +272,16 @@ def test_global_cap_exceeded_returns_503(api_client: TestClient, fake_redis, use
     app.dependency_overrides[get_redis] = lambda: fake_redis
 
     # Pre-fill queue to 100 jobs
-    from app.queue.manager import QueueManager
     import asyncio
+
+    from app.queue.manager import QueueManager
+
     queue = QueueManager(fake_redis)
     for i in range(100):
         asyncio.run(queue.enqueue(str(uuid.uuid4()), "bootstrapper"))
 
     # Try to submit 101st job
-    response = api_client.post(
-        "/api/jobs",
-        json={
-            "project_id": str(uuid.uuid4()),
-            "goal": "Should be rejected"
-        }
-    )
+    response = api_client.post("/api/jobs", json={"project_id": str(uuid.uuid4()), "goal": "Should be rejected"})
 
     assert response.status_code == 503
     assert "System busy" in response.json()["detail"]
@@ -330,7 +290,9 @@ def test_global_cap_exceeded_returns_503(api_client: TestClient, fake_redis, use
     app.dependency_overrides.clear()
 
 
-@pytest.mark.skip(reason="SSE testing with TestClient is problematic - pubsub blocks indefinitely. Manual/E2E testing required.")
+@pytest.mark.skip(
+    reason="SSE testing with TestClient is problematic - pubsub blocks indefinitely. Manual/E2E testing required."
+)
 def test_stream_job_status_returns_sse(api_client: TestClient, fake_redis, user_a):
     """Test GET /api/jobs/{id}/stream returns SSE event stream.
 

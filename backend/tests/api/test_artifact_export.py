@@ -1,8 +1,7 @@
 """Tests for artifact PDF export endpoints and PDFExporter."""
 
-import sys
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, patch
+from datetime import UTC, datetime
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
@@ -13,8 +12,8 @@ from app.agent.runner_fake import RunnerFake
 from app.api.routes.artifacts import get_runner, router
 from app.core.auth import ClerkUser, require_auth
 from app.db.models.artifact import Artifact
-from app.db.models.project import Project
 from app.db.models.plan_tier import PlanTier
+from app.db.models.project import Project
 from app.db.models.user_settings import UserSettings
 
 pytestmark = pytest.mark.integration
@@ -35,6 +34,7 @@ except ImportError:
 @pytest.fixture
 def mock_user_settings():
     """Mock get_or_create_user_settings to return test tier."""
+
     async def mock_get_settings(user_id: str):
         # Create a mock PlanTier
         tier = PlanTier(
@@ -46,8 +46,8 @@ def mock_user_settings():
             price_yearly=0,
             features={},
             limits={},
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
         )
         return UserSettings(
             clerk_user_id=user_id,
@@ -55,8 +55,8 @@ def mock_user_settings():
             model_profile="balanced",
             preferences=None,
             beta_features=None,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
         )
 
     with patch("app.api.routes.artifacts.get_or_create_user_settings", side_effect=mock_get_settings) as mock:
@@ -102,8 +102,8 @@ async def setup_project_and_artifacts(db_session):
         name="Test Startup",
         description="A test startup",
         status="active",
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
     db_session.add(project)
 
@@ -127,8 +127,8 @@ async def setup_project_and_artifacts(db_session):
         has_user_edits=False,
         generation_status="idle",
         schema_version=1,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
     db_session.add(brief)
 
@@ -157,8 +157,8 @@ async def setup_project_and_artifacts(db_session):
         has_user_edits=False,
         generation_status="idle",
         schema_version=1,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
     db_session.add(mvp_scope)
 
@@ -183,8 +183,8 @@ async def setup_project_and_artifacts(db_session):
         has_user_edits=False,
         generation_status="idle",
         schema_version=1,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
     db_session.add(milestones)
 
@@ -220,8 +220,8 @@ async def setup_project_and_artifacts(db_session):
         has_user_edits=False,
         generation_status="idle",
         schema_version=1,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
     db_session.add(risk_log)
 
@@ -245,8 +245,8 @@ async def setup_project_and_artifacts(db_session):
         has_user_edits=False,
         generation_status="idle",
         schema_version=1,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
     db_session.add(how_it_works)
 
@@ -369,9 +369,7 @@ async def test_pdf_exporter_combined_html_renders():
             "success_metrics": ["Metric 1"],
         },
         "milestones": {
-            "milestones": [
-                {"week": 1, "name": "M1", "description": "D1", "deliverables": ["D1"]}
-            ],
+            "milestones": [{"week": 1, "name": "M1", "description": "D1", "deliverables": ["D1"]}],
             "critical_path": ["C1"],
             "total_duration_weeks": 4,
         },
@@ -425,9 +423,7 @@ async def test_export_single_pdf_returns_bytes(client, setup_project_and_artifac
 
 
 @pytest.mark.asyncio
-async def test_export_single_pdf_user_isolation(
-    app, setup_project_and_artifacts, mock_user_settings
-):
+async def test_export_single_pdf_user_isolation(app, setup_project_and_artifacts, mock_user_settings):
     """Other user's artifact returns 404."""
     if not WEASYPRINT_AVAILABLE:
         pytest.skip("WeasyPrint not available")
@@ -482,8 +478,8 @@ async def test_export_combined_pdf_empty_project(client, db_session, mock_user_s
         name="Empty Project",
         description="No artifacts",
         status="active",
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
     db_session.add(project)
     await db_session.commit()
@@ -493,9 +489,7 @@ async def test_export_combined_pdf_empty_project(client, db_session, mock_user_s
 
 
 @pytest.mark.asyncio
-async def test_export_combined_pdf_user_isolation(
-    app, setup_project_and_artifacts, mock_user_settings
-):
+async def test_export_combined_pdf_user_isolation(app, setup_project_and_artifacts, mock_user_settings):
     """Other user's project returns 404."""
     if not WEASYPRINT_AVAILABLE:
         pytest.skip("WeasyPrint not available")

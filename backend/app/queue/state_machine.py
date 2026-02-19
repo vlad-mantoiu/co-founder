@@ -1,6 +1,7 @@
 """Job state machine and iteration tracking."""
+
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from redis.asyncio import Redis
 
@@ -30,9 +31,7 @@ class JobStateMachine:
     def __init__(self, redis: Redis):
         self.redis = redis
 
-    async def create_job(
-        self, job_id: str, metadata: dict, now: datetime | None = None
-    ) -> None:
+    async def create_job(self, job_id: str, metadata: dict, now: datetime | None = None) -> None:
         """Initialize job hash in Redis with QUEUED status.
 
         Args:
@@ -40,7 +39,7 @@ class JobStateMachine:
             metadata: Additional job metadata (tier, project_id, etc.)
             now: Current time (for deterministic testing)
         """
-        now = now or datetime.now(timezone.utc)
+        now = now or datetime.now(UTC)
 
         await self.redis.hset(
             f"job:{job_id}",
@@ -69,7 +68,7 @@ class JobStateMachine:
         Returns:
             True if transition succeeded, False if invalid or job not found
         """
-        now = now or datetime.now(timezone.utc)
+        now = now or datetime.now(UTC)
 
         # Get current status
         current = await self.redis.hget(f"job:{job_id}", "status")

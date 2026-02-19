@@ -126,10 +126,7 @@ class SemanticMemory:
 
         # Filter by project if specified
         if project_id:
-            results = [
-                r for r in results.get("results", [])
-                if r.get("metadata", {}).get("project_id") == project_id
-            ]
+            results = [r for r in results.get("results", []) if r.get("metadata", {}).get("project_id") == project_id]
             return results
 
         return results.get("results", [])

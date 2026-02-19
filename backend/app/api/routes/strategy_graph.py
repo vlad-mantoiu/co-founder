@@ -68,23 +68,31 @@ async def get_project_graph(
         else:
             node_type = "artifact"
 
-        nodes.append(GraphNode(
-            id=node_dict.get("id", ""),
-            type=node_type,
-            title=node_dict.get("title", ""),
-            status=node_dict.get("status", ""),
-            created_at=node_dict.get("created_at", ""),
-            why=node_dict.get("why", ""),
-            tradeoffs=node_dict.get("tradeoffs", []),
-            alternatives=node_dict.get("alternatives", []),
-            impact_summary=node_dict.get("impact_summary", ""),
-        ))
+        nodes.append(
+            GraphNode(
+                id=node_dict.get("id", ""),
+                type=node_type,
+                title=node_dict.get("title", ""),
+                status=node_dict.get("status", ""),
+                created_at=node_dict.get("created_at", ""),
+                why=node_dict.get("why", ""),
+                tradeoffs=node_dict.get("tradeoffs", []),
+                alternatives=node_dict.get("alternatives", []),
+                impact_summary=node_dict.get("impact_summary", ""),
+            )
+        )
 
     edges = []
     for edge_dict in raw.get("edges", []):
-        edges.append(GraphEdge(
-            **{"from": edge_dict.get("from_id", ""), "to": edge_dict.get("to_id", ""), "relation": edge_dict.get("relation", "")}
-        ))
+        edges.append(
+            GraphEdge(
+                **{
+                    "from": edge_dict.get("from_id", ""),
+                    "to": edge_dict.get("to_id", ""),
+                    "relation": edge_dict.get("relation", ""),
+                }
+            )
+        )
 
     return GraphResponse(project_id=str(project_id), nodes=nodes, edges=edges)
 

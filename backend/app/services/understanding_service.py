@@ -7,7 +7,7 @@ Responsibilities:
 - Idea Brief generation and artifact storage
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -39,9 +39,7 @@ class UnderstandingService:
         self.runner = runner
         self.session_factory = session_factory
 
-    async def start_session(
-        self, clerk_user_id: str, onboarding_session_id: str
-    ) -> UnderstandingSession:
+    async def start_session(self, clerk_user_id: str, onboarding_session_id: str) -> UnderstandingSession:
         """Start a new understanding session based on completed onboarding.
 
         Args:
@@ -76,6 +74,7 @@ class UnderstandingService:
 
             # Resolve tier for the user
             from app.core.llm_config import get_or_create_user_settings
+
             user_settings = await get_or_create_user_settings(clerk_user_id)
             tier_slug = user_settings.plan_tier.slug if user_settings.plan_tier else "bootstrapper"
 
@@ -187,18 +186,12 @@ class UnderstandingService:
             flag_modified(understanding, "answers")
 
             # Determine which questions have been answered
-            answered_questions = [
-                q for q in understanding.questions if q["id"] in understanding.answers
-            ]
-            remaining_questions = [
-                q for q in understanding.questions if q["id"] not in understanding.answers
-            ]
+            answered_questions = [q for q in understanding.questions if q["id"] in understanding.answers]
+            remaining_questions = [q for q in understanding.questions if q["id"] not in understanding.answers]
 
             # Load onboarding session for idea_text
             onboarding_result = await session.execute(
-                select(OnboardingSession).where(
-                    OnboardingSession.id == understanding.onboarding_session_id
-                )
+                select(OnboardingSession).where(OnboardingSession.id == understanding.onboarding_session_id)
             )
             onboarding = onboarding_result.scalar_one()
 
@@ -263,14 +256,13 @@ class UnderstandingService:
 
             # Load onboarding session for idea_text
             onboarding_result = await session.execute(
-                select(OnboardingSession).where(
-                    OnboardingSession.id == understanding.onboarding_session_id
-                )
+                select(OnboardingSession).where(OnboardingSession.id == understanding.onboarding_session_id)
             )
             onboarding = onboarding_result.scalar_one()
 
             # Resolve tier for the user
             from app.core.llm_config import get_or_create_user_settings
+
             user_settings = await get_or_create_user_settings(clerk_user_id)
             tier_slug = user_settings.plan_tier.slug if user_settings.plan_tier else "bootstrapper"
 
@@ -301,7 +293,7 @@ class UnderstandingService:
 
             # Mark session as completed
             understanding.status = "completed"
-            understanding.completed_at = datetime.now(timezone.utc)
+            understanding.completed_at = datetime.now(UTC)
 
             await session.commit()
             await session.refresh(artifact)
@@ -457,14 +449,13 @@ class UnderstandingService:
 
             # Load onboarding for context
             onboarding_result = await session.execute(
-                select(OnboardingSession).where(
-                    OnboardingSession.id == understanding.onboarding_session_id
-                )
+                select(OnboardingSession).where(OnboardingSession.id == understanding.onboarding_session_id)
             )
             onboarding = onboarding_result.scalar_one()
 
             # Resolve tier for the user
             from app.core.llm_config import get_or_create_user_settings
+
             user_settings = await get_or_create_user_settings(clerk_user_id)
             tier_slug = user_settings.plan_tier.slug if user_settings.plan_tier else "bootstrapper"
 
@@ -472,9 +463,7 @@ class UnderstandingService:
             context = {
                 "idea_text": onboarding.idea_text,
                 "onboarding_answers": onboarding.answers,
-                "existing_brief": (
-                    understanding.answers if understanding.answers else None
-                ),
+                "existing_brief": (understanding.answers if understanding.answers else None),
                 "user_id": clerk_user_id,
                 "session_id": str(understanding.id),
                 "tier": tier_slug,

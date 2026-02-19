@@ -37,10 +37,13 @@ os.environ.setdefault("STRIPE_PRICE_CTO_ANNUAL", "price_test_cto_an")
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def override_auth(user: ClerkUser):
     """Dependency override factory for require_auth."""
+
     async def _override():
         return user
+
     return _override
 
 
@@ -57,6 +60,7 @@ def _make_stripe_event(event_id: str, event_type: str, data: dict) -> dict:
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def test_user():
     return ClerkUser(user_id="user_billing_test", claims={"sub": "user_billing_test"})
@@ -65,6 +69,7 @@ def test_user():
 # ---------------------------------------------------------------------------
 # BILL-01: Webhook idempotency
 # ---------------------------------------------------------------------------
+
 
 class TestWebhookIdempotency:
     """Webhook events with the same event_id must only be processed once."""
@@ -82,6 +87,7 @@ class TestWebhookIdempotency:
     def test_webhook_rejects_invalid_signature(self, api_client: TestClient):
         """POST webhook with bad signature returns 400."""
         import stripe as stripe_module
+
         with patch(
             "stripe.Webhook.construct_event",
             side_effect=stripe_module.SignatureVerificationError("Invalid signature", "t=0,v1=bad"),
@@ -144,6 +150,7 @@ class TestWebhookIdempotency:
 # ---------------------------------------------------------------------------
 # BILL-03: Async Stripe SDK
 # ---------------------------------------------------------------------------
+
 
 class TestAsyncStripeSDK:
     """Stripe async methods must be used (create_async, not create)."""
@@ -253,6 +260,7 @@ class TestAsyncStripeSDK:
             patch("app.api.routes.billing._get_stripe"),
         ):
             import asyncio
+
             result = asyncio.get_event_loop().run_until_complete(
                 _get_or_create_stripe_customer(fake_us, "user_billing_test")
             )
@@ -264,6 +272,7 @@ class TestAsyncStripeSDK:
 # ---------------------------------------------------------------------------
 # BILL-02: Startup validation (validate_price_map)
 # ---------------------------------------------------------------------------
+
 
 class TestValidatePriceMap:
     """validate_price_map() must fail fast on missing IDs in production mode."""
@@ -319,6 +328,7 @@ class TestValidatePriceMap:
 # BILL-01 adjacent: Payment failure behavior
 # ---------------------------------------------------------------------------
 
+
 class TestPaymentFailure:
     """invoice.payment_failed webhook must immediately downgrade to bootstrapper."""
 
@@ -353,12 +363,11 @@ class TestPaymentFailure:
         from sqlalchemy import select
         from sqlalchemy.ext.asyncio import async_sessionmaker
 
-        from app.api.routes.billing import _handle_payment_failed
-        from app.db.models.user_settings import UserSettings
-        from app.db.models.plan_tier import PlanTier
-
         # Import all models so metadata is complete
         import app.db.models  # noqa: F401
+        from app.api.routes.billing import _handle_payment_failed
+        from app.db.models.plan_tier import PlanTier
+        from app.db.models.user_settings import UserSettings
 
         # Build a session factory backed by the test engine
         test_factory = async_sessionmaker(engine, expire_on_commit=False)
@@ -367,6 +376,7 @@ class TestPaymentFailure:
             # Find tiers (seeded at engine level by metadata creation, not app seed)
             # We create the tiers manually since this test has its own engine.
             from app.db.base import Base
+
             async with engine.begin() as conn:
                 await conn.run_sync(Base.metadata.drop_all)
                 await conn.run_sync(Base.metadata.create_all)

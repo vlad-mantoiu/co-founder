@@ -10,9 +10,9 @@ CNTR-02: List fields serialize as [] not null when no data exists.
 import pytest
 
 from app.schemas.dashboard import DashboardResponse
-from app.schemas.decision_gates import CreateGateResponse, GateStatusResponse, GATE_1_OPTIONS
-from app.schemas.timeline import TimelineResponse
+from app.schemas.decision_gates import GATE_1_OPTIONS, CreateGateResponse, GateStatusResponse
 from app.schemas.strategy_graph import GraphResponse
+from app.schemas.timeline import TimelineResponse
 
 pytestmark = pytest.mark.unit
 
@@ -59,7 +59,7 @@ def test_dashboard_response_serialization_no_nulls():
 
 def test_dashboard_response_list_fields_have_default_factory():
     """CNTR-01: Meta-test — all list fields in DashboardResponse have default_factory."""
-    from typing import get_args, get_origin
+    from typing import get_origin
 
     for name, field in DashboardResponse.model_fields.items():
         annotation = field.annotation
@@ -194,9 +194,7 @@ def test_graph_response_list_fields_have_defaults():
         field = GraphResponse.model_fields[name]
         origin = get_origin(field.annotation)
         assert origin is list, f"{name} should be list-typed"
-        assert field.default_factory is not None, (
-            f"GraphResponse.{name} has no default_factory — may serialize as null"
-        )
+        assert field.default_factory is not None, f"GraphResponse.{name} has no default_factory — may serialize as null"
 
 
 def test_gate_status_response_options_has_default():

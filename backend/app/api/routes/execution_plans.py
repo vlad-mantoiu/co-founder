@@ -3,10 +3,9 @@
 Provides 6 endpoints for execution plan generation, selection, status, and Deep Research stub.
 """
 
+from anthropic._exceptions import OverloadedError
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
-
-from anthropic._exceptions import OverloadedError
 
 from app.agent.llm_helpers import enqueue_failed_request
 from app.agent.runner import Runner
@@ -32,10 +31,12 @@ def get_runner(request: Request) -> Runner:
     Override this dependency in tests via app.dependency_overrides.
     """
     from app.core.config import get_settings
+
     settings = get_settings()
 
     if settings.anthropic_api_key:
         from app.agent.runner_real import RunnerReal
+
         checkpointer = getattr(request.app.state, "checkpointer", None)
         return RunnerReal(checkpointer=checkpointer)
     else:
@@ -98,12 +99,14 @@ async def get_execution_plans(
 
     Returns 404 if no execution plan exists.
     """
+    import uuid
+
+    from sqlalchemy import select
+
     from app.db.models.artifact import Artifact
     from app.db.models.project import Project
     from app.schemas.artifacts import ArtifactType
     from app.schemas.execution_plans import ExecutionOption
-    from sqlalchemy import select
-    import uuid
 
     session_factory = get_session_factory()
     async with session_factory() as session:
@@ -129,10 +132,7 @@ async def get_execution_plans(
 
         return GeneratePlansResponse(
             plan_set_id=plan_artifact.current_content.get("plan_set_id", ""),
-            options=[
-                ExecutionOption(**opt)
-                for opt in plan_artifact.current_content.get("options", [])
-            ],
+            options=[ExecutionOption(**opt) for opt in plan_artifact.current_content.get("options", [])],
             recommended_id=plan_artifact.current_content.get("recommended_id", ""),
             generated_at=plan_artifact.current_content.get("generated_at", ""),
         )
@@ -155,11 +155,12 @@ async def get_selected_plan(
         raise HTTPException(status_code=404, detail="No execution plan selected")
 
     # Get plan_set_id from artifact
-    from app.db.models.artifact import Artifact
-    from app.db.models.project import Project
-    from app.schemas.artifacts import ArtifactType
-    from sqlalchemy import select
     import uuid
+
+    from sqlalchemy import select
+
+    from app.db.models.artifact import Artifact
+    from app.schemas.artifacts import ArtifactType
 
     async with session_factory() as session:
         project_uuid = uuid.UUID(project_id)
@@ -194,9 +195,7 @@ async def regenerate_execution_plans(
     Used when founder clicks "Generate different options" button.
     """
     if not request.feedback:
-        raise HTTPException(
-            status_code=422, detail="feedback is required for regeneration"
-        )
+        raise HTTPException(status_code=422, detail="feedback is required for regeneration")
 
     try:
         session_factory = get_session_factory()

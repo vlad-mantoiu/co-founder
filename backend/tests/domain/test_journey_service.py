@@ -8,7 +8,7 @@ Requires PostgreSQL running locally or via Docker:
 
 import os
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import select
@@ -18,7 +18,6 @@ from app.db.base import Base
 from app.db.models.decision_gate import DecisionGate
 from app.db.models.project import Project
 from app.db.models.stage_config import StageConfig
-from app.db.models.stage_event import StageEvent
 from app.services.journey import JourneyService
 
 pytestmark = pytest.mark.integration
@@ -28,10 +27,7 @@ pytestmark = pytest.mark.integration
 async def engine() -> AsyncEngine:
     """Create PostgreSQL test engine (supports JSONB)."""
     # Use test database URL from env, or default to local postgres
-    db_url = os.getenv(
-        "TEST_DATABASE_URL",
-        "postgresql+asyncpg://cofounder:cofounder@localhost:5432/cofounder_test"
-    )
+    db_url = os.getenv("TEST_DATABASE_URL", "postgresql+asyncpg://cofounder:cofounder@localhost:5432/cofounder_test")
 
     engine = create_async_engine(
         db_url,
@@ -86,6 +82,7 @@ async def sample_project(session: AsyncSession) -> uuid.UUID:
 
 # Tests
 
+
 async def test_initialize_journey_creates_stage_configs(
     journey_service: JourneyService, sample_project: uuid.UUID, session: AsyncSession
 ):
@@ -93,9 +90,7 @@ async def test_initialize_journey_creates_stage_configs(
     await journey_service.initialize_journey(sample_project)
 
     # Check that 5 StageConfig records exist
-    result = await session.execute(
-        select(StageConfig).where(StageConfig.project_id == sample_project)
-    )
+    result = await session.execute(select(StageConfig).where(StageConfig.project_id == sample_project))
     configs = result.scalars().all()
     assert len(configs) == 5
 
@@ -110,9 +105,7 @@ async def test_initialize_journey_creates_stage_configs(
     assert stage_1_config.milestones["brief_generated"]["completed"] is False
 
     # Check project is still at pre-stage
-    result = await session.execute(
-        select(Project).where(Project.id == sample_project)
-    )
+    result = await session.execute(select(Project).where(Project.id == sample_project))
     project = result.scalar_one()
     assert project.stage_number is None
 
@@ -125,9 +118,7 @@ async def test_initialize_journey_idempotent(
     await journey_service.initialize_journey(sample_project)
 
     # Still only 5 StageConfig records
-    result = await session.execute(
-        select(StageConfig).where(StageConfig.project_id == sample_project)
-    )
+    result = await session.execute(select(StageConfig).where(StageConfig.project_id == sample_project))
     configs = result.scalars().all()
     assert len(configs) == 5
 
@@ -136,16 +127,12 @@ async def test_create_gate_returns_gate_id(
     journey_service: JourneyService, sample_project: uuid.UUID, session: AsyncSession
 ):
     """Test that create_gate returns a UUID and creates a pending gate."""
-    gate_id = await journey_service.create_gate(
-        sample_project, "stage_advance", 1
-    )
+    gate_id = await journey_service.create_gate(sample_project, "stage_advance", 1)
 
     assert isinstance(gate_id, uuid.UUID)
 
     # Check gate exists
-    result = await session.execute(
-        select(DecisionGate).where(DecisionGate.id == gate_id)
-    )
+    result = await session.execute(select(DecisionGate).where(DecisionGate.id == gate_id))
     gate = result.scalar_one()
     assert gate.status == "pending"
     assert gate.gate_type == "stage_advance"
@@ -161,7 +148,9 @@ async def test_decide_gate_proceed_advances_stage(
 
     # Create gate for stage 1 (to advance from pre-stage to stage 1)
     gate_id = await journey_service.create_gate(
-        sample_project, "stage_advance", 0  # Gate at pre-stage to advance to 1
+        sample_project,
+        "stage_advance",
+        0,  # Gate at pre-stage to advance to 1
     )
 
     # Decide with proceed
@@ -171,9 +160,7 @@ async def test_decide_gate_proceed_advances_stage(
     assert result["target_stage"] == 1
 
     # Check project is now at stage 1
-    result = await session.execute(
-        select(Project).where(Project.id == sample_project)
-    )
+    result = await session.execute(select(Project).where(Project.id == sample_project))
     project = result.scalar_one()
     assert project.stage_number == 1
     assert project.stage_entered_at is not None
@@ -193,10 +180,7 @@ async def test_decide_gate_narrow_resets_milestones(
 
     # Verify milestone is completed
     result = await session.execute(
-        select(StageConfig).where(
-            StageConfig.project_id == sample_project,
-            StageConfig.stage_number == 1
-        )
+        select(StageConfig).where(StageConfig.project_id == sample_project, StageConfig.stage_number == 1)
     )
     config = result.scalar_one()
     assert config.milestones["brief_generated"]["completed"] is True
@@ -226,9 +210,7 @@ async def test_decide_gate_pivot_returns_to_earlier_stage(
     await journey_service.decide_gate(gate_id, "proceed")
 
     # Verify at stage 2
-    result = await session.execute(
-        select(Project).where(Project.id == sample_project)
-    )
+    result = await session.execute(select(Project).where(Project.id == sample_project))
     project = result.scalar_one()
     assert project.stage_number == 2
 
@@ -255,9 +237,7 @@ async def test_decide_gate_park_changes_status(
     await journey_service.decide_gate(gate_id, "park")
 
     # Check status is parked and stage preserved
-    result = await session.execute(
-        select(Project).where(Project.id == sample_project)
-    )
+    result = await session.execute(select(Project).where(Project.id == sample_project))
     project = result.scalar_one()
     assert project.status == "parked"
     assert project.stage_number == 1
@@ -278,9 +258,7 @@ async def test_unpark_restores_active_status(
     await journey_service.unpark_project(sample_project)
 
     # Check status is active and stage unchanged
-    result = await session.execute(
-        select(Project).where(Project.id == sample_project)
-    )
+    result = await session.execute(select(Project).where(Project.id == sample_project))
     project = result.scalar_one()
     assert project.status == "active"
     assert project.stage_number == 1
@@ -296,17 +274,13 @@ async def test_complete_milestone_updates_progress(
     await journey_service.decide_gate(gate_id, "proceed")
 
     # Complete a milestone
-    stage_progress = await journey_service.complete_milestone(
-        sample_project, 1, "brief_generated"
-    )
+    stage_progress = await journey_service.complete_milestone(sample_project, 1, "brief_generated")
 
     # Check stage progress
     assert stage_progress > 0
 
     # Check global progress
-    result = await session.execute(
-        select(Project).where(Project.id == sample_project)
-    )
+    result = await session.execute(select(Project).where(Project.id == sample_project))
     project = result.scalar_one()
     assert project.progress_percent > 0
 
@@ -375,9 +349,7 @@ async def test_multiple_gates_coexist(
     gate_id_2 = await journey_service.create_gate(sample_project, "direction", 0)
 
     # Check both exist
-    result = await session.execute(
-        select(DecisionGate).where(DecisionGate.project_id == sample_project)
-    )
+    result = await session.execute(select(DecisionGate).where(DecisionGate.project_id == sample_project))
     gates = result.scalars().all()
     assert len(gates) == 2
     assert all(g.status == "pending" for g in gates)
@@ -409,11 +381,9 @@ async def test_get_blocking_risks_detects_stale_project(
     await journey_service.initialize_journey(sample_project)
 
     # Update project to have old last_activity
-    result = await session.execute(
-        select(Project).where(Project.id == sample_project)
-    )
+    result = await session.execute(select(Project).where(Project.id == sample_project))
     project = result.scalar_one()
-    project.updated_at = datetime.now(timezone.utc) - timedelta(days=15)
+    project.updated_at = datetime.now(UTC) - timedelta(days=15)
     await session.commit()
 
     # Get risks
@@ -434,11 +404,9 @@ async def test_dismiss_risk_filters_from_results(
     await journey_service.decide_gate(gate_id, "proceed")
 
     # Make project stale
-    result = await session.execute(
-        select(Project).where(Project.id == sample_project)
-    )
+    result = await session.execute(select(Project).where(Project.id == sample_project))
     project = result.scalar_one()
-    project.updated_at = datetime.now(timezone.utc) - timedelta(days=15)
+    project.updated_at = datetime.now(UTC) - timedelta(days=15)
     await session.commit()
 
     # Verify risk exists

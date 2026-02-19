@@ -9,8 +9,8 @@ TDD coverage:
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 import fakeredis.aioredis
+import pytest
 
 from app.agent.runner_fake import RunnerFake
 from app.queue.schemas import JobStatus
@@ -123,9 +123,7 @@ async def test_execute_build_success():
         JobStatus.DEPS,
         JobStatus.CHECKS,
     ]
-    assert captured_transitions == expected_transitions, (
-        f"Expected {expected_transitions}, got {captured_transitions}"
-    )
+    assert captured_transitions == expected_transitions, f"Expected {expected_transitions}, got {captured_transitions}"
 
     # Assert result contains all 4 required fields
     assert result["sandbox_id"] == "fake-sandbox-001"
@@ -167,9 +165,7 @@ async def test_execute_build_failure_sets_failed():
 
     # FSM must be in FAILED state
     final_status = await state_machine.get_status(job_id)
-    assert final_status == JobStatus.FAILED, (
-        f"Expected FAILED, got {final_status}"
-    )
+    assert final_status == JobStatus.FAILED, f"Expected FAILED, got {final_status}"
 
 
 # ---------------------------------------------------------------------------

@@ -60,7 +60,7 @@ async def submit_job(
     request: SubmitJobRequest,
     background_tasks: BackgroundTasks,
     user: ClerkUser = Depends(require_subscription),
-    redis = Depends(get_redis),
+    redis=Depends(get_redis),
 ):
     """Submit a new job to the queue.
 
@@ -90,12 +90,15 @@ async def submit_job(
     if exceeded:
         # Schedule for tomorrow (per locked decision: accept but schedule)
         state_machine = JobStateMachine(redis)
-        await state_machine.create_job(job_id, {
-            "project_id": request.project_id,
-            "user_id": user.user_id,
-            "tier": tier,
-            "goal": request.goal,
-        })
+        await state_machine.create_job(
+            job_id,
+            {
+                "project_id": request.project_id,
+                "user_id": user.user_id,
+                "tier": tier,
+                "goal": request.goal,
+            },
+        )
         # Transition to SCHEDULED
         await state_machine.transition(job_id, JobStatus.SCHEDULED, "Scheduled for tomorrow")
 
@@ -125,12 +128,15 @@ async def submit_job(
 
     # Create job in state machine
     state_machine = JobStateMachine(redis)
-    await state_machine.create_job(job_id, {
-        "project_id": request.project_id,
-        "user_id": user.user_id,
-        "tier": tier,
-        "goal": request.goal,
-    })
+    await state_machine.create_job(
+        job_id,
+        {
+            "project_id": request.project_id,
+            "user_id": user.user_id,
+            "tier": tier,
+            "goal": request.goal,
+        },
+    )
 
     # Enqueue
     result = await queue_manager.enqueue(job_id, tier)
@@ -147,6 +153,7 @@ async def submit_job(
 
     # Trigger background worker to process queue
     from app.queue.worker import process_next_job
+
     background_tasks.add_task(process_next_job, redis=redis)
 
     return SubmitJobResponse(
@@ -163,7 +170,7 @@ async def submit_job(
 async def get_job_status(
     job_id: str,
     user: ClerkUser = Depends(require_auth),
-    redis = Depends(get_redis),
+    redis=Depends(get_redis),
 ):
     """Get current job status with usage counters.
 
@@ -206,7 +213,7 @@ async def get_job_status(
 async def stream_job_status(
     job_id: str,
     user: ClerkUser = Depends(require_auth),
-    redis = Depends(get_redis),
+    redis=Depends(get_redis),
 ):
     """Stream real-time job status updates via SSE.
 
@@ -267,7 +274,7 @@ async def stream_job_status(
 async def confirm_iteration(
     job_id: str,
     user: ClerkUser = Depends(require_auth),
-    redis = Depends(get_redis),
+    redis=Depends(get_redis),
 ):
     """Confirm continuation for another iteration batch.
 

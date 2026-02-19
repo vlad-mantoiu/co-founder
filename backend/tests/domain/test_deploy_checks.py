@@ -4,6 +4,7 @@ Pure TDD tests - written before implementation.
 Tests cover: complete workspace, missing README, missing env, secrets, no start script,
 deploy paths constant, and overall status computation.
 """
+
 import pytest
 
 from app.domain.deploy_checks import (

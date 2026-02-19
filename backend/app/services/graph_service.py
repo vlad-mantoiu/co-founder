@@ -68,17 +68,11 @@ class GraphService:
                 "tradeoffs": context.get("tradeoffs", []),
                 "alternatives": context.get("alternatives", []),
                 "impact_summary": context.get("impact_summary", ""),
-                "created_at": (
-                    gate.decided_at.isoformat()
-                    if gate.decided_at
-                    else gate.created_at.isoformat()
-                ),
+                "created_at": (gate.decided_at.isoformat() if gate.decided_at else gate.created_at.isoformat()),
             }
             await self.strategy_graph.upsert_decision_node(node_data)
         except Exception:
-            logger.warning(
-                "neo4j_sync_failed", entity="decision_gate", gate_id=str(gate.id), exc_info=True
-            )
+            logger.warning("neo4j_sync_failed", entity="decision_gate", gate_id=str(gate.id), exc_info=True)
 
     async def sync_milestone_to_graph(self, event: StageEvent, project_id: str) -> None:
         """Sync a StageEvent to the Neo4j strategy graph as a Milestone node.
@@ -104,9 +98,7 @@ class GraphService:
             }
             await self.strategy_graph.upsert_milestone_node(node_data)
         except Exception:
-            logger.warning(
-                "neo4j_sync_failed", entity="milestone_event", event_id=str(event.id), exc_info=True
-            )
+            logger.warning("neo4j_sync_failed", entity="milestone_event", event_id=str(event.id), exc_info=True)
 
     async def sync_artifact_to_graph(self, artifact: Artifact, project_id: str) -> None:
         """Sync an Artifact to the Neo4j strategy graph as an ArtifactNode.
@@ -131,9 +123,7 @@ class GraphService:
             }
             await self.strategy_graph.upsert_artifact_node(node_data)
         except Exception:
-            logger.warning(
-                "neo4j_sync_failed", entity="artifact", artifact_id=str(artifact.id), exc_info=True
-            )
+            logger.warning("neo4j_sync_failed", entity="artifact", artifact_id=str(artifact.id), exc_info=True)
 
     async def create_decision_edge(self, from_id: str, to_id: str, relation: str) -> None:
         """Create a directed edge between two strategy graph nodes.
@@ -148,7 +138,4 @@ class GraphService:
         try:
             await self.strategy_graph.create_edge(from_id, to_id, relation)
         except Exception:
-            logger.warning(
-                "neo4j_edge_creation_failed", from_id=from_id, to_id=to_id,
-                relation=relation, exc_info=True
-            )
+            logger.warning("neo4j_edge_creation_failed", from_id=from_id, to_id=to_id, relation=relation, exc_info=True)

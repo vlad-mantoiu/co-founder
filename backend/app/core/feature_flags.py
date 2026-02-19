@@ -63,15 +63,13 @@ def require_feature(flag: str):
     Returns:
         Async dependency function that validates flag access
     """
+
     async def dependency(user: ClerkUser = Depends(require_auth)) -> ClerkUser:
         """Inner dependency that checks feature flag access."""
         enabled_flags = await get_feature_flags(user)
 
         if flag not in enabled_flags:
-            raise HTTPException(
-                status_code=403,
-                detail="This feature requires beta access. Contact support to enable."
-            )
+            raise HTTPException(status_code=403, detail="This feature requires beta access. Contact support to enable.")
 
         return user
 

@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import exists, and_, func, select
+from sqlalchemy import and_, exists, func, select
 
 from app.core.auth import ClerkUser, require_auth, require_subscription
 from app.core.llm_config import get_or_create_user_settings
@@ -128,9 +128,7 @@ async def list_projects(user: ClerkUser = Depends(require_auth)):
     factory = get_session_factory()
     async with factory() as session:
         result = await session.execute(
-            select(Project)
-            .where(Project.clerk_user_id == user.user_id)
-            .order_by(Project.created_at.desc())
+            select(Project).where(Project.clerk_user_id == user.user_id).order_by(Project.created_at.desc())
         )
         projects = result.scalars().all()
         responses = []
@@ -199,9 +197,7 @@ async def delete_project(project_id: str, user: ClerkUser = Depends(require_auth
 
 
 @router.post("/{project_id}/link-github")
-async def link_github_repo(
-    project_id: str, github_repo: str, user: ClerkUser = Depends(require_auth)
-):
+async def link_github_repo(project_id: str, github_repo: str, user: ClerkUser = Depends(require_auth)):
     """Link a GitHub repository to a project."""
     factory = get_session_factory()
     async with factory() as session:

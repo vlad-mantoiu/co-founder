@@ -13,14 +13,14 @@ Tests prove:
 5. GET /api/features only returns enabled flags (True values)
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 
 from app.core.auth import ClerkUser, require_auth
-from app.core.feature_flags import get_feature_flags, require_feature
+from app.core.feature_flags import require_feature
 
 pytestmark = pytest.mark.integration
 

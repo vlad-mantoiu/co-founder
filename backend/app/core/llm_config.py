@@ -6,7 +6,7 @@ Resolution order:
 3. Settings.*_model                    (global fallback)
 """
 
-from datetime import date, datetime
+from datetime import date
 from typing import Any
 
 import structlog
@@ -43,9 +43,7 @@ async def get_or_create_user_settings(user_id: str) -> UserSettings:
     factory = get_session_factory()
 
     async with factory() as session:
-        result = await session.execute(
-            select(UserSettings).where(UserSettings.clerk_user_id == user_id)
-        )
+        result = await session.execute(select(UserSettings).where(UserSettings.clerk_user_id == user_id))
         settings = result.scalar_one_or_none()
 
         if settings is not None:
@@ -54,9 +52,7 @@ async def get_or_create_user_settings(user_id: str) -> UserSettings:
             return settings
 
         # Find bootstrapper tier
-        tier_result = await session.execute(
-            select(PlanTier).where(PlanTier.slug == "bootstrapper")
-        )
+        tier_result = await session.execute(select(PlanTier).where(PlanTier.slug == "bootstrapper"))
         tier = tier_result.scalar_one()
 
         new_settings = UserSettings(
@@ -117,9 +113,7 @@ async def _check_daily_token_limit(user_id: str, user_settings: UserSettings) ->
     used = int(await r.get(key) or 0)
 
     if used >= max_tokens:
-        raise PermissionError(
-            f"Daily token limit reached ({used:,}/{max_tokens:,}). Resets at midnight UTC."
-        )
+        raise PermissionError(f"Daily token limit reached ({used:,}/{max_tokens:,}). Resets at midnight UTC.")
 
 
 async def create_tracked_llm(
@@ -189,8 +183,9 @@ class UsageTrackingCallback(AsyncCallbackHandler):
                 session.add(log)
                 await session.commit()
         except Exception as e:
-            logger.warning("usage_tracking_db_write_failed", user_id=self.user_id,
-                           error=str(e), error_type=type(e).__name__)
+            logger.warning(
+                "usage_tracking_db_write_failed", user_id=self.user_id, error=str(e), error_type=type(e).__name__
+            )
 
         # Increment Redis daily counter
         try:
@@ -200,8 +195,9 @@ class UsageTrackingCallback(AsyncCallbackHandler):
             await r.incrby(key, total_tokens)
             await r.expire(key, 90_000)  # 25h TTL for safety
         except Exception as e:
-            logger.warning("usage_tracking_redis_write_failed", user_id=self.user_id,
-                           error=str(e), error_type=type(e).__name__)
+            logger.warning(
+                "usage_tracking_redis_write_failed", user_id=self.user_id, error=str(e), error_type=type(e).__name__
+            )
 
 
 def _extract_usage(response: LLMResult) -> dict | None:

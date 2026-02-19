@@ -20,9 +20,9 @@ from app.db.models.artifact import Artifact
 from app.db.models.project import Project
 
 pytestmark = pytest.mark.integration
+from app.artifacts.generator import ArtifactGenerator
 from app.schemas.artifacts import ArtifactType
 from app.services.artifact_service import ArtifactService
-from app.artifacts.generator import ArtifactGenerator
 
 
 @pytest.fixture
@@ -44,6 +44,7 @@ def artifact_service(generator, api_client):
     Depends on api_client to ensure database is initialized.
     """
     from app.db import get_session_factory
+
     factory = get_session_factory()
     return ArtifactService(generator=generator, session_factory=factory)
 
@@ -76,9 +77,7 @@ async def create_test_project(db_session: AsyncSession, user_id: str = "user_tes
 
 
 @pytest.mark.asyncio
-async def test_generate_artifacts_creates_five_records(
-    artifact_service, onboarding_data, db_session
-):
+async def test_generate_artifacts_creates_five_records(artifact_service, onboarding_data, db_session):
     """Test that generate_all creates 5 Artifact rows."""
     test_project = await create_test_project(db_session)
 
@@ -94,9 +93,7 @@ async def test_generate_artifacts_creates_five_records(
     assert len(failed) == 0
 
     # Verify in database
-    result = await db_session.execute(
-        select(Artifact).where(Artifact.project_id == test_project.id)
-    )
+    result = await db_session.execute(select(Artifact).where(Artifact.project_id == test_project.id))
     artifacts = result.scalars().all()
     assert len(artifacts) == 5
 
@@ -112,9 +109,7 @@ async def test_generate_artifacts_creates_five_records(
 
 
 @pytest.mark.asyncio
-async def test_generate_artifacts_sets_version_1(
-    artifact_service, onboarding_data, db_session
-):
+async def test_generate_artifacts_sets_version_1(artifact_service, onboarding_data, db_session):
     """Test that all created artifacts have version_number=1."""
     await artifact_service.generate_all(
         project_id=test_project.id,
@@ -124,9 +119,7 @@ async def test_generate_artifacts_sets_version_1(
     )
 
     # Check all artifacts have version 1
-    result = await db_session.execute(
-        select(Artifact).where(Artifact.project_id == test_project.id)
-    )
+    result = await db_session.execute(select(Artifact).where(Artifact.project_id == test_project.id))
     artifacts = result.scalars().all()
     for artifact in artifacts:
         assert artifact.version_number == 1
@@ -146,18 +139,14 @@ async def test_generate_artifacts_sets_generation_status_idle_after_completion(
     )
 
     # All artifacts should have idle status
-    result = await db_session.execute(
-        select(Artifact).where(Artifact.project_id == test_project.id)
-    )
+    result = await db_session.execute(select(Artifact).where(Artifact.project_id == test_project.id))
     artifacts = result.scalars().all()
     for artifact in artifacts:
         assert artifact.generation_status == "idle"
 
 
 @pytest.mark.asyncio
-async def test_get_artifact_by_id_returns_content(
-    artifact_service, onboarding_data, db_session
-):
+async def test_get_artifact_by_id_returns_content(artifact_service, onboarding_data, db_session):
     """Test that get_artifact returns artifact with current_content."""
     artifact_ids, _ = await artifact_service.generate_all(
         project_id=test_project.id,
@@ -176,9 +165,7 @@ async def test_get_artifact_by_id_returns_content(
 
 
 @pytest.mark.asyncio
-async def test_get_artifact_user_isolation(
-    artifact_service, onboarding_data, db_session
-):
+async def test_get_artifact_user_isolation(artifact_service, onboarding_data, db_session):
     """Test that get_artifact returns None for wrong user_id (404 pattern)."""
     artifact_ids, _ = await artifact_service.generate_all(
         project_id=test_project.id,
@@ -193,9 +180,7 @@ async def test_get_artifact_user_isolation(
 
 
 @pytest.mark.asyncio
-async def test_get_project_artifacts_returns_all_types(
-    artifact_service, onboarding_data, db_session
-):
+async def test_get_project_artifacts_returns_all_types(artifact_service, onboarding_data, db_session):
     """Test that get_project_artifacts returns list of 5 artifacts."""
     await artifact_service.generate_all(
         project_id=test_project.id,
@@ -204,9 +189,7 @@ async def test_get_project_artifacts_returns_all_types(
         tier="cto_scale",
     )
 
-    artifacts = await artifact_service.get_project_artifacts(
-        project_id=test_project.id, user_id="user_test"
-    )
+    artifacts = await artifact_service.get_project_artifacts(project_id=test_project.id, user_id="user_test")
 
     assert len(artifacts) == 5
     artifact_types = {a.artifact_type for a in artifacts}
@@ -214,9 +197,7 @@ async def test_get_project_artifacts_returns_all_types(
 
 
 @pytest.mark.asyncio
-async def test_regenerate_artifact_bumps_version(
-    artifact_service, onboarding_data, db_session
-):
+async def test_regenerate_artifact_bumps_version(artifact_service, onboarding_data, db_session):
     """Test that regenerate increments version_number to 2."""
     artifact_ids, _ = await artifact_service.generate_all(
         project_id=test_project.id,
@@ -239,9 +220,7 @@ async def test_regenerate_artifact_bumps_version(
 
 
 @pytest.mark.asyncio
-async def test_regenerate_artifact_preserves_previous_content(
-    artifact_service, onboarding_data, db_session
-):
+async def test_regenerate_artifact_preserves_previous_content(artifact_service, onboarding_data, db_session):
     """Test that previous_content matches v1 current_content after regeneration."""
     artifact_ids, _ = await artifact_service.generate_all(
         project_id=test_project.id,
@@ -268,9 +247,7 @@ async def test_regenerate_artifact_preserves_previous_content(
 
 
 @pytest.mark.asyncio
-async def test_regenerate_clears_user_edits(
-    artifact_service, onboarding_data, db_session
-):
+async def test_regenerate_clears_user_edits(artifact_service, onboarding_data, db_session):
     """Test that regenerate clears has_user_edits and edited_sections."""
     artifact_ids, _ = await artifact_service.generate_all(
         project_id=test_project.id,
@@ -353,9 +330,7 @@ async def test_add_annotation(artifact_service, onboarding_data, db_session):
 
 
 @pytest.mark.asyncio
-async def test_check_edits_before_regenerate(
-    artifact_service, onboarding_data, db_session
-):
+async def test_check_edits_before_regenerate(artifact_service, onboarding_data, db_session):
     """Test that check_has_edits returns edited section names."""
     artifact_ids, _ = await artifact_service.generate_all(
         project_id=test_project.id,

@@ -5,6 +5,7 @@ No I/O, no side effects, fully deterministic.
 
 Used by DEPL-01 (readiness boolean, blocking issues, deploy path recommendations).
 """
+
 import json
 import re
 from dataclasses import dataclass, field
@@ -118,7 +119,7 @@ _SECRET_PATTERNS: list[re.Pattern] = [
     re.compile(r'(?:SECRET|secret)\s*=\s*["\'][^"\']{8,}', re.IGNORECASE),
     re.compile(r'(?:PASSWORD|password)\s*=\s*["\'][^"\']{4,}', re.IGNORECASE),
     re.compile(r'(?:TOKEN|token)\s*=\s*["\'][^"\']{8,}', re.IGNORECASE),
-    re.compile(r'sk-[a-zA-Z0-9]{20,}'),  # OpenAI-style keys
+    re.compile(r"sk-[a-zA-Z0-9]{20,}"),  # OpenAI-style keys
     re.compile(r'(?:PRIVATE_KEY|private_key)\s*=\s*["\'][^"\']{8,}', re.IGNORECASE),
 ]
 
@@ -149,8 +150,7 @@ def _has_start_script(workspace_files: dict[str, str]) -> bool:
 def _has_dependencies_pinned(workspace_files: dict[str, str]) -> bool:
     """Check if dependencies are declared in a standard file."""
     return any(
-        f in workspace_files
-        for f in ("package.json", "requirements.txt", "pyproject.toml", "Gemfile", "go.mod")
+        f in workspace_files for f in ("package.json", "requirements.txt", "pyproject.toml", "Gemfile", "go.mod")
     )
 
 
@@ -189,89 +189,109 @@ def run_deploy_checks(workspace_files: dict[str, str]) -> list[DeployCheck]:
 
     # Check 1: README.md
     if "README.md" in workspace_files or "readme.md" in workspace_files:
-        checks.append(DeployCheck(
-            id="readme",
-            title="README.md present",
-            status="pass",
-            message="README.md found — deployment instructions and project description present.",
-        ))
+        checks.append(
+            DeployCheck(
+                id="readme",
+                title="README.md present",
+                status="pass",
+                message="README.md found — deployment instructions and project description present.",
+            )
+        )
     else:
-        checks.append(DeployCheck(
-            id="readme",
-            title="README.md missing",
-            status="warn",
-            message="No README.md found. Add one to document setup and deployment steps.",
-            fix_instruction="Create README.md with project overview, setup instructions, and environment variable documentation.",
-        ))
+        checks.append(
+            DeployCheck(
+                id="readme",
+                title="README.md missing",
+                status="warn",
+                message="No README.md found. Add one to document setup and deployment steps.",
+                fix_instruction="Create README.md with project overview, setup instructions, and environment variable documentation.",
+            )
+        )
 
     # Check 2: .env.example
     if ".env.example" in workspace_files:
-        checks.append(DeployCheck(
-            id="env_example",
-            title=".env.example present",
-            status="pass",
-            message=".env.example found — environment variables are documented.",
-        ))
+        checks.append(
+            DeployCheck(
+                id="env_example",
+                title=".env.example present",
+                status="pass",
+                message=".env.example found — environment variables are documented.",
+            )
+        )
     else:
-        checks.append(DeployCheck(
-            id="env_example",
-            title=".env.example missing",
-            status="warn",
-            message="No .env.example found. Document required environment variables.",
-            fix_instruction="Create .env.example listing all required environment variables with placeholder values (e.g., API_KEY=your_key_here).",
-        ))
+        checks.append(
+            DeployCheck(
+                id="env_example",
+                title=".env.example missing",
+                status="warn",
+                message="No .env.example found. Document required environment variables.",
+                fix_instruction="Create .env.example listing all required environment variables with placeholder values (e.g., API_KEY=your_key_here).",
+            )
+        )
 
     # Check 3: Start script / entry point
     if _has_start_script(workspace_files):
-        checks.append(DeployCheck(
-            id="start_script",
-            title="Start script defined",
-            status="pass",
-            message="Entry point found — deployment platform can run the application.",
-        ))
+        checks.append(
+            DeployCheck(
+                id="start_script",
+                title="Start script defined",
+                status="pass",
+                message="Entry point found — deployment platform can run the application.",
+            )
+        )
     else:
-        checks.append(DeployCheck(
-            id="start_script",
-            title="No start script found",
-            status="fail",
-            message="No runnable entry point detected (package.json scripts.start, Procfile, or Makefile).",
-            fix_instruction="Add a start script: in package.json add {\"scripts\": {\"start\": \"node server.js\"}}, or create a Procfile with 'web: python app.py'.",
-        ))
+        checks.append(
+            DeployCheck(
+                id="start_script",
+                title="No start script found",
+                status="fail",
+                message="No runnable entry point detected (package.json scripts.start, Procfile, or Makefile).",
+                fix_instruction='Add a start script: in package.json add {"scripts": {"start": "node server.js"}}, or create a Procfile with \'web: python app.py\'.',
+            )
+        )
 
     # Check 4: No hardcoded secrets
     violations = _find_hardcoded_secrets(workspace_files)
     if violations:
-        checks.append(DeployCheck(
-            id="no_secrets",
-            title="Hardcoded secrets detected",
-            status="fail",
-            message=f"Possible hardcoded secrets found in: {', '.join(violations)}.",
-            fix_instruction="Move all secrets to environment variables. Use .env.example for documentation and load via os.environ or dotenv. Never commit real credentials.",
-        ))
+        checks.append(
+            DeployCheck(
+                id="no_secrets",
+                title="Hardcoded secrets detected",
+                status="fail",
+                message=f"Possible hardcoded secrets found in: {', '.join(violations)}.",
+                fix_instruction="Move all secrets to environment variables. Use .env.example for documentation and load via os.environ or dotenv. Never commit real credentials.",
+            )
+        )
     else:
-        checks.append(DeployCheck(
-            id="no_secrets",
-            title="No hardcoded secrets",
-            status="pass",
-            message="No hardcoded secrets detected in workspace files.",
-        ))
+        checks.append(
+            DeployCheck(
+                id="no_secrets",
+                title="No hardcoded secrets",
+                status="pass",
+                message="No hardcoded secrets detected in workspace files.",
+            )
+        )
 
     # Check 5: Dependencies pinned
     if _has_dependencies_pinned(workspace_files):
-        checks.append(DeployCheck(
-            id="deps_pinned",
-            title="Dependencies declared",
-            status="pass",
-            message="Dependency file found — platform can install dependencies reliably.",
-        ))
+        checks.append(
+            DeployCheck(
+                id="deps_pinned",
+                title="Dependencies declared",
+                status="pass",
+                message="Dependency file found — platform can install dependencies reliably.",
+            )
+        )
     else:
-        checks.append(DeployCheck(
-            id="deps_pinned",
-            title="No dependency file found",
-            status="warn",
-            message="No package.json, requirements.txt, or equivalent found.",
-            fix_instruction="Create a requirements.txt (Python) or package.json (Node.js) with pinned dependency versions.",
-        ))
+        checks.append(
+            DeployCheck(
+                id="deps_pinned",
+                title="No dependency file found",
+                status="warn",
+                message="No package.json, requirements.txt, or equivalent found.",
+                fix_instruction="Create a requirements.txt (Python) or package.json (Node.js) with pinned dependency versions.",
+            )
+        )
 
     return checks
 

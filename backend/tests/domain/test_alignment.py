@@ -3,6 +3,7 @@
 Pure TDD tests - written before implementation.
 Tests cover: empty changes, fully aligned, mixed, scope creep, no original features, case insensitivity.
 """
+
 import pytest
 
 from app.domain.alignment import compute_alignment_score

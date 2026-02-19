@@ -70,8 +70,9 @@ def test_generate_plans_returns_2_3_options(client):
 
 def test_generate_plans_has_recommended(client):
     """PLAN-01: One option is_recommended=True."""
-    from app.agent.runner_fake import RunnerFake
     import asyncio
+
+    from app.agent.runner_fake import RunnerFake
 
     runner = RunnerFake(scenario="happy_path")
     result = asyncio.run(runner.generate_execution_options({}))
@@ -130,9 +131,9 @@ def test_select_plan_persists_selection(client):
     # check_plan_selected: returns selected_option_id is not None
 
     # Service exists with all three methods
-    assert hasattr(ExecutionPlanService, 'select_option')
-    assert hasattr(ExecutionPlanService, 'get_selected_plan')
-    assert hasattr(ExecutionPlanService, 'check_plan_selected')
+    assert hasattr(ExecutionPlanService, "select_option")
+    assert hasattr(ExecutionPlanService, "get_selected_plan")
+    assert hasattr(ExecutionPlanService, "check_plan_selected")
 
 
 def test_build_before_selection_checkable(client):
@@ -148,7 +149,7 @@ def test_build_before_selection_checkable(client):
     # Returns True only if selected_option_id is not None
 
     # Service exists with check_plan_selected method
-    assert hasattr(ExecutionPlanService, 'check_plan_selected')
+    assert hasattr(ExecutionPlanService, "check_plan_selected")
 
 
 def test_regenerate_returns_fresh_options(client):
@@ -163,7 +164,7 @@ def test_regenerate_returns_fresh_options(client):
     # Runner.generate_execution_options receives feedback parameter
 
     # Service exists with regenerate_options method
-    assert hasattr(ExecutionPlanService, 'regenerate_options')
+    assert hasattr(ExecutionPlanService, "regenerate_options")
 
 
 def test_deep_research_returns_402(client):
@@ -199,8 +200,9 @@ def test_user_isolation_returns_404(client):
 
 def test_each_option_has_full_breakdown(client):
     """DCSN-02: Each option includes all required fields for decision console."""
-    from app.agent.runner_fake import RunnerFake
     import asyncio
+
+    from app.agent.runner_fake import RunnerFake
 
     runner = RunnerFake(scenario="happy_path")
     result = asyncio.run(runner.generate_execution_options({}))
@@ -248,13 +250,13 @@ def test_routes_registered(client):
 def test_schemas_import(client):
     """Verify all schemas import successfully."""
     from app.schemas.execution_plans import (
+        DecisionConsoleOption,
         ExecutionOption,
         ExecutionPlanOptions,
         GeneratePlansRequest,
         GeneratePlansResponse,
         SelectPlanRequest,
         SelectPlanResponse,
-        DecisionConsoleOption,
     )
 
     # All schemas imported

@@ -42,8 +42,10 @@ def user_b():
 
 def override_auth(user: ClerkUser):
     """Create auth override for a specific user."""
+
     async def _override():
         return user
+
     return _override
 
 
@@ -64,10 +66,7 @@ def complete_onboarding_flow(api_client: TestClient, user: ClerkUser, idea: str,
     app.dependency_overrides[get_runner] = lambda: runner
 
     # Start session
-    start_response = api_client.post(
-        "/api/onboarding/start",
-        json={"idea": idea}
-    )
+    start_response = api_client.post("/api/onboarding/start", json={"idea": idea})
     assert start_response.status_code == 200
     session_id = start_response.json()["id"]
     questions = start_response.json()["questions"]
@@ -77,7 +76,7 @@ def complete_onboarding_flow(api_client: TestClient, user: ClerkUser, idea: str,
         if question["required"]:
             api_client.post(
                 f"/api/onboarding/{session_id}/answer",
-                json={"question_id": question["id"], "answer": f"Answer to {question['id']}"}
+                json={"question_id": question["id"], "answer": f"Answer to {question['id']}"},
             )
 
     # Finalize session
@@ -137,10 +136,7 @@ def test_create_project_rejects_incomplete_session(api_client: TestClient, mock_
     app.dependency_overrides[get_runner] = lambda: mock_runner
 
     # Start session but don't finalize
-    start_response = api_client.post(
-        "/api/onboarding/start",
-        json={"idea": "Incomplete idea"}
-    )
+    start_response = api_client.post("/api/onboarding/start", json={"idea": "Incomplete idea"})
     assert start_response.status_code == 200
     session_id = start_response.json()["id"]
 
@@ -183,8 +179,7 @@ def test_create_project_respects_tier_limit(api_client: TestClient, mock_runner,
     app.dependency_overrides[require_subscription] = override_auth(user_a)
 
     existing_project_response = api_client.post(
-        "/api/projects",
-        json={"name": "Existing project", "description": "First project"}
+        "/api/projects", json={"name": "Existing project", "description": "First project"}
     )
     assert existing_project_response.status_code == 200
 
@@ -229,10 +224,7 @@ def test_resume_returns_current_state(api_client: TestClient, mock_runner, user_
     app.dependency_overrides[get_runner] = lambda: mock_runner
 
     # Start session
-    start_response = api_client.post(
-        "/api/onboarding/start",
-        json={"idea": "Resume test idea"}
-    )
+    start_response = api_client.post("/api/onboarding/start", json={"idea": "Resume test idea"})
     assert start_response.status_code == 200
     session_id = start_response.json()["id"]
     questions = start_response.json()["questions"]
@@ -241,8 +233,7 @@ def test_resume_returns_current_state(api_client: TestClient, mock_runner, user_
     for i in range(3):
         question = questions[i]
         api_client.post(
-            f"/api/onboarding/{session_id}/answer",
-            json={"question_id": question["id"], "answer": f"Answer {i+1}"}
+            f"/api/onboarding/{session_id}/answer", json={"question_id": question["id"], "answer": f"Answer {i + 1}"}
         )
 
     # Get session to verify resume state
@@ -261,7 +252,7 @@ def test_resume_returns_current_state(api_client: TestClient, mock_runner, user_
     for i in range(3):
         question_id = questions[i]["id"]
         assert question_id in data["answers"]
-        assert data["answers"][question_id] == f"Answer {i+1}"
+        assert data["answers"][question_id] == f"Answer {i + 1}"
 
     # Cleanup
     app.dependency_overrides.clear()
@@ -274,10 +265,7 @@ def test_resume_after_abandon_shows_no_active(api_client: TestClient, mock_runne
     app.dependency_overrides[get_runner] = lambda: mock_runner
 
     # Start session
-    start_response = api_client.post(
-        "/api/onboarding/start",
-        json={"idea": "Abandoned session idea"}
-    )
+    start_response = api_client.post("/api/onboarding/start", json={"idea": "Abandoned session idea"})
     assert start_response.status_code == 200
     session_id = start_response.json()["id"]
 

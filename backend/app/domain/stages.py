@@ -2,6 +2,7 @@
 
 Pure domain logic with no external dependencies.
 """
+
 from dataclasses import dataclass
 from enum import Enum
 

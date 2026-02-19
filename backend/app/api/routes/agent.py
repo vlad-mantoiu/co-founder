@@ -2,8 +2,8 @@
 
 import json
 import uuid
+from collections.abc import AsyncGenerator
 from datetime import date
-from typing import AsyncGenerator
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
@@ -139,8 +139,7 @@ async def chat(request: ChatRequest, user: ClerkUser = Depends(require_subscript
             )
             session["episode_id"] = episode_id
         except Exception as e:
-            logger.warning("episodic_memory_start_failed", error=str(e),
-                           error_type=type(e).__name__, user_id=user_id)
+            logger.warning("episodic_memory_start_failed", error=str(e), error_type=type(e).__name__, user_id=user_id)
     else:
         state = session["state"]
         episode_id = session.get("episode_id")
@@ -167,8 +166,9 @@ async def chat(request: ChatRequest, user: ClerkUser = Depends(require_subscript
                     files_created=list(result.get("working_files", {}).keys()),
                 )
             except Exception as e:
-                logger.warning("episodic_memory_update_failed", error=str(e),
-                               error_type=type(e).__name__, user_id=user_id)
+                logger.warning(
+                    "episodic_memory_update_failed", error=str(e), error_type=type(e).__name__, user_id=user_id
+                )
 
         # Store in semantic memory
         try:
@@ -179,8 +179,7 @@ async def chat(request: ChatRequest, user: ClerkUser = Depends(require_subscript
                 project_id=request.project_id,
             )
         except Exception as e:
-            logger.warning("semantic_memory_store_failed", error=str(e),
-                           error_type=type(e).__name__, user_id=user_id)
+            logger.warning("semantic_memory_store_failed", error=str(e), error_type=type(e).__name__, user_id=user_id)
 
         return ChatResponse(
             session_id=session_id,
@@ -199,8 +198,9 @@ async def chat(request: ChatRequest, user: ClerkUser = Depends(require_subscript
                     final_error=str(e),
                 )
             except Exception as ex:
-                logger.warning("episodic_memory_complete_failed", error=str(ex),
-                               error_type=type(ex).__name__, user_id=user_id)
+                logger.warning(
+                    "episodic_memory_complete_failed", error=str(ex), error_type=type(ex).__name__, user_id=user_id
+                )
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -259,9 +259,7 @@ async def chat_stream(request: ChatRequest, user: ClerkUser = Depends(require_su
 
 
 @router.post("/sessions/{session_id}/resume")
-async def resume_session(
-    session_id: str, action: str = "continue", user: ClerkUser = Depends(require_subscription)
-):
+async def resume_session(session_id: str, action: str = "continue", user: ClerkUser = Depends(require_subscription)):
     """Resume a paused session after human review."""
     session = await _get_session(session_id)
     if session is None:
@@ -335,9 +333,7 @@ async def get_task_history(
 
 
 @router.get("/history/errors")
-async def get_error_patterns(
-    project_id: str | None = None, user: ClerkUser = Depends(require_auth)
-):
+async def get_error_patterns(project_id: str | None = None, user: ClerkUser = Depends(require_auth)):
     """Get common error patterns from failed tasks."""
     episodic = get_episodic_memory()
     try:
@@ -351,9 +347,7 @@ async def get_error_patterns(
 
 
 @router.get("/memories")
-async def get_user_memories(
-    project_id: str | None = None, user: ClerkUser = Depends(require_auth)
-):
+async def get_user_memories(project_id: str | None = None, user: ClerkUser = Depends(require_auth)):
     """Get stored memories/preferences for the user."""
     semantic = get_semantic_memory()
     try:

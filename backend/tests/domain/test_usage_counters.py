@@ -1,10 +1,10 @@
 """Tests for usage counter system with daily limits."""
-from datetime import datetime, timedelta, timezone
+
+from datetime import UTC, datetime
 
 import pytest
 from fakeredis import FakeAsyncRedis
 
-from app.queue.schemas import TIER_DAILY_LIMIT, TIER_ITERATION_DEPTH
 from app.queue.usage import UsageTracker
 
 pytestmark = pytest.mark.unit
@@ -33,7 +33,7 @@ async def usage_tracker(redis):
 async def test_increment_daily_usage_increases_counter(usage_tracker, redis):
     """Test increment_daily_usage increases counter."""
     user_id = "user-1"
-    now = datetime(2030, 6, 15, 10, 30, 0, tzinfo=timezone.utc)
+    now = datetime(2030, 6, 15, 10, 30, 0, tzinfo=UTC)
 
     count1 = await usage_tracker.increment_daily_usage(user_id, now)
     assert count1 == 1
@@ -45,7 +45,7 @@ async def test_increment_daily_usage_increases_counter(usage_tracker, redis):
 async def test_daily_counter_has_ttl_set(usage_tracker, redis):
     """Test daily counter has TTL set (auto-expires at midnight UTC)."""
     user_id = "user-2"
-    now = datetime(2030, 6, 15, 10, 30, 0, tzinfo=timezone.utc)
+    now = datetime(2030, 6, 15, 10, 30, 0, tzinfo=UTC)
 
     await usage_tracker.increment_daily_usage(user_id, now)
 
@@ -64,19 +64,17 @@ async def test_daily_counter_has_ttl_set(usage_tracker, redis):
 async def test_get_daily_usage_returns_zero_for_new_user(usage_tracker, redis):
     """Test get_daily_usage returns 0 for new user."""
     user_id = "user-3"
-    now = datetime(2030, 6, 15, 10, 30, 0, tzinfo=timezone.utc)
+    now = datetime(2030, 6, 15, 10, 30, 0, tzinfo=UTC)
 
     count = await usage_tracker.get_daily_usage(user_id, now)
     assert count == 0
 
 
-async def test_check_daily_limit_bootstrapper_at_5_returns_exceeded_true(
-    usage_tracker, redis
-):
+async def test_check_daily_limit_bootstrapper_at_5_returns_exceeded_true(usage_tracker, redis):
     """Test check_daily_limit: bootstrapper at 5 returns exceeded=True."""
     user_id = "user-4"
     tier = "bootstrapper"
-    now = datetime(2030, 6, 15, 10, 30, 0, tzinfo=timezone.utc)
+    now = datetime(2030, 6, 15, 10, 30, 0, tzinfo=UTC)
 
     # Increment to limit (5)
     for _ in range(5):
@@ -88,13 +86,11 @@ async def test_check_daily_limit_bootstrapper_at_5_returns_exceeded_true(
     assert limit == 5
 
 
-async def test_check_daily_limit_bootstrapper_at_4_returns_exceeded_false(
-    usage_tracker, redis
-):
+async def test_check_daily_limit_bootstrapper_at_4_returns_exceeded_false(usage_tracker, redis):
     """Test check_daily_limit: bootstrapper at 4 returns exceeded=False."""
     user_id = "user-5"
     tier = "bootstrapper"
-    now = datetime(2030, 6, 15, 10, 30, 0, tzinfo=timezone.utc)
+    now = datetime(2030, 6, 15, 10, 30, 0, tzinfo=UTC)
 
     # Increment to 4 (under limit)
     for _ in range(4):
@@ -115,7 +111,7 @@ async def test_get_usage_counters_returns_complete_usage_counters(usage_tracker,
     """Test get_usage_counters returns complete UsageCounters with all fields."""
     user_id = "user-6"
     tier = "bootstrapper"
-    now = datetime(2030, 6, 15, 10, 30, 0, tzinfo=timezone.utc)
+    now = datetime(2030, 6, 15, 10, 30, 0, tzinfo=UTC)
 
     # Increment usage
     for _ in range(3):
@@ -135,7 +131,7 @@ async def test_get_usage_counters_with_job_id_includes_iterations(usage_tracker,
     user_id = "user-7"
     tier = "bootstrapper"
     job_id = "test-job-1"
-    now = datetime(2030, 6, 15, 10, 30, 0, tzinfo=timezone.utc)
+    now = datetime(2030, 6, 15, 10, 30, 0, tzinfo=UTC)
 
     # Set job iteration count
     await redis.set(f"job:{job_id}:iterations", 4)
@@ -148,12 +144,12 @@ async def test_get_usage_counters_with_job_id_includes_iterations(usage_tracker,
 
 async def test_get_next_reset_returns_tomorrow_midnight_utc(usage_tracker, redis):
     """Test get_next_reset returns tomorrow midnight UTC."""
-    now = datetime(2030, 6, 15, 10, 30, 0, tzinfo=timezone.utc)
+    now = datetime(2030, 6, 15, 10, 30, 0, tzinfo=UTC)
 
     reset_time = usage_tracker._get_next_reset(now)
 
     # Should be 2030-06-16 00:00:00 UTC
-    expected = datetime(2030, 6, 16, 0, 0, 0, tzinfo=timezone.utc)
+    expected = datetime(2030, 6, 16, 0, 0, 0, tzinfo=UTC)
     assert reset_time == expected
 
 
@@ -166,7 +162,7 @@ async def test_daily_limit_tiers_bootstrapper_5(usage_tracker, redis):
     """Test daily limit tiers: bootstrapper=5."""
     user_id = "user-8"
     tier = "bootstrapper"
-    now = datetime(2030, 6, 15, 10, 30, 0, tzinfo=timezone.utc)
+    now = datetime(2030, 6, 15, 10, 30, 0, tzinfo=UTC)
 
     # At limit
     for _ in range(5):
@@ -181,7 +177,7 @@ async def test_daily_limit_tiers_partner_50(usage_tracker, redis):
     """Test daily limit tiers: partner=50."""
     user_id = "user-9"
     tier = "partner"
-    now = datetime(2030, 6, 15, 10, 30, 0, tzinfo=timezone.utc)
+    now = datetime(2030, 6, 15, 10, 30, 0, tzinfo=UTC)
 
     # At limit
     for _ in range(50):
@@ -196,7 +192,7 @@ async def test_daily_limit_tiers_cto_scale_200(usage_tracker, redis):
     """Test daily limit tiers: cto_scale=200."""
     user_id = "user-10"
     tier = "cto_scale"
-    now = datetime(2030, 6, 15, 10, 30, 0, tzinfo=timezone.utc)
+    now = datetime(2030, 6, 15, 10, 30, 0, tzinfo=UTC)
 
     # At limit
     for _ in range(200):

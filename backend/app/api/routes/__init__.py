@@ -1,6 +1,25 @@
 from fastapi import APIRouter
 
-from app.api.routes import admin, agent, artifacts, billing, change_requests, dashboard, decision_gates, deploy_readiness, execution_plans, features, generation, health, jobs, onboarding, projects, strategy_graph, timeline, understanding
+from app.api.routes import (
+    admin,
+    agent,
+    artifacts,
+    billing,
+    change_requests,
+    dashboard,
+    decision_gates,
+    deploy_readiness,
+    execution_plans,
+    features,
+    generation,
+    health,
+    jobs,
+    onboarding,
+    projects,
+    strategy_graph,
+    timeline,
+    understanding,
+)
 
 api_router = APIRouter()
 

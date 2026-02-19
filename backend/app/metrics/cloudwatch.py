@@ -9,7 +9,7 @@ calls are dispatched to a ThreadPoolExecutor to avoid blocking the async event l
 
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import boto3
 import structlog
@@ -32,16 +32,18 @@ def _put_llm_latency(method_name: str, duration_ms: float, model: str) -> None:
     try:
         _get_client().put_metric_data(
             Namespace="CoFounder/LLM",
-            MetricData=[{
-                "MetricName": "Latency",
-                "Dimensions": [
-                    {"Name": "Method", "Value": method_name},
-                    {"Name": "Model", "Value": model},
-                ],
-                "Value": duration_ms,
-                "Unit": "Milliseconds",
-                "Timestamp": datetime.now(timezone.utc),
-            }],
+            MetricData=[
+                {
+                    "MetricName": "Latency",
+                    "Dimensions": [
+                        {"Name": "Method", "Value": method_name},
+                        {"Name": "Model", "Value": model},
+                    ],
+                    "Value": duration_ms,
+                    "Unit": "Milliseconds",
+                    "Timestamp": datetime.now(UTC),
+                }
+            ],
         )
     except Exception as e:
         logger.warning("llm_latency_emit_failed", error=str(e), method=method_name)
@@ -55,13 +57,15 @@ def _put_business_event(event_name: str, user_id: str | None = None) -> None:
     try:
         _get_client().put_metric_data(
             Namespace="CoFounder/Business",
-            MetricData=[{
-                "MetricName": "EventCount",
-                "Dimensions": dimensions,
-                "Value": 1.0,
-                "Unit": "Count",
-                "Timestamp": datetime.now(timezone.utc),
-            }],
+            MetricData=[
+                {
+                    "MetricName": "EventCount",
+                    "Dimensions": dimensions,
+                    "Value": 1.0,
+                    "Unit": "Count",
+                    "Timestamp": datetime.now(UTC),
+                }
+            ],
         )
     except Exception as e:
         logger.warning("business_event_emit_failed", error=str(e), event=event_name)

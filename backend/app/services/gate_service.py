@@ -1,7 +1,7 @@
 """GateService — orchestrates decision gate lifecycle with domain logic."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import structlog
 from fastapi import HTTPException
@@ -15,12 +15,10 @@ from app.db.models.decision_gate import DecisionGate
 from app.db.models.onboarding_session import OnboardingSession
 from app.db.models.project import Project
 from app.db.models.understanding_session import UnderstandingSession
-from app.domain.gates import GateDecision
 from app.schemas.decision_gates import (
     GATE_1_OPTIONS,
     GATE_2_OPTIONS,
     CreateGateResponse,
-    GateOption,
     GateStatusResponse,
     ResolveGateResponse,
 )
@@ -47,9 +45,7 @@ class GateService:
         self.runner = runner
         self.session_factory = session_factory
 
-    async def create_gate(
-        self, clerk_user_id: str, project_id: str, gate_type: str
-    ) -> CreateGateResponse:
+    async def create_gate(self, clerk_user_id: str, project_id: str, gate_type: str) -> CreateGateResponse:
         """Create a decision gate for a project.
 
         Args:
@@ -68,9 +64,7 @@ class GateService:
             # Verify project ownership
             project_uuid = uuid.UUID(project_id)
             result = await session.execute(
-                select(Project).where(
-                    Project.id == project_uuid, Project.clerk_user_id == clerk_user_id
-                )
+                select(Project).where(Project.id == project_uuid, Project.clerk_user_id == clerk_user_id)
             )
             project = result.scalar_one_or_none()
             if not project:
@@ -124,7 +118,7 @@ class GateService:
                 gate_type=gate_type,
                 status="pending",
                 options=options,
-                created_at=datetime.now(timezone.utc).isoformat(),
+                created_at=datetime.now(UTC).isoformat(),
             )
 
     async def resolve_gate(
@@ -162,9 +156,7 @@ class GateService:
 
             # Verify project ownership
             result = await session.execute(
-                select(Project).where(
-                    Project.id == gate.project_id, Project.clerk_user_id == clerk_user_id
-                )
+                select(Project).where(Project.id == gate.project_id, Project.clerk_user_id == clerk_user_id)
             )
             project = result.scalar_one_or_none()
             if not project:
@@ -172,9 +164,7 @@ class GateService:
 
             # Check gate is pending
             if gate.status != "pending":
-                raise HTTPException(
-                    status_code=409, detail=f"Gate already decided (status: {gate.status})"
-                )
+                raise HTTPException(status_code=409, detail=f"Gate already decided (status: {gate.status})")
 
             # Validate action_text for narrow/pivot
             if decision in ["narrow", "pivot"] and not action_text:
@@ -197,6 +187,7 @@ class GateService:
                 gate.context["alignment_score"] = score
                 gate.context["scope_creep_detected"] = creep
                 from sqlalchemy.orm.attributes import flag_modified
+
                 flag_modified(gate, "context")
                 await session.commit()
 
@@ -237,9 +228,7 @@ class GateService:
 
             return response
 
-    async def _compute_gate2_alignment(
-        self, session: AsyncSession, project_id: uuid.UUID
-    ) -> tuple[int, bool]:
+    async def _compute_gate2_alignment(self, session: AsyncSession, project_id: uuid.UUID) -> tuple[int, bool]:
         """Compute alignment score for Gate 2 (solidification) using existing artifacts.
 
         Loads MVP Scope artifact as original scope and all change_request artifacts
@@ -272,9 +261,7 @@ class GateService:
             )
         )
         change_request_artifacts = cr_result.scalars().all()
-        requested_changes: list[dict] = [
-            cr.current_content for cr in change_request_artifacts if cr.current_content
-        ]
+        requested_changes: list[dict] = [cr.current_content for cr in change_request_artifacts if cr.current_content]
 
         return compute_alignment_score(original_scope, requested_changes)
 
@@ -282,12 +269,11 @@ class GateService:
         """Dual-write resolved gate to Neo4j strategy graph. Non-fatal."""
         try:
             from app.db.graph.strategy_graph import get_strategy_graph
+
             graph_service = GraphService(get_strategy_graph())
             await graph_service.sync_decision_to_graph(gate, str(project_id))
         except Exception:
-            logger.warning(
-                "neo4j_sync_failed", entity="gate", gate_id=str(gate.id), exc_info=True
-            )
+            logger.warning("neo4j_sync_failed", entity="gate", gate_id=str(gate.id), exc_info=True)
 
     async def _handle_narrow(
         self, session: AsyncSession, gate: DecisionGate, project: Project, action_text: str
@@ -307,9 +293,7 @@ class GateService:
 
         # Get existing Idea Brief
         result = await session.execute(
-            select(Artifact).where(
-                Artifact.project_id == project.id, Artifact.artifact_type == "idea_brief"
-            )
+            select(Artifact).where(Artifact.project_id == project.id, Artifact.artifact_type == "idea_brief")
         )
         brief_artifact = result.scalar_one_or_none()
         if not brief_artifact:
@@ -354,7 +338,7 @@ class GateService:
         flag_modified(brief_artifact, "previous_content")
         brief_artifact.version_number += 1
         brief_artifact.has_user_edits = False
-        brief_artifact.updated_at = datetime.now(timezone.utc)
+        brief_artifact.updated_at = datetime.now(UTC)
 
         await session.commit()
 
@@ -376,9 +360,7 @@ class GateService:
 
         # Get existing Idea Brief
         result = await session.execute(
-            select(Artifact).where(
-                Artifact.project_id == project.id, Artifact.artifact_type == "idea_brief"
-            )
+            select(Artifact).where(Artifact.project_id == project.id, Artifact.artifact_type == "idea_brief")
         )
         brief_artifact = result.scalar_one_or_none()
         if not brief_artifact:
@@ -421,7 +403,7 @@ class GateService:
         flag_modified(brief_artifact, "previous_content")
         brief_artifact.version_number += 1
         brief_artifact.has_user_edits = False
-        brief_artifact.updated_at = datetime.now(timezone.utc)
+        brief_artifact.updated_at = datetime.now(UTC)
 
         await session.commit()
 
@@ -448,9 +430,7 @@ class GateService:
 
             # Verify project ownership
             result = await session.execute(
-                select(Project).where(
-                    Project.id == gate.project_id, Project.clerk_user_id == clerk_user_id
-                )
+                select(Project).where(Project.id == gate.project_id, Project.clerk_user_id == clerk_user_id)
             )
             project = result.scalar_one_or_none()
             if not project:
@@ -467,9 +447,7 @@ class GateService:
                 options=options,
             )
 
-    async def get_pending_gate(
-        self, clerk_user_id: str, project_id: str
-    ) -> GateStatusResponse | None:
+    async def get_pending_gate(self, clerk_user_id: str, project_id: str) -> GateStatusResponse | None:
         """Get pending gate for a project, if any.
 
         Args:
@@ -486,9 +464,7 @@ class GateService:
             # Verify project ownership
             project_uuid = uuid.UUID(project_id)
             result = await session.execute(
-                select(Project).where(
-                    Project.id == project_uuid, Project.clerk_user_id == clerk_user_id
-                )
+                select(Project).where(Project.id == project_uuid, Project.clerk_user_id == clerk_user_id)
             )
             project = result.scalar_one_or_none()
             if not project:
@@ -497,9 +473,7 @@ class GateService:
             # Query for pending gate
             result = await session.execute(
                 select(DecisionGate)
-                .where(
-                    DecisionGate.project_id == project_uuid, DecisionGate.status == "pending"
-                )
+                .where(DecisionGate.project_id == project_uuid, DecisionGate.status == "pending")
                 .order_by(DecisionGate.created_at.desc())
                 .limit(1)
             )
@@ -533,9 +507,7 @@ class GateService:
             project_uuid = uuid.UUID(project_id)
             result = await session.execute(
                 select(DecisionGate)
-                .where(
-                    DecisionGate.project_id == project_uuid, DecisionGate.status == "pending"
-                )
+                .where(DecisionGate.project_id == project_uuid, DecisionGate.status == "pending")
                 .limit(1)
             )
             gate = result.scalar_one_or_none()

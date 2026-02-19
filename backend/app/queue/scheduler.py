@@ -5,9 +5,7 @@ At midnight UTC, these jobs move to QUEUED with jitter to prevent
 thundering herd (see 05-RESEARCH.md Pitfall 2).
 """
 
-import asyncio
-import random
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import structlog
 
@@ -32,7 +30,7 @@ async def process_scheduled_jobs(now: datetime | None = None) -> int:
         Number of jobs moved from scheduled to queued
     """
     if now is None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
     redis = get_redis()
     state_machine = JobStateMachine(redis)
@@ -76,9 +74,7 @@ async def process_scheduled_jobs(now: datetime | None = None) -> int:
         tier = job_data.get("tier", "bootstrapper")
 
         # Transition from SCHEDULED -> QUEUED
-        success = await state_machine.transition(
-            job_id, JobStatus.QUEUED, "Daily limit reset — moved to queue"
-        )
+        success = await state_machine.transition(job_id, JobStatus.QUEUED, "Daily limit reset — moved to queue")
 
         if success:
             # Enqueue with tier-based priority
@@ -88,9 +84,7 @@ async def process_scheduled_jobs(now: datetime | None = None) -> int:
 
             if result.get("rejected"):
                 # Queue at capacity, leave in SCHEDULED state
-                await state_machine.transition(
-                    job_id, JobStatus.SCHEDULED, "Queue at capacity — will retry"
-                )
+                await state_machine.transition(job_id, JobStatus.SCHEDULED, "Queue at capacity — will retry")
                 logger.warning("scheduled_job_queue_full", job_id=job_id)
                 continue
 
@@ -115,7 +109,7 @@ async def cleanup_stale_jobs(max_age_hours: int = 48) -> int:
     """
     redis = get_redis()
     cleaned = 0
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     cursor = 0
     while True:
@@ -151,8 +145,7 @@ async def cleanup_stale_jobs(max_age_hours: int = 48) -> int:
                         logger.info("stale_job_cleaned", job_id=job_id, age_hours=round(age_hours, 1))
 
                 except (ValueError, TypeError) as e:
-                    logger.warning("stale_job_parse_failed", key=key_str,
-                                   error=str(e), error_type=type(e).__name__)
+                    logger.warning("stale_job_parse_failed", key=key_str, error=str(e), error_type=type(e).__name__)
 
         if cursor == 0:
             break

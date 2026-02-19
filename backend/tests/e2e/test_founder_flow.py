@@ -15,20 +15,19 @@ Test uses async to share the same event loop with asyncpg DB connections.
 
 import time
 from unittest.mock import Mock, patch
+
 from fakeredis import FakeAsyncRedis
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.agent.runner_fake import RunnerFake
-from app.api.routes.onboarding import get_runner as get_onboarding_runner
-from app.api.routes.understanding import get_runner as get_understanding_runner
 from app.api.routes.decision_gates import get_runner as get_gates_runner
 from app.api.routes.execution_plans import get_runner as get_plans_runner
+from app.api.routes.onboarding import get_runner as get_onboarding_runner
+from app.api.routes.understanding import get_runner as get_understanding_runner
 from app.core.auth import ClerkUser, require_auth, require_subscription
 from app.db.redis import get_redis
-
 from tests.e2e.conftest import FakeSandboxRuntime
-
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Test user identity
@@ -44,8 +43,10 @@ E2E_USER = ClerkUser(
 
 def override_auth_e2e():
     """Auth override returning the E2E test user."""
+
     async def _override():
         return E2E_USER
+
     return _override
 
 
@@ -288,9 +289,9 @@ def test_full_founder_flow(api_client: TestClient):
                 TestClient BackgroundTasks run synchronously (simulation path, no runner).
                 If the job is already READY but MVP hook wasn't called, trigger it now.
                 """
+                from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
                 import app.db.base as _db_base
-                from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
-                from sqlalchemy.ext.asyncio import AsyncSession
 
                 test_db_url = os.getenv(
                     "TEST_DATABASE_URL",
@@ -341,8 +342,7 @@ def test_full_founder_flow(api_client: TestClient):
             # ── Step 7: Poll for READY ──────────────────────────────────────
             status_data = _step_poll_status(api_client, job_id)
             assert status_data["status"] == "ready", (
-                f"Expected ready, got {status_data['status']}. "
-                f"Error: {status_data.get('error_message')}"
+                f"Expected ready, got {status_data['status']}. Error: {status_data.get('error_message')}"
             )  # GENR-02
 
             # ── Step 8: Dashboard verification ─────────────────────────────
@@ -356,9 +356,7 @@ def test_full_founder_flow(api_client: TestClient):
             assert isinstance(dashboard["risk_flags"], list), "risk_flags must be a list"
 
             # MVPS-01: MVP Built stage
-            assert dashboard["stage"] == 3, (
-                f"Expected stage 3 (MVP Built), got {dashboard['stage']}"
-            )
+            assert dashboard["stage"] == 3, f"Expected stage 3 (MVP Built), got {dashboard['stage']}"
 
             # ── Step 9: Timeline verification ──────────────────────────────
             resp = api_client.get(f"/api/timeline/{project_id}")
@@ -372,7 +370,8 @@ def test_full_founder_flow(api_client: TestClient):
             # are included). We verify the transition to stage 3 appears.
             mvp_event = next(
                 (
-                    i for i in items
+                    i
+                    for i in items
                     if i.get("type") == "milestone"
                     and ("3" in i.get("title", "") or "mvp" in i.get("title", "").lower())
                 ),

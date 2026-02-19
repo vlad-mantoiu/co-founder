@@ -60,16 +60,20 @@ async def git_manager_node(state: CoFounderState) -> dict:
 
     changes_summary = _summarize_changes(state)
 
-    commit_response = await llm.ainvoke([
-        SystemMessage(content=COMMIT_MESSAGE_PROMPT),
-        HumanMessage(content=changes_summary),
-    ])
+    commit_response = await llm.ainvoke(
+        [
+            SystemMessage(content=COMMIT_MESSAGE_PROMPT),
+            HumanMessage(content=changes_summary),
+        ]
+    )
     commit_message = commit_response.content.strip()
 
-    pr_response = await llm.ainvoke([
-        SystemMessage(content=PR_DESCRIPTION_PROMPT),
-        HumanMessage(content=changes_summary),
-    ])
+    pr_response = await llm.ainvoke(
+        [
+            SystemMessage(content=PR_DESCRIPTION_PROMPT),
+            HumanMessage(content=changes_summary),
+        ]
+    )
     pr_description = pr_response.content.strip()
 
     # Execute GitHub operations
@@ -90,10 +94,7 @@ async def git_manager_node(state: CoFounderState) -> dict:
             pass
 
         # Commit all changed files
-        files_to_commit = {
-            path: change["new_content"]
-            for path, change in state["working_files"].items()
-        }
+        files_to_commit = {path: change["new_content"] for path, change in state["working_files"].items()}
 
         if files_to_commit:
             await github.commit_multiple_files(
@@ -197,11 +198,7 @@ def _parse_repo_info(state: CoFounderState) -> tuple[str, str, str] | None:
 
 def _summarize_changes(state: CoFounderState) -> str:
     """Summarize changes for commit message generation."""
-    completed_steps = [
-        step["description"]
-        for step in state["plan"]
-        if step["status"] == "completed"
-    ]
+    completed_steps = [step["description"] for step in state["plan"] if step["status"] == "completed"]
 
     files_changed = list(state["working_files"].keys())
 
@@ -259,10 +256,12 @@ async def _local_git_operations(state: CoFounderState) -> dict:
     )
 
     changes_summary = _summarize_changes(state)
-    response = await llm.ainvoke([
-        SystemMessage(content=COMMIT_MESSAGE_PROMPT),
-        HumanMessage(content=changes_summary),
-    ])
+    response = await llm.ainvoke(
+        [
+            SystemMessage(content=COMMIT_MESSAGE_PROMPT),
+            HumanMessage(content=changes_summary),
+        ]
+    )
     commit_message = response.content.strip()
 
     async def run_git(args: list[str]) -> tuple[int, str, str]:

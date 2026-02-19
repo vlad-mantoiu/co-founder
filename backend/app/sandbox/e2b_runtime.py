@@ -8,8 +8,8 @@ This module provides a sandboxed environment for the AI Co-Founder to:
 """
 
 import asyncio
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
 from e2b_code_interpreter import Sandbox
 

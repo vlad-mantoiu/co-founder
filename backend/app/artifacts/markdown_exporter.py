@@ -12,6 +12,7 @@ Per locked decisions:
 """
 
 from pathlib import Path
+
 from jinja2 import Environment, FileSystemLoader
 
 MARKDOWN_TEMPLATE_DIR = Path(__file__).parent / "templates" / "markdown"

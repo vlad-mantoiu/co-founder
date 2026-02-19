@@ -10,10 +10,11 @@ Tests cover:
 - Progress computed from domain functions
 """
 
+from uuid import uuid4
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from uuid import uuid4
 
 from app.agent.runner_fake import RunnerFake
 from app.api.routes.onboarding import get_runner as get_onboarding_runner
@@ -36,8 +37,10 @@ def user_b():
 
 def override_auth(user: ClerkUser):
     """Create auth override for a specific user."""
+
     async def _override():
         return user
+
     return _override
 
 
@@ -49,18 +52,14 @@ def create_test_project_with_onboarding(api_client: TestClient, user):
     app.dependency_overrides[get_onboarding_runner] = lambda: mock_runner
 
     # Start onboarding
-    response = api_client.post(
-        "/api/onboarding/start",
-        json={"idea": "A marketplace for local artisans"}
-    )
+    response = api_client.post("/api/onboarding/start", json={"idea": "A marketplace for local artisans"})
     session_id = response.json()["id"]
 
     # Answer questions
     questions = response.json()["questions"]
     for question in questions:
         api_client.post(
-            f"/api/onboarding/{session_id}/answer",
-            json={"question_id": question["id"], "answer": "Test answer"}
+            f"/api/onboarding/{session_id}/answer", json={"question_id": question["id"], "answer": "Test answer"}
         )
 
     # Finalize
@@ -189,14 +188,12 @@ def test_get_dashboard_with_artifacts_includes_summaries(api_client: TestClient,
     app.dependency_overrides[get_artifact_runner] = lambda: mock_runner
 
     # Generate artifacts
-    api_client.post(
-        "/api/artifacts/generate",
-        json={"project_id": project_id}
-    )
+    api_client.post("/api/artifacts/generate", json={"project_id": project_id})
 
     # Give time for background task to complete (in tests it's instant but check status)
     # Poll for completion
     import time
+
     for _ in range(10):
         response = api_client.get(f"/api/dashboard/{project_id}")
         if response.status_code == 200:

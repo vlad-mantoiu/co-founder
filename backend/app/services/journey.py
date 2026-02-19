@@ -5,7 +5,7 @@ All state machine operations flow through this service.
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import and_, func, select
@@ -41,9 +41,7 @@ class JourneyService:
         """
         self.session = session
 
-    async def initialize_journey(
-        self, project_id: uuid.UUID, correlation_id: uuid.UUID | None = None
-    ) -> None:
+    async def initialize_journey(self, project_id: uuid.UUID, correlation_id: uuid.UUID | None = None) -> None:
         """Initialize journey by creating StageConfig records for stages 1-5.
 
         Args:
@@ -56,9 +54,7 @@ class JourneyService:
         correlation_id = correlation_id or uuid.uuid4()
 
         # Check if already initialized
-        result = await self.session.execute(
-            select(StageConfig).where(StageConfig.project_id == project_id).limit(1)
-        )
+        result = await self.session.execute(select(StageConfig).where(StageConfig.project_id == project_id).limit(1))
         existing = result.scalar_one_or_none()
         if existing:
             return  # Already initialized, idempotent
@@ -164,9 +160,7 @@ class JourneyService:
         correlation_id = correlation_id or uuid.uuid4()
 
         # Load gate
-        result = await self.session.execute(
-            select(DecisionGate).where(DecisionGate.id == gate_id)
-        )
+        result = await self.session.execute(select(DecisionGate).where(DecisionGate.id == gate_id))
         gate = result.scalar_one()
 
         if gate.status != "pending":
@@ -175,14 +169,12 @@ class JourneyService:
         # Update gate with decision
         gate.decision = decision
         gate.decided_by = decided_by
-        gate.decided_at = datetime.now(timezone.utc)
+        gate.decided_at = datetime.now(UTC)
         gate.reason = reason
         gate.status = "decided"
 
         # Load project
-        result = await self.session.execute(
-            select(Project).where(Project.id == gate.project_id)
-        )
+        result = await self.session.execute(select(Project).where(Project.id == gate.project_id))
         project = result.scalar_one()
 
         # Resolve gate using domain logic
@@ -192,8 +184,7 @@ class JourneyService:
         # Get milestone keys for affected stage
         result = await self.session.execute(
             select(StageConfig).where(
-                StageConfig.project_id == gate.project_id,
-                StageConfig.stage_number == gate.stage_number
+                StageConfig.project_id == gate.project_id, StageConfig.stage_number == gate.stage_number
             )
         )
         stage_config = result.scalar_one_or_none()
@@ -210,9 +201,7 @@ class JourneyService:
 
         # Apply resolution
         if resolution.decision == GateDecision.PROCEED and resolution.target_stage:
-            await self._transition_stage(
-                gate.project_id, resolution.target_stage, correlation_id
-            )
+            await self._transition_stage(gate.project_id, resolution.target_stage, correlation_id)
         elif resolution.decision == GateDecision.NARROW:
             await self._reset_milestones(
                 gate.project_id,
@@ -223,23 +212,18 @@ class JourneyService:
             milestones_reset = resolution.milestones_to_reset
         elif resolution.decision == GateDecision.PIVOT and resolution.target_stage:
             # Pivot: transition to earlier stage
-            await self._transition_stage(
-                gate.project_id, resolution.target_stage, correlation_id
-            )
+            await self._transition_stage(gate.project_id, resolution.target_stage, correlation_id)
             # Reset milestones for all stages after target
             for stage_num in range(resolution.target_stage.value + 1, 6):
                 result = await self.session.execute(
                     select(StageConfig).where(
-                        StageConfig.project_id == gate.project_id,
-                        StageConfig.stage_number == stage_num
+                        StageConfig.project_id == gate.project_id, StageConfig.stage_number == stage_num
                     )
                 )
                 config = result.scalar_one_or_none()
                 if config:
                     keys = list(config.milestones.keys())
-                    await self._reset_milestones(
-                        gate.project_id, stage_num, keys, correlation_id
-                    )
+                    await self._reset_milestones(gate.project_id, stage_num, keys, correlation_id)
                     milestones_reset.extend(keys)
         elif resolution.decision == GateDecision.PARK:
             await self._park_project(gate.project_id, correlation_id)
@@ -268,9 +252,7 @@ class JourneyService:
             "milestones_reset": milestones_reset,
         }
 
-    async def _transition_stage(
-        self, project_id: uuid.UUID, target_stage: Stage, correlation_id: uuid.UUID
-    ) -> None:
+    async def _transition_stage(self, project_id: uuid.UUID, target_stage: Stage, correlation_id: uuid.UUID) -> None:
         """Transition project to target stage if allowed.
 
         Args:
@@ -281,9 +263,7 @@ class JourneyService:
         Validates transition is allowed via domain logic before applying.
         """
         # Load project
-        result = await self.session.execute(
-            select(Project).where(Project.id == project_id)
-        )
+        result = await self.session.execute(select(Project).where(Project.id == project_id))
         project = result.scalar_one()
 
         current_stage = Stage(project.stage_number) if project.stage_number else Stage.PRE_STAGE
@@ -291,18 +271,16 @@ class JourneyService:
 
         # Load recent gate decisions for validation
         result = await self.session.execute(
-            select(DecisionGate).where(
-                DecisionGate.project_id == project_id,
-                DecisionGate.status == "decided"
-            ).order_by(DecisionGate.decided_at.desc()).limit(5)
+            select(DecisionGate)
+            .where(DecisionGate.project_id == project_id, DecisionGate.status == "decided")
+            .order_by(DecisionGate.decided_at.desc())
+            .limit(5)
         )
         recent_gates = result.scalars().all()
         gate_decisions = [{"decision": g.decision} for g in recent_gates]
 
         # Validate transition
-        validation = validate_transition(
-            current_stage, target_stage, current_status, gate_decisions
-        )
+        validation = validate_transition(current_stage, target_stage, current_status, gate_decisions)
 
         if not validation.allowed:
             raise ValueError(f"Transition not allowed: {validation.reason}")
@@ -310,7 +288,7 @@ class JourneyService:
         # Apply transition
         from_stage_value = project.stage_number
         project.stage_number = target_stage.value
-        project.stage_entered_at = datetime.now(timezone.utc)
+        project.stage_entered_at = datetime.now(UTC)
 
         # Log transition event
         event = StageEvent(
@@ -341,10 +319,7 @@ class JourneyService:
         """
         # Load stage config
         result = await self.session.execute(
-            select(StageConfig).where(
-                StageConfig.project_id == project_id,
-                StageConfig.stage_number == stage_number
-            )
+            select(StageConfig).where(StageConfig.project_id == project_id, StageConfig.stage_number == stage_number)
         )
         stage_config = result.scalar_one()
 
@@ -370,9 +345,7 @@ class JourneyService:
         )
         self.session.add(event)
 
-    async def _park_project(
-        self, project_id: uuid.UUID, correlation_id: uuid.UUID
-    ) -> None:
+    async def _park_project(self, project_id: uuid.UUID, correlation_id: uuid.UUID) -> None:
         """Park a project (preserves current stage).
 
         Args:
@@ -380,9 +353,7 @@ class JourneyService:
             correlation_id: Correlation ID for event tracking
         """
         # Load project
-        result = await self.session.execute(
-            select(Project).where(Project.id == project_id)
-        )
+        result = await self.session.execute(select(Project).where(Project.id == project_id))
         project = result.scalar_one()
 
         project.status = "parked"
@@ -398,9 +369,7 @@ class JourneyService:
         )
         self.session.add(event)
 
-    async def unpark_project(
-        self, project_id: uuid.UUID, correlation_id: uuid.UUID | None = None
-    ) -> None:
+    async def unpark_project(self, project_id: uuid.UUID, correlation_id: uuid.UUID | None = None) -> None:
         """Unpark a project (restores active status).
 
         Args:
@@ -410,9 +379,7 @@ class JourneyService:
         correlation_id = correlation_id or uuid.uuid4()
 
         # Load project
-        result = await self.session.execute(
-            select(Project).where(Project.id == project_id)
-        )
+        result = await self.session.execute(select(Project).where(Project.id == project_id))
         project = result.scalar_one()
 
         project.status = "active"
@@ -451,10 +418,7 @@ class JourneyService:
 
         # Load stage config
         result = await self.session.execute(
-            select(StageConfig).where(
-                StageConfig.project_id == project_id,
-                StageConfig.stage_number == stage_number
-            )
+            select(StageConfig).where(StageConfig.project_id == project_id, StageConfig.stage_number == stage_number)
         )
         stage_config = result.scalar_one()
 
@@ -469,26 +433,24 @@ class JourneyService:
         stage_progress = compute_stage_progress(stage_config.milestones)
 
         # Compute global progress
-        result = await self.session.execute(
-            select(StageConfig).where(StageConfig.project_id == project_id)
-        )
+        result = await self.session.execute(select(StageConfig).where(StageConfig.project_id == project_id))
         all_configs = result.scalars().all()
 
         stages_data = []
         for config in all_configs:
             progress = compute_stage_progress(config.milestones)
-            stages_data.append({
-                "stage": Stage(config.stage_number),
-                "milestones": config.milestones,
-                "progress": progress,
-            })
+            stages_data.append(
+                {
+                    "stage": Stage(config.stage_number),
+                    "milestones": config.milestones,
+                    "progress": progress,
+                }
+            )
 
         global_progress = compute_global_progress(stages_data)
 
         # Update project progress
-        result = await self.session.execute(
-            select(Project).where(Project.id == project_id)
-        )
+        result = await self.session.execute(select(Project).where(Project.id == project_id))
         project = result.scalar_one()
         project.progress_percent = global_progress
 
@@ -531,16 +493,20 @@ class JourneyService:
         stages_data = []
         for config in configs:
             progress = compute_stage_progress(config.milestones)
-            stages.append({
-                "stage": config.stage_number,
-                "progress": progress,
-                "milestones": config.milestones,
-            })
-            stages_data.append({
-                "stage": Stage(config.stage_number),
-                "milestones": config.milestones,
-                "progress": progress,
-            })
+            stages.append(
+                {
+                    "stage": config.stage_number,
+                    "progress": progress,
+                    "milestones": config.milestones,
+                }
+            )
+            stages_data.append(
+                {
+                    "stage": Stage(config.stage_number),
+                    "milestones": config.milestones,
+                    "progress": progress,
+                }
+            )
 
         global_progress = compute_global_progress(stages_data)
 
@@ -561,17 +527,15 @@ class JourneyService:
         Combines system risks and LLM risks, filters out dismissed risks.
         """
         # Load project
-        result = await self.session.execute(
-            select(Project).where(Project.id == project_id)
-        )
+        result = await self.session.execute(select(Project).where(Project.id == project_id))
         project = result.scalar_one()
 
         # Load recent gate decisions
         result = await self.session.execute(
-            select(DecisionGate).where(
-                DecisionGate.project_id == project_id,
-                DecisionGate.status == "decided"
-            ).order_by(DecisionGate.decided_at.desc()).limit(1)
+            select(DecisionGate)
+            .where(DecisionGate.project_id == project_id, DecisionGate.status == "decided")
+            .order_by(DecisionGate.decided_at.desc())
+            .limit(1)
         )
         last_gate = result.scalar_one_or_none()
         last_gate_decision_at = last_gate.decided_at if last_gate else None
@@ -592,7 +556,7 @@ class JourneyService:
             last_gate_decision_at=last_gate_decision_at,
             build_failure_count=build_failure_count,
             last_activity_at=project.updated_at,
-            now=datetime.now(timezone.utc),
+            now=datetime.now(UTC),
         )
 
         # Detect LLM risks
@@ -600,9 +564,7 @@ class JourneyService:
         llm_risks = await detect_llm_risks(user_id, self.session)
 
         # Load dismissed risks from stage configs
-        result = await self.session.execute(
-            select(StageConfig).where(StageConfig.project_id == project_id)
-        )
+        result = await self.session.execute(select(StageConfig).where(StageConfig.project_id == project_id))
         configs = result.scalars().all()
 
         dismissed_rules = set()
@@ -636,19 +598,18 @@ class JourneyService:
 
         # Load stage config
         result = await self.session.execute(
-            select(StageConfig).where(
-                StageConfig.project_id == project_id,
-                StageConfig.stage_number == stage_number
-            )
+            select(StageConfig).where(StageConfig.project_id == project_id, StageConfig.stage_number == stage_number)
         )
         stage_config = result.scalar_one()
 
         # Add dismissed risk to blocking_risks
-        stage_config.blocking_risks.append({
-            "rule": risk_rule,
-            "dismissed": True,
-            "dismissed_at": datetime.now(timezone.utc).isoformat(),
-        })
+        stage_config.blocking_risks.append(
+            {
+                "rule": risk_rule,
+                "dismissed": True,
+                "dismissed_at": datetime.now(UTC).isoformat(),
+            }
+        )
         flag_modified(stage_config, "blocking_risks")
 
         # Log event
@@ -666,9 +627,7 @@ class JourneyService:
 
         await self.session.commit()
 
-    async def get_timeline(
-        self, project_id: uuid.UUID, limit: int = 50
-    ) -> list[dict]:
+    async def get_timeline(self, project_id: uuid.UUID, limit: int = 50) -> list[dict]:
         """Get timeline of stage events for a project.
 
         Args:

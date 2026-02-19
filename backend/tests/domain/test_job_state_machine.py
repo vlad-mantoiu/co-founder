@@ -1,11 +1,11 @@
 """Tests for job state machine and iteration tracking."""
+
 import json
-from datetime import datetime, timezone
 
 import pytest
 from fakeredis import FakeAsyncRedis
 
-from app.queue.schemas import TIER_ITERATION_DEPTH, JobStatus
+from app.queue.schemas import JobStatus
 from app.queue.state_machine import IterationTracker, JobStateMachine
 
 pytestmark = pytest.mark.unit
@@ -243,9 +243,7 @@ async def test_increment_iteration_increases_count(iteration_tracker, redis):
     assert count == 2
 
 
-async def test_needs_confirmation_returns_true_at_tier_depth_boundary(
-    iteration_tracker, redis
-):
+async def test_needs_confirmation_returns_true_at_tier_depth_boundary(iteration_tracker, redis):
     """Test needs_confirmation returns True at tier depth boundary (depth=2, iteration 2 -> True)."""
     job_id = "test-job-iter-2"
     tier = "bootstrapper"  # depth=2
@@ -271,9 +269,7 @@ async def test_needs_confirmation_returns_false_before_boundary(iteration_tracke
     assert needs_confirmation is False
 
 
-async def test_check_iteration_allowed_returns_true_when_under_hard_cap(
-    iteration_tracker, redis
-):
+async def test_check_iteration_allowed_returns_true_when_under_hard_cap(iteration_tracker, redis):
     """Test check_allowed returns True when under hard cap (3x depth)."""
     job_id = "test-job-iter-4"
     tier = "bootstrapper"  # depth=2, hard_cap=6

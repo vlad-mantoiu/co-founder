@@ -12,11 +12,9 @@ from unittest.mock import MagicMock, Mock, patch
 
 import jwt as pyjwt
 import pytest
-from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 
-from app.core.auth import ClerkUser
-from app.db.models.plan_tier import PlanTier
 from app.db.models.user_settings import UserSettings
 
 pytestmark = pytest.mark.integration
@@ -98,13 +96,15 @@ class TestAuthMiddleware:
     def test_expired_token_returns_401(self, api_client):
         """Test that expired JWT returns 401 with 'Token expired' detail."""
         now = int(time.time())
-        expired_token = _sign_jwt({
-            "sub": "user_expired",
-            "iat": now - 600,
-            "exp": now - 300,  # expired 5 minutes ago
-            "nbf": now - 600,
-            "azp": "http://localhost:3000",
-        })
+        expired_token = _sign_jwt(
+            {
+                "sub": "user_expired",
+                "iat": now - 600,
+                "exp": now - 300,  # expired 5 minutes ago
+                "nbf": now - 600,
+                "azp": "http://localhost:3000",
+            }
+        )
 
         with (
             patch("app.core.auth.get_jwks_client", _mock_jwks_client),
@@ -127,15 +127,17 @@ class TestAuthMiddleware:
         tested separately in test_provisioning.py.
         """
         now = int(time.time())
-        token = _sign_jwt({
-            "sub": "user_valid_test",
-            "iat": now - 10,
-            "exp": now + 300,
-            "nbf": now - 10,
-            "azp": "http://localhost:3000",
-            "email": "valid@test.com",
-            "name": "Valid Test User",
-        })
+        token = _sign_jwt(
+            {
+                "sub": "user_valid_test",
+                "iat": now - 10,
+                "exp": now + 300,
+                "nbf": now - 10,
+                "azp": "http://localhost:3000",
+                "email": "valid@test.com",
+                "name": "Valid Test User",
+            }
+        )
 
         # Mock provisioning to avoid DB setup complexity in this test
         async def mock_provision(*args, **kwargs):
@@ -171,15 +173,17 @@ class TestAuthMiddleware:
         """
         user_id = "user_autoprovision_test"
         now = int(time.time())
-        token = _sign_jwt({
-            "sub": user_id,
-            "iat": now - 10,
-            "exp": now + 300,
-            "nbf": now - 10,
-            "azp": "http://localhost:3000",
-            "email": "autoprovision@test.com",
-            "name": "Auto Provision User",
-        })
+        token = _sign_jwt(
+            {
+                "sub": user_id,
+                "iat": now - 10,
+                "exp": now + 300,
+                "nbf": now - 10,
+                "azp": "http://localhost:3000",
+                "email": "autoprovision@test.com",
+                "name": "Auto Provision User",
+            }
+        )
 
         # Mock provisioning and track calls
         mock_provision = Mock()
@@ -214,15 +218,17 @@ class TestAuthMiddleware:
 
         user_id = "user_debug_id_test"
         now = int(time.time())
-        token = _sign_jwt({
-            "sub": user_id,
-            "iat": now - 10,
-            "exp": now + 300,
-            "nbf": now - 10,
-            "azp": "http://localhost:3000",
-            "email": "debugid@test.com",
-            "name": "Debug ID Test",
-        })
+        token = _sign_jwt(
+            {
+                "sub": user_id,
+                "iat": now - 10,
+                "exp": now + 300,
+                "nbf": now - 10,
+                "azp": "http://localhost:3000",
+                "email": "debugid@test.com",
+                "name": "Debug ID Test",
+            }
+        )
 
         # Mock provisioning
         async def mock_provision(*args, **kwargs):

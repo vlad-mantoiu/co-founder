@@ -1,7 +1,7 @@
 """StageConfig model — per-project-stage configuration."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -11,9 +11,7 @@ from app.db.base import Base
 
 class StageConfig(Base):
     __tablename__ = "stage_configs"
-    __table_args__ = (
-        UniqueConstraint("project_id", "stage_number", name="uq_project_stage"),
-    )
+    __table_args__ = (UniqueConstraint("project_id", "stage_number", name="uq_project_stage"),)
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     project_id = Column(UUID(as_uuid=True), ForeignKey("projects.id"), nullable=False, index=True)
@@ -31,5 +29,7 @@ class StageConfig(Base):
     # LLM-generated suggested focus
     suggested_focus = Column(JSONB, nullable=True)
 
-    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+    updated_at = Column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
+    )

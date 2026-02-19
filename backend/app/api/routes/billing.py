@@ -1,6 +1,6 @@
 """Billing routes — Stripe Checkout, Customer Portal, webhooks, and status."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import stripe
 import structlog
@@ -12,11 +12,11 @@ from sqlalchemy.exc import IntegrityError
 from app.core.auth import ClerkUser, require_auth
 from app.core.config import get_settings
 from app.db.base import get_session_factory
-from app.metrics.cloudwatch import emit_business_event
 from app.db.models.plan_tier import PlanTier
 from app.db.models.stripe_event import StripeWebhookEvent
 from app.db.models.usage_log import UsageLog
 from app.db.models.user_settings import UserSettings
+from app.metrics.cloudwatch import emit_business_event
 
 logger = structlog.get_logger(__name__)
 
@@ -24,6 +24,7 @@ router = APIRouter()
 
 
 # ── Request / Response schemas ──────────────────────────────────────
+
 
 class CheckoutRequest(BaseModel):
     plan_slug: str
@@ -86,16 +87,12 @@ async def _get_or_create_settings(clerk_user_id: str) -> UserSettings:
     """Load (or bootstrap) UserSettings for a Clerk user."""
     factory = get_session_factory()
     async with factory() as session:
-        result = await session.execute(
-            select(UserSettings).where(UserSettings.clerk_user_id == clerk_user_id)
-        )
+        result = await session.execute(select(UserSettings).where(UserSettings.clerk_user_id == clerk_user_id))
         user_settings = result.scalar_one_or_none()
 
         if user_settings is None:
             # Assign bootstrapper plan by default
-            tier_result = await session.execute(
-                select(PlanTier).where(PlanTier.slug == "bootstrapper")
-            )
+            tier_result = await session.execute(select(PlanTier).where(PlanTier.slug == "bootstrapper"))
             tier = tier_result.scalar_one()
             user_settings = UserSettings(
                 clerk_user_id=clerk_user_id,
@@ -108,9 +105,7 @@ async def _get_or_create_settings(clerk_user_id: str) -> UserSettings:
         return user_settings
 
 
-async def _get_or_create_stripe_customer(
-    user_settings: UserSettings, clerk_user_id: str
-) -> str:
+async def _get_or_create_stripe_customer(user_settings: UserSettings, clerk_user_id: str) -> str:
     """Return the Stripe customer ID, creating one if needed."""
     if user_settings.stripe_customer_id:
         return user_settings.stripe_customer_id
@@ -123,18 +118,14 @@ async def _get_or_create_stripe_customer(
     factory = get_session_factory()
     async with factory() as session:
         try:
-            result = await session.execute(
-                select(UserSettings).where(UserSettings.clerk_user_id == clerk_user_id)
-            )
+            result = await session.execute(select(UserSettings).where(UserSettings.clerk_user_id == clerk_user_id))
             us = result.scalar_one()
             us.stripe_customer_id = customer.id
             await session.commit()
         except IntegrityError:
             # Concurrent request already set stripe_customer_id — re-query to get it
             await session.rollback()
-            result = await session.execute(
-                select(UserSettings).where(UserSettings.clerk_user_id == clerk_user_id)
-            )
+            result = await session.execute(select(UserSettings).where(UserSettings.clerk_user_id == clerk_user_id))
             us = result.scalar_one()
             return us.stripe_customer_id
 
@@ -155,6 +146,7 @@ async def _claim_event(event_id: str) -> bool:
 
 
 # ── Endpoints ───────────────────────────────────────────────────────
+
 
 @router.post("/billing/checkout", response_model=CheckoutResponse)
 async def create_checkout_session(
@@ -245,7 +237,7 @@ async def get_billing_usage(
     user: ClerkUser = Depends(require_auth),
 ):
     """Return the user's token usage for today vs their plan limit."""
-    now_utc = datetime.now(timezone.utc)
+    now_utc = datetime.now(UTC)
     today_midnight = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
     next_midnight = today_midnight + timedelta(days=1)
 
@@ -339,6 +331,7 @@ async def stripe_webhook(request: Request):
 
 # ── Webhook handlers ────────────────────────────────────────────────
 
+
 async def _handle_checkout_completed(session_data: dict) -> None:
     """Set plan tier + subscription fields after successful checkout."""
     clerk_user_id = session_data.get("metadata", {}).get("clerk_user_id")
@@ -346,25 +339,20 @@ async def _handle_checkout_completed(session_data: dict) -> None:
     subscription_id = session_data.get("subscription")
 
     if not clerk_user_id or not plan_slug:
-        logger.warning("checkout_completed_missing_metadata",
-                       event_id=session_data.get("id"))
+        logger.warning("checkout_completed_missing_metadata", event_id=session_data.get("id"))
         return
 
     factory = get_session_factory()
     async with factory() as session:
         # Look up target plan tier
-        tier_result = await session.execute(
-            select(PlanTier).where(PlanTier.slug == plan_slug)
-        )
+        tier_result = await session.execute(select(PlanTier).where(PlanTier.slug == plan_slug))
         tier = tier_result.scalar_one_or_none()
         if tier is None:
             logger.error("checkout_unknown_plan_slug", plan_slug=plan_slug)
             return
 
         # Update user settings
-        result = await session.execute(
-            select(UserSettings).where(UserSettings.clerk_user_id == clerk_user_id)
-        )
+        result = await session.execute(select(UserSettings).where(UserSettings.clerk_user_id == clerk_user_id))
         user_settings = result.scalar_one_or_none()
         if user_settings is None:
             logger.error("checkout_user_settings_not_found", user_id=clerk_user_id)
@@ -395,9 +383,7 @@ async def _handle_subscription_updated(subscription: dict) -> None:
 
     factory = get_session_factory()
     async with factory() as session:
-        result = await session.execute(
-            select(UserSettings).where(UserSettings.stripe_customer_id == customer_id)
-        )
+        result = await session.execute(select(UserSettings).where(UserSettings.stripe_customer_id == customer_id))
         user_settings = result.scalar_one_or_none()
         if user_settings is None:
             logger.warning("subscription_updated_unknown_customer", customer_id=customer_id)
@@ -419,14 +405,10 @@ async def _handle_subscription_deleted(subscription: dict) -> None:
     factory = get_session_factory()
     async with factory() as session:
         # Get bootstrapper tier
-        tier_result = await session.execute(
-            select(PlanTier).where(PlanTier.slug == "bootstrapper")
-        )
+        tier_result = await session.execute(select(PlanTier).where(PlanTier.slug == "bootstrapper"))
         bootstrapper = tier_result.scalar_one()
 
-        result = await session.execute(
-            select(UserSettings).where(UserSettings.stripe_customer_id == customer_id)
-        )
+        result = await session.execute(select(UserSettings).where(UserSettings.stripe_customer_id == customer_id))
         user_settings = result.scalar_one_or_none()
         if user_settings is None:
             logger.warning("subscription_deleted_unknown_customer", customer_id=customer_id)
@@ -452,14 +434,10 @@ async def _handle_payment_failed(invoice: dict) -> None:
     factory = get_session_factory()
     async with factory() as session:
         # Get bootstrapper tier for immediate downgrade
-        tier_result = await session.execute(
-            select(PlanTier).where(PlanTier.slug == "bootstrapper")
-        )
+        tier_result = await session.execute(select(PlanTier).where(PlanTier.slug == "bootstrapper"))
         bootstrapper = tier_result.scalar_one()
 
-        result = await session.execute(
-            select(UserSettings).where(UserSettings.stripe_customer_id == customer_id)
-        )
+        result = await session.execute(select(UserSettings).where(UserSettings.stripe_customer_id == customer_id))
         user_settings = result.scalar_one_or_none()
         if user_settings is None:
             return

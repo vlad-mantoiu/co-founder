@@ -6,10 +6,10 @@ from pydantic import ValidationError
 from app.agent.runner_fake import RunnerFake
 from app.schemas.onboarding import (
     OnboardingQuestion,
+    OnboardingSessionResponse,
     QuestionSet,
     StartOnboardingRequest,
     ThesisSnapshot,
-    OnboardingSessionResponse,
 )
 
 pytestmark = pytest.mark.unit
@@ -23,11 +23,7 @@ class TestQuestionSetValidation:
         # Too few questions
         with pytest.raises(ValidationError) as exc_info:
             QuestionSet(
-                questions=[
-                    OnboardingQuestion(
-                        id="q1", text="What?", input_type="text", required=True
-                    )
-                ],
+                questions=[OnboardingQuestion(id="q1", text="What?", input_type="text", required=True)],
                 total_count=1,
             )
         assert "at least 5 items" in str(exc_info.value).lower()
@@ -36,9 +32,7 @@ class TestQuestionSetValidation:
         with pytest.raises(ValidationError) as exc_info:
             QuestionSet(
                 questions=[
-                    OnboardingQuestion(
-                        id=f"q{i}", text=f"Question {i}?", input_type="text", required=True
-                    )
+                    OnboardingQuestion(id=f"q{i}", text=f"Question {i}?", input_type="text", required=True)
                     for i in range(8)
                 ],
                 total_count=8,
@@ -50,9 +44,7 @@ class TestQuestionSetValidation:
         for count in [5, 6, 7]:
             question_set = QuestionSet(
                 questions=[
-                    OnboardingQuestion(
-                        id=f"q{i}", text=f"Question {i}?", input_type="text", required=True
-                    )
+                    OnboardingQuestion(id=f"q{i}", text=f"Question {i}?", input_type="text", required=True)
                     for i in range(count)
                 ],
                 total_count=count,
@@ -187,9 +179,7 @@ class TestOnboardingSessionResponseProgress:
             total_questions=6,
             idea_text="Food delivery app",
             questions=[
-                OnboardingQuestion(
-                    id=f"q{i}", text=f"Question {i}?", input_type="text", required=True
-                )
+                OnboardingQuestion(id=f"q{i}", text=f"Question {i}?", input_type="text", required=True)
                 for i in range(6)
             ],
             answers={},
@@ -205,9 +195,7 @@ class TestOnboardingSessionResponseProgress:
             total_questions=5,
             idea_text="SaaS app",
             questions=[
-                OnboardingQuestion(
-                    id=f"q{i}", text=f"Question {i}?", input_type="text", required=True
-                )
+                OnboardingQuestion(id=f"q{i}", text=f"Question {i}?", input_type="text", required=True)
                 for i in range(5)
             ],
             answers={},
@@ -223,9 +211,7 @@ class TestOnboardingSessionResponseProgress:
             total_questions=5,
             idea_text="E-commerce platform",
             questions=[
-                OnboardingQuestion(
-                    id=f"q{i}", text=f"Question {i}?", input_type="text", required=True
-                )
+                OnboardingQuestion(id=f"q{i}", text=f"Question {i}?", input_type="text", required=True)
                 for i in range(5)
             ],
             answers={},

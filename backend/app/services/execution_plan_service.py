@@ -5,7 +5,7 @@ checking if selection has been made (for 409 enforcement), and regenerating with
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import HTTPException
 from sqlalchemy import select
@@ -61,9 +61,7 @@ class ExecutionPlanService:
             # Verify project ownership
             project_uuid = uuid.UUID(project_id)
             result = await session.execute(
-                select(Project).where(
-                    Project.id == project_uuid, Project.clerk_user_id == clerk_user_id
-                )
+                select(Project).where(Project.id == project_uuid, Project.clerk_user_id == clerk_user_id)
             )
             project = result.scalar_one_or_none()
             if not project:
@@ -113,9 +111,7 @@ class ExecutionPlanService:
                 )
 
             # Generate options via Runner
-            options_data = await self.runner.generate_execution_options(
-                brief_artifact.current_content, feedback
-            )
+            options_data = await self.runner.generate_execution_options(brief_artifact.current_content, feedback)
 
             # Store plan set as Artifact
             plan_set_id = str(uuid.uuid4())
@@ -127,7 +123,7 @@ class ExecutionPlanService:
                     "plan_set_id": plan_set_id,
                     "options": options_data["options"],
                     "recommended_id": options_data["recommended_id"],
-                    "generated_at": datetime.now(timezone.utc).isoformat(),
+                    "generated_at": datetime.now(UTC).isoformat(),
                     "feedback_context": feedback,
                 },
                 version_number=1,
@@ -147,7 +143,7 @@ class ExecutionPlanService:
                 existing_plan.previous_content = existing_plan.current_content
                 existing_plan.current_content = execution_plan_artifact.current_content
                 existing_plan.version_number += 1
-                existing_plan.updated_at = datetime.now(timezone.utc)
+                existing_plan.updated_at = datetime.now(UTC)
                 await session.commit()
             else:
                 # Create new
@@ -158,12 +154,10 @@ class ExecutionPlanService:
                 plan_set_id=plan_set_id,
                 options=[ExecutionOption(**opt) for opt in options_data["options"]],
                 recommended_id=options_data["recommended_id"],
-                generated_at=datetime.now(timezone.utc).isoformat(),
+                generated_at=datetime.now(UTC).isoformat(),
             )
 
-    async def select_option(
-        self, clerk_user_id: str, project_id: str, option_id: str
-    ) -> SelectPlanResponse:
+    async def select_option(self, clerk_user_id: str, project_id: str, option_id: str) -> SelectPlanResponse:
         """Select an execution plan option.
 
         Args:
@@ -181,9 +175,7 @@ class ExecutionPlanService:
             # Verify project ownership
             project_uuid = uuid.UUID(project_id)
             result = await session.execute(
-                select(Project).where(
-                    Project.id == project_uuid, Project.clerk_user_id == clerk_user_id
-                )
+                select(Project).where(Project.id == project_uuid, Project.clerk_user_id == clerk_user_id)
             )
             project = result.scalar_one_or_none()
             if not project:
@@ -216,8 +208,8 @@ class ExecutionPlanService:
 
             # Store selection in artifact
             plan_artifact.current_content["selected_option_id"] = option_id
-            plan_artifact.current_content["selected_at"] = datetime.now(timezone.utc).isoformat()
-            plan_artifact.updated_at = datetime.now(timezone.utc)
+            plan_artifact.current_content["selected_at"] = datetime.now(UTC).isoformat()
+            plan_artifact.updated_at = datetime.now(UTC)
             await session.commit()
 
             return SelectPlanResponse(
@@ -226,9 +218,7 @@ class ExecutionPlanService:
                 message=f"Selected '{selected_option['name']}' execution plan. Ready to start building!",
             )
 
-    async def get_selected_plan(
-        self, clerk_user_id: str, project_id: str
-    ) -> ExecutionOption | None:
+    async def get_selected_plan(self, clerk_user_id: str, project_id: str) -> ExecutionOption | None:
         """Get the selected execution plan option, if any.
 
         Args:
@@ -245,9 +235,7 @@ class ExecutionPlanService:
             # Verify project ownership
             project_uuid = uuid.UUID(project_id)
             result = await session.execute(
-                select(Project).where(
-                    Project.id == project_uuid, Project.clerk_user_id == clerk_user_id
-                )
+                select(Project).where(Project.id == project_uuid, Project.clerk_user_id == clerk_user_id)
             )
             project = result.scalar_one_or_none()
             if not project:
@@ -304,9 +292,7 @@ class ExecutionPlanService:
             selected_option_id = plan_artifact.current_content.get("selected_option_id")
             return selected_option_id is not None
 
-    async def regenerate_options(
-        self, clerk_user_id: str, project_id: str, feedback: str
-    ) -> GeneratePlansResponse:
+    async def regenerate_options(self, clerk_user_id: str, project_id: str, feedback: str) -> GeneratePlansResponse:
         """Regenerate execution plan options with feedback.
 
         Args:

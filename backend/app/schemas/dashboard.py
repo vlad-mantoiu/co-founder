@@ -4,8 +4,6 @@ Dashboard aggregates state machine, artifacts, and build status.
 """
 
 from datetime import datetime
-from typing import Any
-from uuid import UUID
 
 from pydantic import BaseModel, Field
 

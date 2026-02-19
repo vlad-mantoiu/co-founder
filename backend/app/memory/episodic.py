@@ -6,13 +6,11 @@ This module provides:
 - Successful approaches for similar tasks
 """
 
-from datetime import datetime, timezone
-from typing import Any
+from datetime import UTC, datetime
 
-from sqlalchemy import Column, DateTime, Integer, String, Text, JSON, select
+from sqlalchemy import JSON, Column, DateTime, Integer, String, Text, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import get_settings
 from app.db.base import Base, get_session_factory
 
 
@@ -45,7 +43,7 @@ class Episode(Base):
     pr_url = Column(String(512), nullable=True)
 
     # Timestamps
-    started_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    started_at = Column(DateTime, default=lambda: datetime.now(UTC))
     completed_at = Column(DateTime, nullable=True)
 
     # Extra data
@@ -119,9 +117,7 @@ class EpisodicMemory:
             metadata: Additional metadata
         """
         async with await self._get_session() as session:
-            result = await session.execute(
-                select(Episode).where(Episode.id == episode_id)
-            )
+            result = await session.execute(select(Episode).where(Episode.id == episode_id))
             episode = result.scalar_one_or_none()
 
             if not episode:
@@ -134,7 +130,7 @@ class EpisodicMemory:
             if status is not None:
                 episode.status = status
                 if status in ("success", "failed", "aborted"):
-                    episode.completed_at = datetime.now(timezone.utc)
+                    episode.completed_at = datetime.now(UTC)
             if files_created is not None:
                 episode.files_created = files_created
             if commit_sha is not None:
@@ -166,16 +162,14 @@ class EpisodicMemory:
             pr_url: Pull request URL
         """
         async with await self._get_session() as session:
-            result = await session.execute(
-                select(Episode).where(Episode.id == episode_id)
-            )
+            result = await session.execute(select(Episode).where(Episode.id == episode_id))
             episode = result.scalar_one_or_none()
 
             if not episode:
                 return
 
             episode.status = status
-            episode.completed_at = datetime.now(timezone.utc)
+            episode.completed_at = datetime.now(UTC)
             if final_error:
                 episode.final_error = final_error
             if files_created:

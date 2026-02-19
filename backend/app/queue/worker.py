@@ -91,9 +91,7 @@ async def process_next_job(runner: Runner | None = None, redis=None) -> bool:
                 runner=runner,
                 sandbox_runtime_factory=lambda: E2BSandboxRuntime(),
             )
-            build_result = await generation_service.execute_build(
-                job_id, job_data, state_machine
-            )
+            build_result = await generation_service.execute_build(job_id, job_data, state_machine)
         else:
             # Backwards-compatible simulated loop (no runner injected)
             await state_machine.transition(job_id, JobStatus.STARTING, "Starting job execution")
@@ -107,10 +105,12 @@ async def process_next_job(runner: Runner | None = None, redis=None) -> bool:
         # Mark as READY — publish preview_url in event payload when available
         ready_message = "Job completed successfully"
         if build_result and build_result.get("preview_url"):
-            ready_message = json.dumps({
-                "message": "Job completed successfully",
-                "preview_url": build_result["preview_url"],
-            })
+            ready_message = json.dumps(
+                {
+                    "message": "Job completed successfully",
+                    "preview_url": build_result["preview_url"],
+                }
+            )
         await state_machine.transition(job_id, JobStatus.READY, ready_message)
 
         # Record duration for wait time estimation
@@ -119,13 +119,10 @@ async def process_next_job(runner: Runner | None = None, redis=None) -> bool:
         await estimator.record_completion(tier, duration)
 
         # Persist to Postgres (terminal state)
-        await _persist_job_to_postgres(
-            job_id, job_data, JobStatus.READY, duration, build_result=build_result
-        )
+        await _persist_job_to_postgres(job_id, job_data, JobStatus.READY, duration, build_result=build_result)
 
     except Exception as exc:
-        logger.error("job_failed", job_id=job_id, error=str(exc),
-                     error_type=type(exc).__name__, exc_info=True)
+        logger.error("job_failed", job_id=job_id, error=str(exc), error_type=type(exc).__name__, exc_info=True)
 
         # If GenerationService already transitioned to FAILED, don't double-transition.
         # We detect this by checking if exc carries a debug_id (set by GenerationService).
@@ -203,5 +200,4 @@ async def _persist_job_to_postgres(
             session.add(job)
             await session.commit()
     except Exception as exc:
-        logger.error("job_persist_failed", job_id=job_id, error=str(exc),
-                     error_type=type(exc).__name__, exc_info=True)
+        logger.error("job_persist_failed", job_id=job_id, error=str(exc), error_type=type(exc).__name__, exc_info=True)

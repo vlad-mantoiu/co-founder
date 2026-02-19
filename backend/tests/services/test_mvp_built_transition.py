@@ -157,9 +157,7 @@ async def test_first_build_transitions_to_mvp_built(
     # Reload project in fresh query to verify stage change
     result = await session.execute(select(Project).where(Project.id == test_project))
     project = result.scalar_one()
-    assert project.stage_number == 3, (
-        f"Expected stage_number=3 after build_v0_1, got {project.stage_number}"
-    )
+    assert project.stage_number == 3, f"Expected stage_number=3 after build_v0_1, got {project.stage_number}"
 
     # Assert a 'transition' StageEvent exists with to_stage='3'
     result = await session.execute(
@@ -214,9 +212,7 @@ async def test_second_build_does_not_re_transition(
     # Project remains at stage 3, no new events created
     result = await session.execute(select(Project).where(Project.id == test_project))
     project = result.scalar_one()
-    assert project.stage_number == 3, (
-        f"Stage should remain 3 after build_v0_2, got {project.stage_number}"
-    )
+    assert project.stage_number == 3, f"Stage should remain 3 after build_v0_2, got {project.stage_number}"
 
     # No mvp_built events from second build (hook returns early for non-v0_1)
     result = await session.execute(
@@ -226,9 +222,7 @@ async def test_second_build_does_not_re_transition(
         )
     )
     events = result.scalars().all()
-    assert len(events) == 0, (
-        f"Expected no mvp_built events from second build, got {len(events)}"
-    )
+    assert len(events) == 0, f"Expected no mvp_built events from second build, got {len(events)}"
 
 
 # ---------------------------------------------------------------------------

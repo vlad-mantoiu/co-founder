@@ -14,10 +14,11 @@ Note: These tests use the TestClient synchronously to avoid pytest-asyncio event
 Database verification is skipped in favor of API response verification (black-box testing).
 """
 
+from unittest.mock import Mock, patch
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from unittest.mock import Mock, patch
 
 from app.agent.runner_fake import RunnerFake
 from app.api.routes.decision_gates import get_runner
@@ -96,9 +97,7 @@ def test_create_gate_returns_options(api_client: TestClient, mock_runner, user_a
     app.dependency_overrides[require_auth] = override_auth(user_a)
     app.dependency_overrides[get_runner] = lambda: mock_runner
 
-    response = api_client.post(
-        "/api/gates/create", json={"project_id": project_id, "gate_type": "direction"}
-    )
+    response = api_client.post("/api/gates/create", json={"project_id": project_id, "gate_type": "direction"})
 
     assert response.status_code == 201
     data = response.json()
@@ -112,7 +111,9 @@ def test_create_gate_returns_options(api_client: TestClient, mock_runner, user_a
     assert set(option_values) == {"proceed", "narrow", "pivot", "park"}
 
     for opt in data["options"]:
-        assert all(k in opt for k in ["value", "title", "description", "what_happens_next", "pros", "cons", "why_choose"])
+        assert all(
+            k in opt for k in ["value", "title", "description", "what_happens_next", "pros", "cons", "why_choose"]
+        )
 
     app.dependency_overrides.clear()
 
@@ -125,14 +126,10 @@ def test_create_duplicate_gate_returns_409(api_client: TestClient, mock_runner, 
     app.dependency_overrides[require_auth] = override_auth(user_a)
     app.dependency_overrides[get_runner] = lambda: mock_runner
 
-    response1 = api_client.post(
-        "/api/gates/create", json={"project_id": project_id, "gate_type": "direction"}
-    )
+    response1 = api_client.post("/api/gates/create", json={"project_id": project_id, "gate_type": "direction"})
     assert response1.status_code == 201
 
-    response2 = api_client.post(
-        "/api/gates/create", json={"project_id": project_id, "gate_type": "direction"}
-    )
+    response2 = api_client.post("/api/gates/create", json={"project_id": project_id, "gate_type": "direction"})
     assert response2.status_code == 409
     assert "already exists" in response2.json()["detail"].lower()
 
@@ -147,14 +144,10 @@ def test_resolve_proceed_advances_stage(api_client: TestClient, mock_runner, use
     app.dependency_overrides[require_auth] = override_auth(user_a)
     app.dependency_overrides[get_runner] = lambda: mock_runner
 
-    create_response = api_client.post(
-        "/api/gates/create", json={"project_id": project_id, "gate_type": "direction"}
-    )
+    create_response = api_client.post("/api/gates/create", json={"project_id": project_id, "gate_type": "direction"})
     gate_id = create_response.json()["gate_id"]
 
-    resolve_response = api_client.post(
-        f"/api/gates/{gate_id}/resolve", json={"decision": "proceed"}
-    )
+    resolve_response = api_client.post(f"/api/gates/{gate_id}/resolve", json={"decision": "proceed"})
 
     assert resolve_response.status_code == 200
     data = resolve_response.json()
@@ -175,9 +168,7 @@ def test_resolve_narrow_logs_decision(api_client: TestClient, mock_runner, user_
     app.dependency_overrides[require_auth] = override_auth(user_a)
     app.dependency_overrides[get_runner] = lambda: mock_runner
 
-    create_response = api_client.post(
-        "/api/gates/create", json={"project_id": project_id, "gate_type": "direction"}
-    )
+    create_response = api_client.post("/api/gates/create", json={"project_id": project_id, "gate_type": "direction"})
     gate_id = create_response.json()["gate_id"]
 
     narrow_text = "Focus only on core scheduling feature"
@@ -203,9 +194,7 @@ def test_resolve_pivot_logs_decision(api_client: TestClient, mock_runner, user_a
     app.dependency_overrides[require_auth] = override_auth(user_a)
     app.dependency_overrides[get_runner] = lambda: mock_runner
 
-    create_response = api_client.post(
-        "/api/gates/create", json={"project_id": project_id, "gate_type": "direction"}
-    )
+    create_response = api_client.post("/api/gates/create", json={"project_id": project_id, "gate_type": "direction"})
     gate_id = create_response.json()["gate_id"]
 
     pivot_text = "Focus on B2B enterprise instead of consumer"
@@ -230,9 +219,7 @@ def test_resolve_park_freezes_project(api_client: TestClient, mock_runner, user_
     app.dependency_overrides[require_auth] = override_auth(user_a)
     app.dependency_overrides[get_runner] = lambda: mock_runner
 
-    create_response = api_client.post(
-        "/api/gates/create", json={"project_id": project_id, "gate_type": "direction"}
-    )
+    create_response = api_client.post("/api/gates/create", json={"project_id": project_id, "gate_type": "direction"})
     gate_id = create_response.json()["gate_id"]
 
     park_note = "Need to validate market demand"
@@ -259,16 +246,12 @@ def test_resolve_already_decided_returns_409(api_client: TestClient, mock_runner
     app.dependency_overrides[require_auth] = override_auth(user_a)
     app.dependency_overrides[get_runner] = lambda: mock_runner
 
-    create_response = api_client.post(
-        "/api/gates/create", json={"project_id": project_id, "gate_type": "direction"}
-    )
+    create_response = api_client.post("/api/gates/create", json={"project_id": project_id, "gate_type": "direction"})
     gate_id = create_response.json()["gate_id"]
 
     api_client.post(f"/api/gates/{gate_id}/resolve", json={"decision": "proceed"})
 
-    response = api_client.post(
-        f"/api/gates/{gate_id}/resolve", json={"decision": "narrow", "action_text": "Too late"}
-    )
+    response = api_client.post(f"/api/gates/{gate_id}/resolve", json={"decision": "narrow", "action_text": "Too late"})
 
     assert response.status_code == 409
     assert "already decided" in response.json()["detail"].lower()
@@ -284,9 +267,7 @@ def test_get_gate_status_returns_current_state(api_client: TestClient, mock_runn
     app.dependency_overrides[require_auth] = override_auth(user_a)
     app.dependency_overrides[get_runner] = lambda: mock_runner
 
-    create_response = api_client.post(
-        "/api/gates/create", json={"project_id": project_id, "gate_type": "direction"}
-    )
+    create_response = api_client.post("/api/gates/create", json={"project_id": project_id, "gate_type": "direction"})
     gate_id = create_response.json()["gate_id"]
 
     status_response = api_client.get(f"/api/gates/{gate_id}")
@@ -322,9 +303,7 @@ def test_get_pending_gate_returns_gate_or_none(api_client: TestClient, mock_runn
     assert response.status_code == 200
     assert response.json() is None
 
-    create_response = api_client.post(
-        "/api/gates/create", json={"project_id": project_id, "gate_type": "direction"}
-    )
+    create_response = api_client.post("/api/gates/create", json={"project_id": project_id, "gate_type": "direction"})
     gate_id = create_response.json()["gate_id"]
 
     response2 = api_client.get(f"/api/gates/project/{project_id}/pending")
@@ -348,9 +327,7 @@ def test_check_blocking_returns_true_when_pending(api_client: TestClient, mock_r
     assert response1.status_code == 200
     assert response1.json()["blocking"] is False
 
-    api_client.post(
-        "/api/gates/create", json={"project_id": project_id, "gate_type": "direction"}
-    )
+    api_client.post("/api/gates/create", json={"project_id": project_id, "gate_type": "direction"})
 
     response2 = api_client.get(f"/api/gates/project/{project_id}/check-blocking")
     assert response2.status_code == 200
@@ -367,9 +344,7 @@ def test_user_isolation_returns_404(api_client: TestClient, mock_runner, user_a,
     app.dependency_overrides[require_auth] = override_auth(user_a)
     app.dependency_overrides[get_runner] = lambda: mock_runner
 
-    create_response = api_client.post(
-        "/api/gates/create", json={"project_id": project_id, "gate_type": "direction"}
-    )
+    create_response = api_client.post("/api/gates/create", json={"project_id": project_id, "gate_type": "direction"})
     gate_id = create_response.json()["gate_id"]
 
     app.dependency_overrides[require_auth] = override_auth(user_b)
@@ -394,9 +369,7 @@ def test_resolve_narrow_without_action_text_returns_422(api_client: TestClient, 
     app.dependency_overrides[require_auth] = override_auth(user_a)
     app.dependency_overrides[get_runner] = lambda: mock_runner
 
-    create_response = api_client.post(
-        "/api/gates/create", json={"project_id": project_id, "gate_type": "direction"}
-    )
+    create_response = api_client.post("/api/gates/create", json={"project_id": project_id, "gate_type": "direction"})
     gate_id = create_response.json()["gate_id"]
 
     response = api_client.post(f"/api/gates/{gate_id}/resolve", json={"decision": "narrow"})

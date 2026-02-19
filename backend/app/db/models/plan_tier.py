@@ -1,6 +1,6 @@
 """PlanTier model — subscription plan definitions."""
 
-from sqlalchemy import Column, Integer, String, JSON
+from sqlalchemy import JSON, Column, Integer, String
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base

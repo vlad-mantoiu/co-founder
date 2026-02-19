@@ -1,8 +1,10 @@
 """Tests for stage enums and transition validation."""
+
 import pytest
+
 from app.domain.stages import (
-    Stage,
     ProjectStatus,
+    Stage,
     TransitionResult,
     validate_transition,
 )

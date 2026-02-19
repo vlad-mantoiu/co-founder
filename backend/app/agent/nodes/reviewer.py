@@ -71,7 +71,9 @@ async def reviewer_node(state: CoFounderState) -> dict:
             "messages": [
                 {
                     "role": "assistant",
-                    "content": f"Code review passed. {review['suggestions']}" if review['suggestions'] else "Code review passed.",
+                    "content": f"Code review passed. {review['suggestions']}"
+                    if review["suggestions"]
+                    else "Code review passed.",
                     "node": "reviewer",
                 }
             ],
@@ -97,7 +99,7 @@ async def reviewer_node(state: CoFounderState) -> dict:
             "messages": [
                 {
                     "role": "assistant",
-                    "content": f"Code review found issues:\n" + "\n".join(f"- {i}" for i in review["issues"]),
+                    "content": "Code review found issues:\n" + "\n".join(f"- {i}" for i in review["issues"]),
                     "node": "reviewer",
                 }
             ],
@@ -112,8 +114,8 @@ def _build_review_context(state: CoFounderState) -> str:
     file_diffs = []
     for path, change in state["working_files"].items():
         file_diffs.append(f"""
-=== {path} ({change['change_type']}) ===
-{change['new_content']}
+=== {path} ({change["change_type"]}) ===
+{change["new_content"]}
 """)
 
     return f"""
@@ -148,9 +150,7 @@ def _parse_review_response(content: str) -> dict:
         issues_text = issues_match.group(1).strip()
         if issues_text.lower() != "none":
             issues = [
-                line.strip().lstrip("- ")
-                for line in issues_text.split("\n")
-                if line.strip() and line.strip() != "-"
+                line.strip().lstrip("- ") for line in issues_text.split("\n") if line.strip() and line.strip() != "-"
             ]
 
     # Extract suggestions

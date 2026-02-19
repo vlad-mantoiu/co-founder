@@ -1,6 +1,6 @@
 """Admin API routes — plan management, user management, usage analytics."""
 
-from datetime import date
+from datetime import UTC, date
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
@@ -108,9 +108,7 @@ async def get_user(clerk_id: str, _: ClerkUser = Depends(require_admin)):
     """User detail + settings + usage."""
     factory = get_session_factory()
     async with factory() as session:
-        result = await session.execute(
-            select(UserSettings).where(UserSettings.clerk_user_id == clerk_id)
-        )
+        result = await session.execute(select(UserSettings).where(UserSettings.clerk_user_id == clerk_id))
         u = result.scalar_one_or_none()
         if u is None:
             raise HTTPException(status_code=404, detail="User not found")
@@ -145,9 +143,7 @@ async def update_user(
     """Update plan, overrides, admin flag, or suspend a user."""
     factory = get_session_factory()
     async with factory() as session:
-        result = await session.execute(
-            select(UserSettings).where(UserSettings.clerk_user_id == clerk_id)
-        )
+        result = await session.execute(select(UserSettings).where(UserSettings.clerk_user_id == clerk_id))
         u = result.scalar_one_or_none()
         if u is None:
             raise HTTPException(status_code=404, detail="User not found")
@@ -156,9 +152,7 @@ async def update_user(
 
         # Handle plan tier change by slug
         if "plan_tier_slug" in data:
-            tier_result = await session.execute(
-                select(PlanTier).where(PlanTier.slug == data.pop("plan_tier_slug"))
-            )
+            tier_result = await session.execute(select(PlanTier).where(PlanTier.slug == data.pop("plan_tier_slug")))
             tier = tier_result.scalar_one_or_none()
             if tier is None:
                 raise HTTPException(status_code=400, detail="Invalid plan tier slug")
@@ -277,9 +271,9 @@ def _tier_to_response(tier: PlanTier) -> PlanTierResponse:
 
 def _apply_period_filter(query, period: str):
     """Apply a date filter based on period string."""
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if period == "today":
         start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     elif period == "week":

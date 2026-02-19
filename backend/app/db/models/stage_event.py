@@ -1,7 +1,7 @@
 """StageEvent model — append-only timeline events."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import Column, DateTime, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -23,5 +23,5 @@ class StageEvent(Base):
     detail = Column(JSONB, nullable=False, default=dict)  # event-specific payload
     reason = Column(Text, nullable=True)
 
-    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC), index=True)
     # NO updated_at -- events are immutable (append-only)

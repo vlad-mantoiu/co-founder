@@ -8,9 +8,7 @@ This module provides GitHub App integration for:
 """
 
 import base64
-import tempfile
-from datetime import datetime, timedelta, timezone
-from pathlib import Path
+from datetime import UTC, datetime, timedelta
 
 import httpx
 import jwt
@@ -40,7 +38,7 @@ class GitHubClient:
         if not self.settings.github_app_id or not self.settings.github_private_key:
             raise GitOperationError("GitHub App not configured")
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         payload = {
             "iat": int(now.timestamp()) - 60,  # Issued 60 seconds ago
             "exp": int((now + timedelta(minutes=10)).timestamp()),
@@ -56,7 +54,7 @@ class GitHubClient:
 
     async def _get_access_token(self) -> str:
         """Get an installation access token."""
-        if self._access_token and self._token_expires and datetime.now(timezone.utc) < self._token_expires:
+        if self._access_token and self._token_expires and datetime.now(UTC) < self._token_expires:
             return self._access_token
 
         if not self.installation_id:
@@ -79,7 +77,7 @@ class GitHubClient:
 
             data = response.json()
             self._access_token = data["token"]
-            self._token_expires = datetime.now(timezone.utc) + timedelta(minutes=55)
+            self._token_expires = datetime.now(UTC) + timedelta(minutes=55)
 
             return self._access_token
 
@@ -131,9 +129,7 @@ class GitHubClient:
                 raise ValueError(f"Unknown method: {method}")
 
             if response.status_code >= 400:
-                raise GitOperationError(
-                    f"GitHub API error ({response.status_code}): {response.text}"
-                )
+                raise GitOperationError(f"GitHub API error ({response.status_code}): {response.text}")
 
             if response.status_code == 204:
                 return {}
@@ -402,12 +398,14 @@ class GitHubClient:
                     "encoding": "utf-8",
                 },
             )
-            tree_items.append({
-                "path": path,
-                "mode": "100644",
-                "type": "blob",
-                "sha": blob["sha"],
-            })
+            tree_items.append(
+                {
+                    "path": path,
+                    "mode": "100644",
+                    "type": "blob",
+                    "sha": blob["sha"],
+                }
+            )
 
         # Create a new tree
         tree = await self._request(

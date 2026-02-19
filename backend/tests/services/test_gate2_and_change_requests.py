@@ -112,8 +112,8 @@ def _mock_session_factory(scalar_results: list):
 
 async def test_gate2_created_with_solidification_type():
     """When create_gate() is called with gate_type='solidification', options are GATE_2_OPTIONS."""
-    from app.services.gate_service import GateService
     from app.agent.runner_fake import RunnerFake
+    from app.services.gate_service import GateService
 
     project_id_str = "00000000-0000-0000-0000-000000000001"
     project = _make_project(project_id=project_id_str)
@@ -153,8 +153,8 @@ async def test_gate2_created_with_solidification_type():
 
 async def test_gate2_resolution_includes_alignment():
     """resolve_gate() with gate_type='solidification' and decision='iterate' stores alignment in context."""
-    from app.services.gate_service import GateService
     from app.agent.runner_fake import RunnerFake
+    from app.services.gate_service import GateService
 
     project_id_str = "00000000-0000-0000-0000-000000000002"
     project = _make_project(project_id=project_id_str)
@@ -207,8 +207,8 @@ async def test_gate2_resolution_includes_alignment():
 
 async def test_create_change_request_creates_artifact():
     """ChangeRequestService.create_change_request() creates Artifact with artifact_type='change_request_1'."""
-    from app.services.change_request_service import ChangeRequestService
     from app.agent.runner_fake import RunnerFake
+    from app.services.change_request_service import ChangeRequestService
 
     project_id_str = "00000000-0000-0000-0000-000000000003"
     project = _make_project(project_id=project_id_str)
@@ -226,9 +226,11 @@ async def test_create_change_request_creates_artifact():
     mock_factory.return_value.__aenter__.return_value.add = MagicMock(
         side_effect=lambda a: captured_artifacts.append(a)
     )
+
     # Override refresh to set the artifact id on the object
     async def fake_refresh(artifact):
         artifact.id = uuid.uuid4()
+
     mock_factory.return_value.__aenter__.return_value.refresh = fake_refresh
 
     runner = RunnerFake()
@@ -259,8 +261,8 @@ async def test_create_change_request_creates_artifact():
 
 async def test_change_request_references_build_version():
     """Change request content includes references_build_version matching latest build."""
-    from app.services.change_request_service import ChangeRequestService
     from app.agent.runner_fake import RunnerFake
+    from app.services.change_request_service import ChangeRequestService
 
     project_id_str = "00000000-0000-0000-0000-000000000004"
     project = _make_project(project_id=project_id_str)
@@ -273,8 +275,10 @@ async def test_change_request_references_build_version():
     mock_factory.return_value.__aenter__.return_value.add = MagicMock(
         side_effect=lambda a: captured_artifacts.append(a)
     )
+
     async def fake_refresh(artifact):
         artifact.id = uuid.uuid4()
+
     mock_factory.return_value.__aenter__.return_value.refresh = fake_refresh
 
     runner = RunnerFake()
@@ -297,9 +301,9 @@ async def test_change_request_references_build_version():
 
 async def test_change_request_includes_iteration_depth():
     """Change request content has iteration_number and tier_limit fields (ITER-01, ITER-02)."""
-    from app.services.change_request_service import ChangeRequestService
     from app.agent.runner_fake import RunnerFake
     from app.queue.schemas import TIER_ITERATION_DEPTH
+    from app.services.change_request_service import ChangeRequestService
 
     project_id_str = "00000000-0000-0000-0000-000000000005"
     project = _make_project(project_id=project_id_str)
@@ -308,23 +312,19 @@ async def test_change_request_includes_iteration_depth():
     mvp_artifact = _make_artifact("mvp_scope", {"core_features": []})
 
     # Simulate 2 existing change_requests already created
-    existing_cr_1 = _make_artifact(
-        "change_request_1", {"description": "First change", "_schema_version": 1}
-    )
-    existing_cr_2 = _make_artifact(
-        "change_request_2", {"description": "Second change", "_schema_version": 1}
-    )
+    existing_cr_1 = _make_artifact("change_request_1", {"description": "First change", "_schema_version": 1})
+    existing_cr_2 = _make_artifact("change_request_2", {"description": "Second change", "_schema_version": 1})
 
-    mock_factory = _mock_session_factory(
-        [project, latest_build, mvp_artifact, [existing_cr_1, existing_cr_2]]
-    )
+    mock_factory = _mock_session_factory([project, latest_build, mvp_artifact, [existing_cr_1, existing_cr_2]])
 
     captured_artifacts: list = []
     mock_factory.return_value.__aenter__.return_value.add = MagicMock(
         side_effect=lambda a: captured_artifacts.append(a)
     )
+
     async def fake_refresh(artifact):
         artifact.id = uuid.uuid4()
+
     mock_factory.return_value.__aenter__.return_value.refresh = fake_refresh
 
     runner = RunnerFake()

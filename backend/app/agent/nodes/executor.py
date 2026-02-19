@@ -42,14 +42,16 @@ async def executor_node(state: CoFounderState) -> dict:
                     await runtime.write_file(path, change["new_content"])
                     files_written.append(path)
                 except SandboxError as e:
-                    errors.append({
-                        "step_index": state["current_step_index"],
-                        "error_type": "file_write",
-                        "message": str(e),
-                        "stdout": "",
-                        "stderr": str(e),
-                        "file_path": path,
-                    })
+                    errors.append(
+                        {
+                            "step_index": state["current_step_index"],
+                            "error_type": "file_write",
+                            "message": str(e),
+                            "stdout": "",
+                            "stderr": str(e),
+                            "file_path": path,
+                        }
+                    )
 
             if errors:
                 return {
@@ -84,14 +86,16 @@ async def executor_node(state: CoFounderState) -> dict:
 
     except SandboxError as e:
         return {
-            "active_errors": [{
-                "step_index": state["current_step_index"],
-                "error_type": "sandbox_error",
-                "message": str(e),
-                "stdout": "",
-                "stderr": str(e),
-                "file_path": None,
-            }],
+            "active_errors": [
+                {
+                    "step_index": state["current_step_index"],
+                    "error_type": "sandbox_error",
+                    "message": str(e),
+                    "stdout": "",
+                    "stderr": str(e),
+                    "file_path": None,
+                }
+            ],
             "current_node": "executor",
             "status_message": f"Sandbox error: {e}",
             "last_tool_output": str(e),
@@ -148,10 +152,7 @@ async def _run_tests_in_sandbox(
     files = step.get("files_to_modify", [])
 
     # Check if any test files exist
-    has_test_files = any(
-        "test" in f.lower() or f.endswith("_test.py") or f.endswith(".test.js")
-        for f in files
-    )
+    has_test_files = any("test" in f.lower() or f.endswith("_test.py") or f.endswith(".test.js") for f in files)
 
     # Determine test command based on template
     if template == "python":
@@ -192,14 +193,16 @@ async def _run_tests_in_sandbox(
 
     errors = []
     if exit_code != 0:
-        errors.append({
-            "step_index": step["index"],
-            "error_type": "test_failure",
-            "message": "Tests failed",
-            "stdout": result["stdout"][:1000],
-            "stderr": result["stderr"][:1000],
-            "file_path": None,
-        })
+        errors.append(
+            {
+                "step_index": step["index"],
+                "error_type": "test_failure",
+                "message": "Tests failed",
+                "stdout": result["stdout"][:1000],
+                "stderr": result["stderr"][:1000],
+                "file_path": None,
+            }
+        )
 
     return {
         "output": output,
@@ -231,14 +234,16 @@ async def _execute_locally(state: CoFounderState) -> dict:
             full_path.write_text(change["new_content"])
             files_written.append(path)
         except Exception as e:
-            errors.append({
-                "step_index": state["current_step_index"],
-                "error_type": "file_write",
-                "message": str(e),
-                "stdout": "",
-                "stderr": str(e),
-                "file_path": path,
-            })
+            errors.append(
+                {
+                    "step_index": state["current_step_index"],
+                    "error_type": "file_write",
+                    "message": str(e),
+                    "stdout": "",
+                    "stderr": str(e),
+                    "file_path": path,
+                }
+            )
 
     if errors:
         return {
@@ -255,9 +260,7 @@ async def _execute_locally(state: CoFounderState) -> dict:
 
     # Determine command based on file types
     if any(f.endswith(".py") for f in files):
-        cmd = ["python", "-m", "py_compile"] + [
-            str(project_path / f) for f in files if f.endswith(".py")
-        ]
+        cmd = ["python", "-m", "py_compile"] + [str(project_path / f) for f in files if f.endswith(".py")]
     else:
         cmd = ["echo", "No validation available"]
 
@@ -274,15 +277,19 @@ async def _execute_locally(state: CoFounderState) -> dict:
             "last_tool_output": stdout.decode() + stderr.decode(),
             "last_command_exit_code": proc.returncode or 0,
             "current_node": "executor",
-            "status_message": f"Executed locally (E2B not configured)",
-            "active_errors": [] if proc.returncode == 0 else [{
-                "step_index": current_step["index"],
-                "error_type": "validation_failure",
-                "message": "Validation failed",
-                "stdout": stdout.decode()[:500],
-                "stderr": stderr.decode()[:500],
-                "file_path": None,
-            }],
+            "status_message": "Executed locally (E2B not configured)",
+            "active_errors": []
+            if proc.returncode == 0
+            else [
+                {
+                    "step_index": current_step["index"],
+                    "error_type": "validation_failure",
+                    "message": "Validation failed",
+                    "stdout": stdout.decode()[:500],
+                    "stderr": stderr.decode()[:500],
+                    "file_path": None,
+                }
+            ],
             "messages": [
                 {
                     "role": "assistant",
@@ -298,12 +305,14 @@ async def _execute_locally(state: CoFounderState) -> dict:
             "last_command_exit_code": 1,
             "current_node": "executor",
             "status_message": f"Local execution failed: {e}",
-            "active_errors": [{
-                "step_index": current_step["index"],
-                "error_type": "execution_error",
-                "message": str(e),
-                "stdout": "",
-                "stderr": str(e),
-                "file_path": None,
-            }],
+            "active_errors": [
+                {
+                    "step_index": current_step["index"],
+                    "error_type": "execution_error",
+                    "message": str(e),
+                    "stdout": "",
+                    "stderr": str(e),
+                    "file_path": None,
+                }
+            ],
         }

@@ -97,22 +97,13 @@ class TimelineService:
         # Apply text search (case-insensitive substring on title + summary)
         if query is not None:
             query_lower = query.lower()
-            items = [
-                item for item in items
-                if query_lower in item.title.lower() or query_lower in item.summary.lower()
-            ]
+            items = [item for item in items if query_lower in item.title.lower() or query_lower in item.summary.lower()]
 
         # Apply date range filter (strip timezone for naive comparison if tzinfo mismatch)
         if date_from is not None:
-            items = [
-                item for item in items
-                if _strip_tz(item.timestamp) >= _strip_tz(date_from)
-            ]
+            items = [item for item in items if _strip_tz(item.timestamp) >= _strip_tz(date_from)]
         if date_to is not None:
-            items = [
-                item for item in items
-                if _strip_tz(item.timestamp) <= _strip_tz(date_to)
-            ]
+            items = [item for item in items if _strip_tz(item.timestamp) <= _strip_tz(date_to)]
 
         # Sort by timestamp descending (newest first — locked decision)
         items.sort(key=lambda item: item.timestamp, reverse=True)
@@ -140,26 +131,26 @@ class TimelineService:
 
         async with self.session_factory() as session:
             # --- DecisionGates ---
-            gates_result = await session.execute(
-                select(DecisionGate).where(DecisionGate.project_id == project_uuid)
-            )
+            gates_result = await session.execute(select(DecisionGate).where(DecisionGate.project_id == project_uuid))
             gates = gates_result.scalars().all()
 
             for gate in gates:
                 timestamp = gate.decided_at or gate.created_at
                 gate_type_display = gate.gate_type.replace("_", " ").title()
                 decision_display = gate.decision.title() if gate.decision else "Pending"
-                items.append(TimelineItem(
-                    id=str(gate.id),
-                    project_id=str(project_uuid),
-                    timestamp=timestamp,
-                    type="decision",
-                    title=f"Decision: {gate_type_display}",
-                    summary=gate.reason or f"{decision_display} decision",
-                    kanban_status=_decision_kanban_status(gate),
-                    graph_node_id=str(gate.id),
-                    decision_id=str(gate.id),
-                ))
+                items.append(
+                    TimelineItem(
+                        id=str(gate.id),
+                        project_id=str(project_uuid),
+                        timestamp=timestamp,
+                        type="decision",
+                        title=f"Decision: {gate_type_display}",
+                        summary=gate.reason or f"{decision_display} decision",
+                        kanban_status=_decision_kanban_status(gate),
+                        graph_node_id=str(gate.id),
+                        decision_id=str(gate.id),
+                    )
+                )
 
             # --- StageEvents (transition and milestone types only) ---
             events_result = await session.execute(
@@ -176,21 +167,21 @@ class TimelineService:
                 else:
                     title = f"Stage: {event.to_stage or event.from_stage or 'Unknown'}"
                 summary = event.reason or f"Transitioned to {event.to_stage or 'next stage'}"
-                items.append(TimelineItem(
-                    id=str(event.id),
-                    project_id=str(project_uuid),
-                    timestamp=event.created_at,
-                    type="milestone",
-                    title=title,
-                    summary=summary,
-                    kanban_status="done",  # Stage transitions are always completed
-                    graph_node_id=str(event.id),
-                ))
+                items.append(
+                    TimelineItem(
+                        id=str(event.id),
+                        project_id=str(project_uuid),
+                        timestamp=event.created_at,
+                        type="milestone",
+                        title=title,
+                        summary=summary,
+                        kanban_status="done",  # Stage transitions are always completed
+                        graph_node_id=str(event.id),
+                    )
+                )
 
             # --- Artifacts ---
-            artifacts_result = await session.execute(
-                select(Artifact).where(Artifact.project_id == project_uuid)
-            )
+            artifacts_result = await session.execute(select(Artifact).where(Artifact.project_id == project_uuid))
             artifacts = artifacts_result.scalars().all()
 
             for artifact in artifacts:
@@ -198,15 +189,17 @@ class TimelineService:
                 version_str = f"Version {artifact.version_number}"
                 if artifact.has_user_edits:
                     version_str += " (edited)"
-                items.append(TimelineItem(
-                    id=str(artifact.id),
-                    project_id=str(project_uuid),
-                    timestamp=artifact.updated_at,
-                    type="artifact",
-                    title=f"Artifact: {artifact_type_display}",
-                    summary=version_str,
-                    kanban_status=_artifact_kanban_status(artifact),
-                    graph_node_id=str(artifact.id),
-                ))
+                items.append(
+                    TimelineItem(
+                        id=str(artifact.id),
+                        project_id=str(project_uuid),
+                        timestamp=artifact.updated_at,
+                        type="artifact",
+                        title=f"Artifact: {artifact_type_display}",
+                        summary=version_str,
+                        kanban_status=_artifact_kanban_status(artifact),
+                        graph_node_id=str(artifact.id),
+                    )
+                )
 
         return items

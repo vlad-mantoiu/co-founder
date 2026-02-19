@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import jwt as pyjwt
 import pytest
-from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi import HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
 
@@ -53,7 +53,12 @@ def _mock_jwks_client():
 def _mock_settings():
     """Return a mock Settings with test-friendly defaults."""
     s = MagicMock()
-    s.clerk_allowed_origins = ["http://localhost:3000", "https://cofounder.getinsourced.ai", "https://getinsourced.ai", "https://www.getinsourced.ai"]
+    s.clerk_allowed_origins = [
+        "http://localhost:3000",
+        "https://cofounder.getinsourced.ai",
+        "https://getinsourced.ai",
+        "https://www.getinsourced.ai",
+    ]
     return s
 
 
@@ -71,10 +76,10 @@ class TestExtractFrontendApiDomain:
         assert domain == "superb-tick-45.clerk.accounts.dev"
 
     def test_parses_live_publishable_key(self):
-        from app.core.auth import _extract_frontend_api_domain
-
         # Simulate a live key whose base64 payload is "example.clerk.accounts.dev$"
         import base64
+
+        from app.core.auth import _extract_frontend_api_domain
 
         payload = base64.b64encode(b"example.clerk.accounts.dev$").decode()
         pk = f"pk_live_{payload}"
@@ -108,13 +113,15 @@ class TestDecodeClerkJwt:
         from app.core.auth import decode_clerk_jwt
 
         now = int(time.time())
-        token = _sign_jwt({
-            "sub": "user_abc",
-            "iat": now - 10,
-            "exp": now + 300,
-            "nbf": now - 10,
-            "azp": "http://localhost:3000",
-        })
+        token = _sign_jwt(
+            {
+                "sub": "user_abc",
+                "iat": now - 10,
+                "exp": now + 300,
+                "nbf": now - 10,
+                "azp": "http://localhost:3000",
+            }
+        )
 
         with patch("app.core.auth.get_jwks_client", _mock_jwks_client):
             user = decode_clerk_jwt(token)
@@ -126,12 +133,14 @@ class TestDecodeClerkJwt:
         from app.core.auth import decode_clerk_jwt
 
         now = int(time.time())
-        token = _sign_jwt({
-            "sub": "user_abc",
-            "iat": now - 600,
-            "exp": now - 300,
-            "nbf": now - 600,
-        })
+        token = _sign_jwt(
+            {
+                "sub": "user_abc",
+                "iat": now - 600,
+                "exp": now - 300,
+                "nbf": now - 600,
+            }
+        )
 
         with patch("app.core.auth.get_jwks_client", _mock_jwks_client):
             with pytest.raises(HTTPException) as exc_info:
@@ -143,12 +152,14 @@ class TestDecodeClerkJwt:
         from app.core.auth import decode_clerk_jwt
 
         now = int(time.time())
-        token = _sign_jwt({
-            "sub": "user_abc",
-            "iat": now + 600,
-            "exp": now + 900,
-            "nbf": now + 600,
-        })
+        token = _sign_jwt(
+            {
+                "sub": "user_abc",
+                "iat": now + 600,
+                "exp": now + 900,
+                "nbf": now + 600,
+            }
+        )
 
         with patch("app.core.auth.get_jwks_client", _mock_jwks_client):
             with pytest.raises(HTTPException) as exc_info:
@@ -159,11 +170,13 @@ class TestDecodeClerkJwt:
         from app.core.auth import decode_clerk_jwt
 
         now = int(time.time())
-        token = _sign_jwt({
-            "iat": now - 10,
-            "exp": now + 300,
-            "nbf": now - 10,
-        })
+        token = _sign_jwt(
+            {
+                "iat": now - 10,
+                "exp": now + 300,
+                "nbf": now - 10,
+            }
+        )
 
         with patch("app.core.auth.get_jwks_client", _mock_jwks_client):
             with pytest.raises(HTTPException) as exc_info:
@@ -181,13 +194,15 @@ class TestRequireAuth:
         from app.core.auth import require_auth
 
         now = int(time.time())
-        token = _sign_jwt({
-            "sub": "user_xyz",
-            "iat": now - 10,
-            "exp": now + 300,
-            "nbf": now - 10,
-            "azp": "http://localhost:3000",
-        })
+        token = _sign_jwt(
+            {
+                "sub": "user_xyz",
+                "iat": now - 10,
+                "exp": now + 300,
+                "nbf": now - 10,
+                "azp": "http://localhost:3000",
+            }
+        )
 
         creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
         mock_request = MagicMock()
@@ -234,13 +249,15 @@ class TestRequireAuth:
         from app.core.auth import require_auth
 
         now = int(time.time())
-        token = _sign_jwt({
-            "sub": "user_xyz",
-            "iat": now - 10,
-            "exp": now + 300,
-            "nbf": now - 10,
-            "azp": "https://evil-site.com",
-        })
+        token = _sign_jwt(
+            {
+                "sub": "user_xyz",
+                "iat": now - 10,
+                "exp": now + 300,
+                "nbf": now - 10,
+                "azp": "https://evil-site.com",
+            }
+        )
 
         creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
         mock_request = MagicMock()

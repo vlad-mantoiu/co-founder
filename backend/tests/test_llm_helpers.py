@@ -1,9 +1,10 @@
 """Tests for LLM helper utilities."""
-import json
-import pytest
-from unittest.mock import AsyncMock, MagicMock
 
-from app.agent.llm_helpers import _strip_json_fences, _parse_json_response
+import json
+
+import pytest
+
+from app.agent.llm_helpers import _parse_json_response, _strip_json_fences
 
 pytestmark = pytest.mark.unit
 

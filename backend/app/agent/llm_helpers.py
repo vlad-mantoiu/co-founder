@@ -26,7 +26,7 @@ def _strip_json_fences(content: str) -> str:
     if content.startswith("```"):
         first_newline = content.find("\n")
         if first_newline != -1:
-            content = content[first_newline + 1:]
+            content = content[first_newline + 1 :]
         if content.endswith("```"):
             content = content[:-3].rstrip()
     return content
@@ -73,16 +73,20 @@ async def enqueue_failed_request(user_id: str, session_id: str, action: str, pay
 
     try:
         from app.db.redis import get_redis
+
         r = get_redis()
-        entry = json.dumps({
-            "user_id": user_id,
-            "session_id": session_id,
-            "action": action,
-            "payload": payload,
-            "queued_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-        })
+        entry = json.dumps(
+            {
+                "user_id": user_id,
+                "session_id": session_id,
+                "action": action,
+                "payload": payload,
+                "queued_at": datetime.datetime.now(datetime.UTC).isoformat(),
+            }
+        )
         await r.rpush("cofounder:llm_queue", entry)
         logger.info("llm_request_queued_for_retry", user_id=user_id, action=action)
     except Exception as e:
-        logger.warning("llm_request_enqueue_failed", user_id=user_id, action=action,
-                       error=str(e), error_type=type(e).__name__)
+        logger.warning(
+            "llm_request_enqueue_failed", user_id=user_id, action=action, error=str(e), error_type=type(e).__name__
+        )

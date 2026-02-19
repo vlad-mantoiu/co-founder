@@ -1,10 +1,12 @@
 """Tests for LLM retry logic with OverloadedError."""
-import httpx
-import pytest
+
 from unittest.mock import AsyncMock, MagicMock
 
+import httpx
+import pytest
 from anthropic._exceptions import OverloadedError
 from tenacity import wait_none
+
 from app.agent.llm_helpers import _invoke_with_retry
 
 pytestmark = pytest.mark.unit
@@ -38,9 +40,7 @@ class TestInvokeWithRetry:
         response.content = "OK"
 
         mock_llm = AsyncMock()
-        mock_llm.ainvoke = AsyncMock(
-            side_effect=[_make_overloaded_error(), response]
-        )
+        mock_llm.ainvoke = AsyncMock(side_effect=[_make_overloaded_error(), response])
 
         result = await _invoke_with_retry.retry_with(
             wait=wait_none()  # disable wait for faster tests

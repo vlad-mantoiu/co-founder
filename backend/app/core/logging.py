@@ -46,35 +46,38 @@ def configure_structlog(log_level: str = "INFO", json_logs: bool = True) -> None
     else:
         renderer = structlog.dev.ConsoleRenderer()
 
-    logging.config.dictConfig({
-        "version": 1,
-        "disable_existing_loggers": False,
-        "formatters": {
-            "json": {
-                "()": structlog.stdlib.ProcessorFormatter,
-                "processors": [
-                    structlog.stdlib.ProcessorFormatter.remove_processors_meta,
-                    renderer,
-                ],
-                "foreign_pre_chain": shared_processors,
+    logging.config.dictConfig(
+        {
+            "version": 1,
+            "disable_existing_loggers": False,
+            "formatters": {
+                "json": {
+                    "()": structlog.stdlib.ProcessorFormatter,
+                    "processors": [
+                        structlog.stdlib.ProcessorFormatter.remove_processors_meta,
+                        renderer,
+                    ],
+                    "foreign_pre_chain": shared_processors,
+                },
             },
-        },
-        "handlers": {
-            "default": {
-                "class": "logging.StreamHandler",
-                "formatter": "json",
-                "stream": "ext://sys.stdout",
+            "handlers": {
+                "default": {
+                    "class": "logging.StreamHandler",
+                    "formatter": "json",
+                    "stream": "ext://sys.stdout",
+                },
             },
-        },
-        "root": {"handlers": ["default"], "level": log_level},
-        "loggers": {
-            "uvicorn.access": {"level": "WARNING"},
-            "httpx": {"level": "WARNING"},
-        },
-    })
+            "root": {"handlers": ["default"], "level": log_level},
+            "loggers": {
+                "uvicorn.access": {"level": "WARNING"},
+                "httpx": {"level": "WARNING"},
+            },
+        }
+    )
 
     structlog.configure(
-        processors=shared_processors + [
+        processors=shared_processors
+        + [
             structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
         ],
         logger_factory=structlog.stdlib.LoggerFactory(),

@@ -22,9 +22,7 @@ def compute_stage_progress(milestones: dict[str, dict]) -> int:
     if total_weight == 0:
         return 0
 
-    completed_weight = sum(
-        m["weight"] for m in milestones.values() if m["completed"]
-    )
+    completed_weight = sum(m["weight"] for m in milestones.values() if m["completed"])
 
     return int((completed_weight / total_weight) * 100)
 

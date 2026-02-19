@@ -21,8 +21,6 @@ from app.agent.runner_fake import RunnerFake
 from app.core.auth import ClerkUser, require_auth, require_subscription
 from app.db.redis import get_redis
 from app.queue.manager import QueueManager
-from app.queue.schemas import JobStatus
-from app.queue.worker import process_next_job
 
 pytestmark = pytest.mark.integration
 
@@ -42,41 +40,36 @@ def mock_runner():
 @pytest.fixture
 def user_bootstrapper():
     """Test user with bootstrapper tier (limits: 5 daily jobs, 2 concurrent)."""
-    return ClerkUser(
-        user_id="user_bootstrap",
-        claims={"sub": "user_bootstrap", "tier": "bootstrapper"}
-    )
+    return ClerkUser(user_id="user_bootstrap", claims={"sub": "user_bootstrap", "tier": "bootstrapper"})
 
 
 @pytest.fixture
 def user_partner():
     """Test user with partner tier (limits: 50 daily jobs, 3 concurrent)."""
-    return ClerkUser(
-        user_id="user_partner",
-        claims={"sub": "user_partner", "tier": "partner"}
-    )
+    return ClerkUser(user_id="user_partner", claims={"sub": "user_partner", "tier": "partner"})
 
 
 @pytest.fixture
 def user_cto():
     """Test user with CTO tier (limits: 200 daily jobs, 10 concurrent)."""
-    return ClerkUser(
-        user_id="user_cto",
-        claims={"sub": "user_cto", "tier": "cto_scale"}
-    )
+    return ClerkUser(user_id="user_cto", claims={"sub": "user_cto", "tier": "cto_scale"})
 
 
 def override_auth(user: ClerkUser):
     """Create auth override for a specific user."""
+
     async def _override():
         return user
+
     return _override
 
 
 def override_subscription(user: ClerkUser):
     """Override subscription check (bypass for tests)."""
+
     async def _override():
         return user
+
     return _override
 
 
@@ -96,10 +89,7 @@ def test_happy_path_end_to_end(api_client: TestClient, fake_redis, mock_runner, 
     project_id = str(uuid.uuid4())
 
     # Submit job
-    response = api_client.post(
-        "/api/jobs",
-        json={"project_id": project_id, "goal": "Add authentication"}
-    )
+    response = api_client.post("/api/jobs", json={"project_id": project_id, "goal": "Add authentication"})
 
     assert response.status_code == 201
     data = response.json()
@@ -173,10 +163,7 @@ def test_concurrency_limiting(api_client: TestClient, fake_redis, mock_runner, u
 
     # Submit 3 jobs
     for i in range(3):
-        response = api_client.post(
-            "/api/jobs",
-            json={"project_id": project_id, "goal": f"Job {i+1}"}
-        )
+        response = api_client.post("/api/jobs", json={"project_id": project_id, "goal": f"Job {i + 1}"})
         assert response.status_code == 201
 
     # Verify all jobs accepted (concurrency enforced at processing time, not submission)
@@ -201,17 +188,11 @@ def test_daily_limit_produces_scheduled_status(api_client: TestClient, fake_redi
 
     # Submit 5 jobs (at limit)
     for i in range(5):
-        response = api_client.post(
-            "/api/jobs",
-            json={"project_id": project_id, "goal": f"Job {i+1}"}
-        )
+        response = api_client.post("/api/jobs", json={"project_id": project_id, "goal": f"Job {i + 1}"})
         assert response.status_code == 201
 
     # Submit 6th job (exceeds daily limit)
-    response6 = api_client.post(
-        "/api/jobs",
-        json={"project_id": project_id, "goal": "Job 6 - over limit"}
-    )
+    response6 = api_client.post("/api/jobs", json={"project_id": project_id, "goal": "Job 6 - over limit"})
 
     assert response6.status_code == 201  # Still accepted
     data = response6.json()
@@ -245,10 +226,7 @@ def test_global_cap_rejection(api_client: TestClient, fake_redis, user_bootstrap
     asyncio.run(enqueue_100())
 
     # Submit 101st job via API
-    response = api_client.post(
-        "/api/jobs",
-        json={"project_id": str(uuid.uuid4()), "goal": "Job 101 - over global cap"}
-    )
+    response = api_client.post("/api/jobs", json={"project_id": str(uuid.uuid4()), "goal": "Job 101 - over global cap"})
 
     assert response.status_code == 503
     data = response.json()
@@ -274,10 +252,7 @@ def test_user_isolation(api_client: TestClient, fake_redis, user_bootstrapper):
     user_a = ClerkUser(user_id="user_a", claims={"sub": "user_a"})
     app.dependency_overrides[require_auth] = override_auth(user_a)
 
-    response_a = api_client.post(
-        "/api/jobs",
-        json={"project_id": str(uuid.uuid4()), "goal": "User A's job"}
-    )
+    response_a = api_client.post("/api/jobs", json={"project_id": str(uuid.uuid4()), "goal": "User A's job"})
     assert response_a.status_code == 201
     job_id = response_a.json()["job_id"]
 
@@ -310,16 +285,14 @@ def test_iteration_confirmation_flow(api_client: TestClient, fake_redis, mock_ru
     project_id = str(uuid.uuid4())
 
     # Submit job
-    response = api_client.post(
-        "/api/jobs",
-        json={"project_id": project_id, "goal": "Job requiring iterations"}
-    )
+    response = api_client.post("/api/jobs", json={"project_id": project_id, "goal": "Job requiring iterations"})
     assert response.status_code == 201
     job_id = response.json()["job_id"]
 
     # Manually set iteration count to tier depth (simulate job at boundary)
     async def setup_iterations():
         from app.queue.state_machine import IterationTracker
+
         tracker = IterationTracker(fake_redis)
         await tracker.increment(job_id)
         await tracker.increment(job_id)
@@ -357,10 +330,7 @@ def test_usage_counters_accuracy(api_client: TestClient, fake_redis, user_partne
 
     # Submit 4 jobs
     for i in range(4):
-        response = api_client.post(
-            "/api/jobs",
-            json={"project_id": project_id, "goal": f"Job {i+1}"}
-        )
+        response = api_client.post("/api/jobs", json={"project_id": project_id, "goal": f"Job {i + 1}"})
         assert response.status_code == 201
 
         # Check usage after each submission

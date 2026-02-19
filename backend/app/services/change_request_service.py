@@ -11,7 +11,7 @@ Implements:
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import structlog
 from fastapi import HTTPException
@@ -45,9 +45,7 @@ class ChangeRequestService:
         self.runner = runner
         self.session_factory = session_factory
 
-    async def create_change_request(
-        self, clerk_user_id: str, project_id: str, description: str
-    ) -> dict:
+    async def create_change_request(self, clerk_user_id: str, project_id: str, description: str) -> dict:
         """Create a Change Request artifact for a project iteration.
 
         Args:
@@ -98,9 +96,7 @@ class ChangeRequestService:
                 )
             )
             mvp_artifact = mvp_result.scalar_one_or_none()
-            original_scope: dict = (
-                mvp_artifact.current_content or {} if mvp_artifact else {}
-            )
+            original_scope: dict = mvp_artifact.current_content or {} if mvp_artifact else {}
 
             # 4. Get all existing change_request artifacts
             cr_result = await session.execute(
@@ -115,9 +111,7 @@ class ChangeRequestService:
             iteration_number = len(existing_crs) + 1
 
             # 6. Compute alignment score including the new change
-            existing_changes: list[dict] = [
-                cr.current_content for cr in existing_crs if cr.current_content
-            ]
+            existing_changes: list[dict] = [cr.current_content for cr in existing_crs if cr.current_content]
             all_changes = existing_changes + [{"description": description}]
             score, creep = compute_alignment_score(original_scope, all_changes)
 
@@ -146,8 +140,8 @@ class ChangeRequestService:
                 schema_version=1,
                 generation_status="idle",
                 has_user_edits=False,
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
+                updated_at=datetime.now(UTC),
             )
             session.add(artifact)
             await session.commit()

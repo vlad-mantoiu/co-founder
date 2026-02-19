@@ -14,6 +14,7 @@ router = APIRouter()
 
 class FeaturesResponse(BaseModel):
     """Response model for feature flags endpoint."""
+
     features: dict[str, bool]
 
 

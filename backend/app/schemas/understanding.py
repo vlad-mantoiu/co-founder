@@ -46,8 +46,7 @@ class RationalisedIdeaBrief(BaseModel):
 
     # Confidence assessment (per-section)
     confidence_scores: dict[str, str] = Field(
-        default_factory=dict,
-        description="Confidence per section: strong | moderate | needs_depth"
+        default_factory=dict, description="Confidence per section: strong | moderate | needs_depth"
     )
 
     # Metadata
@@ -99,8 +98,7 @@ class EditAnswerResponse(BaseModel):
     """Response after editing an answer."""
 
     updated_questions: list[UnderstandingQuestion] = Field(
-        default_factory=list,
-        description="Updated question list (may include regenerated questions)"
+        default_factory=list, description="Updated question list (may include regenerated questions)"
     )
     current_question_number: int = Field(..., description="Current position in interview")
     total_questions: int = Field(..., description="Total questions (may have changed)")

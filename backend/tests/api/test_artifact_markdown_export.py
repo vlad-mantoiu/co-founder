@@ -9,8 +9,6 @@ Tests cover:
 """
 
 import pytest
-from datetime import datetime, timezone
-from uuid import uuid4
 
 from app.artifacts.markdown_exporter import MarkdownExporter
 
@@ -37,10 +35,10 @@ class TestMarkdownExporter:
             "differentiation_points": [
                 "Guided questioning vs static forms",
                 "Production-ready output vs generic advice",
-                "Integrated execution via LangGraph agents"
+                "Integrated execution via LangGraph agents",
             ],
             "market_analysis": "TAM: $50B technical consulting market. SAM: $5B for pre-seed founders.",
-            "competitive_strategy": "Compete on depth vs breadth - deep execution beats shallow advice"
+            "competitive_strategy": "Compete on depth vs breadth - deep execution beats shallow advice",
         }
 
     def test_readable_brief_has_clean_headings(self, exporter, sample_brief_content):
@@ -51,7 +49,7 @@ class TestMarkdownExporter:
             tier="bootstrapper",
             startup_name="TestStartup",
             generated_date="2026-02-16",
-            variant="readable"
+            variant="readable",
         )
 
         assert "# Product Brief" in markdown
@@ -68,7 +66,7 @@ class TestMarkdownExporter:
             tier="bootstrapper",
             startup_name="TestStartup",
             generated_date="2026-02-16",
-            variant="readable"
+            variant="readable",
         )
 
         # No metadata fields should appear
@@ -87,7 +85,7 @@ class TestMarkdownExporter:
             tier="bootstrapper",
             startup_name="TestStartup",
             generated_date="2026-02-16",
-            variant="technical"
+            variant="technical",
         )
 
         assert "# Product Brief" in markdown
@@ -106,7 +104,7 @@ class TestMarkdownExporter:
             tier="bootstrapper",
             startup_name="TestStartup",
             generated_date="2026-02-16",
-            variant="technical"
+            variant="technical",
         )
 
         # Technical format should support markdown links
@@ -121,7 +119,7 @@ class TestMarkdownExporter:
             tier="bootstrapper",
             startup_name="TestStartup",
             generated_date="2026-02-16",
-            variant="readable"
+            variant="readable",
         )
 
         # Readable should have clean prose without markdown link syntax
@@ -134,11 +132,9 @@ class TestMarkdownExporter:
         # For now, ensure technical variant can render links
         content = {
             "_schema_version": 1,
-            "core_features": [
-                {"name": "Feature 1", "description": "Test feature"}
-            ],
+            "core_features": [{"name": "Feature 1", "description": "Test feature"}],
             "out_of_scope": ["Feature 2"],
-            "success_metrics": ["Metric 1"]
+            "success_metrics": ["Metric 1"],
         }
 
         markdown = exporter.export_single(
@@ -147,7 +143,7 @@ class TestMarkdownExporter:
             tier="bootstrapper",
             startup_name="TestStartup",
             generated_date="2026-02-16",
-            variant="technical"
+            variant="technical",
         )
 
         assert "# MVP Scope" in markdown or "# MVP" in markdown
@@ -160,12 +156,14 @@ class TestMarkdownExporter:
             tier="bootstrapper",
             startup_name="TestStartup",
             generated_date="2026-02-16",
-            variant="readable"
+            variant="readable",
         )
 
         # Bootstrapper tier should NOT see business/strategic content
-        assert "market_analysis" not in markdown_bootstrapper.lower() or \
-               sample_brief_content["market_analysis"] not in markdown_bootstrapper
+        assert (
+            "market_analysis" not in markdown_bootstrapper.lower()
+            or sample_brief_content["market_analysis"] not in markdown_bootstrapper
+        )
 
         # Now test with partner tier (should include business)
         markdown_partner = exporter.export_single(
@@ -174,7 +172,7 @@ class TestMarkdownExporter:
             tier="partner",
             startup_name="TestStartup",
             generated_date="2026-02-16",
-            variant="readable"
+            variant="readable",
         )
 
         assert sample_brief_content["market_analysis"] in markdown_partner
@@ -183,30 +181,15 @@ class TestMarkdownExporter:
         """Combined readable has table of contents with all 5 document names."""
         artifacts = {
             "brief": sample_brief_content,
-            "mvp_scope": {
-                "_schema_version": 1,
-                "core_features": [],
-                "out_of_scope": [],
-                "success_metrics": []
-            },
-            "milestones": {
-                "_schema_version": 1,
-                "milestones": [],
-                "critical_path": [],
-                "total_duration_weeks": 12
-            },
-            "risk_log": {
-                "_schema_version": 1,
-                "technical_risks": [],
-                "market_risks": [],
-                "execution_risks": []
-            },
+            "mvp_scope": {"_schema_version": 1, "core_features": [], "out_of_scope": [], "success_metrics": []},
+            "milestones": {"_schema_version": 1, "milestones": [], "critical_path": [], "total_duration_weeks": 12},
+            "risk_log": {"_schema_version": 1, "technical_risks": [], "market_risks": [], "execution_risks": []},
             "how_it_works": {
                 "_schema_version": 1,
                 "user_journey": [],
                 "architecture": "Test architecture",
-                "data_flow": "Test data flow"
-            }
+                "data_flow": "Test data flow",
+            },
         }
 
         markdown = exporter.export_combined(
@@ -214,7 +197,7 @@ class TestMarkdownExporter:
             tier="bootstrapper",
             startup_name="TestStartup",
             generated_date="2026-02-16",
-            variant="readable"
+            variant="readable",
         )
 
         # Should have table of contents
@@ -229,30 +212,15 @@ class TestMarkdownExporter:
         """Combined technical TOC has anchor links to sections."""
         artifacts = {
             "brief": sample_brief_content,
-            "mvp_scope": {
-                "_schema_version": 1,
-                "core_features": [],
-                "out_of_scope": [],
-                "success_metrics": []
-            },
-            "milestones": {
-                "_schema_version": 1,
-                "milestones": [],
-                "critical_path": [],
-                "total_duration_weeks": 12
-            },
-            "risk_log": {
-                "_schema_version": 1,
-                "technical_risks": [],
-                "market_risks": [],
-                "execution_risks": []
-            },
+            "mvp_scope": {"_schema_version": 1, "core_features": [], "out_of_scope": [], "success_metrics": []},
+            "milestones": {"_schema_version": 1, "milestones": [], "critical_path": [], "total_duration_weeks": 12},
+            "risk_log": {"_schema_version": 1, "technical_risks": [], "market_risks": [], "execution_risks": []},
             "how_it_works": {
                 "_schema_version": 1,
                 "user_journey": [],
                 "architecture": "Test architecture",
-                "data_flow": "Test data flow"
-            }
+                "data_flow": "Test data flow",
+            },
         }
 
         markdown = exporter.export_combined(
@@ -260,7 +228,7 @@ class TestMarkdownExporter:
             tier="bootstrapper",
             startup_name="TestStartup",
             generated_date="2026-02-16",
-            variant="technical"
+            variant="technical",
         )
 
         # Technical combined should have markdown anchor links
@@ -275,7 +243,7 @@ class TestMarkdownExporter:
             tier="bootstrapper",
             startup_name="TestStartup",
             generated_date="2026-02-16",
-            variant="readable"
+            variant="readable",
         )
 
         assert isinstance(result, str)
@@ -295,8 +263,7 @@ class TestMarkdownExportAPI:
         from app.api.routes.artifacts import router
 
         paths = [str(route.path) for route in router.routes]
-        assert any("export/markdown" in path for path in paths), \
-            "Markdown export route not found in artifacts router"
+        assert any("export/markdown" in path for path in paths), "Markdown export route not found in artifacts router"
 
     def test_exporter_integration_with_schemas(self):
         """Verify MarkdownExporter works with actual artifact schema content."""
@@ -311,7 +278,7 @@ class TestMarkdownExportAPI:
             "key_constraint": "Must be non-technical friendly",
             "differentiation_points": ["Guided vs static", "Production-ready vs generic"],
             "market_analysis": "TAM: $50B",
-            "competitive_strategy": "Depth vs breadth"
+            "competitive_strategy": "Depth vs breadth",
         }
 
         # Test readable variant
@@ -321,7 +288,7 @@ class TestMarkdownExportAPI:
             tier="bootstrapper",
             startup_name="TestCo",
             generated_date="2026-02-16",
-            variant="readable"
+            variant="readable",
         )
 
         assert "# Product Brief" in readable_md
@@ -336,7 +303,7 @@ class TestMarkdownExportAPI:
             tier="partner",
             startup_name="TestCo",
             generated_date="2026-02-16",
-            variant="technical"
+            variant="technical",
         )
 
         assert "artifact_type: brief" in technical_md  # Has frontmatter
@@ -352,13 +319,18 @@ class TestMarkdownExportAPI:
             # Should not raise
             md = exporter.export_single(
                 artifact_type="brief",
-                content={"_schema_version": 1, "problem_statement": "test",
-                        "target_user": "test", "value_proposition": "test",
-                        "key_constraint": "test", "differentiation_points": []},
+                content={
+                    "_schema_version": 1,
+                    "problem_statement": "test",
+                    "target_user": "test",
+                    "value_proposition": "test",
+                    "key_constraint": "test",
+                    "differentiation_points": [],
+                },
                 tier="bootstrapper",
                 startup_name="Test",
                 generated_date="2026-02-16",
-                variant=variant
+                variant=variant,
             )
             assert len(md) > 0
 
@@ -373,32 +345,32 @@ class TestMarkdownExportAPI:
                 "target_user": "User",
                 "value_proposition": "Value",
                 "key_constraint": "Constraint",
-                "differentiation_points": ["Point 1"]
+                "differentiation_points": ["Point 1"],
             },
             "mvp_scope": {
                 "_schema_version": 1,
                 "core_features": [{"name": "Feature 1", "description": "Desc"}],
                 "out_of_scope": ["Item 1"],
-                "success_metrics": ["Metric 1"]
+                "success_metrics": ["Metric 1"],
             },
             "milestones": {
                 "_schema_version": 1,
                 "milestones": [{"name": "M1", "week": 1, "description": "Desc", "deliverables": ["D1"]}],
                 "critical_path": ["CP1"],
-                "total_duration_weeks": 12
+                "total_duration_weeks": 12,
             },
             "risk_log": {
                 "_schema_version": 1,
                 "technical_risks": [{"title": "Risk1", "severity": "high", "description": "Desc", "mitigation": "Mit"}],
                 "market_risks": [],
-                "execution_risks": []
+                "execution_risks": [],
             },
             "how_it_works": {
                 "_schema_version": 1,
                 "user_journey": [{"step_number": 1, "title": "Step 1", "description": "Desc"}],
                 "architecture": "Arch",
-                "data_flow": "Flow"
-            }
+                "data_flow": "Flow",
+            },
         }
 
         combined_md = exporter.export_combined(
@@ -406,7 +378,7 @@ class TestMarkdownExportAPI:
             tier="bootstrapper",
             startup_name="TestCo",
             generated_date="2026-02-16",
-            variant="readable"
+            variant="readable",
         )
 
         # Verify all sections present
@@ -429,7 +401,7 @@ class TestMarkdownExportAPI:
             "key_constraint": "Core field",
             "differentiation_points": [],
             "market_analysis": "Business tier field",
-            "competitive_strategy": "Strategic tier field"
+            "competitive_strategy": "Strategic tier field",
         }
 
         # Bootstrapper should NOT see business/strategic
@@ -439,7 +411,7 @@ class TestMarkdownExportAPI:
             tier="bootstrapper",
             startup_name="Test",
             generated_date="2026-02-16",
-            variant="readable"
+            variant="readable",
         )
         assert "Core field" in bootstrapper_md
         assert "Business tier field" not in bootstrapper_md
@@ -452,7 +424,7 @@ class TestMarkdownExportAPI:
             tier="partner",
             startup_name="Test",
             generated_date="2026-02-16",
-            variant="readable"
+            variant="readable",
         )
         assert "Business tier field" in partner_md
         assert "Strategic tier field" not in partner_md
@@ -464,7 +436,7 @@ class TestMarkdownExportAPI:
             tier="cto",
             startup_name="Test",
             generated_date="2026-02-16",
-            variant="readable"
+            variant="readable",
         )
         assert "Business tier field" in cto_md
         assert "Strategic tier field" in cto_md

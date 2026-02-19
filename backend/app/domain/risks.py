@@ -5,7 +5,7 @@ detect_system_risks: No DB access, fully deterministic.
 detect_llm_risks: Async, reads Redis usage + user settings.
 """
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime
 
 import structlog
 
@@ -40,7 +40,7 @@ def detect_system_risks(
         - stale_project: Triggered if last_activity_at >= 14 days ago
     """
     if now is None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
     risks: list[dict] = []
 
@@ -48,28 +48,34 @@ def detect_system_risks(
     if last_gate_decision_at is not None:
         days_since_decision = (now - last_gate_decision_at).days
         if days_since_decision >= 7:
-            risks.append({
-                "type": "system",
-                "rule": "stale_decision",
-                "message": f"No decision made in {days_since_decision} days. Project may need attention.",
-            })
+            risks.append(
+                {
+                    "type": "system",
+                    "rule": "stale_decision",
+                    "message": f"No decision made in {days_since_decision} days. Project may need attention.",
+                }
+            )
 
     # Rule: build_failures (3+ consecutive build failures)
     if build_failure_count >= 3:
-        risks.append({
-            "type": "system",
-            "rule": "build_failures",
-            "message": f"{build_failure_count} consecutive build failures. Review implementation or dependencies.",
-        })
+        risks.append(
+            {
+                "type": "system",
+                "rule": "build_failures",
+                "message": f"{build_failure_count} consecutive build failures. Review implementation or dependencies.",
+            }
+        )
 
     # Rule: stale_project (14+ days since last activity)
     days_since_activity = (now - last_activity_at).days
     if days_since_activity >= 14:
-        risks.append({
-            "type": "system",
-            "rule": "stale_project",
-            "message": f"No activity in {days_since_activity} days. Project may be abandoned.",
-        })
+        risks.append(
+            {
+                "type": "system",
+                "rule": "stale_project",
+                "message": f"No activity in {days_since_activity} days. Project may be abandoned.",
+            }
+        )
 
     return risks
 
@@ -106,13 +112,14 @@ async def detect_llm_risks(user_id: str, session) -> list[dict]:
         if max_tokens != -1 and max_tokens > 0:
             ratio = used_tokens / max_tokens
             if ratio > 0.8:
-                risks.append({
-                    "type": "llm",
-                    "rule": "high_token_usage",
-                    "message": f"We're at {ratio:.0%} of today's token budget. Consider upgrading to avoid interruptions.",
-                })
+                risks.append(
+                    {
+                        "type": "llm",
+                        "rule": "high_token_usage",
+                        "message": f"We're at {ratio:.0%} of today's token budget. Consider upgrading to avoid interruptions.",
+                    }
+                )
     except Exception as e:
-        logger.warning("detect_llm_risks_failed", user_id=user_id, error=str(e),
-                       error_type=type(e).__name__)
+        logger.warning("detect_llm_risks_failed", user_id=user_id, error=str(e), error_type=type(e).__name__)
 
     return risks

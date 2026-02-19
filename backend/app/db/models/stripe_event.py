@@ -1,6 +1,6 @@
 """StripeWebhookEvent model for idempotency tracking."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import Column, DateTime, String
 
@@ -16,5 +16,5 @@ class StripeWebhookEvent(Base):
     processed_at = Column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )

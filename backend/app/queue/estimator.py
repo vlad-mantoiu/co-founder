@@ -30,9 +30,7 @@ class WaitTimeEstimator:
         new_avg = self.alpha * duration_seconds + (1 - self.alpha) * current_avg
         await self.redis.set(key, str(new_avg))
 
-    async def estimate_wait_time(
-        self, tier: str, position: int, active_workers: int = 1
-    ) -> int:
+    async def estimate_wait_time(self, tier: str, position: int, active_workers: int = 1) -> int:
         """Estimate wait time in seconds given queue position.
 
         Formula: wait_time = avg_duration * position / workers
@@ -50,9 +48,7 @@ class WaitTimeEstimator:
         workers = max(active_workers, 1)
         return int((avg * position) / workers)
 
-    async def estimate_with_confidence(
-        self, tier: str, position: int, active_workers: int = 1
-    ) -> dict:
+    async def estimate_with_confidence(self, tier: str, position: int, active_workers: int = 1) -> dict:
         """Return estimate with confidence interval.
 
         Args:

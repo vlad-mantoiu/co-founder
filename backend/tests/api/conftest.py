@@ -1,14 +1,14 @@
 """API-specific test fixtures."""
+
 import os
 from contextlib import asynccontextmanager
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 
 from app.db.base import Base
-from app.db.models.plan_tier import PlanTier
 
 
 @pytest.fixture
@@ -19,10 +19,7 @@ async def engine() -> AsyncEngine:
     Ensures all model columns are created including latest additions.
     """
     # Use test database URL from env, or default to local postgres
-    db_url = os.getenv(
-        "TEST_DATABASE_URL",
-        "postgresql+asyncpg://cofounder:cofounder@localhost:5432/cofounder_test"
-    )
+    db_url = os.getenv("TEST_DATABASE_URL", "postgresql+asyncpg://cofounder:cofounder@localhost:5432/cofounder_test")
 
     engine = create_async_engine(
         db_url,
@@ -64,20 +61,20 @@ def api_client(engine):
 
     Initializes the global database with test database URL so routes can access it.
     """
-    import asyncio
     import os
-    from app.api.routes import api_router
-    from app.core.config import get_settings
-    from app.db import init_db, close_db
-    from app.db.seed import seed_plan_tiers
-    from app.main import http_exception_handler, generic_exception_handler
+
     from fastapi import HTTPException
     from fastapi.middleware.cors import CORSMiddleware
 
+    from app.api.routes import api_router
+    from app.core.config import get_settings
+    from app.db import close_db, init_db
+    from app.db.seed import seed_plan_tiers
+    from app.main import generic_exception_handler, http_exception_handler
+
     # Set test database URL in environment
     test_db_url = os.getenv(
-        "TEST_DATABASE_URL",
-        "postgresql+asyncpg://cofounder:cofounder@localhost:5432/cofounder_test"
+        "TEST_DATABASE_URL", "postgresql+asyncpg://cofounder:cofounder@localhost:5432/cofounder_test"
     )
 
     @asynccontextmanager

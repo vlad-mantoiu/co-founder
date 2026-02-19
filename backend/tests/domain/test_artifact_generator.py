@@ -51,9 +51,7 @@ def onboarding_data():
 @pytest.mark.asyncio
 async def test_generate_brief_returns_product_brief_content(generator, onboarding_data):
     """Test that generate_artifact returns valid ProductBriefContent dict for BRIEF type."""
-    result = await generator.generate_artifact(
-        artifact_type=ArtifactType.BRIEF, onboarding_data=onboarding_data
-    )
+    result = await generator.generate_artifact(artifact_type=ArtifactType.BRIEF, onboarding_data=onboarding_data)
 
     # Should return dict that validates as ProductBriefContent
     brief_content = ProductBriefContent(**result)
@@ -70,9 +68,7 @@ async def test_generate_brief_returns_product_brief_content(generator, onboardin
 async def test_generate_mvp_scope_uses_brief_as_context(generator, onboarding_data):
     """Test that MVP Scope generation receives Brief as prior context."""
     # Generate Brief first
-    brief_data = await generator.generate_artifact(
-        artifact_type=ArtifactType.BRIEF, onboarding_data=onboarding_data
-    )
+    brief_data = await generator.generate_artifact(artifact_type=ArtifactType.BRIEF, onboarding_data=onboarding_data)
 
     # Generate MVP Scope with Brief as prior context
     result = await generator.generate_artifact(
@@ -94,9 +90,7 @@ async def test_generate_mvp_scope_uses_brief_as_context(generator, onboarding_da
 async def test_generate_milestones_uses_brief_and_mvp_as_context(generator, onboarding_data):
     """Test that Milestones generation receives both Brief and MVP Scope as context."""
     # Generate Brief and MVP Scope
-    brief_data = await generator.generate_artifact(
-        artifact_type=ArtifactType.BRIEF, onboarding_data=onboarding_data
-    )
+    brief_data = await generator.generate_artifact(artifact_type=ArtifactType.BRIEF, onboarding_data=onboarding_data)
     mvp_data = await generator.generate_artifact(
         artifact_type=ArtifactType.MVP_SCOPE,
         onboarding_data=onboarding_data,
@@ -229,9 +223,7 @@ async def test_tier_filter_partner_keeps_business_strips_strategic(generator):
         "competitive_strategy": "Competitive strategy content",
     }
 
-    filtered = ArtifactGenerator.filter_by_tier(
-        tier="partner", artifact_type=ArtifactType.BRIEF, content=brief_content
-    )
+    filtered = ArtifactGenerator.filter_by_tier(tier="partner", artifact_type=ArtifactType.BRIEF, content=brief_content)
 
     # Core and business fields should remain
     assert filtered["problem_statement"] == "Problem"

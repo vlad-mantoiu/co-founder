@@ -1,5 +1,6 @@
 """Usage tracking for daily limits and iteration counters."""
-from datetime import datetime, timedelta, timezone
+
+from datetime import UTC, datetime, timedelta
 
 from redis.asyncio import Redis
 
@@ -12,9 +13,7 @@ class UsageTracker:
     def __init__(self, redis: Redis):
         self.redis = redis
 
-    async def increment_daily_usage(
-        self, user_id: str, now: datetime | None = None
-    ) -> int:
+    async def increment_daily_usage(self, user_id: str, now: datetime | None = None) -> int:
         """Increment daily job counter. Sets expiry at midnight UTC if not already set.
 
         Args:
@@ -24,7 +23,7 @@ class UsageTracker:
         Returns:
             New usage count for today
         """
-        now = now or datetime.now(timezone.utc)
+        now = now or datetime.now(UTC)
         today = now.date().isoformat()
         key = f"usage:{user_id}:jobs:{today}"
 
@@ -49,16 +48,14 @@ class UsageTracker:
         Returns:
             Current usage count (0 if not set)
         """
-        now = now or datetime.now(timezone.utc)
+        now = now or datetime.now(UTC)
         today = now.date().isoformat()
         key = f"usage:{user_id}:jobs:{today}"
 
         count = await self.redis.get(key)
         return int(count) if count else 0
 
-    async def check_daily_limit(
-        self, user_id: str, tier: str, now: datetime | None = None
-    ) -> tuple[bool, int, int]:
+    async def check_daily_limit(self, user_id: str, tier: str, now: datetime | None = None) -> tuple[bool, int, int]:
         """Check if daily limit exceeded.
 
         Args:
@@ -93,7 +90,7 @@ class UsageTracker:
         Returns:
             UsageCounters with all fields populated
         """
-        now = now or datetime.now(timezone.utc)
+        now = now or datetime.now(UTC)
 
         # Daily job counters
         daily_limit = TIER_DAILY_LIMIT.get(tier, 5)
@@ -133,6 +130,6 @@ class UsageTracker:
         Returns:
             Tomorrow's midnight UTC as datetime
         """
-        now = now or datetime.now(timezone.utc)
+        now = now or datetime.now(UTC)
         tomorrow = now.date() + timedelta(days=1)
-        return datetime.combine(tomorrow, datetime.min.time(), tzinfo=timezone.utc)
+        return datetime.combine(tomorrow, datetime.min.time(), tzinfo=UTC)

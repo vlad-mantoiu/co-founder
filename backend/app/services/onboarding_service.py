@@ -8,7 +8,7 @@ Responsibilities:
 - JSONB persistence with flag_modified tracking
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import HTTPException
@@ -20,7 +20,6 @@ from app.agent.runner import Runner
 from app.db.models.onboarding_session import OnboardingSession
 from app.db.models.plan_tier import PlanTier
 from app.db.models.project import Project
-from app.schemas.onboarding import OnboardingQuestion, ThesisSnapshot
 
 # Tier session limits (concurrent active sessions)
 TIER_SESSION_LIMITS = {
@@ -43,9 +42,7 @@ class OnboardingService:
         self.runner = runner
         self.session_factory = session_factory
 
-    async def start_session(
-        self, user_id: str, idea: str, tier_slug: str
-    ) -> OnboardingSession:
+    async def start_session(self, user_id: str, idea: str, tier_slug: str) -> OnboardingSession:
         """Start a new onboarding session with LLM-generated questions.
 
         Args:
@@ -102,9 +99,7 @@ class OnboardingService:
 
             return new_session
 
-    async def submit_answer(
-        self, user_id: str, session_id: str, question_id: str, answer: str
-    ) -> OnboardingSession:
+    async def submit_answer(self, user_id: str, session_id: str, question_id: str, answer: str) -> OnboardingSession:
         """Submit an answer to a question and advance current_question_index.
 
         Args:
@@ -133,9 +128,7 @@ class OnboardingService:
                 raise HTTPException(status_code=404, detail="Session not found")
 
             if onboarding_session.status != "in_progress":
-                raise HTTPException(
-                    status_code=400, detail="Cannot answer questions in completed or abandoned session"
-                )
+                raise HTTPException(status_code=400, detail="Cannot answer questions in completed or abandoned session")
 
             # Store answer
             onboarding_session.answers[question_id] = answer
@@ -145,9 +138,7 @@ class OnboardingService:
             questions = onboarding_session.questions
             for i, q in enumerate(questions):
                 if q["id"] == question_id and i == onboarding_session.current_question_index:
-                    onboarding_session.current_question_index = min(
-                        i + 1, onboarding_session.total_questions
-                    )
+                    onboarding_session.current_question_index = min(i + 1, onboarding_session.total_questions)
                     break
 
             await session.commit()
@@ -200,9 +191,7 @@ class OnboardingService:
 
             return onboarding_session
 
-    async def finalize_session(
-        self, user_id: str, session_id: str, tier_slug: str
-    ) -> OnboardingSession:
+    async def finalize_session(self, user_id: str, session_id: str, tier_slug: str) -> OnboardingSession:
         """Generate ThesisSnapshot (tier-filtered) and complete the session.
 
         Args:
@@ -253,7 +242,7 @@ class OnboardingService:
             # Store in session
             onboarding_session.thesis_snapshot = filtered_snapshot
             onboarding_session.status = "completed"
-            onboarding_session.completed_at = datetime.now(timezone.utc)
+            onboarding_session.completed_at = datetime.now(UTC)
             flag_modified(onboarding_session, "thesis_snapshot")
 
             await session.commit()
@@ -380,9 +369,7 @@ class OnboardingService:
                 )
 
             # Check project limit for user's tier (read from DB)
-            tier_result = await session.execute(
-                select(PlanTier).where(PlanTier.slug == tier_slug)
-            )
+            tier_result = await session.execute(select(PlanTier).where(PlanTier.slug == tier_slug))
             tier = tier_result.scalar_one()
             max_projects = tier.max_projects
 

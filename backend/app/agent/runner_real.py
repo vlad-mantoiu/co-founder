@@ -17,7 +17,6 @@ from langgraph.checkpoint.memory import MemorySaver
 
 from app.agent.graph import create_cofounder_graph
 from app.agent.llm_helpers import _invoke_with_retry, _parse_json_response
-from app.metrics.cloudwatch import emit_llm_latency
 from app.agent.nodes import (
     architect_node,
     coder_node,
@@ -28,6 +27,7 @@ from app.agent.nodes import (
 )
 from app.agent.state import CoFounderState
 from app.core.llm_config import create_tracked_llm
+from app.metrics.cloudwatch import emit_llm_latency
 
 logger = structlog.get_logger(__name__)
 
@@ -53,22 +53,43 @@ QUESTION_COUNT_BY_TIER = {
 # Tier-based brief sections (locked decision)
 BRIEF_SECTIONS_BY_TIER = {
     "bootstrapper": [
-        "problem_statement", "target_user", "value_prop",
-        "key_constraints", "assumptions", "risks",
-        "smallest_viable_experiment", "confidence_scores",
+        "problem_statement",
+        "target_user",
+        "value_prop",
+        "key_constraints",
+        "assumptions",
+        "risks",
+        "smallest_viable_experiment",
+        "confidence_scores",
     ],
     "partner": [
-        "problem_statement", "target_user", "value_prop",
-        "differentiation", "monetization_hypothesis", "market_context",
-        "key_constraints", "assumptions", "risks",
-        "smallest_viable_experiment", "confidence_scores",
+        "problem_statement",
+        "target_user",
+        "value_prop",
+        "differentiation",
+        "monetization_hypothesis",
+        "market_context",
+        "key_constraints",
+        "assumptions",
+        "risks",
+        "smallest_viable_experiment",
+        "confidence_scores",
     ],
     "cto_scale": [
-        "problem_statement", "target_user", "value_prop",
-        "differentiation", "monetization_hypothesis", "market_context",
-        "competitive_analysis", "scalability_notes", "risk_deep_dive",
-        "key_constraints", "assumptions", "risks",
-        "smallest_viable_experiment", "confidence_scores",
+        "problem_statement",
+        "target_user",
+        "value_prop",
+        "differentiation",
+        "monetization_hypothesis",
+        "market_context",
+        "competitive_analysis",
+        "scalability_notes",
+        "risk_deep_dive",
+        "key_constraints",
+        "assumptions",
+        "risks",
+        "smallest_viable_experiment",
+        "confidence_scores",
     ],
 }
 
@@ -141,9 +162,7 @@ class RunnerReal:
         """
         if stage not in self._node_map:
             valid_stages = ", ".join(self._node_map.keys())
-            raise ValueError(
-                f"Invalid stage '{stage}'. Valid stages: {valid_stages}"
-            )
+            raise ValueError(f"Invalid stage '{stage}'. Valid stages: {valid_stages}")
 
         node_func = self._node_map[stage]
         partial_update = await node_func(state)
@@ -170,9 +189,7 @@ class RunnerReal:
         session_id = context.get("session_id", "default")
         idea_keywords = context.get("idea_keywords", "")
 
-        llm = await create_tracked_llm(
-            user_id=user_id, role="architect", session_id=session_id
-        )
+        llm = await create_tracked_llm(user_id=user_id, role="architect", session_id=session_id)
 
         task_instructions = """Generate 5-7 questions that help us understand the founder's idea.
 
@@ -193,9 +210,7 @@ Return ONLY a JSON array of objects:
   }
 ]"""
 
-        system_msg = SystemMessage(
-            content=COFOUNDER_SYSTEM.format(task_instructions=task_instructions)
-        )
+        system_msg = SystemMessage(content=COFOUNDER_SYSTEM.format(task_instructions=task_instructions))
         human_msg = HumanMessage(
             content=f"Generate onboarding questions for an idea with these keywords: {idea_keywords or 'general software product'}"
         )
@@ -241,9 +256,7 @@ Return ONLY a JSON array of objects:
         # Filter out internal keys
         clean_answers = {k: v for k, v in answers.items() if not k.startswith("_")}
 
-        llm = await create_tracked_llm(
-            user_id=user_id, role="architect", session_id=session_id
-        )
+        llm = await create_tracked_llm(user_id=user_id, role="architect", session_id=session_id)
 
         task_instructions = """Convert the founder's onboarding answers into a structured product brief.
 
@@ -264,12 +277,8 @@ Return ONLY a JSON object:
   "smallest_viable_experiment": "Minimal test to validate our idea"
 }"""
 
-        system_msg = SystemMessage(
-            content=COFOUNDER_SYSTEM.format(task_instructions=task_instructions)
-        )
-        human_msg = HumanMessage(
-            content=f"Generate a product brief from these onboarding answers: {clean_answers}"
-        )
+        system_msg = SystemMessage(content=COFOUNDER_SYSTEM.format(task_instructions=task_instructions))
+        human_msg = HumanMessage(content=f"Generate a product brief from these onboarding answers: {clean_answers}")
 
         t0 = time.perf_counter()
         try:
@@ -313,9 +322,7 @@ Return ONLY a JSON object:
         # Tier-based question count — use module-level constant
         question_count = QUESTION_COUNT_BY_TIER.get(tier, "6-8")
 
-        llm = await create_tracked_llm(
-            user_id=user_id, role="architect", session_id=session_id
-        )
+        llm = await create_tracked_llm(user_id=user_id, role="architect", session_id=session_id)
 
         task_instructions = f"""Generate {question_count} understanding interview questions about the founder's idea.
 These go deeper than initial onboarding — probe market validation, competitive landscape,
@@ -337,12 +344,8 @@ Return ONLY a JSON array of objects:
 
 End the interview with a closing question like: "I have enough to build your brief. Want to add anything else before I do?\""""
 
-        system_msg = SystemMessage(
-            content=COFOUNDER_SYSTEM.format(task_instructions=task_instructions)
-        )
-        human_msg = HumanMessage(
-            content=f"Idea: {idea_text}\n\nOnboarding answers: {onboarding_answers}"
-        )
+        system_msg = SystemMessage(content=COFOUNDER_SYSTEM.format(task_instructions=task_instructions))
+        human_msg = HumanMessage(content=f"Idea: {idea_text}\n\nOnboarding answers: {onboarding_answers}")
 
         t0 = time.perf_counter()
         try:
@@ -397,9 +400,7 @@ End the interview with a closing question like: "I have enough to build your bri
                 qa_pairs.append(f"Q: {qtext}\nA: {answer}")
         formatted_qa = "\n\n".join(qa_pairs)
 
-        llm = await create_tracked_llm(
-            user_id=user_id, role="architect", session_id=session_id
-        )
+        llm = await create_tracked_llm(user_id=user_id, role="architect", session_id=session_id)
 
         task_instructions = f"""Generate a Rationalised Idea Brief from the founder's understanding interview.
 
@@ -440,12 +441,8 @@ For confidence_scores, assess each section as:
 - "moderate": Reasonable hypothesis but not yet validated with real data
 - "needs_depth": Vague or missing — the founder should revisit this section"""
 
-        system_msg = SystemMessage(
-            content=COFOUNDER_SYSTEM.format(task_instructions=task_instructions)
-        )
-        human_msg = HumanMessage(
-            content=f"Idea: {idea}\n\nUnderstanding interview answers:\n\n{formatted_qa}"
-        )
+        system_msg = SystemMessage(content=COFOUNDER_SYSTEM.format(task_instructions=task_instructions))
+        human_msg = HumanMessage(content=f"Idea: {idea}\n\nUnderstanding interview answers:\n\n{formatted_qa}")
 
         t0 = time.perf_counter()
         try:
@@ -497,13 +494,9 @@ For confidence_scores, assess each section as:
             answered_context.append(f"Q: {q.get('text', '')}\nA: {answer}")
         answered_str = "\n\n".join(answered_context)
 
-        remaining_str = "\n".join(
-            f"[{i}] {q.get('text', '')}" for i, q in enumerate(remaining)
-        )
+        remaining_str = "\n".join(f"[{i}] {q.get('text', '')}" for i, q in enumerate(remaining))
 
-        llm = await create_tracked_llm(
-            user_id=user_id, role="architect", session_id=session_id
-        )
+        llm = await create_tracked_llm(user_id=user_id, role="architect", session_id=session_id)
 
         task_instructions = """The founder has edited an answer in their understanding interview.
 Review the remaining questions and determine if any are now irrelevant or if new questions are needed.
@@ -519,15 +512,9 @@ Return ONLY a JSON object:
 - preserve_indices: indices (0-based) of remaining questions to keep as-is
 - new_questions: optional array of 1-2 new questions based on the changed answer (use same question format)"""
 
-        system_msg = SystemMessage(
-            content=COFOUNDER_SYSTEM.format(task_instructions=task_instructions)
-        )
+        system_msg = SystemMessage(content=COFOUNDER_SYSTEM.format(task_instructions=task_instructions))
         human_msg = HumanMessage(
-            content=(
-                f"Idea: {idea}\n\n"
-                f"Answered questions:\n{answered_str}\n\n"
-                f"Remaining questions:\n{remaining_str}"
-            )
+            content=(f"Idea: {idea}\n\nAnswered questions:\n{answered_str}\n\nRemaining questions:\n{remaining_str}")
         )
 
         t0 = time.perf_counter()
@@ -563,9 +550,7 @@ Return ONLY a JSON object:
         Raises:
             RuntimeError: If LLM call fails after retries
         """
-        llm = await create_tracked_llm(
-            user_id="system", role="architect", session_id="assessment"
-        )
+        llm = await create_tracked_llm(user_id="system", role="architect", session_id="assessment")
 
         task_instructions = """Assess the confidence level of this Idea Brief section.
 
@@ -575,12 +560,8 @@ Return ONLY one of: "strong", "moderate", "needs_depth"
 - "moderate": Reasonable hypothesis, some supporting logic, but unvalidated
 - "needs_depth": Vague, generic, or missing critical detail"""
 
-        system_msg = SystemMessage(
-            content=COFOUNDER_SYSTEM.format(task_instructions=task_instructions)
-        )
-        human_msg = HumanMessage(
-            content=f"Section: {section_key}\n\nContent: {content}"
-        )
+        system_msg = SystemMessage(content=COFOUNDER_SYSTEM.format(task_instructions=task_instructions))
+        human_msg = HumanMessage(content=f"Section: {section_key}\n\nContent: {content}")
 
         t0 = time.perf_counter()
         response = await _invoke_with_retry(llm, [system_msg, human_msg])
@@ -624,9 +605,7 @@ Return ONLY one of: "strong", "moderate", "needs_depth"
         # Clean brief for prompt (remove internal keys)
         clean_brief = {k: v for k, v in brief.items() if not k.startswith("_")}
 
-        llm = await create_tracked_llm(
-            user_id=user_id, role="architect", session_id=session_id
-        )
+        llm = await create_tracked_llm(user_id=user_id, role="architect", session_id=session_id)
 
         feedback_context = ""
         if feedback:
@@ -654,9 +633,7 @@ Return ONLY a JSON object:
 }}
 {feedback_context}"""
 
-        system_msg = SystemMessage(
-            content=COFOUNDER_SYSTEM.format(task_instructions=task_instructions)
-        )
+        system_msg = SystemMessage(content=COFOUNDER_SYSTEM.format(task_instructions=task_instructions))
         human_msg = HumanMessage(
             content=f"Generate execution plan options from this Idea Brief:\n\n{json.dumps(clean_brief, indent=2)}"
         )
@@ -705,9 +682,7 @@ Return ONLY a JSON object:
         # Filter out internal keys
         clean_brief = {k: v for k, v in brief.items() if not k.startswith("_")}
 
-        llm = await create_tracked_llm(
-            user_id=user_id, role="architect", session_id=session_id
-        )
+        llm = await create_tracked_llm(user_id=user_id, role="architect", session_id=session_id)
 
         task_instructions = f"""Generate a complete set of project artifacts from the product brief.
 These artifacts are the founder's project documentation — they'll share these with advisors,
@@ -763,9 +738,7 @@ Return ONLY a JSON object with these 5 keys:
 Each artifact should cross-reference others (e.g., milestones reference MVP features,
 risk log references brief assumptions)."""
 
-        system_msg = SystemMessage(
-            content=COFOUNDER_SYSTEM.format(task_instructions=task_instructions)
-        )
+        system_msg = SystemMessage(content=COFOUNDER_SYSTEM.format(task_instructions=task_instructions))
         human_msg = HumanMessage(
             content=f"Generate project artifacts from this brief:\n\n{json.dumps(clean_brief, indent=2)}"
         )

@@ -63,9 +63,7 @@ def test_runner_is_runtime_checkable():
 
     complete = CompleteRunner()
     # If runtime_checkable is working, isinstance should return True
-    assert isinstance(
-        complete, Runner
-    ), "Runner protocol must support isinstance checks (runtime_checkable)"
+    assert isinstance(complete, Runner), "Runner protocol must support isinstance checks (runtime_checkable)"
 
 
 def test_runner_has_required_methods():
@@ -79,14 +77,10 @@ def test_runner_has_required_methods():
     }
 
     protocol_methods = {
-        name
-        for name, method in inspect.getmembers(Runner)
-        if not name.startswith("_") and callable(method)
+        name for name, method in inspect.getmembers(Runner) if not name.startswith("_") and callable(method)
     }
 
-    assert (
-        required_methods <= protocol_methods
-    ), f"Missing methods: {required_methods - protocol_methods}"
+    assert required_methods <= protocol_methods, f"Missing methods: {required_methods - protocol_methods}"
 
 
 def test_runner_method_signatures():
@@ -132,9 +126,7 @@ def test_runner_real_satisfies_protocol():
     runner = RunnerReal()
 
     # Verify it satisfies the protocol
-    assert isinstance(
-        runner, Runner
-    ), "RunnerReal must satisfy the Runner protocol"
+    assert isinstance(runner, Runner), "RunnerReal must satisfy the Runner protocol"
 
     # Verify it has all required methods
     assert hasattr(runner, "run")
@@ -168,6 +160,4 @@ def test_incomplete_class_does_not_satisfy_protocol():
     incomplete = IncompleteRunner()
 
     # This should NOT satisfy the protocol
-    assert not isinstance(
-        incomplete, Runner
-    ), "Incomplete implementation should not satisfy Runner protocol"
+    assert not isinstance(incomplete, Runner), "Incomplete implementation should not satisfy Runner protocol"

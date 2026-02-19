@@ -5,9 +5,11 @@ Tests enforce pure function behavior:
 - Deterministic outputs given same inputs
 - Injectable time for testability
 """
-import pytest
-from datetime import datetime, timedelta, timezone
+
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 from app.domain.risks import detect_llm_risks, detect_system_risks
 
@@ -16,7 +18,7 @@ pytestmark = pytest.mark.unit
 
 def test_detect_system_risks_no_conditions_returns_empty():
     """When no risk conditions are met, return empty list."""
-    now = datetime(2026, 2, 16, 12, 0, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 2, 16, 12, 0, 0, tzinfo=UTC)
     last_activity = now - timedelta(days=5)
     last_decision = now - timedelta(days=3)
 
@@ -31,7 +33,7 @@ def test_detect_system_risks_no_conditions_returns_empty():
 
 def test_detect_system_risks_stale_decision_at_7_days():
     """Stale decision risk triggers at exactly 7 days."""
-    now = datetime(2026, 2, 16, 12, 0, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 2, 16, 12, 0, 0, tzinfo=UTC)
     last_decision = now - timedelta(days=7)
     last_activity = now - timedelta(days=1)
 
@@ -49,7 +51,7 @@ def test_detect_system_risks_stale_decision_at_7_days():
 
 def test_detect_system_risks_stale_decision_boundary_6_days():
     """Stale decision does not trigger at 6 days (boundary test)."""
-    now = datetime(2026, 2, 16, 12, 0, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 2, 16, 12, 0, 0, tzinfo=UTC)
     last_decision = now - timedelta(days=6)
     last_activity = now - timedelta(days=1)
 
@@ -64,7 +66,7 @@ def test_detect_system_risks_stale_decision_boundary_6_days():
 
 def test_detect_system_risks_stale_decision_none_returns_no_risk():
     """When last_gate_decision_at is None, no stale decision risk."""
-    now = datetime(2026, 2, 16, 12, 0, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 2, 16, 12, 0, 0, tzinfo=UTC)
     last_activity = now - timedelta(days=1)
 
     risks = detect_system_risks(
@@ -78,7 +80,7 @@ def test_detect_system_risks_stale_decision_none_returns_no_risk():
 
 def test_detect_system_risks_build_failures_at_3():
     """Build failures risk triggers at exactly 3 failures."""
-    now = datetime(2026, 2, 16, 12, 0, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 2, 16, 12, 0, 0, tzinfo=UTC)
     last_activity = now - timedelta(days=1)
 
     risks = detect_system_risks(
@@ -95,7 +97,7 @@ def test_detect_system_risks_build_failures_at_3():
 
 def test_detect_system_risks_build_failures_boundary_2():
     """Build failures does not trigger at 2 failures (boundary test)."""
-    now = datetime(2026, 2, 16, 12, 0, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 2, 16, 12, 0, 0, tzinfo=UTC)
     last_activity = now - timedelta(days=1)
 
     risks = detect_system_risks(
@@ -109,7 +111,7 @@ def test_detect_system_risks_build_failures_boundary_2():
 
 def test_detect_system_risks_stale_project_at_14_days():
     """Stale project risk triggers at exactly 14 days inactive."""
-    now = datetime(2026, 2, 16, 12, 0, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 2, 16, 12, 0, 0, tzinfo=UTC)
     last_activity = now - timedelta(days=14)
 
     risks = detect_system_risks(
@@ -126,7 +128,7 @@ def test_detect_system_risks_stale_project_at_14_days():
 
 def test_detect_system_risks_stale_project_boundary_13_days():
     """Stale project does not trigger at 13 days inactive (boundary test)."""
-    now = datetime(2026, 2, 16, 12, 0, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 2, 16, 12, 0, 0, tzinfo=UTC)
     last_activity = now - timedelta(days=13)
 
     risks = detect_system_risks(
@@ -140,7 +142,7 @@ def test_detect_system_risks_stale_project_boundary_13_days():
 
 def test_detect_system_risks_all_conditions_met():
     """Multiple risk conditions can fire simultaneously."""
-    now = datetime(2026, 2, 16, 12, 0, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 2, 16, 12, 0, 0, tzinfo=UTC)
     last_activity = now - timedelta(days=14)
     last_decision = now - timedelta(days=7)
 
@@ -163,7 +165,7 @@ def test_detect_system_risks_default_now_parameter():
     """When now parameter is not provided, uses current time."""
     # Test that function works without explicit now (uses default)
     # We can't test exact behavior without mocking, but can verify it doesn't crash
-    last_activity = datetime.now(timezone.utc) - timedelta(days=1)
+    last_activity = datetime.now(UTC) - timedelta(days=1)
     risks = detect_system_risks(
         last_gate_decision_at=None,
         build_failure_count=0,
@@ -184,8 +186,10 @@ class TestDetectLlmRisks:
         mock_settings.plan_tier.max_tokens_per_day = 100000
         mock_settings.override_max_tokens_per_day = None
 
-        with patch("app.domain.risks.get_redis", return_value=mock_redis), \
-             patch("app.domain.risks.get_or_create_user_settings", return_value=mock_settings):
+        with (
+            patch("app.domain.risks.get_redis", return_value=mock_redis),
+            patch("app.domain.risks.get_or_create_user_settings", return_value=mock_settings),
+        ):
             risks = await detect_llm_risks("user_123", None)
 
         assert len(risks) == 1
@@ -202,8 +206,10 @@ class TestDetectLlmRisks:
         mock_settings.plan_tier.max_tokens_per_day = 100000
         mock_settings.override_max_tokens_per_day = None
 
-        with patch("app.domain.risks.get_redis", return_value=mock_redis), \
-             patch("app.domain.risks.get_or_create_user_settings", return_value=mock_settings):
+        with (
+            patch("app.domain.risks.get_redis", return_value=mock_redis),
+            patch("app.domain.risks.get_or_create_user_settings", return_value=mock_settings),
+        ):
             risks = await detect_llm_risks("user_123", None)
 
         assert len(risks) == 0
@@ -218,8 +224,10 @@ class TestDetectLlmRisks:
         mock_settings.plan_tier.max_tokens_per_day = -1
         mock_settings.override_max_tokens_per_day = None
 
-        with patch("app.domain.risks.get_redis", return_value=mock_redis), \
-             patch("app.domain.risks.get_or_create_user_settings", return_value=mock_settings):
+        with (
+            patch("app.domain.risks.get_redis", return_value=mock_redis),
+            patch("app.domain.risks.get_or_create_user_settings", return_value=mock_settings),
+        ):
             risks = await detect_llm_risks("user_123", None)
 
         assert len(risks) == 0

@@ -7,10 +7,10 @@ TDD coverage (GENL-02, GENL-03, GENL-04, GENL-05):
 4. test_iteration_build_timeline_event           — After iteration, StageEvent with event_type="iteration_completed" exists (GENL-05)
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
-import pytest
 import fakeredis.aioredis
+import pytest
 
 from app.agent.runner_fake import RunnerFake
 from app.queue.schemas import JobStatus
@@ -71,6 +71,7 @@ class FakeSandboxRuntimeConnectFails(FakeSandboxRuntime):
 
     async def connect(self, sandbox_id: str) -> None:
         from app.core.exceptions import SandboxError
+
         raise SandboxError(f"Sandbox {sandbox_id} has expired")
 
 
@@ -141,9 +142,7 @@ async def test_iteration_build_creates_v0_2():
 
     result = await service.execute_iteration_build(job_id, job_data, state_machine, change_request)
 
-    assert result["build_version"] == "build_v0_2", (
-        f"Expected 'build_v0_2', got '{result['build_version']}'"
-    )
+    assert result["build_version"] == "build_v0_2", f"Expected 'build_v0_2', got '{result['build_version']}'"
     assert result["sandbox_id"] == "fake-iter-sandbox-001"
     assert result["preview_url"] == "https://8080-fake-iter-sandbox-001.e2b.app"
 
@@ -160,9 +159,7 @@ async def test_iteration_build_sandbox_reconnect_fallback():
 
     # Job has previous_sandbox_id that will fail to connect
     connect_fail_sandbox = FakeSandboxRuntimeConnectFails()
-    job_data = await _create_queued_job(
-        state_machine, job_id, previous_sandbox_id="expired-sandbox-xyz"
-    )
+    job_data = await _create_queued_job(state_machine, job_id, previous_sandbox_id="expired-sandbox-xyz")
 
     service = _make_service(lambda: connect_fail_sandbox)
     change_request = {"change_description": "Fix login bug"}
@@ -207,9 +204,7 @@ async def test_iteration_build_check_failure_marks_needs_review():
 
     # FSM must be in FAILED state
     final_status = await state_machine.get_status(job_id)
-    assert final_status == JobStatus.FAILED, (
-        f"Expected FAILED, got {final_status}"
-    )
+    assert final_status == JobStatus.FAILED, f"Expected FAILED, got {final_status}"
 
     # Error message must contain needs-review indicator
     # The state machine stores the transition message as 'status_message'
@@ -248,11 +243,13 @@ async def test_iteration_build_timeline_event():
     logged_calls: list[dict] = []
 
     async def _capture_log(project_id: str, build_version: str, change_request: dict) -> None:
-        logged_calls.append({
-            "project_id": project_id,
-            "build_version": build_version,
-            "change_request": change_request,
-        })
+        logged_calls.append(
+            {
+                "project_id": project_id,
+                "build_version": build_version,
+                "change_request": change_request,
+            }
+        )
 
     service._log_iteration_event = _capture_log  # type: ignore[method-assign]
 

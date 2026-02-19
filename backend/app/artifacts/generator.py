@@ -4,8 +4,6 @@ Generates structured artifacts using Claude structured outputs via Runner protoc
 Supports cascade generation (all 5 artifacts in order), partial failure handling, and tier filtering.
 """
 
-from typing import Any
-
 from app.agent.runner import Runner
 from app.schemas.artifacts import GENERATION_ORDER, ArtifactType
 
@@ -106,7 +104,7 @@ class ArtifactGenerator:
                 completed[artifact_type] = content
                 prior_artifacts[artifact_type.value] = content
 
-            except Exception as e:
+            except Exception:
                 # On failure: track failed type, don't continue cascade
                 failed.append(artifact_type.value)
 

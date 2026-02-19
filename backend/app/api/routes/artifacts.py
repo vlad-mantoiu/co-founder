@@ -97,11 +97,7 @@ async def _background_generate_artifacts(
             return
 
         # Get onboarding session (OnboardingSession has project_id FK to Project)
-        result = await session.execute(
-            select(OnboardingSession).where(
-                OnboardingSession.project_id == project_id
-            )
-        )
+        result = await session.execute(select(OnboardingSession).where(OnboardingSession.project_id == project_id))
         onboarding_session = result.scalar_one_or_none()
         if onboarding_session is None:
             return
@@ -316,9 +312,7 @@ async def regenerate_artifact(
 
         # Get onboarding session (OnboardingSession has project_id FK to Project)
         result = await session.execute(
-            select(OnboardingSession).where(
-                OnboardingSession.project_id == artifact.project_id
-            )
+            select(OnboardingSession).where(OnboardingSession.project_id == artifact.project_id)
         )
         onboarding_session = result.scalar_one_or_none()
         if onboarding_session is None:
@@ -544,9 +538,7 @@ async def export_artifact_pdf(
             raise HTTPException(status_code=404, detail="Artifact not found")
 
         # Get project for startup name
-        result = await session.execute(
-            select(Project).where(Project.id == artifact.project_id)
-        )
+        result = await session.execute(select(Project).where(Project.id == artifact.project_id))
         project = result.scalar_one_or_none()
         if project is None:
             raise HTTPException(status_code=404, detail="Project not found")
@@ -609,19 +601,14 @@ async def export_combined_pdf(
             raise HTTPException(status_code=404, detail="Project not found")
 
         # Get all artifacts for project
-        result = await session.execute(
-            select(Artifact).where(Artifact.project_id == project_id)
-        )
+        result = await session.execute(select(Artifact).where(Artifact.project_id == project_id))
         artifacts = result.scalars().all()
 
         if not artifacts:
             raise HTTPException(status_code=404, detail="No artifacts found for project")
 
     # Build artifacts dict by type
-    artifacts_dict = {
-        artifact.artifact_type: artifact.current_content or {}
-        for artifact in artifacts
-    }
+    artifacts_dict = {artifact.artifact_type: artifact.current_content or {} for artifact in artifacts}
 
     # Get user's tier
     user_settings = await get_or_create_user_settings(user.user_id)
@@ -665,9 +652,7 @@ async def export_artifact_markdown(
         HTTPException(404): Artifact not found or unauthorized
     """
     if variant not in ("readable", "technical"):
-        raise HTTPException(
-            status_code=400, detail="variant must be 'readable' or 'technical'"
-        )
+        raise HTTPException(status_code=400, detail="variant must be 'readable' or 'technical'")
 
     session_factory = get_session_factory()
 
@@ -686,9 +671,7 @@ async def export_artifact_markdown(
             raise HTTPException(status_code=404, detail="Artifact not found")
 
         # Get project for startup name
-        result = await session.execute(
-            select(Project).where(Project.id == artifact.project_id)
-        )
+        result = await session.execute(select(Project).where(Project.id == artifact.project_id))
         project = result.scalar_one_or_none()
         if project is None:
             raise HTTPException(status_code=404, detail="Project not found")
@@ -729,9 +712,7 @@ async def export_combined_markdown(
         HTTPException(404): Project not found or unauthorized
     """
     if variant not in ("readable", "technical"):
-        raise HTTPException(
-            status_code=400, detail="variant must be 'readable' or 'technical'"
-        )
+        raise HTTPException(status_code=400, detail="variant must be 'readable' or 'technical'")
 
     session_factory = get_session_factory()
 
@@ -748,15 +729,11 @@ async def export_combined_markdown(
             raise HTTPException(status_code=404, detail="Project not found")
 
         # Get all artifacts for project
-        result = await session.execute(
-            select(Artifact).where(Artifact.project_id == project_id)
-        )
+        result = await session.execute(select(Artifact).where(Artifact.project_id == project_id))
         artifacts = result.scalars().all()
 
     # Build artifacts dict by type
-    artifacts_dict = {
-        artifact.artifact_type: artifact.current_content or {} for artifact in artifacts
-    }
+    artifacts_dict = {artifact.artifact_type: artifact.current_content or {} for artifact in artifacts}
 
     # Get user's tier
     user_settings = await get_or_create_user_settings(user.user_id)

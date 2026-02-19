@@ -1,10 +1,8 @@
 """Understanding interview API routes — 8 endpoints for interview lifecycle."""
 
+from anthropic._exceptions import OverloadedError
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
-from uuid import UUID
-
-from anthropic._exceptions import OverloadedError
 
 from app.agent.llm_helpers import enqueue_failed_request
 from app.agent.runner import Runner
@@ -37,10 +35,12 @@ def get_runner(request: Request) -> Runner:
     Override this dependency in tests via app.dependency_overrides.
     """
     from app.core.config import get_settings
+
     settings = get_settings()
 
     if settings.anthropic_api_key:
         from app.agent.runner_real import RunnerReal
+
         checkpointer = getattr(request.app.state, "checkpointer", None)
         return RunnerReal(checkpointer=checkpointer)
     else:
@@ -128,9 +128,7 @@ async def submit_answer(
     """
     session_factory = get_session_factory()
     service = UnderstandingService(runner, session_factory)
-    session = await service.submit_answer(
-        user.user_id, session_id, request.question_id, request.answer
-    )
+    session = await service.submit_answer(user.user_id, session_id, request.question_id, request.answer)
 
     # Check if more questions remaining
     is_complete = session.current_question_index >= session.total_questions
@@ -310,9 +308,7 @@ async def edit_brief_section(
     """
     session_factory = get_session_factory()
     service = UnderstandingService(runner, session_factory)
-    result = await service.edit_brief_section(
-        user.user_id, project_id, request.section_key, request.new_content
-    )
+    result = await service.edit_brief_section(user.user_id, project_id, request.section_key, request.new_content)
 
     return EditBriefSectionResponse(
         updated_section=result["updated_section"],

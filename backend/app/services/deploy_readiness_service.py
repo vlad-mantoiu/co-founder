@@ -120,6 +120,7 @@ class DeployReadinessService:
         # 3. No ready build — return red status immediately
         if latest_job is None:
             from app.domain.deploy_checks import DeployCheck
+
             no_build_check = DeployCheck(
                 id="no_build",
                 title="No build completed yet",

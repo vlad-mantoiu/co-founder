@@ -1,6 +1,5 @@
 """Decision gate Pydantic schemas for API requests and responses."""
 
-from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -192,4 +191,6 @@ class GateStatusResponse(BaseModel):
     status: str
     decision: str | None = None
     decided_at: str | None = None
-    options: list[GateOption] = Field(default_factory=list, description="Decision options (empty list when no options available)")
+    options: list[GateOption] = Field(
+        default_factory=list, description="Decision options (empty list when no options available)"
+    )

@@ -133,6 +133,7 @@ async def require_auth(
     # Auto-provision new users (with in-memory cache to avoid DB query on every request)
     if user.user_id not in _provisioned_cache:
         from app.core.provisioning import provision_user_on_first_login
+
         await provision_user_on_first_login(user.user_id, user.claims)
         _provisioned_cache.add(user.user_id)
 

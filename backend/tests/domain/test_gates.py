@@ -5,6 +5,7 @@ Tests enforce pure function behavior:
 - Deterministic outputs
 - All decision types handled
 """
+
 import pytest
 
 from app.domain.gates import (

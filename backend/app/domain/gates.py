@@ -3,6 +3,7 @@
 Pure domain functions for handling founder decision gates.
 No DB access, fully deterministic.
 """
+
 from dataclasses import dataclass
 from enum import Enum
 

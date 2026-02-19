@@ -2,11 +2,11 @@
 
 from uuid import UUID
 
+from anthropic._exceptions import OverloadedError
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 from sqlalchemy import select
-
-from anthropic._exceptions import OverloadedError
 
 from app.agent.llm_helpers import enqueue_failed_request
 from app.agent.runner import Runner
@@ -22,7 +22,6 @@ from app.schemas.onboarding import (
     ThesisSnapshot,
     ThesisSnapshotEditRequest,
 )
-from pydantic import BaseModel
 from app.services.onboarding_service import OnboardingService
 
 router = APIRouter()
@@ -36,10 +35,12 @@ def get_runner(request: Request) -> Runner:
     Override this dependency in tests via app.dependency_overrides.
     """
     from app.core.config import get_settings
+
     settings = get_settings()
 
     if settings.anthropic_api_key:
         from app.agent.runner_real import RunnerReal
+
         checkpointer = getattr(request.app.state, "checkpointer", None)
         return RunnerReal(checkpointer=checkpointer)
     else:
@@ -363,6 +364,7 @@ async def abandon_session(
 
 class CreateProjectResponse(BaseModel):
     """Response model for create-project endpoint."""
+
     project_id: str
     project_name: str
     status: str
@@ -395,9 +397,7 @@ async def create_project_from_session(
 
     session_factory = get_session_factory()
     service = OnboardingService(runner, session_factory)
-    onboarding_session, project = await service.create_project_from_session(
-        user.user_id, session_id, tier_slug
-    )
+    onboarding_session, project = await service.create_project_from_session(user.user_id, session_id, tier_slug)
 
     return CreateProjectResponse(
         project_id=str(project.id),

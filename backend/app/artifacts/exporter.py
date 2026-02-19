@@ -114,18 +114,14 @@ class PDFExporter:
         - Bootstrapper: Co-Founder branded
         - Partner/CTO: white-label with startup name
         """
-        html_content = await self.render_html(
-            artifact_type, content, tier, startup_name, generated_date
-        )
+        html_content = await self.render_html(artifact_type, content, tier, startup_name, generated_date)
 
         # Non-blocking PDF generation (research pitfall 4)
         try:
             from weasyprint import HTML
             from weasyprint.text.fonts import FontConfiguration
         except ImportError as e:
-            raise ImportError(
-                "WeasyPrint not installed. Install with: pip install weasyprint>=68.1"
-            ) from e
+            raise ImportError("WeasyPrint not installed. Install with: pip install weasyprint>=68.1") from e
 
         font_config = FontConfiguration()
 
@@ -197,17 +193,13 @@ class PDFExporter:
         - Good for sharing with co-founders/advisors
         - Tier-dependent branding
         """
-        html_content = await self.render_combined_html(
-            artifacts, tier, startup_name, generated_date
-        )
+        html_content = await self.render_combined_html(artifacts, tier, startup_name, generated_date)
 
         try:
             from weasyprint import HTML
             from weasyprint.text.fonts import FontConfiguration
         except ImportError as e:
-            raise ImportError(
-                "WeasyPrint not installed. Install with: pip install weasyprint>=68.1"
-            ) from e
+            raise ImportError("WeasyPrint not installed. Install with: pip install weasyprint>=68.1") from e
 
         font_config = FontConfiguration()
 

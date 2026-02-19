@@ -11,7 +11,6 @@ from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 from app.db.base import Base
 
-
 # ──────────────────────────────────────────────────────────────────────────────
 # FakeSandboxRuntime
 # ──────────────────────────────────────────────────────────────────────────────
@@ -117,9 +116,9 @@ def api_client(e2e_engine):
     """
     from app.api.routes import api_router
     from app.core.config import get_settings
-    from app.db import init_db, close_db
+    from app.db import close_db, init_db
     from app.db.seed import seed_plan_tiers
-    from app.main import http_exception_handler, generic_exception_handler
+    from app.main import generic_exception_handler, http_exception_handler
 
     test_db_url = os.getenv(
         "TEST_DATABASE_URL",

@@ -71,9 +71,7 @@ async def seed_plan_tiers() -> None:
 
     async with factory() as session:
         for tier_data in PLAN_TIERS:
-            result = await session.execute(
-                select(PlanTier).where(PlanTier.slug == tier_data["slug"])
-            )
+            result = await session.execute(select(PlanTier).where(PlanTier.slug == tier_data["slug"]))
             existing = result.scalar_one_or_none()
 
             if existing is None:

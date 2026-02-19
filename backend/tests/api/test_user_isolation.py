@@ -18,8 +18,8 @@ from unittest.mock import MagicMock, Mock, patch
 
 import jwt as pyjwt
 import pytest
-from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 
 from app.core.auth import ClerkUser, require_auth, require_subscription
 
@@ -69,14 +69,16 @@ def _mock_settings():
 def _make_token(user_id: str) -> str:
     """Helper to create a valid JWT for a user_id."""
     now = int(time.time())
-    return _sign_jwt({
-        "sub": user_id,
-        "iat": now - 10,
-        "exp": now + 300,
-        "nbf": now - 10,
-        "azp": "http://localhost:3000",
-        "email": f"{user_id}@test.com",
-    })
+    return _sign_jwt(
+        {
+            "sub": user_id,
+            "iat": now - 10,
+            "exp": now + 300,
+            "nbf": now - 10,
+            "azp": "http://localhost:3000",
+            "email": f"{user_id}@test.com",
+        }
+    )
 
 
 async def _mock_user_settings_for_projects(*args, **kwargs):

@@ -1,25 +1,30 @@
 class CoFounderError(Exception):
     """Base exception for Co-Founder application."""
+
     pass
 
 
 class AgentExecutionError(CoFounderError):
     """Raised when agent execution fails."""
+
     pass
 
 
 class SandboxError(CoFounderError):
     """Raised when sandbox operations fail."""
+
     pass
 
 
 class MemoryError(CoFounderError):
     """Raised when memory operations fail."""
+
     pass
 
 
 class GitOperationError(CoFounderError):
     """Raised when git operations fail."""
+
     pass
 
 

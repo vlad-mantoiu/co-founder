@@ -15,14 +15,13 @@ Tests cover:
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from unittest.mock import AsyncMock, patch
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.runner_fake import RunnerFake
 from app.api.routes.understanding import get_runner
 from app.core.auth import ClerkUser, require_auth
 from app.db.models.onboarding_session import OnboardingSession
 from app.db.models.project import Project
-from sqlalchemy.ext.asyncio import AsyncSession
 
 pytestmark = pytest.mark.integration
 
@@ -53,8 +52,10 @@ def user_b():
 
 def override_auth(user: ClerkUser):
     """Create auth override for a specific user."""
+
     async def _override():
         return user
+
     return _override
 
 
@@ -91,10 +92,7 @@ async def test_start_understanding_returns_first_question(
     app.dependency_overrides[require_auth] = override_auth(user_a)
     app.dependency_overrides[get_runner] = lambda: mock_runner
 
-    response = api_client.post(
-        "/api/understanding/start",
-        json={"session_id": str(onboarding.id)}
-    )
+    response = api_client.post("/api/understanding/start", json={"session_id": str(onboarding.id)})
 
     assert response.status_code == 200
     data = response.json()
@@ -132,10 +130,7 @@ async def test_start_understanding_requires_completed_onboarding(
     app.dependency_overrides[require_auth] = override_auth(user_a)
     app.dependency_overrides[get_runner] = lambda: mock_runner
 
-    response = api_client.post(
-        "/api/understanding/start",
-        json={"session_id": str(onboarding.id)}
-    )
+    response = api_client.post("/api/understanding/start", json={"session_id": str(onboarding.id)})
 
     assert response.status_code == 400
     assert "completed" in response.json()["detail"].lower()
@@ -175,10 +170,7 @@ async def test_submit_answer_returns_next_question(
     app.dependency_overrides[get_runner] = lambda: mock_runner
 
     # Start understanding interview
-    start_response = api_client.post(
-        "/api/understanding/start",
-        json={"session_id": str(onboarding.id)}
-    )
+    start_response = api_client.post("/api/understanding/start", json={"session_id": str(onboarding.id)})
     assert start_response.status_code == 200
     session_id = start_response.json()["understanding_session_id"]
     first_question_id = start_response.json()["question"]["id"]
@@ -186,7 +178,7 @@ async def test_submit_answer_returns_next_question(
     # Submit answer
     answer_response = api_client.post(
         f"/api/understanding/{session_id}/answer",
-        json={"question_id": first_question_id, "answer": "We talked to 12 retail shop owners"}
+        json={"question_id": first_question_id, "answer": "We talked to 12 retail shop owners"},
     )
 
     assert answer_response.status_code == 200
@@ -201,9 +193,7 @@ async def test_submit_answer_returns_next_question(
 
 
 @pytest.mark.asyncio
-async def test_submit_all_answers_marks_complete(
-    api_client: TestClient, mock_runner, user_a, db_session: AsyncSession
-):
+async def test_submit_all_answers_marks_complete(api_client: TestClient, mock_runner, user_a, db_session: AsyncSession):
     """Test submitting all answers marks interview as complete."""
     # Setup
     project = Project(clerk_user_id=user_a.user_id, name="Test", description="Test", status="ideation")
@@ -233,8 +223,7 @@ async def test_submit_all_answers_marks_complete(
     # Answer all 6 questions from RunnerFake
     for i, qid in enumerate(["uq1", "uq2", "uq3", "uq4", "uq5", "uq6"]):
         resp = api_client.post(
-            f"/api/understanding/{session_id}/answer",
-            json={"question_id": qid, "answer": f"Answer {i+1}"}
+            f"/api/understanding/{session_id}/answer", json={"question_id": qid, "answer": f"Answer {i + 1}"}
         )
         assert resp.status_code == 200
 
@@ -249,9 +238,7 @@ async def test_submit_all_answers_marks_complete(
 
 
 @pytest.mark.asyncio
-async def test_finalize_returns_idea_brief(
-    api_client: TestClient, mock_runner, user_a, db_session: AsyncSession
-):
+async def test_finalize_returns_idea_brief(api_client: TestClient, mock_runner, user_a, db_session: AsyncSession):
     """Test POST /api/understanding/{id}/finalize returns Idea Brief (UNDR-02)."""
     # Setup: create understanding session with all answers
     project = Project(clerk_user_id=user_a.user_id, name="Test", description="Test", status="ideation")
@@ -279,10 +266,7 @@ async def test_finalize_returns_idea_brief(
     session_id = start_resp.json()["understanding_session_id"]
 
     for qid in ["uq1", "uq2", "uq3", "uq4", "uq5", "uq6"]:
-        api_client.post(
-            f"/api/understanding/{session_id}/answer",
-            json={"question_id": qid, "answer": "Test answer"}
-        )
+        api_client.post(f"/api/understanding/{session_id}/answer", json={"question_id": qid, "answer": "Test answer"})
 
     # Finalize
     finalize_resp = api_client.post(f"/api/understanding/{session_id}/finalize")
@@ -355,9 +339,7 @@ async def test_finalize_brief_has_confidence_scores(
 
 
 @pytest.mark.asyncio
-async def test_edit_answer_preserves_progress(
-    api_client: TestClient, mock_runner, user_a, db_session: AsyncSession
-):
+async def test_edit_answer_preserves_progress(api_client: TestClient, mock_runner, user_a, db_session: AsyncSession):
     """Test PATCH /api/understanding/{id}/answer preserves interview progress."""
     # Setup
     project = Project(clerk_user_id=user_a.user_id, name="Test", description="Test", status="ideation")
@@ -389,8 +371,7 @@ async def test_edit_answer_preserves_progress(
 
     # Edit first answer
     edit_resp = api_client.patch(
-        f"/api/understanding/{session_id}/answer",
-        json={"question_id": "uq1", "new_answer": "Updated answer"}
+        f"/api/understanding/{session_id}/answer", json={"question_id": "uq1", "new_answer": "Updated answer"}
     )
 
     assert edit_resp.status_code == 200
@@ -437,8 +418,7 @@ async def test_user_isolation_returns_404(
 
     # Try to submit answer as user B
     answer_resp = api_client.post(
-        f"/api/understanding/{session_id}/answer",
-        json={"question_id": "uq1", "answer": "Malicious"}
+        f"/api/understanding/{session_id}/answer", json={"question_id": "uq1", "answer": "Malicious"}
     )
 
     assert answer_resp.status_code == 404  # User isolation pattern
@@ -484,7 +464,7 @@ async def test_edit_brief_section_updates_confidence(
     # Edit brief section
     edit_resp = api_client.patch(
         f"/api/understanding/{project.id}/brief",
-        json={"section_key": "problem_statement", "new_content": "Short"}  # Should get "needs_depth"
+        json={"section_key": "problem_statement", "new_content": "Short"},  # Should get "needs_depth"
     )
 
     assert edit_resp.status_code == 200
@@ -498,9 +478,7 @@ async def test_edit_brief_section_updates_confidence(
 
 
 @pytest.mark.asyncio
-async def test_get_brief_returns_artifact(
-    api_client: TestClient, mock_runner, user_a, db_session: AsyncSession
-):
+async def test_get_brief_returns_artifact(api_client: TestClient, mock_runner, user_a, db_session: AsyncSession):
     """Test GET /api/understanding/{project_id}/brief returns brief (UNDR-04)."""
     # Setup: finalized brief
     project = Project(clerk_user_id=user_a.user_id, name="Test", description="Test", status="ideation")
@@ -586,9 +564,7 @@ async def test_llm_failure_returns_debug_id(
 
 
 @pytest.mark.asyncio
-async def test_re_interview_resets_session(
-    api_client: TestClient, mock_runner, user_a, db_session: AsyncSession
-):
+async def test_re_interview_resets_session(api_client: TestClient, mock_runner, user_a, db_session: AsyncSession):
     """Test POST /api/understanding/{id}/re-interview resets session for major changes."""
     # Setup: completed interview
     project = Project(clerk_user_id=user_a.user_id, name="Test", description="Test", status="ideation")

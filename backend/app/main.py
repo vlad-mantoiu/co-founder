@@ -4,10 +4,11 @@ import signal
 import uuid
 from contextlib import asynccontextmanager
 
+from app.core.config import get_settings as _get_settings_early
+
 # CRITICAL ORDER: configure_structlog MUST be called before all other app imports
 # to avoid the structlog cache pitfall (structlog caches the processor chain on first use).
 from app.core.logging import configure_structlog
-from app.core.config import get_settings as _get_settings_early
 
 _early_settings = _get_settings_early()
 configure_structlog(
@@ -16,18 +17,17 @@ configure_structlog(
 )
 
 import structlog
-
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.routes import api_router
 from app.core.config import get_settings
-from app.db import init_db, close_db, init_redis, close_redis
+from app.db import close_db, close_redis, init_db, init_redis
 from app.db.seed import seed_plan_tiers
 from app.middleware.correlation import (
-    setup_correlation_middleware,
     get_correlation_id,
+    setup_correlation_middleware,
 )
 
 logger = structlog.get_logger(__name__)
@@ -82,6 +82,7 @@ async def lifespan(app: FastAPI):
     # Initialize Neo4j schema (non-fatal)
     try:
         from app.db.graph.strategy_graph import get_strategy_graph
+
         strategy_graph = get_strategy_graph()
         await strategy_graph.initialize_schema()
         logger.info("neo4j_schema_initialized")
@@ -104,11 +105,13 @@ async def lifespan(app: FastAPI):
             logger.info("checkpointer_initialized", type="AsyncPostgresSaver")
         else:
             from langgraph.checkpoint.memory import MemorySaver
+
             app.state.checkpointer = MemorySaver()
             app.state._checkpointer_cm = None
             logger.info("checkpointer_initialized", type="MemorySaver", reason="no_database_url")
     except Exception as e:
         from langgraph.checkpoint.memory import MemorySaver
+
         app.state.checkpointer = MemorySaver()
         app.state._checkpointer_cm = None
         logger.warning("checkpointer_fallback", type="MemorySaver", error=str(e), error_type=type(e).__name__)
@@ -119,12 +122,13 @@ async def lifespan(app: FastAPI):
     logger.info("shutdown_begin")
     # Close checkpointer connection
     try:
-        if hasattr(app.state, '_checkpointer_cm') and app.state._checkpointer_cm is not None:
+        if hasattr(app.state, "_checkpointer_cm") and app.state._checkpointer_cm is not None:
             await app.state._checkpointer_cm.__aexit__(None, None, None)
     except Exception:
         pass
     try:
         from app.db.graph.strategy_graph import get_strategy_graph
+
         await get_strategy_graph().close()
     except Exception:
         pass

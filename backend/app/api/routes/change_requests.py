@@ -68,9 +68,7 @@ async def create_change_request(
     """
     session_factory = get_session_factory()
     service = ChangeRequestService(runner, session_factory)
-    result = await service.create_change_request(
-        user.user_id, request.project_id, request.description
-    )
+    result = await service.create_change_request(user.user_id, request.project_id, request.description)
     return CreateChangeRequestResponse(
         change_request_id=result["change_request_id"],
         alignment_score=result["alignment_score"],

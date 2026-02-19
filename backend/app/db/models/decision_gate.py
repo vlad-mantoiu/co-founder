@@ -1,7 +1,7 @@
 """DecisionGate model — decision gate records."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -28,4 +28,4 @@ class DecisionGate(Base):
     # Context for the gate (what's being decided)
     context = Column(JSONB, nullable=False, default=dict)
 
-    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))

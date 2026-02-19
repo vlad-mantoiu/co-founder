@@ -14,12 +14,12 @@ Tests cover:
 
 import asyncio
 import uuid
+from unittest.mock import Mock, patch
 
 import pytest
 from fakeredis import FakeAsyncRedis
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from unittest.mock import Mock, patch
 
 from app.agent.runner_fake import RunnerFake
 from app.core.auth import ClerkUser, require_auth, require_subscription
@@ -54,8 +54,10 @@ def user_b():
 
 def override_auth(user: ClerkUser):
     """Create auth override for a specific user."""
+
     async def _override():
         return user
+
     return _override
 
 
@@ -199,6 +201,7 @@ def test_start_generation_blocked_by_gate(api_client: TestClient, fake_redis, us
         patch("app.core.llm_config.get_or_create_user_settings", mock_user_settings),
     ):
         from app.api.routes.decision_gates import get_runner
+
         app.dependency_overrides[get_runner] = lambda: RunnerFake()
         gate_response = api_client.post(
             "/api/gates/create",
@@ -224,17 +227,18 @@ def test_start_generation_blocked_by_gate(api_client: TestClient, fake_redis, us
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-@pytest.mark.parametrize("status,expected_label", [
-    (JobStatus.SCAFFOLD, "Scaffolding workspace..."),
-    (JobStatus.CODE, "Writing code..."),
-    (JobStatus.DEPS, "Installing dependencies..."),
-    (JobStatus.CHECKS, "Running checks..."),
-    (JobStatus.READY, "Build complete!"),
-    (JobStatus.FAILED, "Build failed"),
-])
-def test_get_generation_status_stage_labels(
-    api_client: TestClient, fake_redis, user_a, status, expected_label
-):
+@pytest.mark.parametrize(
+    "status,expected_label",
+    [
+        (JobStatus.SCAFFOLD, "Scaffolding workspace..."),
+        (JobStatus.CODE, "Writing code..."),
+        (JobStatus.DEPS, "Installing dependencies..."),
+        (JobStatus.CHECKS, "Running checks..."),
+        (JobStatus.READY, "Build complete!"),
+        (JobStatus.FAILED, "Build failed"),
+    ],
+)
+def test_get_generation_status_stage_labels(api_client: TestClient, fake_redis, user_a, status, expected_label):
     """GET /api/generation/{job_id}/status returns correct stage_label for each state."""
     project_id = str(uuid.uuid4())
     job_id = f"test-gen-stage-{status.value}-{uuid.uuid4().hex[:6]}"
@@ -325,12 +329,17 @@ def test_preview_viewed_creates_gate_2(api_client: TestClient, fake_redis, user_
 
     # Set up a READY job with the actual project_id
     state_machine = JobStateMachine(fake_redis)
-    asyncio.run(state_machine.create_job(job_id, {
-        "user_id": user_a.user_id,
-        "project_id": project_id,
-        "goal": "Build app",
-        "tier": "bootstrapper",
-    }))
+    asyncio.run(
+        state_machine.create_job(
+            job_id,
+            {
+                "user_id": user_a.user_id,
+                "project_id": project_id,
+                "goal": "Build app",
+                "tier": "bootstrapper",
+            },
+        )
+    )
     asyncio.run(state_machine.transition(job_id, JobStatus.READY, "Build complete"))
 
     app: FastAPI = api_client.app
@@ -358,12 +367,17 @@ def test_preview_viewed_idempotent(api_client: TestClient, fake_redis, user_a):
     job_id = f"test-preview-idem-{uuid.uuid4().hex[:8]}"
 
     state_machine = JobStateMachine(fake_redis)
-    asyncio.run(state_machine.create_job(job_id, {
-        "user_id": user_a.user_id,
-        "project_id": project_id,
-        "goal": "Build app",
-        "tier": "bootstrapper",
-    }))
+    asyncio.run(
+        state_machine.create_job(
+            job_id,
+            {
+                "user_id": user_a.user_id,
+                "project_id": project_id,
+                "goal": "Build app",
+                "tier": "bootstrapper",
+            },
+        )
+    )
     asyncio.run(state_machine.transition(job_id, JobStatus.READY, "Build complete"))
 
     app: FastAPI = api_client.app
@@ -415,9 +429,7 @@ def test_rerun_creates_new_version(api_client: TestClient, fake_redis, user_a):
 
     assert response.status_code == 201, f"Expected 201, got {response.status_code}: {response.json()}"
     data = response.json()
-    assert data["build_version"] == "build_v0_2", (
-        f"Expected 'build_v0_2', got '{data['build_version']}'"
-    )
+    assert data["build_version"] == "build_v0_2", f"Expected 'build_v0_2', got '{data['build_version']}'"
 
     app.dependency_overrides.clear()
 
@@ -435,10 +447,10 @@ def test_workspace_files_expected():
     we update RunnerFake accordingly.
     """
     import asyncio as _asyncio
-    from app.agent.state import create_initial_state
-    from app.services.generation_service import GenerationService
 
     import fakeredis.aioredis
+
+    from app.services.generation_service import GenerationService
 
     async def _run():
         redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
@@ -456,19 +468,32 @@ def test_workspace_files_expected():
 
         class _FakeSandboxInner:
             sandbox_id = "fake-ws-sandbox-001"
-            def get_host(self, port): return f"{port}-fake-ws-sandbox-001.e2b.app"
-            def set_timeout(self, t): pass
+
+            def get_host(self, port):
+                return f"{port}-fake-ws-sandbox-001.e2b.app"
+
+            def set_timeout(self, t):
+                pass
 
         class _FakeSandboxRuntime:
             files: dict = {}
             _started = False
             _sandbox = _FakeSandboxInner()
 
-            async def start(self): self._started = True
-            async def stop(self): pass
-            async def write_file(self, path, content): self.files[path] = content
-            async def run_command(self, cmd, **kwargs): return {"stdout": "ok", "stderr": "", "exit_code": 0}
-            async def run_background(self, cmd, **kwargs): return "fake-pid"
+            async def start(self):
+                self._started = True
+
+            async def stop(self):
+                pass
+
+            async def write_file(self, path, content):
+                self.files[path] = content
+
+            async def run_command(self, cmd, **kwargs):
+                return {"stdout": "ok", "stderr": "", "exit_code": 0}
+
+            async def run_background(self, cmd, **kwargs):
+                return "fake-pid"
 
         fake_sandbox = _FakeSandboxRuntime()
         service = GenerationService(
@@ -478,6 +503,7 @@ def test_workspace_files_expected():
 
         # Patch DB call for build version
         from unittest.mock import AsyncMock
+
         service._get_next_build_version = AsyncMock(return_value="build_v0_1")  # type: ignore[method-assign]
 
         await service.execute_build(job_id, job_data, state_machine)

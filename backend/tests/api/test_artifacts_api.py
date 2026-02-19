@@ -12,10 +12,11 @@ Tests cover:
 - Concurrent generation prevention (409)
 """
 
+from uuid import uuid4
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from uuid import uuid4
 
 from app.agent.runner_fake import RunnerFake
 from app.api.routes.artifacts import get_runner
@@ -45,8 +46,10 @@ def user_b():
 
 def override_auth(user: ClerkUser):
     """Create auth override for a specific user."""
+
     async def _override():
         return user
+
     return _override
 
 
@@ -60,18 +63,14 @@ def create_test_project_with_onboarding(api_client: TestClient, user):
     app.dependency_overrides[get_onboarding_runner] = lambda: mock_runner
 
     # Start onboarding
-    response = api_client.post(
-        "/api/onboarding/start",
-        json={"idea": "A marketplace for local artisans"}
-    )
+    response = api_client.post("/api/onboarding/start", json={"idea": "A marketplace for local artisans"})
     session_id = response.json()["id"]
 
     # Answer questions
     questions = response.json()["questions"]
     for question in questions:
         api_client.post(
-            f"/api/onboarding/{session_id}/answer",
-            json={"question_id": question["id"], "answer": "Test answer"}
+            f"/api/onboarding/{session_id}/answer", json={"question_id": question["id"], "answer": "Test answer"}
         )
 
     # Finalize
@@ -102,10 +101,7 @@ def test_generate_artifacts_returns_202_accepted(
     app.dependency_overrides[require_auth] = override_auth(user_a)
     app.dependency_overrides[get_runner] = lambda: mock_runner
 
-    response = api_client.post(
-        "/api/artifacts/generate",
-        json={"project_id": project_id}
-    )
+    response = api_client.post("/api/artifacts/generate", json={"project_id": project_id})
 
     assert response.status_code == 202
     data = response.json()
@@ -122,10 +118,7 @@ def test_generate_artifacts_requires_auth(api_client: TestClient, user_a):
     test_project = create_test_project_with_onboarding(api_client, user_a)
     project_id = test_project["project_id"]
 
-    response = api_client.post(
-        "/api/artifacts/generate",
-        json={"project_id": project_id}
-    )
+    response = api_client.post("/api/artifacts/generate", json={"project_id": project_id})
 
     assert response.status_code == 401
 
@@ -142,10 +135,7 @@ def test_generate_artifacts_rejects_missing_project(
 
     fake_project_id = str(uuid4())
 
-    response = api_client.post(
-        "/api/artifacts/generate",
-        json={"project_id": fake_project_id}
-    )
+    response = api_client.post("/api/artifacts/generate", json={"project_id": fake_project_id})
 
     assert response.status_code == 404
 
@@ -167,10 +157,7 @@ def test_generate_artifacts_user_isolation(
     app.dependency_overrides[require_auth] = override_auth(user_b)  # Different user
     app.dependency_overrides[get_runner] = lambda: mock_runner
 
-    response = api_client.post(
-        "/api/artifacts/generate",
-        json={"project_id": project_id}
-    )
+    response = api_client.post("/api/artifacts/generate", json={"project_id": project_id})
 
     assert response.status_code == 404
 
@@ -193,13 +180,11 @@ def test_get_artifact_returns_content(
     app.dependency_overrides[get_runner] = lambda: mock_runner
 
     # Trigger generation
-    api_client.post(
-        "/api/artifacts/generate",
-        json={"project_id": project_id}
-    )
+    api_client.post("/api/artifacts/generate", json={"project_id": project_id})
 
     # Wait a moment for background task
     import time
+
     time.sleep(1)
 
     # List artifacts to get an ID
@@ -239,12 +224,10 @@ def test_get_artifact_user_isolation(
     app.dependency_overrides[get_runner] = lambda: mock_runner
 
     # Trigger generation
-    api_client.post(
-        "/api/artifacts/generate",
-        json={"project_id": project_id}
-    )
+    api_client.post("/api/artifacts/generate", json={"project_id": project_id})
 
     import time
+
     time.sleep(1)
 
     # Get artifact ID
@@ -298,12 +281,10 @@ def test_list_project_artifacts_returns_all_types(
     app.dependency_overrides[get_runner] = lambda: mock_runner
 
     # Trigger generation
-    api_client.post(
-        "/api/artifacts/generate",
-        json={"project_id": project_id}
-    )
+    api_client.post("/api/artifacts/generate", json={"project_id": project_id})
 
     import time
+
     time.sleep(1)
 
     response = api_client.get(f"/api/artifacts/project/{project_id}")
@@ -354,12 +335,10 @@ def test_regenerate_artifact_bumps_version(
     app.dependency_overrides[get_runner] = lambda: mock_runner
 
     # Generate artifacts
-    api_client.post(
-        "/api/artifacts/generate",
-        json={"project_id": project_id}
-    )
+    api_client.post("/api/artifacts/generate", json={"project_id": project_id})
 
     import time
+
     time.sleep(1)
 
     # Get an artifact
@@ -370,10 +349,7 @@ def test_regenerate_artifact_bumps_version(
         artifact_id = artifacts[0]["id"]
 
         # Regenerate
-        response = api_client.post(
-            f"/api/artifacts/{artifact_id}/regenerate",
-            json={"force": False}
-        )
+        response = api_client.post(f"/api/artifacts/{artifact_id}/regenerate", json={"force": False})
 
         assert response.status_code == 200
         data = response.json()
@@ -397,12 +373,10 @@ def test_regenerate_with_edits_returns_warning(
     app.dependency_overrides[get_runner] = lambda: mock_runner
 
     # Generate artifacts
-    api_client.post(
-        "/api/artifacts/generate",
-        json={"project_id": project_id}
-    )
+    api_client.post("/api/artifacts/generate", json={"project_id": project_id})
 
     import time
+
     time.sleep(1)
 
     # Get an artifact
@@ -415,17 +389,11 @@ def test_regenerate_with_edits_returns_warning(
         # Edit the artifact first
         api_client.patch(
             f"/api/artifacts/{artifact_id}/edit",
-            json={
-                "section_path": "problem_statement",
-                "new_value": "Edited problem"
-            }
+            json={"section_path": "problem_statement", "new_value": "Edited problem"},
         )
 
         # Try to regenerate without force
-        response = api_client.post(
-            f"/api/artifacts/{artifact_id}/regenerate",
-            json={"force": False}
-        )
+        response = api_client.post(f"/api/artifacts/{artifact_id}/regenerate", json={"force": False})
 
         assert response.status_code == 200
         data = response.json()
@@ -450,12 +418,10 @@ def test_regenerate_with_force_overwrites_edits(
     app.dependency_overrides[get_runner] = lambda: mock_runner
 
     # Generate artifacts
-    api_client.post(
-        "/api/artifacts/generate",
-        json={"project_id": project_id}
-    )
+    api_client.post("/api/artifacts/generate", json={"project_id": project_id})
 
     import time
+
     time.sleep(1)
 
     # Get an artifact
@@ -468,17 +434,11 @@ def test_regenerate_with_force_overwrites_edits(
         # Edit the artifact first
         api_client.patch(
             f"/api/artifacts/{artifact_id}/edit",
-            json={
-                "section_path": "problem_statement",
-                "new_value": "Edited problem"
-            }
+            json={"section_path": "problem_statement", "new_value": "Edited problem"},
         )
 
         # Regenerate with force
-        response = api_client.post(
-            f"/api/artifacts/{artifact_id}/regenerate",
-            json={"force": True}
-        )
+        response = api_client.post(f"/api/artifacts/{artifact_id}/regenerate", json={"force": True})
 
         assert response.status_code == 200
         data = response.json()
@@ -503,12 +463,10 @@ def test_edit_section_updates_content(
     app.dependency_overrides[get_runner] = lambda: mock_runner
 
     # Generate artifacts
-    api_client.post(
-        "/api/artifacts/generate",
-        json={"project_id": project_id}
-    )
+    api_client.post("/api/artifacts/generate", json={"project_id": project_id})
 
     import time
+
     time.sleep(1)
 
     # Get an artifact
@@ -521,10 +479,7 @@ def test_edit_section_updates_content(
         # Edit the artifact
         response = api_client.patch(
             f"/api/artifacts/{artifact_id}/edit",
-            json={
-                "section_path": "problem_statement",
-                "new_value": "Updated problem statement"
-            }
+            json={"section_path": "problem_statement", "new_value": "Updated problem statement"},
         )
 
         assert response.status_code == 200
@@ -549,12 +504,10 @@ def test_edit_section_sets_has_user_edits(
     app.dependency_overrides[get_runner] = lambda: mock_runner
 
     # Generate artifacts
-    api_client.post(
-        "/api/artifacts/generate",
-        json={"project_id": project_id}
-    )
+    api_client.post("/api/artifacts/generate", json={"project_id": project_id})
 
     import time
+
     time.sleep(1)
 
     # Get an artifact
@@ -567,10 +520,7 @@ def test_edit_section_sets_has_user_edits(
         # Edit the artifact
         response = api_client.patch(
             f"/api/artifacts/{artifact_id}/edit",
-            json={
-                "section_path": "problem_statement",
-                "new_value": "Updated problem"
-            }
+            json={"section_path": "problem_statement", "new_value": "Updated problem"},
         )
 
         assert response.status_code == 200
@@ -596,12 +546,10 @@ def test_annotate_adds_annotation(
     app.dependency_overrides[get_runner] = lambda: mock_runner
 
     # Generate artifacts
-    api_client.post(
-        "/api/artifacts/generate",
-        json={"project_id": project_id}
-    )
+    api_client.post("/api/artifacts/generate", json={"project_id": project_id})
 
     import time
+
     time.sleep(1)
 
     # Get an artifact
@@ -614,10 +562,7 @@ def test_annotate_adds_annotation(
         # Add annotation
         response = api_client.post(
             f"/api/artifacts/{artifact_id}/annotate",
-            json={
-                "section_id": "problem_statement",
-                "note": "Consider alternative problem framing"
-            }
+            json={"section_id": "problem_statement", "note": "Consider alternative problem framing"},
         )
 
         assert response.status_code == 200
@@ -626,8 +571,7 @@ def test_annotate_adds_annotation(
         assert len(data["annotations"]) >= 1
         # Find our annotation
         found = any(
-            ann["section_id"] == "problem_statement" and
-            ann["note"] == "Consider alternative problem framing"
+            ann["section_id"] == "problem_statement" and ann["note"] == "Consider alternative problem framing"
             for ann in data["annotations"]
         )
         assert found
@@ -650,10 +594,7 @@ def test_generation_status_prevents_concurrent_generate(
     app.dependency_overrides[get_runner] = lambda: mock_runner
 
     # Start first generation
-    response1 = api_client.post(
-        "/api/artifacts/generate",
-        json={"project_id": project_id}
-    )
+    response1 = api_client.post("/api/artifacts/generate", json={"project_id": project_id})
     assert response1.status_code == 202
 
     # Try to start second generation immediately (before first completes)

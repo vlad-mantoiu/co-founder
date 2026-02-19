@@ -7,8 +7,7 @@ Follows existing patterns from OnboardingService:
 - 404 pattern for unauthorized/not found
 """
 
-from datetime import datetime, timezone
-from typing import Any
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import select
@@ -19,7 +18,7 @@ from app.artifacts.generator import ArtifactGenerator
 from app.db.graph.strategy_graph import get_strategy_graph
 from app.db.models.artifact import Artifact
 from app.db.models.project import Project
-from app.schemas.artifacts import ArtifactType, GENERATION_ORDER
+from app.schemas.artifacts import GENERATION_ORDER, ArtifactType
 from app.services.graph_service import GraphService
 
 
@@ -89,9 +88,7 @@ class ArtifactService:
                 return ([], [at.value for at in GENERATION_ORDER])
 
             # Check for existing artifacts (for retry)
-            result = await session.execute(
-                select(Artifact).where(Artifact.project_id == project_id)
-            )
+            result = await session.execute(select(Artifact).where(Artifact.project_id == project_id))
             existing_artifacts_rows = result.scalars().all()
             existing_artifacts = {}
             for artifact_row in existing_artifacts_rows:
@@ -201,9 +198,7 @@ class ArtifactService:
                     synced_ids.append(str(artifact.id))
 
             for i in range(1, len(synced_ids)):
-                await graph_service.create_decision_edge(
-                    synced_ids[i - 1], synced_ids[i], "LEADS_TO"
-                )
+                await graph_service.create_decision_edge(synced_ids[i - 1], synced_ids[i], "LEADS_TO")
 
             return (artifact_ids, failed)
 
@@ -255,9 +250,7 @@ class ArtifactService:
                 return []
 
             # Get all artifacts for project
-            result = await session.execute(
-                select(Artifact).where(Artifact.project_id == project_id)
-            )
+            result = await session.execute(select(Artifact).where(Artifact.project_id == project_id))
             artifacts = result.scalars().all()
             return list(artifacts)
 
@@ -320,9 +313,7 @@ class ArtifactService:
             # Generate new content (single artifact, not cascade)
             # Need to get prior artifacts for context
             project_id = artifact.project_id
-            result = await session.execute(
-                select(Artifact).where(Artifact.project_id == project_id)
-            )
+            result = await session.execute(select(Artifact).where(Artifact.project_id == project_id))
             all_artifacts = result.scalars().all()
 
             prior_artifacts = {}
@@ -466,7 +457,7 @@ class ArtifactService:
             annotation = {
                 "section_id": section_id,
                 "note": note,
-                "created_at": datetime.now(timezone.utc).isoformat(),
+                "created_at": datetime.now(UTC).isoformat(),
             }
             artifact.annotations.append(annotation)
             flag_modified(artifact, "annotations")

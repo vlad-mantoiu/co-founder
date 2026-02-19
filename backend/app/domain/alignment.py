@@ -40,9 +40,7 @@ def compute_alignment_score(
     # Extract original feature names (lowercased for case-insensitive matching)
     core_features: list[dict] = original_scope.get("core_features", [])
     original_feature_names: list[str] = [
-        feature["name"].lower()
-        for feature in core_features
-        if isinstance(feature, dict) and "name" in feature
+        feature["name"].lower() for feature in core_features if isinstance(feature, dict) and "name" in feature
     ]
 
     # Edge case: no original features — return neutral score

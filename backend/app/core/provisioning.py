@@ -4,8 +4,6 @@ Idempotent provisioning that creates UserSettings + starter Project for new Cler
 Uses ON CONFLICT DO NOTHING for race-safe inserts.
 """
 
-from typing import Optional
-
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,7 +18,7 @@ from app.db.models.user_settings import UserSettings
 async def provision_user_on_first_login(
     clerk_user_id: str,
     jwt_claims: dict,
-    session: Optional[AsyncSession] = None,
+    session: AsyncSession | None = None,
 ) -> UserSettings:
     """Provision a new user on first login, creating UserSettings and starter project.
 
@@ -54,9 +52,7 @@ async def _do_provision(
 ) -> UserSettings:
     """Internal provisioning logic."""
     # Find bootstrapper tier
-    tier_result = await session.execute(
-        select(PlanTier).where(PlanTier.slug == "bootstrapper")
-    )
+    tier_result = await session.execute(select(PlanTier).where(PlanTier.slug == "bootstrapper"))
     tier = tier_result.scalar_one()
 
     # Extract profile from JWT claims
@@ -65,33 +61,33 @@ async def _do_provision(
     avatar_url = jwt_claims.get("image_url", "")
 
     # Race-safe idempotent insert
-    stmt = insert(UserSettings).values(
-        clerk_user_id=clerk_user_id,
-        plan_tier_id=tier.id,
-        email=email,
-        name=name,
-        avatar_url=avatar_url,
-        timezone="UTC",
-        onboarding_completed=False,
-        beta_features=settings.default_feature_flags,
-    ).on_conflict_do_nothing(index_elements=["clerk_user_id"])
+    stmt = (
+        insert(UserSettings)
+        .values(
+            clerk_user_id=clerk_user_id,
+            plan_tier_id=tier.id,
+            email=email,
+            name=name,
+            avatar_url=avatar_url,
+            timezone="UTC",
+            onboarding_completed=False,
+            beta_features=settings.default_feature_flags,
+        )
+        .on_conflict_do_nothing(index_elements=["clerk_user_id"])
+    )
 
     await session.execute(stmt)
     await session.commit()
 
     # Fetch the UserSettings (handles both new insert and no-op cases)
-    result = await session.execute(
-        select(UserSettings).where(UserSettings.clerk_user_id == clerk_user_id)
-    )
+    result = await session.execute(select(UserSettings).where(UserSettings.clerk_user_id == clerk_user_id))
     user_settings = result.scalar_one()
 
     # Eagerly load plan_tier relationship
     await session.refresh(user_settings, ["plan_tier"])
 
     # Check if user has any projects
-    project_count_result = await session.execute(
-        select(Project).where(Project.clerk_user_id == clerk_user_id)
-    )
+    project_count_result = await session.execute(select(Project).where(Project.clerk_user_id == clerk_user_id))
     existing_projects = project_count_result.scalars().all()
 
     # Create starter project if user has none

@@ -173,15 +173,13 @@ async def start_generation(
     await _verify_project_ownership(request.project_id, user.user_id)
 
     # Check for blocking gate
-    from app.services.gate_service import GateService
     from app.agent.runner_fake import RunnerFake
+    from app.services.gate_service import GateService
 
     gate_service = GateService(runner=RunnerFake(), session_factory=get_session_factory())
     is_blocked = await gate_service.check_gate_blocking(request.project_id)
     if is_blocked:
-        raise HTTPException(
-            status_code=409, detail="Pending gate must be resolved first"
-        )
+        raise HTTPException(status_code=409, detail="Pending gate must be resolved first")
 
     # Predict build version (non-DB-write, for response)
     build_version = await _predicted_build_version(request.project_id)
@@ -189,12 +187,15 @@ async def start_generation(
     # Create job
     job_id = str(_uuid.uuid4())
     state_machine = JobStateMachine(redis)
-    await state_machine.create_job(job_id, {
-        "project_id": request.project_id,
-        "user_id": user.user_id,
-        "goal": request.goal,
-        "tier": "bootstrapper",  # will be overridden by real runner; safe default
-    })
+    await state_machine.create_job(
+        job_id,
+        {
+            "project_id": request.project_id,
+            "user_id": user.user_id,
+            "goal": request.goal,
+            "tier": "bootstrapper",  # will be overridden by real runner; safe default
+        },
+    )
 
     # Enqueue
     queue_manager = QueueManager(redis)
@@ -202,6 +203,7 @@ async def start_generation(
 
     # Trigger background worker
     from app.queue.worker import process_next_job
+
     background_tasks.add_task(process_next_job, redis=redis)
 
     return StartGenerationResponse(
@@ -294,6 +296,7 @@ async def cancel_generation(
     if sandbox_id:
         try:
             from e2b import Sandbox
+
             sandbox = Sandbox.connect(sandbox_id)
             sandbox.kill()
         except Exception:
@@ -335,8 +338,8 @@ async def preview_viewed(
         raise HTTPException(status_code=422, detail="Job has no associated project_id")
 
     # Create solidification gate via GateService (idempotent)
-    from app.services.gate_service import GateService
     from app.agent.runner_fake import RunnerFake
+    from app.services.gate_service import GateService
 
     gate_service = GateService(runner=RunnerFake(), session_factory=get_session_factory())
 

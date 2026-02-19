@@ -1,21 +1,22 @@
 """Domain tests for artifact model and schema validation."""
 
-import pytest
 from datetime import datetime
+
+import pytest
 from pydantic import ValidationError
 
-from app.schemas.artifacts import (
-    ArtifactType,
-    ProductBriefContent,
-    MvpScopeContent,
-    MilestonesContent,
-    RiskLogContent,
-    HowItWorksContent,
-    ArtifactResponse,
-    ArtifactAnnotation,
-    GENERATION_ORDER,
-)
 from app.agent.runner_fake import RunnerFake
+from app.schemas.artifacts import (
+    GENERATION_ORDER,
+    ArtifactAnnotation,
+    ArtifactResponse,
+    ArtifactType,
+    HowItWorksContent,
+    MilestonesContent,
+    MvpScopeContent,
+    ProductBriefContent,
+    RiskLogContent,
+)
 
 pytestmark = pytest.mark.unit
 

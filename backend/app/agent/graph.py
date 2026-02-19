@@ -171,12 +171,14 @@ def create_production_graph(database_url: str | None = None, checkpointer=None):
     # Legacy fallback: try sync PostgresSaver for backward compat
     if database_url is not None:
         from app.core.config import get_settings
+
         settings = get_settings()
         db_url = database_url or settings.database_url
 
         if db_url and "postgresql" in db_url:
             try:
                 from langgraph.checkpoint.postgres import PostgresSaver
+
                 sync_url = db_url.replace("+asyncpg", "").replace("+psycopg", "")
                 ckpt = PostgresSaver.from_conn_string(sync_url)
                 return create_cofounder_graph(ckpt)

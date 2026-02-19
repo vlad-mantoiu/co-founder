@@ -5,8 +5,8 @@ the JobStateMachine transitions, persisting sandbox build results.
 """
 
 import uuid
-from datetime import datetime, timezone
-from typing import Callable
+from collections.abc import Callable
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import structlog
@@ -82,7 +82,7 @@ class GenerationService:
             agent_state = create_initial_state(
                 user_id=user_id,
                 project_id=project_id,
-                project_path=f"/home/user/project",
+                project_path="/home/user/project",
                 goal=job_data.get("goal", ""),
                 session_id=job_id,
             )
@@ -92,7 +92,9 @@ class GenerationService:
             final_state = await self.runner.run(agent_state)
 
             # 4. DEPS — create E2B sandbox, write generated files
-            await state_machine.transition(job_id, JobStatus.DEPS, "Provisioning E2B sandbox and installing dependencies")
+            await state_machine.transition(
+                job_id, JobStatus.DEPS, "Provisioning E2B sandbox and installing dependencies"
+            )
             sandbox = self.sandbox_runtime_factory()
             await sandbox.start()
 
@@ -104,16 +106,8 @@ class GenerationService:
             workspace_path = "/home/user/project"
             for rel_path, file_change in working_files.items():
                 # FileChange is a TypedDict — content is in the 'content' key
-                content = (
-                    file_change.get("content", "")
-                    if isinstance(file_change, dict)
-                    else str(file_change)
-                )
-                abs_path = (
-                    rel_path
-                    if rel_path.startswith("/")
-                    else f"{workspace_path}/{rel_path}"
-                )
+                content = file_change.get("content", "") if isinstance(file_change, dict) else str(file_change)
+                abs_path = rel_path if rel_path.startswith("/") else f"{workspace_path}/{rel_path}"
                 await sandbox.write_file(abs_path, content)
 
             # 5. CHECKS — basic health check
@@ -135,9 +129,7 @@ class GenerationService:
                     preview_url=preview_url,
                 )
             except Exception:
-                logger.warning(
-                    "mvp_built_hook_failed", job_id=job_id, exc_info=True
-                )
+                logger.warning("mvp_built_hook_failed", job_id=job_id, exc_info=True)
 
             # Emit artifact_generated business event on successful build
             await emit_business_event("artifact_generated", user_id=user_id)
@@ -204,7 +196,9 @@ class GenerationService:
             await state_machine.transition(job_id, JobStatus.STARTING, "Starting iteration build pipeline")
 
             # 2. SCAFFOLD — try to reconnect to previous sandbox, fall back to fresh
-            await state_machine.transition(job_id, JobStatus.SCAFFOLD, "Reconnecting to existing sandbox or scaffolding fresh state")
+            await state_machine.transition(
+                job_id, JobStatus.SCAFFOLD, "Reconnecting to existing sandbox or scaffolding fresh state"
+            )
 
             sandbox_reconnected = False
             sandbox = None
@@ -215,8 +209,7 @@ class GenerationService:
                     sandbox = self.sandbox_runtime_factory()
                     await sandbox.connect(previous_sandbox_id)
                     sandbox_reconnected = True
-                    logger.info("iteration_sandbox_reconnected", job_id=job_id,
-                                previous_sandbox_id=previous_sandbox_id)
+                    logger.info("iteration_sandbox_reconnected", job_id=job_id, previous_sandbox_id=previous_sandbox_id)
                 except Exception as connect_exc:
                     logger.warning(
                         "iteration_sandbox_unavailable",
@@ -262,16 +255,8 @@ class GenerationService:
             working_files: dict = final_state.get("working_files", {})
             workspace_path = "/home/user/project"
             for rel_path, file_change in working_files.items():
-                content = (
-                    file_change.get("content", "")
-                    if isinstance(file_change, dict)
-                    else str(file_change)
-                )
-                abs_path = (
-                    rel_path
-                    if rel_path.startswith("/")
-                    else f"{workspace_path}/{rel_path}"
-                )
+                content = file_change.get("content", "") if isinstance(file_change, dict) else str(file_change)
+                abs_path = rel_path if rel_path.startswith("/") else f"{workspace_path}/{rel_path}"
                 await sandbox.write_file(abs_path, content)
 
             # 5. CHECKS — run health check, attempt rollback if fails (GENL-03)
@@ -294,18 +279,16 @@ class GenerationService:
                     rollback_result = await self.runner.run(rollback_state)
                     rollback_files: dict = rollback_result.get("working_files", {})
                     for rel_path, file_change in rollback_files.items():
-                        content = (
-                            file_change.get("content", "")
-                            if isinstance(file_change, dict)
-                            else str(file_change)
-                        )
-                        abs_path = (
-                            rel_path if rel_path.startswith("/") else f"{workspace_path}/{rel_path}"
-                        )
+                        content = file_change.get("content", "") if isinstance(file_change, dict) else str(file_change)
+                        abs_path = rel_path if rel_path.startswith("/") else f"{workspace_path}/{rel_path}"
                         await sandbox.write_file(abs_path, content)
                 except Exception as rollback_exc:
-                    logger.error("iteration_rollback_failed", job_id=job_id,
-                                 error=str(rollback_exc), error_type=type(rollback_exc).__name__)
+                    logger.error(
+                        "iteration_rollback_failed",
+                        job_id=job_id,
+                        error=str(rollback_exc),
+                        error_type=type(rollback_exc).__name__,
+                    )
 
                 # Mark as needs-review even if rollback ran
                 await state_machine.transition(
@@ -332,9 +315,7 @@ class GenerationService:
                     change_request=change_request,
                 )
             except Exception:
-                logger.warning(
-                    "iteration_timeline_event_failed", job_id=job_id, exc_info=True
-                )
+                logger.warning("iteration_timeline_event_failed", job_id=job_id, exc_info=True)
 
             return {
                 "sandbox_id": sandbox_id,
@@ -386,8 +367,9 @@ class GenerationService:
         Returns:
             Version string like "build_v0_1"
         """
-        from app.db.models.job import Job
         import uuid as _uuid
+
+        from app.db.models.job import Job
 
         try:
             factory = get_session_factory()
@@ -441,9 +423,7 @@ class GenerationService:
         factory = get_session_factory()
         async with factory() as session:
             # Load project
-            result = await session.execute(
-                select(Project).where(Project.id == pid)
-            )
+            result = await session.execute(select(Project).where(Project.id == pid))
             project = result.scalar_one_or_none()
             if project is None:
                 logger.warning("mvp_built_hook_project_not_found", project_id=project_id)
@@ -463,7 +443,7 @@ class GenerationService:
             # Directly advance stage to 3 (MVP Built / Development)
             from_stage_value = project.stage_number
             project.stage_number = 3
-            project.stage_entered_at = datetime.now(timezone.utc)
+            project.stage_entered_at = datetime.now(UTC)
 
             # Log transition event
             transition_event = StageEvent(
@@ -495,17 +475,20 @@ class GenerationService:
         # Sync to Neo4j strategy graph (MVPS-04, non-fatal)
         try:
             from app.db.graph.strategy_graph import get_strategy_graph
+
             strategy_graph = get_strategy_graph()
-            await strategy_graph.upsert_milestone_node({
-                "id": f"mvp_built_{project_id}",
-                "project_id": project_id,
-                "title": "Stage: MVP Built",
-                "status": "done",
-                "type": "milestone",
-                "why": "MVP build completed",
-                "impact_summary": f"Build {build_version} deployed to {preview_url}",
-                "created_at": datetime.now(timezone.utc).isoformat(),
-            })
+            await strategy_graph.upsert_milestone_node(
+                {
+                    "id": f"mvp_built_{project_id}",
+                    "project_id": project_id,
+                    "title": "Stage: MVP Built",
+                    "status": "done",
+                    "type": "milestone",
+                    "why": "MVP build completed",
+                    "impact_summary": f"Build {build_version} deployed to {preview_url}",
+                    "created_at": datetime.now(UTC).isoformat(),
+                }
+            )
         except Exception:
             logger.warning("neo4j_mvp_built_sync_failed", project_id=project_id, exc_info=True)
 

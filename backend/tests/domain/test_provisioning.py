@@ -25,10 +25,7 @@ pytestmark = pytest.mark.integration
 async def engine() -> AsyncEngine:
     """Create PostgreSQL test engine (supports JSONB)."""
     # Use test database URL from env, or default to local postgres
-    db_url = os.getenv(
-        "TEST_DATABASE_URL",
-        "postgresql+asyncpg://cofounder:cofounder@localhost:5432/cofounder_test"
-    )
+    db_url = os.getenv("TEST_DATABASE_URL", "postgresql+asyncpg://cofounder:cofounder@localhost:5432/cofounder_test")
 
     engine = create_async_engine(
         db_url,
@@ -82,9 +79,7 @@ async def bootstrapper_tier(session: AsyncSession) -> PlanTier:
 # Tests
 
 
-async def test_provision_creates_user_settings(
-    session: AsyncSession, bootstrapper_tier: PlanTier
-):
+async def test_provision_creates_user_settings(session: AsyncSession, bootstrapper_tier: PlanTier):
     """Test that provision_user_on_first_login creates UserSettings with bootstrapper tier."""
     clerk_user_id = "user_test_001"
     jwt_claims = {
@@ -109,9 +104,7 @@ async def test_provision_creates_user_settings(
     assert user_settings.beta_features is not None
 
 
-async def test_provision_is_idempotent(
-    session: AsyncSession, bootstrapper_tier: PlanTier
-):
+async def test_provision_is_idempotent(session: AsyncSession, bootstrapper_tier: PlanTier):
     """Test that provisioning the same user twice creates only one UserSettings row."""
     clerk_user_id = "user_test_002"
     jwt_claims = {
@@ -127,16 +120,12 @@ async def test_provision_is_idempotent(
     assert user_settings_1.id == user_settings_2.id
 
     # Verify only one UserSettings row exists
-    result = await session.execute(
-        select(UserSettings).where(UserSettings.clerk_user_id == clerk_user_id)
-    )
+    result = await session.execute(select(UserSettings).where(UserSettings.clerk_user_id == clerk_user_id))
     all_settings = result.scalars().all()
     assert len(all_settings) == 1
 
 
-async def test_provision_creates_starter_project(
-    session: AsyncSession, bootstrapper_tier: PlanTier
-):
+async def test_provision_creates_starter_project(session: AsyncSession, bootstrapper_tier: PlanTier):
     """Test that provisioning creates a starter project with stage_number=None."""
     clerk_user_id = "user_test_003"
     jwt_claims = {
@@ -148,9 +137,7 @@ async def test_provision_creates_starter_project(
     await provision_user_on_first_login(clerk_user_id, jwt_claims, session)
 
     # Verify starter project created
-    result = await session.execute(
-        select(Project).where(Project.clerk_user_id == clerk_user_id)
-    )
+    result = await session.execute(select(Project).where(Project.clerk_user_id == clerk_user_id))
     projects = result.scalars().all()
 
     assert len(projects) == 1
@@ -159,9 +146,7 @@ async def test_provision_creates_starter_project(
     assert projects[0].status == "active"
 
 
-async def test_provision_no_duplicate_projects(
-    session: AsyncSession, bootstrapper_tier: PlanTier
-):
+async def test_provision_no_duplicate_projects(session: AsyncSession, bootstrapper_tier: PlanTier):
     """Test that provisioning the same user twice creates only one project."""
     clerk_user_id = "user_test_004"
     jwt_claims = {
@@ -174,16 +159,12 @@ async def test_provision_no_duplicate_projects(
     await provision_user_on_first_login(clerk_user_id, jwt_claims, session)
 
     # Verify only one project exists
-    result = await session.execute(
-        select(Project).where(Project.clerk_user_id == clerk_user_id)
-    )
+    result = await session.execute(select(Project).where(Project.clerk_user_id == clerk_user_id))
     projects = result.scalars().all()
     assert len(projects) == 1
 
 
-async def test_provision_extracts_jwt_claims(
-    session: AsyncSession, bootstrapper_tier: PlanTier
-):
+async def test_provision_extracts_jwt_claims(session: AsyncSession, bootstrapper_tier: PlanTier):
     """Test that provisioning extracts profile fields from JWT claims."""
     clerk_user_id = "user_test_005"
     jwt_claims = {
@@ -202,9 +183,7 @@ async def test_provision_extracts_jwt_claims(
     assert user_settings.avatar_url == "https://example.com/claims-avatar.jpg"
 
     # Verify company_name used for project name
-    result = await session.execute(
-        select(Project).where(Project.clerk_user_id == clerk_user_id)
-    )
+    result = await session.execute(select(Project).where(Project.clerk_user_id == clerk_user_id))
     projects = result.scalars().all()
     assert len(projects) == 1
     assert projects[0].name == "Test Company Inc"

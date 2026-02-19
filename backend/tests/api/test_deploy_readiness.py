@@ -8,8 +8,6 @@ Tests cover:
 5. test_deploy_readiness_user_isolation — DEPL-03: Different user_id → 404.
 """
 
-import uuid
-from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -37,8 +35,10 @@ def user_b():
 
 def override_auth(user: ClerkUser):
     """Create auth override for a specific user."""
+
     async def _override():
         return user
+
     return _override
 
 
@@ -57,8 +57,10 @@ def _mock_user_settings():
 
 def _create_test_project(api_client, user: ClerkUser, name: str = "Deploy Test Project") -> str:
     """Create a project via API and return its ID."""
-    from fastapi import FastAPI
     from unittest.mock import Mock
+
+    from fastapi import FastAPI
+
     app: FastAPI = api_client.app
 
     async def mock_provision(*args, **kwargs):
@@ -91,6 +93,7 @@ def _create_test_project(api_client, user: ClerkUser, name: str = "Deploy Test P
 def test_deploy_readiness_green(api_client, user_a):
     """DEPL-01: Project with complete workspace returns overall_status='green', ready=True."""
     from fastapi import FastAPI
+
     from app.services.deploy_readiness_service import DeployReadinessService
 
     project_id = _create_test_project(api_client, user_a, name="Green Deploy Project")
@@ -105,12 +108,33 @@ def test_deploy_readiness_green(api_client, user_a):
         "blocking_issues": [],
         "warnings": [],
         "deploy_paths": [
-            {"id": "vercel", "name": "Vercel", "description": "...", "difficulty": "easy",
-             "cost": "$0", "tradeoffs": ["fast"], "steps": ["push to github"]},
-            {"id": "railway", "name": "Railway", "description": "...", "difficulty": "easy",
-             "cost": "$5/mo", "tradeoffs": ["managed"], "steps": ["connect github"]},
-            {"id": "aws", "name": "AWS ECS Fargate", "description": "...", "difficulty": "hard",
-             "cost": "$30/mo", "tradeoffs": ["full control"], "steps": ["build docker image"]},
+            {
+                "id": "vercel",
+                "name": "Vercel",
+                "description": "...",
+                "difficulty": "easy",
+                "cost": "$0",
+                "tradeoffs": ["fast"],
+                "steps": ["push to github"],
+            },
+            {
+                "id": "railway",
+                "name": "Railway",
+                "description": "...",
+                "difficulty": "easy",
+                "cost": "$5/mo",
+                "tradeoffs": ["managed"],
+                "steps": ["connect github"],
+            },
+            {
+                "id": "aws",
+                "name": "AWS ECS Fargate",
+                "description": "...",
+                "difficulty": "hard",
+                "cost": "$30/mo",
+                "tradeoffs": ["full control"],
+                "steps": ["build docker image"],
+            },
         ],
         "recommended_path": "vercel",
     }
@@ -135,6 +159,7 @@ def test_deploy_readiness_green(api_client, user_a):
 def test_deploy_readiness_red_no_build(api_client, user_a):
     """DEPL-01: Project with no READY jobs returns red status with 'No build completed yet' blocking issue."""
     from fastapi import FastAPI
+
     from app.services.deploy_readiness_service import DeployReadinessService
 
     project_id = _create_test_project(api_client, user_a, name="No Build Project")
@@ -168,9 +193,7 @@ def test_deploy_readiness_red_no_build(api_client, user_a):
     assert data["ready"] is False, "Expected ready=False for red status"
     assert len(data["blocking_issues"]) > 0, "Expected at least one blocking issue"
     titles = [issue["title"] for issue in data["blocking_issues"]]
-    assert any("No build" in t for t in titles), (
-        f"Expected 'No build completed yet' in blocking issues, got: {titles}"
-    )
+    assert any("No build" in t for t in titles), f"Expected 'No build completed yet' in blocking issues, got: {titles}"
 
     app.dependency_overrides.clear()
 
@@ -183,6 +206,7 @@ def test_deploy_readiness_red_no_build(api_client, user_a):
 def test_deploy_readiness_yellow_warnings(api_client, user_a):
     """DEPL-01: Workspace missing README returns overall_status='yellow' with warnings."""
     from fastapi import FastAPI
+
     from app.services.deploy_readiness_service import DeployReadinessService
 
     project_id = _create_test_project(api_client, user_a, name="Yellow Warnings Project")
@@ -204,12 +228,33 @@ def test_deploy_readiness_yellow_warnings(api_client, user_a):
             }
         ],
         "deploy_paths": [
-            {"id": "vercel", "name": "Vercel", "description": "...", "difficulty": "easy",
-             "cost": "$0", "tradeoffs": ["no cold starts"], "steps": ["push to github"]},
-            {"id": "railway", "name": "Railway", "description": "...", "difficulty": "easy",
-             "cost": "$5/mo", "tradeoffs": ["managed"], "steps": ["connect github"]},
-            {"id": "aws", "name": "AWS ECS Fargate", "description": "...", "difficulty": "hard",
-             "cost": "$30/mo", "tradeoffs": ["full control"], "steps": ["build docker"]},
+            {
+                "id": "vercel",
+                "name": "Vercel",
+                "description": "...",
+                "difficulty": "easy",
+                "cost": "$0",
+                "tradeoffs": ["no cold starts"],
+                "steps": ["push to github"],
+            },
+            {
+                "id": "railway",
+                "name": "Railway",
+                "description": "...",
+                "difficulty": "easy",
+                "cost": "$5/mo",
+                "tradeoffs": ["managed"],
+                "steps": ["connect github"],
+            },
+            {
+                "id": "aws",
+                "name": "AWS ECS Fargate",
+                "description": "...",
+                "difficulty": "hard",
+                "cost": "$30/mo",
+                "tradeoffs": ["full control"],
+                "steps": ["build docker"],
+            },
         ],
         "recommended_path": "railway",
     }
@@ -233,8 +278,9 @@ def test_deploy_readiness_yellow_warnings(api_client, user_a):
 def test_deploy_paths_included(api_client, user_a):
     """DEPL-02: Response has deploy_paths with exactly 3 options (Vercel, Railway, AWS)."""
     from fastapi import FastAPI
-    from app.services.deploy_readiness_service import DeployReadinessService, _deploy_path_to_dict
+
     from app.domain.deploy_checks import DEPLOY_PATHS
+    from app.services.deploy_readiness_service import DeployReadinessService, _deploy_path_to_dict
 
     project_id = _create_test_project(api_client, user_a, name="Deploy Paths Project")
     app: FastAPI = api_client.app
@@ -280,6 +326,7 @@ def test_deploy_paths_included(api_client, user_a):
 def test_deploy_readiness_user_isolation(api_client, user_a, user_b):
     """DEPL-03: Accessing project with different user_id returns 404."""
     from fastapi import FastAPI, HTTPException
+
     from app.services.deploy_readiness_service import DeployReadinessService
 
     # user_a creates the project

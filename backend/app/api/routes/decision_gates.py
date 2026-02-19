@@ -76,9 +76,7 @@ async def resolve_gate(
     """
     session_factory = get_session_factory()
     service = GateService(runner, session_factory)
-    return await service.resolve_gate(
-        user.user_id, gate_id, request.decision, request.action_text, request.park_note
-    )
+    return await service.resolve_gate(user.user_id, gate_id, request.decision, request.action_text, request.park_note)
 
 
 @router.get("/{gate_id}", response_model=GateStatusResponse)

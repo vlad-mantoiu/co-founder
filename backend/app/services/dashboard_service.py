@@ -3,8 +3,7 @@
 Orchestrates domain functions with database queries to provide full dashboard view.
 """
 
-from datetime import datetime, timezone
-from typing import Any
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import and_, func, select
@@ -23,7 +22,6 @@ from app.schemas.dashboard import (
     PendingDecision,
     RiskFlagResponse,
 )
-
 
 # Stage name mapping
 STAGE_NAMES = {
@@ -98,9 +96,7 @@ class DashboardService:
         next_milestone = self._get_next_milestone(stage_config)
 
         # Load artifacts
-        result = await session.execute(
-            select(Artifact).where(Artifact.project_id == project_id)
-        )
+        result = await session.execute(select(Artifact).where(Artifact.project_id == project_id))
         artifacts_rows = result.scalars().all()
 
         artifacts = [
@@ -164,17 +160,14 @@ class DashboardService:
             last_gate_decision_at=last_gate_decision_at,
             build_failure_count=build_failure_count,
             last_activity_at=project.updated_at,
-            now=datetime.now(timezone.utc),
+            now=datetime.now(UTC),
         )
 
         # Detect LLM risks
         llm_risks = await detect_llm_risks(user_id, session)
 
         # Combine system + LLM risks
-        all_risks = risks + [
-            {"type": r["type"], "rule": r["rule"], "message": r["message"]}
-            for r in llm_risks
-        ]
+        all_risks = risks + [{"type": r["type"], "rule": r["rule"], "message": r["message"]} for r in llm_risks]
 
         risk_flags = [
             RiskFlagResponse(
