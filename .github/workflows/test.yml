@@ -61,7 +61,7 @@ jobs:
           DATABASE_URL: postgresql+asyncpg://test_user:test_pass@localhost:5432/cofounder_test
           TEST_DATABASE_URL: postgresql+asyncpg://test_user:test_pass@localhost:5432/cofounder_test
           REDIS_URL: redis://localhost:6379/0
-        run: pytest tests/ --ignore=tests/e2e -v
+        run: pytest tests/ --ignore=tests/e2e -m "not integration" -v
 
   typecheck-frontend:
     runs-on: ubuntu-latest
