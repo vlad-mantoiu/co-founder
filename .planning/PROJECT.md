@@ -8,16 +8,18 @@ An AI-powered Technical Co-Founder SaaS that turns a non-technical founder's ide
 
 A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions (not coding decisions) the entire way.
 
-## Current Milestone: v0.2 Production Ready
+## Current Milestone: v0.3 Marketing Separation
 
-**Goal:** Take the v0.1 MVP from working-with-fakes to production-live with real LLM calls, real payments, and real ops.
+**Goal:** Separate the static marketing site from the authenticated app so marketing pages load instantly without Clerk overhead, and the parent brand (getinsourced.ai) has its own fast static site on CloudFront + S3.
 
 **Target features:**
-- End-to-end real LLM integration (true dynamic interview, real artifacts, real code gen)
-- Full Stripe subscription billing (checkout, webhooks, tiers, upgrade/downgrade, portal)
-- CI/CD pipeline (GitHub Actions CI, automated ECS deploy)
-- AWS native monitoring (CloudWatch metrics, SNS alerts)
-- Tech debt cleanup (deferred tests, stubs)
+- Standalone static marketing site at getinsourced.ai (Next.js static export on CloudFront + S3)
+- Co-Founder product page at getinsourced.ai/cofounder (moved from cofounder.getinsourced.ai/)
+- cofounder.getinsourced.ai serves authenticated app only (redirect to dashboard/sign-in)
+- Clerk stripped from marketing site entirely — zero auth JS on public pages
+- CDK stack for CloudFront + S3 hosting
+- CI pipeline to deploy marketing site to S3 on push
+- Multi-product ready structure (future product pages under getinsourced.ai/)
 
 ## Current State
 
@@ -45,7 +47,12 @@ A non-technical founder can go from idea to running MVP preview in under 10 minu
 - ✓ Neo4j knowledge graph integration — existing
 - ✓ Subscription tiers with usage tracking (bootstrapper/partner/cto_scale) — existing
 - ✓ GitHub App integration for repo management — existing
-- ✓ Marketing site with pricing — existing
+- ✓ Marketing site with pricing — existing (moving to separate static site in v0.3)
+- ✓ Real LLM integration with RunnerReal wired to LangGraph — v0.2
+- ✓ Full Stripe billing with checkout, webhooks, tier enforcement, portal — v0.2
+- ✓ CI/CD pipeline with GitHub Actions and automated ECS deploy — v0.2
+- ✓ AWS CloudWatch monitoring with SNS alerts — v0.2
+- ✓ Structured logging with structlog — v0.2
 - ✓ ECS Fargate deployment on AWS — existing
 - ✓ First login provisions workspace with dashboard shell and beta flags — v0.1
 - ✓ Guided onboarding captures founder intent via dynamic LLM-tailored questions — v0.1
@@ -74,14 +81,17 @@ A non-technical founder can go from idea to running MVP preview in under 10 minu
 
 ### Active
 
-<!-- v0.2 Production Ready scope -->
+<!-- v0.3 Marketing Separation scope -->
 
-- [ ] Real LLM integration — true dynamic Claude-powered interview, real artifact generation, RunnerReal wired to LangGraph
-- [ ] Real code generation via existing LangGraph pipeline with E2B sandbox execution
-- [ ] Full Stripe billing — checkout, webhooks, tier enforcement, upgrade/downgrade, billing portal
-- [ ] CI/CD pipeline — GitHub Actions for tests on PR, automated ECS deploy
-- [ ] AWS monitoring — CloudWatch metrics, SNS alerts, health check alarms
-- [ ] Tech debt cleanup — fix deferred tests, address stubs
+- [ ] Static marketing site (Next.js static export) with parent brand landing at getinsourced.ai
+- [ ] Co-Founder product page at getinsourced.ai/cofounder
+- [ ] Public pricing, about, contact, privacy, terms pages on marketing site
+- [ ] CloudFront + S3 infrastructure for marketing site hosting
+- [ ] cofounder.getinsourced.ai root redirects to /dashboard (authed) or /sign-in (not authed)
+- [ ] Clerk removed from marketing site — auth only on cofounder.getinsourced.ai
+- [ ] Marketing CTAs link to cofounder.getinsourced.ai/sign-up
+- [ ] CI pipeline deploys marketing site to S3 on push to main
+- [ ] Multi-product structure (getinsourced.ai/{product} pattern)
 
 ### Out of Scope
 
@@ -135,6 +145,9 @@ Non-technical, product-led founders who think in roadmaps, reports, and artifact
 | Authenticated polling over EventSource | EventSource cannot set Authorization headers — causes 401 on protected routes | ✓ Good — apiFetch + setInterval pattern with connectionFailed detection |
 | Project-scoped routes under /projects/[id]/* | Consistent URL structure, path params via useParams instead of query strings | ✓ Good — all project pages use consistent pattern |
 | Pydantic aliases for reserved keywords | GraphEdge uses from/to which are Python reserved words | ✓ Good — Field(alias="from") with populate_by_name=True |
+| Separate static marketing site on CloudFront + S3 | Marketing pages don't need Clerk/auth — ClerkProvider adds ~200KB JS and forces dynamic SSR. Separate deploy enables CDN-speed marketing with independent release cycle | — Pending |
+| Next.js static export for marketing site | Same stack as main app, no learning curve. `output: 'export'` generates pure HTML/CSS. Monorepo at `/marketing` | — Pending |
+| Multi-product URL structure: getinsourced.ai/{product} | Parent brand hosts multiple AI agent products. Each product gets its own marketing page under the parent domain | — Pending |
 
 ---
-*Last updated: 2026-02-18 after v0.2 milestone started*
+*Last updated: 2026-02-19 after v0.3 milestone started*

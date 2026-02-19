@@ -28,3 +28,23 @@
 
 ---
 
+## v0.2 Production Ready (Shipped: 2026-02-19)
+
+**Phases completed:** 5 phases (13-17), 24 plans
+**Timeline:** 2 days (2026-02-18 to 2026-02-19)
+**Requirements:** 43/43 satisfied
+
+**Key accomplishments:**
+1. RunnerReal live with real Claude LLM calls — dynamic interview, real artifact generation, real code gen
+2. Full Stripe subscription billing — checkout, webhooks, tier enforcement, upgrade/downgrade, portal
+3. CI/CD pipeline — GitHub Actions test gate + automated ECS deploy via workflow_run
+4. AWS CloudWatch monitoring — metrics, SNS alerts, health check alarms
+5. Structured logging migration to structlog with stdlib bridge
+6. Tech debt cleanup — 16 pre-existing test failures fixed, 751 ruff lint errors eliminated
+
+**Tech debt carried forward:**
+- Neo4j dual-write non-fatal — graph empty when Neo4j not configured (medium)
+- Pending CI verification: workflow_run gate and path filtering (low — manual verification needed)
+
+---
+
