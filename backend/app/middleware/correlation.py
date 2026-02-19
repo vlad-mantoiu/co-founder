@@ -2,17 +2,15 @@
 
 Provides:
 - ASGI middleware to inject correlation IDs into every request
-- Logging filter to include correlation_id in all log records
 - Helper function to access correlation ID from request context
+
+Note: Logging configuration is handled by app.core.logging (structlog).
 """
 
-import logging
 import uuid
-from typing import Any
 
 from asgi_correlation_id import CorrelationIdMiddleware
 from asgi_correlation_id.context import correlation_id
-from asgi_correlation_id.log_filters import CorrelationIdFilter
 from fastapi import FastAPI
 
 
@@ -34,27 +32,6 @@ def setup_correlation_middleware(app: FastAPI) -> None:
     )
 
 
-def setup_logging() -> None:
-    """Configure logging to include correlation IDs in all log records.
-
-    Adds correlation_id field to every log entry, enabling request tracing
-    across service layers.
-    """
-    # Get root logger
-    logger = logging.getLogger()
-
-    # Add CorrelationIdFilter to all handlers
-    for handler in logger.handlers:
-        handler.addFilter(CorrelationIdFilter())
-
-    # Set format to include correlation_id
-    formatter = logging.Formatter(
-        "%(asctime)s %(levelname)s [%(correlation_id)s] %(name)s %(message)s"
-    )
-    for handler in logger.handlers:
-        handler.setFormatter(formatter)
-
-
 def get_correlation_id() -> str | None:
     """Get the current request's correlation ID.
 
@@ -68,4 +45,4 @@ def get_correlation_id() -> str | None:
         return None
 
 
-__all__ = ["setup_correlation_middleware", "setup_logging", "get_correlation_id"]
+__all__ = ["setup_correlation_middleware", "get_correlation_id"]

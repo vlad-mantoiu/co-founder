@@ -1,9 +1,21 @@
 """AI Co-Founder Backend: FastAPI application entry point."""
 
-import logging
 import signal
 import uuid
 from contextlib import asynccontextmanager
+
+# CRITICAL ORDER: configure_structlog MUST be called before all other app imports
+# to avoid the structlog cache pitfall (structlog caches the processor chain on first use).
+from app.core.logging import configure_structlog
+from app.core.config import get_settings as _get_settings_early
+
+_early_settings = _get_settings_early()
+configure_structlog(
+    log_level="DEBUG" if _early_settings.debug else "INFO",
+    json_logs=not _early_settings.debug,
+)
+
+import structlog
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,11 +27,10 @@ from app.db import init_db, close_db, init_redis, close_redis
 from app.db.seed import seed_plan_tiers
 from app.middleware.correlation import (
     setup_correlation_middleware,
-    setup_logging,
     get_correlation_id,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 def validate_price_map() -> None:
@@ -48,39 +59,34 @@ async def lifespan(app: FastAPI):
 
     def handle_sigterm(signum, frame):
         app.state.shutting_down = True
-        logger.info("SIGTERM received - health check will return 503, draining connections")
+        logger.info("sigterm_received", action="health_check_503_draining_connections")
 
     signal.signal(signal.SIGTERM, handle_sigterm)
 
     # Startup
     settings = get_settings()
-    print(f"Starting {settings.app_name}...")
-    print(f"Debug mode: {settings.debug}")
-
-    # Setup correlation ID logging
-    setup_logging()
-    print("Correlation ID logging configured.")
+    logger.info("startup_begin", app_name=settings.app_name, debug=settings.debug)
 
     await init_db()
-    print("Database initialized.")
+    logger.info("db_initialized")
 
     await init_redis()
-    print("Redis initialized.")
+    logger.info("redis_initialized")
 
     await seed_plan_tiers()
-    print("Plan tiers seeded.")
+    logger.info("plan_tiers_seeded")
 
     validate_price_map()
-    print("Stripe PRICE_MAP validated.")
+    logger.info("stripe_price_map_validated")
 
     # Initialize Neo4j schema (non-fatal)
     try:
         from app.db.graph.strategy_graph import get_strategy_graph
         strategy_graph = get_strategy_graph()
         await strategy_graph.initialize_schema()
-        print("Neo4j strategy graph schema initialized.")
+        logger.info("neo4j_schema_initialized")
     except Exception as e:
-        print(f"Neo4j initialization skipped: {e}")
+        logger.info("neo4j_schema_skipped", reason=str(e))
 
     # Initialize LangGraph checkpointer (production: AsyncPostgresSaver, fallback: MemorySaver)
     try:
@@ -95,22 +101,22 @@ async def lifespan(app: FastAPI):
             app.state._checkpointer_cm = checkpointer
             app.state.checkpointer = await checkpointer.__aenter__()
             await app.state.checkpointer.setup()  # idempotent — creates tables if missing
-            print("LangGraph AsyncPostgresSaver checkpointer initialized.")
+            logger.info("checkpointer_initialized", type="AsyncPostgresSaver")
         else:
             from langgraph.checkpoint.memory import MemorySaver
             app.state.checkpointer = MemorySaver()
             app.state._checkpointer_cm = None
-            print("LangGraph MemorySaver checkpointer initialized (no database_url).")
+            logger.info("checkpointer_initialized", type="MemorySaver", reason="no_database_url")
     except Exception as e:
         from langgraph.checkpoint.memory import MemorySaver
         app.state.checkpointer = MemorySaver()
         app.state._checkpointer_cm = None
-        print(f"LangGraph checkpointer fallback to MemorySaver: {e}")
+        logger.warning("checkpointer_fallback", type="MemorySaver", error=str(e), error_type=type(e).__name__)
 
     yield
 
     # Shutdown
-    print("Shutting down...")
+    logger.info("shutdown_begin")
     # Close checkpointer connection
     try:
         if hasattr(app.state, '_checkpointer_cm') and app.state._checkpointer_cm is not None:
@@ -124,6 +130,7 @@ async def lifespan(app: FastAPI):
         pass
     await close_redis()
     await close_db()
+    logger.info("shutdown_complete")
 
 
 async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
@@ -132,16 +139,20 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
     Logs errors server-side with full context, returns sanitized response to client.
     """
     debug_id = str(uuid.uuid4())
-    correlation_id = get_correlation_id()
+    corr_id = get_correlation_id()
 
     # Extract user_id if available
     user_id = getattr(request.state, "user_id", None)
 
-    # Log error with full context (correlation_id added by filter, also explicit)
     logger.error(
-        f"HTTP {exc.status_code} | debug_id={debug_id} | correlation_id={correlation_id} | "
-        f"path={request.url.path} | method={request.method} | "
-        f"user_id={user_id} | detail={exc.detail}"
+        "http_exception",
+        status_code=exc.status_code,
+        debug_id=debug_id,
+        correlation_id=corr_id,
+        path=request.url.path,
+        method=request.method,
+        user_id=user_id,
+        detail=exc.detail,
     )
 
     # Return sanitized response (no stack traces, no secrets)
@@ -157,17 +168,21 @@ async def generic_exception_handler(request: Request, exc: Exception) -> JSONRes
     Logs full exception with traceback, returns generic 500 to client.
     """
     debug_id = str(uuid.uuid4())
-    correlation_id = get_correlation_id()
+    corr_id = get_correlation_id()
 
     # Extract user_id if available
     user_id = getattr(request.state, "user_id", None)
 
-    # Log full exception with traceback (correlation_id added by filter, also explicit)
     logger.error(
-        f"Unhandled exception | debug_id={debug_id} | correlation_id={correlation_id} | "
-        f"path={request.url.path} | method={request.method} | "
-        f"user_id={user_id}",
-        exc_info=exc,
+        "unhandled_exception",
+        debug_id=debug_id,
+        correlation_id=corr_id,
+        path=request.url.path,
+        method=request.method,
+        user_id=user_id,
+        error=str(exc),
+        error_type=type(exc).__name__,
+        exc_info=True,
     )
 
     # Return generic 500 (no internal details leaked)
