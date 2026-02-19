@@ -227,7 +227,7 @@ Phases execute in numeric order: 18 → 19 → 20 → 21
 | 16. CloudWatch Observability | v0.2 | 3/3 | Complete | 2026-02-19 |
 | 17. CI/Deploy Pipeline Fix | v0.2 | 3/3 | Complete | 2026-02-19 |
 | 18. Marketing Site Build | v0.3 | 4/4 | Complete | 2026-02-19 |
-| 19. CloudFront + S3 Infrastructure | v0.3 | 2/2 | Complete | 2026-02-20 |
+| 19. CloudFront + S3 Infrastructure | v0.3 | Complete    | 2026-02-19 | 2026-02-20 |
 | 20. App Cleanup | v0.3 | 0/2 | Not started | - |
 | 21. Marketing CI/CD | v0.3 | 0/1 | Not started | - |
 
