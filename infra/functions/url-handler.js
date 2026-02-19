@@ -16,12 +16,13 @@ async function handler(event) {
     };
   }
 
-  // 2. Clean URL rewriting: /about -> /about.html
+  // 2. Clean URL rewriting: /about -> /about/index.html
+  // Next.js static export generates directory-style output (about/index.html, not about.html)
   // Skip root "/" (handled by defaultRootObject: 'index.html')
   // Skip paths with file extensions (e.g. /_next/static/..., /favicon.ico)
   // Skip paths ending with "/"
   if (uri !== '/' && !uri.includes('.') && !uri.endsWith('/')) {
-    request.uri = uri + '.html';
+    request.uri = uri + '/index.html';
     return request;
   }
 
