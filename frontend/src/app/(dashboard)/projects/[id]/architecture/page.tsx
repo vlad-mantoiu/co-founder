@@ -9,6 +9,8 @@ import { apiFetch } from "@/lib/api";
 import { GraphCanvas } from "@/components/graph/GraphCanvas";
 import type { GraphNodeData, GraphNodeStatus } from "@/components/graph/GraphNode";
 import type { LogLine } from "@/components/chat/types";
+import { AppArchitectureView } from "@/components/architecture/AppArchitectureView";
+import type { AppArchitectureViewProps } from "@/components/architecture/AppArchitectureView";
 
 interface PlanStep {
   id: string;
@@ -91,23 +93,36 @@ export default function ProjectArchitecturePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [nodeLogs] = useState<Record<string, LogLine[]>>({});
+  const [architectureData, setArchitectureData] = useState<AppArchitectureViewProps | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
-    async function fetchSession() {
-      if (!sessionId) {
-        setNodes([]);
-        setLoading(false);
-        return;
-      }
-
+    async function fetchData() {
       try {
-        const res = await apiFetch(`/api/agent/sessions/${sessionId}`, getToken);
-        if (!res.ok) throw new Error(`Failed to fetch session: ${res.status}`);
-        const data: SessionData = await res.json();
-        if (cancelled) return;
-        setNodes(data.plan && data.plan.length > 0 ? layoutNodes(data.plan) : []);
+        // Always fetch artifact data (shown when no ?session param)
+        const artifactRes = await apiFetch(`/api/artifacts/project/${projectId}`, getToken);
+        if (artifactRes.ok) {
+          const artifacts = await artifactRes.json();
+          const archArtifact = artifacts.find(
+            (a: { artifact_type: string; generation_status: string; current_content: AppArchitectureViewProps | null }) =>
+              a.artifact_type === "app_architecture" &&
+              a.generation_status === "idle" &&
+              a.current_content
+          );
+          if (archArtifact && !cancelled) {
+            setArchitectureData(archArtifact.current_content);
+          }
+        }
+
+        // If we have a session param, also load the session graph
+        if (sessionId) {
+          const res = await apiFetch(`/api/agent/sessions/${sessionId}`, getToken);
+          if (!res.ok) throw new Error(`Failed to fetch session: ${res.status}`);
+          const data: SessionData = await res.json();
+          if (cancelled) return;
+          setNodes(data.plan && data.plan.length > 0 ? layoutNodes(data.plan) : []);
+        }
       } catch (err) {
         if (cancelled) return;
         setError((err as Error).message);
@@ -117,11 +132,11 @@ export default function ProjectArchitecturePage() {
       }
     }
 
-    fetchSession();
+    fetchData();
     return () => {
       cancelled = true;
     };
-  }, [sessionId, getToken]);
+  }, [sessionId, projectId, getToken]);
 
   if (loading) {
     return (
@@ -131,91 +146,113 @@ export default function ProjectArchitecturePage() {
     );
   }
 
-  if (!sessionId) {
+  // Session mode: ?session= param provided — show build session graph
+  if (sessionId) {
+    if (error && nodes.length === 0) {
+      return (
+        <div className="flex h-[calc(100vh-7rem)] flex-col items-center justify-center gap-4 text-center">
+          <Network className="h-10 w-10 text-white/20" />
+          <div className="space-y-1">
+            <p className="text-base text-white/70">Could not load architecture</p>
+            <p className="text-sm text-white/40">{error}</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link
+              href={`/projects/${projectId}`}
+              className="px-4 py-2 rounded-lg bg-white/5 text-white/70 hover:bg-white/10 transition-colors text-sm"
+            >
+              Back to Project
+            </Link>
+            <Link
+              href={`/projects/${projectId}/build`}
+              className="px-4 py-2 rounded-lg bg-brand/20 text-brand hover:bg-brand/30 transition-colors text-sm"
+            >
+              Go to Build
+            </Link>
+          </div>
+        </div>
+      );
+    }
+
+    if (nodes.length === 0) {
+      return (
+        <div className="flex h-[calc(100vh-7rem)] flex-col items-center justify-center gap-4 text-center">
+          <Network className="h-10 w-10 text-white/20" />
+          <div className="space-y-1">
+            <p className="text-base text-white/70">No architecture data yet</p>
+            <p className="text-sm text-white/40">
+              Build activity has not produced a graph for this session yet.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link
+              href={`/projects/${projectId}`}
+              className="px-4 py-2 rounded-lg bg-white/5 text-white/70 hover:bg-white/10 transition-colors text-sm"
+            >
+              Back to Project
+            </Link>
+            <Link
+              href={`/projects/${projectId}/build`}
+              className="px-4 py-2 rounded-lg bg-brand/20 text-brand hover:bg-brand/30 transition-colors text-sm"
+            >
+              Go to Build
+            </Link>
+          </div>
+        </div>
+      );
+    }
+
     return (
-      <div className="flex h-[calc(100vh-7rem)] flex-col items-center justify-center gap-4 text-center">
-        <Network className="h-10 w-10 text-white/20" />
-        <div className="space-y-1">
-          <p className="text-base text-white/70">No architecture session selected</p>
-          <p className="text-sm text-white/40">
-            Open architecture from a project build flow when a session is available.
+      <div className="h-[calc(100vh-7rem)] rounded-2xl overflow-hidden glass-strong">
+        <GraphCanvas nodes={nodes} nodeLogs={nodeLogs} />
+      </div>
+    );
+  }
+
+  // Artifact mode: show personalized tech stack from artifact
+  if (architectureData) {
+    return (
+      <div className="max-w-5xl mx-auto">
+        <div className="mb-6 px-6 pt-6">
+          <h1 className="text-2xl font-semibold text-white">Your App Architecture</h1>
+          <p className="text-sm text-white/50 mt-1">
+            Personalized tech stack recommendations and cost estimates based on your idea.
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <Link
-            href={`/projects/${projectId}`}
-            className="px-4 py-2 rounded-lg bg-white/5 text-white/70 hover:bg-white/10 transition-colors text-sm"
-          >
-            Back to Project
-          </Link>
-          <Link
-            href={`/projects/${projectId}/build`}
-            className="px-4 py-2 rounded-lg bg-brand/20 text-brand hover:bg-brand/30 transition-colors text-sm"
-          >
-            Go to Build
-          </Link>
-        </div>
+        <AppArchitectureView
+          components={architectureData.components}
+          connections={architectureData.connections}
+          costEstimate={architectureData.costEstimate}
+          integrationRecommendations={architectureData.integrationRecommendations}
+        />
       </div>
     );
   }
 
-  if (error && nodes.length === 0) {
-    return (
-      <div className="flex h-[calc(100vh-7rem)] flex-col items-center justify-center gap-4 text-center">
-        <Network className="h-10 w-10 text-white/20" />
-        <div className="space-y-1">
-          <p className="text-base text-white/70">Could not load architecture</p>
-          <p className="text-sm text-white/40">{error}</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link
-            href={`/projects/${projectId}`}
-            className="px-4 py-2 rounded-lg bg-white/5 text-white/70 hover:bg-white/10 transition-colors text-sm"
-          >
-            Back to Project
-          </Link>
-          <Link
-            href={`/projects/${projectId}/build`}
-            className="px-4 py-2 rounded-lg bg-brand/20 text-brand hover:bg-brand/30 transition-colors text-sm"
-          >
-            Go to Build
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  if (nodes.length === 0) {
-    return (
-      <div className="flex h-[calc(100vh-7rem)] flex-col items-center justify-center gap-4 text-center">
-        <Network className="h-10 w-10 text-white/20" />
-        <div className="space-y-1">
-          <p className="text-base text-white/70">No architecture data yet</p>
-          <p className="text-sm text-white/40">
-            Build activity has not produced a graph for this session yet.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link
-            href={`/projects/${projectId}`}
-            className="px-4 py-2 rounded-lg bg-white/5 text-white/70 hover:bg-white/10 transition-colors text-sm"
-          >
-            Back to Project
-          </Link>
-          <Link
-            href={`/projects/${projectId}/build`}
-            className="px-4 py-2 rounded-lg bg-brand/20 text-brand hover:bg-brand/30 transition-colors text-sm"
-          >
-            Go to Build
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
+  // Empty state: no artifact and no session
   return (
-    <div className="h-[calc(100vh-7rem)] rounded-2xl overflow-hidden glass-strong">
-      <GraphCanvas nodes={nodes} nodeLogs={nodeLogs} />
+    <div className="flex h-[calc(100vh-7rem)] flex-col items-center justify-center gap-4 text-center">
+      <Network className="h-10 w-10 text-white/20" />
+      <div className="space-y-1">
+        <p className="text-base text-white/70">No architecture recommendation yet</p>
+        <p className="text-sm text-white/40">
+          Complete the Understanding Interview to see your personalized architecture recommendation.
+        </p>
+      </div>
+      <div className="flex items-center gap-3">
+        <Link
+          href={`/projects/${projectId}`}
+          className="px-4 py-2 rounded-lg bg-white/5 text-white/70 hover:bg-white/10 transition-colors text-sm"
+        >
+          Back to Project
+        </Link>
+        <Link
+          href={`/projects/${projectId}/understanding`}
+          className="px-4 py-2 rounded-lg bg-brand/20 text-brand hover:bg-brand/30 transition-colors text-sm"
+        >
+          Start Understanding Interview
+        </Link>
+      </div>
     </div>
   );
 }
