@@ -11,8 +11,8 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 
 Phase: 22.1 (End-to-End Flow — Strategy Graph, Timeline & Architecture from Real Data)
 Plan: 4 of 6 in current phase (4 waves)
-Status: Phase 22.1 in progress — Plans 01, 04 complete
-Last activity: 2026-02-21 — Plan 22.1-04 complete: dual-mode architecture page with AppArchitectureView (tech stack, cost estimates, expand/collapse detail per card)
+Status: Phase 22.1 in progress — Plans 01, 02, 04 complete
+Last activity: 2026-02-21 — Plan 22.1-02 complete: RunnerReal LLM generation for strategy_graph/mvp_timeline/app_architecture; finalize auto-triggers background generation with 3 retries; GET /api/artifacts/project/{id}/generation-status polling endpoint
 
 Progress: [█████████████████░░░░░░░░░░░░░] 81% (v0.1 + v0.2 + v0.3 shipped; Phase 22 complete; 5 phases remaining)
 
@@ -34,6 +34,7 @@ Progress: [█████████████████░░░░░░
 *Updated after each plan completion*
 | Phase 22.1 P04 | 2 | 2 tasks | 2 files |
 | Phase 22.1 P03 | 2 | 2 tasks | 5 files |
+| Phase 22.1 P02 | 15 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -58,6 +59,10 @@ Recent decisions affecting current work:
 - [22-03]: logo.png created (512x512 terminal icon) — enables Logo rich result detection in Organization schema
 - [22.1-01]: STRATEGY_GRAPH, MVP_TIMELINE, APP_ARCHITECTURE NOT in GENERATION_ORDER — finalize-triggered pipeline, separate from sequential brief pipeline
 - [22.1-01]: RunnerFake tier adaptation — bootstrapper MVP Timeline starts with 2-week no-code validation sprint, managed services (Render/Clerk/Resend) over AWS
+- [22.1-02]: Pre-create artifact rows in route before background task — avoids polling race condition where frontend sees "not_started" after finalize returns
+- [22.1-02]: Silent retry in background: 3 attempts per artifact, logs warning only on final failure
+- [22.1-02]: generate_strategy_graph uses verbatim phrase extraction — anchor nodes use exact founder words for "this AI gets me" signal
+- [22.1-02]: generate_app_architecture always simplified by default — plain English component names, managed services (Vercel/Render/Supabase) for all tiers
 - [Phase 22.1]: Expand/collapse toggle per card (locked): each component card defaults to simplified view; 'Show technical detail' reveals alternatives chips and technical notes
 - [Phase 22.1]: Dual-mode architecture page: fetch artifact on mount always, session mode takes priority when ?session= param present, empty state links to Understanding Interview
 - [Phase 22.1]: Dual-mode page pattern: fetch artifact first, fallback to system data (Neo4j/Kanban) — no tab switching UI needed
@@ -81,8 +86,8 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Completed 22.1-04-PLAN.md — ready for Plan 05
-Resume file: .planning/phases/22.1-end-to-end-flow-strategy-graph-timeline-architecture-from-real-data/22.1-05-PLAN.md
+Stopped at: Completed 22.1-02-PLAN.md — ready for Plan 03 (frontend display)
+Resume file: .planning/phases/22.1-end-to-end-flow-strategy-graph-timeline-architecture-from-real-data/22.1-03-PLAN.md
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
