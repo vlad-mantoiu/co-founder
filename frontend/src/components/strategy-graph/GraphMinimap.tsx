@@ -11,6 +11,8 @@ const NODE_COLORS = {
   decision: "#8B5CF6",
   milestone: "#10B981",
   artifact: "#3B82F6",
+  anchor: "#F59E0B",
+  strategy: "#EC4899",
 } as const;
 
 const MINIMAP_W = 180;
@@ -73,7 +75,7 @@ export function GraphMinimap({ nodes }: GraphMinimapProps) {
         height={MINIMAP_H}
         style={{ display: "block" }}
       />
-      <div className="flex gap-3 mt-2 px-1">
+      <div className="flex gap-3 mt-2 px-1 flex-wrap">
         <span className="flex items-center gap-1 text-xs text-white/50">
           <span className="w-2 h-2 rounded-full bg-violet-500 inline-block" />
           Decision
@@ -85,6 +87,14 @@ export function GraphMinimap({ nodes }: GraphMinimapProps) {
         <span className="flex items-center gap-1 text-xs text-white/50">
           <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />
           Artifact
+        </span>
+        <span className="flex items-center gap-1 text-xs text-white/50">
+          <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
+          Anchor
+        </span>
+        <span className="flex items-center gap-1 text-xs text-white/50">
+          <span className="w-2 h-2 rounded-full bg-pink-500 inline-block" />
+          Strategy
         </span>
       </div>
     </div>

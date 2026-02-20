@@ -6,9 +6,11 @@ import type { ForceGraphMethods } from "react-force-graph-2d";
 
 export interface GraphNode {
   id: string;
-  type: "decision" | "milestone" | "artifact";
-  title: string;
+  type: "decision" | "milestone" | "artifact" | "anchor" | "strategy";
+  title: string;  // for backward compat
+  label?: string; // for new artifact nodes
   status: string;
+  description?: string;
   x?: number;
   y?: number;
 }
@@ -26,9 +28,11 @@ interface ForceGraphInnerProps {
 }
 
 const NODE_COLORS = {
-  decision: "#8B5CF6", // violet
-  milestone: "#10B981", // emerald
-  artifact: "#3B82F6", // blue
+  decision: "#8B5CF6",   // violet
+  milestone: "#10B981",  // emerald
+  artifact: "#3B82F6",   // blue
+  anchor: "#F59E0B",     // amber — user's own words
+  strategy: "#EC4899",   // pink — LLM-derived strategy
 } as const;
 
 const HIGHLIGHT_COLOR = "#F59E0B"; // amber hover ring
@@ -125,20 +129,22 @@ export default function ForceGraphInner({
       const hasHover = hoverNode !== null;
       const isHighlighted = !hasHover || highlightNodes.has(node.id);
       const color = NODE_COLORS[node.type] ?? "#FFFFFF";
+      // Anchor nodes are visually prominent (user's own words)
+      const radius = node.type === "anchor" ? NODE_RADIUS * 1.5 : NODE_RADIUS;
 
       // Dim non-highlighted nodes
       ctx.globalAlpha = isHighlighted ? 1.0 : DIM_OPACITY;
 
       // Draw node circle
       ctx.beginPath();
-      ctx.arc(x, y, NODE_RADIUS, 0, 2 * Math.PI);
+      ctx.arc(x, y, radius, 0, 2 * Math.PI);
       ctx.fillStyle = color;
       ctx.fill();
 
       // Draw amber ring on hovered node
       if (isHovered) {
         ctx.beginPath();
-        ctx.arc(x, y, NODE_RADIUS + 3, 0, 2 * Math.PI);
+        ctx.arc(x, y, radius + 3, 0, 2 * Math.PI);
         ctx.strokeStyle = HIGHLIGHT_COLOR;
         ctx.lineWidth = 2;
         ctx.stroke();
@@ -146,12 +152,12 @@ export default function ForceGraphInner({
 
       // Draw label when zoomed in enough
       if (globalScale > 1.5) {
-        const label = node.title;
+        const label = node.label ?? node.title;
         ctx.font = `${12 / globalScale}px Inter, sans-serif`;
         ctx.fillStyle = "rgba(255,255,255,0.9)";
         ctx.textAlign = "center";
         ctx.textBaseline = "top";
-        ctx.fillText(label, x, y + NODE_RADIUS + 2);
+        ctx.fillText(label, x, y + radius + 2);
       }
 
       // Reset alpha

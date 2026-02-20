@@ -19,6 +19,22 @@ interface GraphResponse {
   edges: ApiEdge[];
 }
 
+interface StrategyArtifactContent {
+  nodes: Array<{
+    id: string;
+    type: string;
+    label: string;
+    status: string;
+    description?: string;
+  }>;
+  edges: Array<{
+    source: string;
+    target: string;
+    relation: string;
+  }>;
+  anchor_phrases?: string[];
+}
+
 function GraphPageSkeleton() {
   return (
     <div className="w-full h-[calc(100vh-12rem)] flex items-center justify-center">
@@ -51,6 +67,9 @@ function EmptyState() {
 /**
  * Project-scoped Strategy Graph page.
  *
+ * Dual-mode: shows artifact-based force graph (anchor + strategy nodes) when
+ * a strategy_graph artifact is available, falls back to Neo4j graph otherwise.
+ *
  * Reads projectId from URL path segment (params.id).
  * Reads highlight node from searchParams.get("highlight").
  */
@@ -68,6 +87,8 @@ export default function ProjectStrategyPage() {
   const [selectedNode, setSelectedNode] = useState<NodeDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Holds the strategy artifact content when available (null = using Neo4j fallback)
+  const [artifactGraph, setArtifactGraph] = useState<StrategyArtifactContent | null>(null);
 
   const fetchAndOpenNode = useCallback(async (nodeId: string) => {
     try {
@@ -94,6 +115,38 @@ export default function ProjectStrategyPage() {
     setLoading(true);
     setError(null);
     try {
+      // FIRST: try to fetch the strategy_graph artifact
+      const artifactRes = await apiFetch(`/api/artifacts/project/${projectId}`, getToken);
+      if (artifactRes.ok) {
+        const artifacts = await artifactRes.json();
+        const strategyArtifact = artifacts.find(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (a: any) => a.artifact_type === "strategy_graph" && a.generation_status === "idle" && a.current_content
+        );
+        if (strategyArtifact) {
+          const content: StrategyArtifactContent = strategyArtifact.current_content;
+          const nodes: GraphNode[] = (content.nodes || []).map((n) => ({
+            id: n.id,
+            type: n.type as GraphNode["type"],
+            title: n.label,
+            label: n.label,
+            status: n.status,
+            description: n.description,
+          }));
+          const links: GraphLink[] = (content.edges || []).map((e) => ({
+            source: e.source,
+            target: e.target,
+            relation: e.relation,
+          }));
+          setArtifactGraph(content);
+          setGraphData({ nodes, links });
+          setLoading(false);
+          return; // Skip Neo4j fetch
+        }
+      }
+
+      // FALLBACK: fetch from Neo4j graph API (existing behavior)
+      setArtifactGraph(null);
       const res = await apiFetch(`/api/graph/${projectId}`, getToken);
       if (!res.ok) {
         throw new Error(`Failed to load graph (${res.status})`);
@@ -138,9 +191,25 @@ export default function ProjectStrategyPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-display font-semibold text-white">Strategy Graph</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Decision relationships and project evolution
+          {artifactGraph
+            ? "Your strategy — built from your answers"
+            : "Decision relationships and project evolution"}
         </p>
       </div>
+
+      {/* Anchor phrases tag list — shown when displaying artifact graph */}
+      {artifactGraph && artifactGraph.anchor_phrases && artifactGraph.anchor_phrases.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-4">
+          {artifactGraph.anchor_phrases.map((phrase: string, i: number) => (
+            <span
+              key={i}
+              className="text-xs px-2 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20"
+            >
+              &quot;{phrase}&quot;
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* Graph content */}
       {loading ? (
