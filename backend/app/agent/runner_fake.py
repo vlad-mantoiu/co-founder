@@ -929,6 +929,8 @@ PORT=8000
             raise RuntimeError("Worker capacity exceeded. Estimated wait: 5 minutes. Current queue depth: 12.")
 
         # Return 3 realistic execution plan options
+
+        # Return 3 realistic execution plan options
         return {
             "options": [
                 {
@@ -1018,4 +1020,310 @@ PORT=8000
                 },
             ],
             "recommended_id": "fast-mvp",
+        }
+
+    # =========================================================================
+    # NEW ARTIFACT GENERATION METHODS (finalize-triggered pipeline)
+    # =========================================================================
+
+    async def generate_strategy_graph(self, idea: str, brief: dict, onboarding_answers: dict) -> dict:
+        """Generate Strategy Graph artifact with anchor and strategy nodes.
+
+        Returns a graph with:
+        - 6 anchor nodes containing verbatim phrases from the brief
+        - 9 strategy nodes with LLM-derived go-to-market + business model labels
+        - Edges connecting anchors to relevant strategy nodes
+        - anchor_phrases list of the verbatim strings
+
+        Args:
+            idea: Original idea text from onboarding
+            brief: Rationalised Idea Brief content (full dict)
+            onboarding_answers: Raw onboarding answers dict
+
+        Returns:
+            Dict with keys: nodes, edges, anchor_phrases
+
+        Raises:
+            RuntimeError: For llm_failure and rate_limited scenarios
+        """
+        if self.scenario == "llm_failure":
+            raise RuntimeError("Anthropic API rate limit exceeded. Retry after 60 seconds.")
+
+        if self.scenario == "rate_limited":
+            raise RuntimeError("Worker capacity exceeded. Estimated wait: 5 minutes. Current queue depth: 12.")
+
+        return {
+            "nodes": [
+                # Anchor nodes — verbatim user phrases
+                {"id": "a1", "type": "anchor", "label": "dead-simple inventory tracking", "description": "Core product promise extracted directly from founder's words", "status": "validated"},
+                {"id": "a2", "type": "anchor", "label": "barcode scanning", "description": "Must-have feature mentioned in 10/12 customer interviews", "status": "validated"},
+                {"id": "a3", "type": "anchor", "label": "real-time sync", "description": "Key technical requirement for multi-location shops", "status": "validated"},
+                {"id": "a4", "type": "anchor", "label": "automatic reorder alerts", "description": "Primary automation value — replaces manual monitoring", "status": "validated"},
+                {"id": "a5", "type": "anchor", "label": "$49/mo", "description": "Validated price point from customer interviews (8/12 willing to pay)", "status": "validated"},
+                {"id": "a6", "type": "anchor", "label": "10-minute setup", "description": "Competitive differentiator vs weeks-long ERP onboarding", "status": "validated"},
+                # Strategy nodes — LLM-derived go-to-market + business model
+                {"id": "s1", "type": "strategy", "label": "Go-to-Market: Local Retail Associations", "description": "Partner with regional retail trade groups to reach shop owners at low CAC. Target 3 associations in first 90 days.", "status": "planned"},
+                {"id": "s2", "type": "strategy", "label": "Go-to-Market: Content Marketing (Inventory Tips)", "description": "SEO-driven blog content targeting 'inventory management for small business' — high intent, low competition keywords.", "status": "planned"},
+                {"id": "s3", "type": "strategy", "label": "Business Model: $49/mo SaaS per Location", "description": "Per-location pricing scales naturally with customer growth. Average shop has 1.4 locations = $68.60 ARPU.", "status": "planned"},
+                {"id": "s4", "type": "strategy", "label": "Business Model: 14-Day Free Trial", "description": "Removes purchase risk. Projected 60% trial-to-paid conversion based on time-to-value (< 1 week).", "status": "planned"},
+                {"id": "s5", "type": "strategy", "label": "Competitive Moat: Depth over Breadth", "description": "Build deeper inventory workflows (lot tracking, cycle counting) that POS systems won't prioritize. Data history creates switching costs.", "status": "planned"},
+                {"id": "s6", "type": "strategy", "label": "Competitive Moat: Supplier Integrations", "description": "Phase 2 integrations with distributors and wholesalers create network effects POS bundles cannot replicate.", "status": "planned"},
+                {"id": "s7", "type": "strategy", "label": "Technical Strategy: Offline-First Architecture", "description": "Local-first data model with conflict-free sync. Key differentiator for locations with unreliable WiFi.", "status": "planned"},
+                {"id": "s8", "type": "strategy", "label": "Expansion: Multi-Location Upsell", "description": "Single-location MVP with frictionless upgrade path. Multi-location is natural expansion vector for existing customers.", "status": "planned"},
+                {"id": "s9", "type": "strategy", "label": "Customer Success: Weekly Check-in Calls", "description": "High-touch onboarding for first 50 customers. Reduces churn, generates testimonials, surfaces product gaps.", "status": "planned"},
+            ],
+            "edges": [
+                # Anchor-to-strategy connections
+                {"source": "a1", "target": "s1", "relation": "enables"},
+                {"source": "a1", "target": "s5", "relation": "supports"},
+                {"source": "a2", "target": "s5", "relation": "differentiates"},
+                {"source": "a2", "target": "s7", "relation": "requires"},
+                {"source": "a3", "target": "s7", "relation": "requires"},
+                {"source": "a3", "target": "s8", "relation": "enables"},
+                {"source": "a4", "target": "s3", "relation": "justifies"},
+                {"source": "a4", "target": "s9", "relation": "supports"},
+                {"source": "a5", "target": "s3", "relation": "defines"},
+                {"source": "a5", "target": "s4", "relation": "enables"},
+                {"source": "a6", "target": "s2", "relation": "messaging"},
+                {"source": "a6", "target": "s4", "relation": "drives_conversion"},
+                {"source": "s1", "target": "s9", "relation": "precedes"},
+                {"source": "s5", "target": "s6", "relation": "extends_to"},
+                {"source": "s8", "target": "s3", "relation": "increases"},
+            ],
+            "anchor_phrases": [
+                "dead-simple inventory tracking",
+                "barcode scanning",
+                "real-time sync",
+                "automatic reorder alerts",
+                "$49/mo",
+                "10-minute setup",
+            ],
+        }
+
+    async def generate_mvp_timeline(self, idea: str, brief: dict, tier: str) -> dict:
+        """Generate MVP Timeline artifact with relative-week milestones.
+
+        Returns milestones adapted to bootstrapper tier (non-technical founder):
+        - 5 milestones with relative weeks (not calendar dates)
+        - long_term_roadmap with 3 phases beyond MVP
+        - total_mvp_weeks as sum of duration_weeks
+        - adapted_for describing the tier adaptation
+
+        Args:
+            idea: Original idea text
+            brief: Rationalised Idea Brief content
+            tier: User's subscription tier (bootstrapper/partner/cto_scale)
+
+        Returns:
+            Dict with keys: milestones, long_term_roadmap, total_mvp_weeks, adapted_for
+
+        Raises:
+            RuntimeError: For llm_failure and rate_limited scenarios
+        """
+        if self.scenario == "llm_failure":
+            raise RuntimeError("Anthropic API rate limit exceeded. Retry after 60 seconds.")
+
+        if self.scenario == "rate_limited":
+            raise RuntimeError("Worker capacity exceeded. Estimated wait: 5 minutes. Current queue depth: 12.")
+
+        return {
+            "milestones": [
+                {
+                    "week": 1,
+                    "title": "Validation Sprint",
+                    "description": "Prove people want this before writing a line of code. Build a no-code landing page and run structured interviews.",
+                    "deliverables": [
+                        "Landing page with waitlist (Webflow or Carrd)",
+                        "50 email signups target",
+                        "5 user interviews with shop owners",
+                    ],
+                    "duration_weeks": 2,
+                },
+                {
+                    "week": 3,
+                    "title": "Foundation Build",
+                    "description": "Stand up the core data model and authentication. This is the technical bedrock everything else relies on.",
+                    "deliverables": [
+                        "Product database with SKU, quantity, reorder point",
+                        "Email/password authentication",
+                        "Hosted on Render or Railway (no DevOps needed)",
+                    ],
+                    "duration_weeks": 2,
+                },
+                {
+                    "week": 5,
+                    "title": "Core Feature: Inventory Tracking",
+                    "description": "Build the one thing that delivers the core value proposition — logging stock changes with automatic alerts.",
+                    "deliverables": [
+                        "Manual stock adjustment form (receive shipment, record sale)",
+                        "Low stock email alert when quantity drops below reorder point",
+                        "Simple dashboard showing current stock levels",
+                    ],
+                    "duration_weeks": 3,
+                },
+                {
+                    "week": 8,
+                    "title": "Beta Launch with Real Users",
+                    "description": "Get 5-10 real shop owners using it daily. Collect feedback, fix critical bugs, validate willingness to pay.",
+                    "deliverables": [
+                        "Onboard 5 beta users from waitlist",
+                        "Weekly feedback calls (30 min each)",
+                        "Fix top 3 friction points from beta feedback",
+                    ],
+                    "duration_weeks": 2,
+                },
+                {
+                    "week": 10,
+                    "title": "Paid Launch",
+                    "description": "Flip the switch to paid. Convert beta users, open to waitlist, set up billing infrastructure.",
+                    "deliverables": [
+                        "Stripe billing at $49/mo per location",
+                        "Convert 7/10 beta users to paid (success target)",
+                        "Open waitlist to first 20 paying customers",
+                    ],
+                    "duration_weeks": 2,
+                },
+            ],
+            "long_term_roadmap": [
+                {
+                    "phase": "Phase 2 (Weeks 12-18)",
+                    "title": "Barcode Scanning + Mobile",
+                    "description": "Add the #1 requested feature. Mobile-first redesign so owners can scan products from their phone while walking the floor.",
+                    "key_features": ["Camera-based barcode scanning (no hardware needed)", "Mobile-optimized UI", "Offline mode with background sync"],
+                },
+                {
+                    "phase": "Phase 3 (Weeks 19-28)",
+                    "title": "Multi-Location + Integrations",
+                    "description": "Unlock the natural expansion path. Multi-location sync enables upsell from $49 to $99+/mo. Shopify integration opens a new acquisition channel.",
+                    "key_features": ["Multi-location inventory sync", "Shopify order webhook integration", "CSV/Excel export for accountants"],
+                },
+                {
+                    "phase": "Phase 4 (Weeks 29-40)",
+                    "title": "Analytics + Supplier Network",
+                    "description": "Create switching costs through data history and supplier integrations. This is the moat that prevents churn to POS bundles.",
+                    "key_features": ["Sales velocity analytics", "Direct supplier reorder integrations", "Lot tracking and expiry management"],
+                },
+            ],
+            "total_mvp_weeks": 11,
+            "adapted_for": "Non-technical founder (bootstrapper tier) — smaller MVP scope, longer build phases, no-code tools for validation, managed hosting to avoid DevOps complexity",
+        }
+
+    async def generate_app_architecture(self, idea: str, brief: dict, tier: str) -> dict:
+        """Generate App Architecture artifact with component diagram and cost estimates.
+
+        Returns simplified architecture suited for bootstrapper tier:
+        - 5 components with tech recommendations and alternatives
+        - connections between components with protocols
+        - cost_estimate for startup and scale stages
+        - integration_recommendations for Phase 1
+
+        Args:
+            idea: Original idea text
+            brief: Rationalised Idea Brief content
+            tier: User's subscription tier
+
+        Returns:
+            Dict with keys: components, connections, cost_estimate, integration_recommendations
+
+        Raises:
+            RuntimeError: For llm_failure and rate_limited scenarios
+        """
+        if self.scenario == "llm_failure":
+            raise RuntimeError("Anthropic API rate limit exceeded. Retry after 60 seconds.")
+
+        if self.scenario == "rate_limited":
+            raise RuntimeError("Worker capacity exceeded. Estimated wait: 5 minutes. Current queue depth: 12.")
+
+        return {
+            "components": [
+                {
+                    "name": "Frontend (Web App)",
+                    "type": "frontend",
+                    "description": "Responsive web app that works on desktop and mobile browsers. Shop owners manage inventory, view stock levels, and configure alerts.",
+                    "tech_recommendation": "Next.js 14 (React) with Tailwind CSS",
+                    "alternatives": ["Remix", "SvelteKit", "Plain React + Vite"],
+                    "detail_level": "simplified",
+                },
+                {
+                    "name": "Backend API",
+                    "type": "backend",
+                    "description": "REST API that handles business logic — inventory CRUD, alert triggering, user management, and data validation. Runs as a single service in MVP.",
+                    "tech_recommendation": "FastAPI (Python) — async, fast to write, excellent documentation auto-generation",
+                    "alternatives": ["Express.js (Node)", "Django REST Framework", "Rails API"],
+                    "detail_level": "simplified",
+                },
+                {
+                    "name": "Database",
+                    "type": "database",
+                    "description": "Stores products, stock adjustments, users, and alert configurations. Relational model — products have many adjustments, adjustments have one product.",
+                    "tech_recommendation": "PostgreSQL — reliable, open source, scales to millions of rows without tuning",
+                    "alternatives": ["MySQL", "SQLite (dev only)", "PlanetScale (MySQL serverless)"],
+                    "detail_level": "simplified",
+                },
+                {
+                    "name": "Authentication",
+                    "type": "auth",
+                    "description": "User identity, session management, and access control. Handles signup, login, password reset, and JWT token rotation.",
+                    "tech_recommendation": "Clerk — handles auth complexity so you focus on product; includes magic links and OAuth",
+                    "alternatives": ["Auth0", "Supabase Auth", "Custom JWT (not recommended for MVP)"],
+                    "detail_level": "simplified",
+                },
+                {
+                    "name": "Email Notifications",
+                    "type": "service",
+                    "description": "Sends low stock alerts and transactional emails (signup confirmation, password reset). Triggered by Backend API when stock drops below reorder point.",
+                    "tech_recommendation": "Resend — developer-friendly, excellent deliverability, generous free tier (3k emails/mo)",
+                    "alternatives": ["SendGrid", "Postmark", "AWS SES (cheapest at scale)"],
+                    "detail_level": "simplified",
+                },
+            ],
+            "connections": [
+                {
+                    "from_component": "Frontend (Web App)",
+                    "to_component": "Backend API",
+                    "protocol": "HTTPS REST",
+                    "description": "Frontend calls Backend API for all data operations. JWT token from Clerk included in Authorization header for authentication.",
+                },
+                {
+                    "from_component": "Frontend (Web App)",
+                    "to_component": "Authentication",
+                    "protocol": "HTTPS (Clerk SDK)",
+                    "description": "Clerk SDK embedded in frontend handles login UI, token refresh, and session state. No custom auth code needed.",
+                },
+                {
+                    "from_component": "Backend API",
+                    "to_component": "Database",
+                    "protocol": "PostgreSQL protocol (asyncpg)",
+                    "description": "Backend uses async PostgreSQL driver for non-blocking database queries. Connection pool managed by SQLAlchemy.",
+                },
+                {
+                    "from_component": "Backend API",
+                    "to_component": "Authentication",
+                    "protocol": "HTTPS (Clerk JWT verification)",
+                    "description": "Backend verifies JWT tokens from Clerk on every request. Public key fetched from Clerk JWKS endpoint at startup.",
+                },
+                {
+                    "from_component": "Backend API",
+                    "to_component": "Email Notifications",
+                    "protocol": "HTTPS REST (Resend API)",
+                    "description": "Backend triggers email sends via Resend API when stock adjustment causes quantity to drop below reorder point.",
+                },
+            ],
+            "cost_estimate": {
+                "startup_monthly": "$50-80/mo",
+                "scale_monthly": "$200-400/mo at 1k users",
+                "breakdown": [
+                    {"component": "Hosting (Render or Railway)", "cost": "$25-50/mo", "note": "Includes frontend + backend on managed infrastructure. Zero DevOps."},
+                    {"component": "Database (Render PostgreSQL)", "cost": "$7-25/mo", "note": "Starter plan handles first 500 users. Upgrade at 10k rows/day."},
+                    {"component": "Authentication (Clerk)", "cost": "$0-25/mo", "note": "Free for first 10k MAU. Pro plan at $25/mo unlocks custom domain."},
+                    {"component": "Email (Resend)", "cost": "$0-20/mo", "note": "Free tier covers 3k emails/mo. $20/mo for 50k emails (sufficient to 500 users)."},
+                    {"component": "Domain + SSL", "cost": "$12-15/yr", "note": "Namecheap or Cloudflare. SSL is free via Let's Encrypt on most hosts."},
+                ],
+            },
+            "integration_recommendations": [
+                "Start with Resend for email — easiest setup, best deliverability for new domains, and the free tier covers first 200 users",
+                "Use Clerk from day one — retrofitting auth later is painful; Clerk's managed solution handles edge cases you haven't thought of yet",
+                "Deploy on Render initially — one-click PostgreSQL + web service, auto-deploys from GitHub, no AWS knowledge required for MVP",
+                "Add Stripe in Week 10 (Paid Launch milestone) — Stripe Billing with monthly subscriptions, not one-time payments; enables dunning and retries",
+            ],
         }
