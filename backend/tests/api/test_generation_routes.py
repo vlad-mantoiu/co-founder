@@ -274,9 +274,9 @@ def test_get_generation_status_stage_labels(api_client: TestClient, fake_redis, 
     assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.json()}"
     data = response.json()
     assert data["status"] == status.value
-    assert (
-        data["stage_label"] == expected_label
-    ), f"For status {status.value}: expected '{expected_label}', got '{data['stage_label']}'"
+    assert data["stage_label"] == expected_label, (
+        f"For status {status.value}: expected '{expected_label}', got '{data['stage_label']}'"
+    )
 
     app.dependency_overrides.clear()
 
@@ -545,6 +545,6 @@ def test_workspace_files_expected():
     assert has_start_script, f"Workspace must contain Procfile (GENR-03). Got: {written_paths}"
 
     # Also verify core application code is still present
-    assert any(
-        "product" in p.lower() for p in written_paths
-    ), "Workspace must contain product files as core application code"
+    assert any("product" in p.lower() for p in written_paths), (
+        "Workspace must contain product files as core application code"
+    )

@@ -210,9 +210,9 @@ async def test_iteration_build_check_failure_marks_needs_review():
     # The state machine stores the transition message as 'status_message'
     job_state = await state_machine.get_job(job_id)
     status_message = job_state.get("status_message", "") if job_state else ""
-    assert (
-        "needs-review" in status_message.lower()
-    ), f"Expected 'needs-review' in job status_message, got: '{status_message}'"
+    assert "needs-review" in status_message.lower(), (
+        f"Expected 'needs-review' in job status_message, got: '{status_message}'"
+    )
 
     # debug_id must be attached to the exception
     assert hasattr(raised_exc, "debug_id"), "debug_id must be attached to the raised exception"

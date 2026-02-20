@@ -168,9 +168,9 @@ async def test_first_build_transitions_to_mvp_built(
         )
     )
     transition_event = result.scalar_one_or_none()
-    assert (
-        transition_event is not None
-    ), "Expected a StageEvent with event_type='transition' and to_stage='3' after build_v0_1"
+    assert transition_event is not None, (
+        "Expected a StageEvent with event_type='transition' and to_stage='3' after build_v0_1"
+    )
 
 
 # ---------------------------------------------------------------------------

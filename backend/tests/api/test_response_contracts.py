@@ -169,9 +169,9 @@ def test_all_dashboard_response_list_fields_have_defaults():
         annotation = field.annotation
         origin = get_origin(annotation)
         if origin is list:
-            assert (
-                field.default is not None or field.default_factory is not None
-            ), f"Field '{name}' is list type but has no default — will serialize as null"
+            assert field.default is not None or field.default_factory is not None, (
+                f"Field '{name}' is list type but has no default — will serialize as null"
+            )
 
 
 def test_timeline_response_list_field_has_default():
@@ -181,9 +181,9 @@ def test_timeline_response_list_field_has_default():
     items_field = TimelineResponse.model_fields["items"]
     origin = get_origin(items_field.annotation)
     assert origin is list, "items should be list-typed"
-    assert (
-        items_field.default_factory is not None
-    ), "TimelineResponse.items has no default_factory — may serialize as null"
+    assert items_field.default_factory is not None, (
+        "TimelineResponse.items has no default_factory — may serialize as null"
+    )
 
 
 def test_graph_response_list_fields_have_defaults():
@@ -204,6 +204,6 @@ def test_gate_status_response_options_has_default():
     options_field = GateStatusResponse.model_fields["options"]
     origin = get_origin(options_field.annotation)
     assert origin is list, "options should be list-typed"
-    assert (
-        options_field.default_factory is not None
-    ), "GateStatusResponse.options has no default_factory — will serialize as null"
+    assert options_field.default_factory is not None, (
+        "GateStatusResponse.options has no default_factory — will serialize as null"
+    )
