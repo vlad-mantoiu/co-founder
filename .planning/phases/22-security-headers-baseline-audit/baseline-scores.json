@@ -1,0 +1,247 @@
+{
+  "captured": "2026-02-20",
+  "phase": "v0.4 pre-optimization baseline",
+  "note": "Captured BEFORE custom CSP deployment (Phase 22 Plan 02)",
+  "pages": [
+    {
+      "url": "https://getinsourced.ai/",
+      "slug": "homepage",
+      "mobile": {
+        "performance": 97,
+        "accessibility": 96,
+        "bestPractices": 96,
+        "seo": 100,
+        "lcp_ms": 2571,
+        "cls": 0,
+        "fcp_ms": 921,
+        "tbt_ms": 4,
+        "si_ms": 2306,
+        "ttfb_ms": 760,
+        "inp_ms": null
+      },
+      "desktop": {
+        "performance": 100,
+        "accessibility": 95,
+        "bestPractices": 96,
+        "seo": 100,
+        "lcp_ms": 733,
+        "cls": 0,
+        "fcp_ms": 453,
+        "tbt_ms": 0,
+        "si_ms": 632,
+        "ttfb_ms": 97,
+        "inp_ms": null
+      }
+    },
+    {
+      "url": "https://getinsourced.ai/about/",
+      "slug": "about",
+      "mobile": {
+        "performance": 95,
+        "accessibility": 91,
+        "bestPractices": 96,
+        "seo": 100,
+        "lcp_ms": 2933,
+        "cls": 0,
+        "fcp_ms": 1133,
+        "tbt_ms": 14,
+        "si_ms": 2632,
+        "ttfb_ms": 1065,
+        "inp_ms": null
+      },
+      "desktop": {
+        "performance": 100,
+        "accessibility": 90,
+        "bestPractices": 96,
+        "seo": 100,
+        "lcp_ms": 668,
+        "cls": 0,
+        "fcp_ms": 388,
+        "tbt_ms": 0,
+        "si_ms": 557,
+        "ttfb_ms": 100,
+        "inp_ms": null
+      }
+    },
+    {
+      "url": "https://getinsourced.ai/cofounder/",
+      "slug": "cofounder",
+      "mobile": {
+        "performance": 96,
+        "accessibility": 91,
+        "bestPractices": 96,
+        "seo": 100,
+        "lcp_ms": 2756,
+        "cls": 0,
+        "fcp_ms": 1106,
+        "tbt_ms": 5,
+        "si_ms": 2721,
+        "ttfb_ms": 1015,
+        "inp_ms": null
+      },
+      "desktop": {
+        "performance": 100,
+        "accessibility": 90,
+        "bestPractices": 96,
+        "seo": 100,
+        "lcp_ms": 659,
+        "cls": 0,
+        "fcp_ms": 378,
+        "tbt_ms": 0,
+        "si_ms": 666,
+        "ttfb_ms": 107,
+        "inp_ms": null
+      }
+    },
+    {
+      "url": "https://getinsourced.ai/cofounder/how-it-works/",
+      "slug": "cofounder-how-it-works",
+      "mobile": {
+        "performance": 96,
+        "accessibility": 91,
+        "bestPractices": 96,
+        "seo": 100,
+        "lcp_ms": 2766,
+        "cls": 0,
+        "fcp_ms": 1003,
+        "tbt_ms": 14,
+        "si_ms": 2497,
+        "ttfb_ms": 777,
+        "inp_ms": null
+      },
+      "desktop": {
+        "performance": 100,
+        "accessibility": 90,
+        "bestPractices": 96,
+        "seo": 100,
+        "lcp_ms": 574,
+        "cls": 0,
+        "fcp_ms": 224,
+        "tbt_ms": 0,
+        "si_ms": 563,
+        "ttfb_ms": 100,
+        "inp_ms": null
+      }
+    },
+    {
+      "url": "https://getinsourced.ai/contact/",
+      "slug": "contact",
+      "mobile": {
+        "performance": 97,
+        "accessibility": 89,
+        "bestPractices": 96,
+        "seo": 100,
+        "lcp_ms": 2563,
+        "cls": 0,
+        "fcp_ms": 796,
+        "tbt_ms": 57,
+        "si_ms": 2578,
+        "ttfb_ms": 801,
+        "inp_ms": null
+      },
+      "desktop": {
+        "performance": 100,
+        "accessibility": 88,
+        "bestPractices": 96,
+        "seo": 100,
+        "lcp_ms": 571,
+        "cls": 0,
+        "fcp_ms": 221,
+        "tbt_ms": 0,
+        "si_ms": 500,
+        "ttfb_ms": 108,
+        "inp_ms": null
+      }
+    },
+    {
+      "url": "https://getinsourced.ai/pricing/",
+      "slug": "pricing",
+      "mobile": {
+        "performance": 95,
+        "accessibility": 89,
+        "bestPractices": 96,
+        "seo": 100,
+        "lcp_ms": 2803,
+        "cls": 0,
+        "fcp_ms": 1153,
+        "tbt_ms": 34,
+        "si_ms": 2806,
+        "ttfb_ms": 1022,
+        "inp_ms": null
+      },
+      "desktop": {
+        "performance": 99,
+        "accessibility": 89,
+        "bestPractices": 96,
+        "seo": 100,
+        "lcp_ms": 742,
+        "cls": 0,
+        "fcp_ms": 462,
+        "tbt_ms": 0,
+        "si_ms": 824,
+        "ttfb_ms": 128,
+        "inp_ms": null
+      }
+    },
+    {
+      "url": "https://getinsourced.ai/privacy/",
+      "slug": "privacy",
+      "mobile": {
+        "performance": 96,
+        "accessibility": 91,
+        "bestPractices": 96,
+        "seo": 100,
+        "lcp_ms": 2703,
+        "cls": 0,
+        "fcp_ms": 936,
+        "tbt_ms": 23,
+        "si_ms": 2818,
+        "ttfb_ms": 1114,
+        "inp_ms": null
+      },
+      "desktop": {
+        "performance": 100,
+        "accessibility": 90,
+        "bestPractices": 96,
+        "seo": 100,
+        "lcp_ms": 787,
+        "cls": 0,
+        "fcp_ms": 436,
+        "tbt_ms": 0,
+        "si_ms": 734,
+        "ttfb_ms": 131,
+        "inp_ms": null
+      }
+    },
+    {
+      "url": "https://getinsourced.ai/terms/",
+      "slug": "terms",
+      "mobile": {
+        "performance": 92,
+        "accessibility": 91,
+        "bestPractices": 96,
+        "seo": 100,
+        "lcp_ms": 3254,
+        "cls": 0,
+        "fcp_ms": 1304,
+        "tbt_ms": 21,
+        "si_ms": 3250,
+        "ttfb_ms": 1070,
+        "inp_ms": null
+      },
+      "desktop": {
+        "performance": 100,
+        "accessibility": 90,
+        "bestPractices": 96,
+        "seo": 100,
+        "lcp_ms": 555,
+        "cls": 0,
+        "fcp_ms": 273,
+        "tbt_ms": 0,
+        "si_ms": 628,
+        "ttfb_ms": 130,
+        "inp_ms": null
+      }
+    }
+  ]
+}
