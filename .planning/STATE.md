@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 ## Current Position
 
 Phase: 22.1 (End-to-End Flow — Strategy Graph, Timeline & Architecture from Real Data)
-Plan: 0 of 6 in current phase (4 waves)
-Status: Phase 22.1 planned — ready for execution
-Last activity: 2026-02-21 — Phase 22.1 plans created and verified (6 plans, 4 waves)
+Plan: 1 of 6 in current phase (4 waves)
+Status: Phase 22.1 in progress — Plan 01 complete
+Last activity: 2026-02-21 — Plan 22.1-01 complete: ArtifactType enum extended to 10 values, Runner protocol to 13 methods, RunnerFake with realistic test doubles
 
 Progress: [█████████████████░░░░░░░░░░░░░] 81% (v0.1 + v0.2 + v0.3 shipped; Phase 22 complete; 5 phases remaining)
 
@@ -54,6 +54,8 @@ Recent decisions affecting current work:
 - [Phase 22]: No SearchAction on WebSite JSON-LD — site has no search functionality
 - [22-03]: SoftwareApplication schema forward-pulled from Phase 24 — Organization/WebSite alone not rich-result-eligible
 - [22-03]: logo.png created (512x512 terminal icon) — enables Logo rich result detection in Organization schema
+- [22.1-01]: STRATEGY_GRAPH, MVP_TIMELINE, APP_ARCHITECTURE NOT in GENERATION_ORDER — finalize-triggered pipeline, separate from sequential brief pipeline
+- [22.1-01]: RunnerFake tier adaptation — bootstrapper MVP Timeline starts with 2-week no-code validation sprint, managed services (Render/Clerk/Resend) over AWS
 
 ### Pending Todos
 
@@ -73,8 +75,8 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Phase 22.1 planned and verified — ready for execution
-Resume file: .planning/phases/22.1-end-to-end-flow-strategy-graph-timeline-architecture-from-real-data/22.1-01-PLAN.md
+Stopped at: Completed 22.1-01-PLAN.md — ready for Plan 02 (LLM generation)
+Resume file: .planning/phases/22.1-end-to-end-flow-strategy-graph-timeline-architecture-from-real-data/22.1-02-PLAN.md
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
