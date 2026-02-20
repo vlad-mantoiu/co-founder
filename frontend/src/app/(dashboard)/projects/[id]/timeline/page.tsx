@@ -5,9 +5,28 @@ import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { KanbanBoard } from "@/components/timeline/KanbanBoard";
 import { TimelineSearch, SearchParams } from "@/components/timeline/TimelineSearch";
+import { MvpTimeline } from "@/components/timeline/MvpTimeline";
 import { NodeDetailModal, NodeDetail } from "@/components/strategy-graph/NodeDetailModal";
 import { TimelineItem } from "@/components/timeline/types";
 import { apiFetch } from "@/lib/api";
+
+interface MvpTimelineContent {
+  milestones: Array<{
+    week: number;
+    title: string;
+    deliverables: string[];
+    duration_weeks: number;
+    description: string;
+  }>;
+  long_term_roadmap: Array<{
+    phase: string;
+    title: string;
+    description: string;
+    estimated_weeks: number;
+  }>;
+  total_mvp_weeks: number;
+  adapted_for: string;
+}
 
 function buildQueryString(projectId: string, params: SearchParams): string {
   const parts: string[] = [];
@@ -37,6 +56,9 @@ function TimelineSkeleton() {
 /**
  * Project-scoped Timeline page.
  *
+ * Dual-mode: shows MVP milestones from artifact when available, with Kanban
+ * board below. Falls back to Kanban-only when no mvp_timeline artifact exists.
+ *
  * Reads projectId from URL path segment (params.id).
  * View-in-graph links navigate to /projects/{id}/strategy?highlight={nodeId}.
  */
@@ -58,12 +80,30 @@ export default function ProjectTimelinePage() {
     dateTo: null,
   });
   const [enrichedDetail, setEnrichedDetail] = useState<NodeDetail | null>(null);
+  // Holds mvp_timeline artifact content when available (null = Kanban-only mode)
+  const [mvpTimelineData, setMvpTimelineData] = useState<MvpTimelineContent | null>(null);
 
   const fetchTimeline = useCallback(
     async (params: SearchParams) => {
       setLoading(true);
       setError(null);
       try {
+        // FIRST: try to fetch the mvp_timeline artifact
+        const artifactRes = await apiFetch(`/api/artifacts/project/${projectId}`, getToken);
+        if (artifactRes.ok) {
+          const artifacts = await artifactRes.json();
+          const timelineArtifact = artifacts.find(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (a: any) => a.artifact_type === "mvp_timeline" && a.generation_status === "idle" && a.current_content
+          );
+          if (timelineArtifact) {
+            setMvpTimelineData(timelineArtifact.current_content as MvpTimelineContent);
+          } else {
+            setMvpTimelineData(null);
+          }
+        }
+
+        // ALWAYS fetch Kanban board items too (shown below MVP milestones or as fallback)
         const url = buildQueryString(projectId, params);
         const res = await apiFetch(url, getToken);
         if (!res.ok) {
@@ -141,9 +181,30 @@ export default function ProjectTimelinePage() {
       <div className="mb-6">
         <h1 className="text-2xl font-display font-semibold text-white">Timeline</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Track project events and milestones
+          {mvpTimelineData
+            ? "Your personalized MVP launch plan"
+            : "Track project events and milestones"}
         </p>
       </div>
+
+      {/* MVP milestones from artifact — shown when available */}
+      {mvpTimelineData && !loading && (
+        <div className="mb-10">
+          <MvpTimeline
+            milestones={mvpTimelineData.milestones ?? []}
+            longTermRoadmap={mvpTimelineData.long_term_roadmap ?? []}
+            totalMvpWeeks={mvpTimelineData.total_mvp_weeks ?? 0}
+            adaptedFor={mvpTimelineData.adapted_for ?? ""}
+          />
+        </div>
+      )}
+
+      {/* Kanban board — always shown (as primary content or below MVP milestones) */}
+      {mvpTimelineData && !loading && items.length > 0 && (
+        <div className="mb-4">
+          <h2 className="text-base font-semibold text-white/60 mb-4">Project Events</h2>
+        </div>
+      )}
 
       {/* Search bar */}
       <div className="mb-5">
