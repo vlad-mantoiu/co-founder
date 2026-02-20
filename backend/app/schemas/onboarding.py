@@ -1,9 +1,6 @@
 """Onboarding Pydantic schemas — API contracts for idea capture flow."""
 
-from typing import Literal
-
 from pydantic import BaseModel, Field, field_validator
-
 
 _INPUT_TYPE_ALIASES: dict[str, str] = {
     "select": "multiple_choice",
