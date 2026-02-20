@@ -52,6 +52,7 @@ export default function RootLayout({
               "@type": "Organization",
               name: "Insourced AI",
               url: "https://getinsourced.ai",
+              logo: "https://getinsourced.ai/logo.png",
               description:
                 "Insourced AI helps non-technical founders ship software faster with AI agents and an AI technical co-founder.",
               sameAs: [],
@@ -68,6 +69,32 @@ export default function RootLayout({
               url: "https://getinsourced.ai",
               description:
                 "AI Technical Co-Founder and Autonomous Agents for Founders",
+            }),
+          }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "SoftwareApplication",
+              name: "Co-Founder.ai",
+              url: "https://cofounder.getinsourced.ai",
+              applicationCategory: "BusinessApplication",
+              operatingSystem: "Web",
+              offers: {
+                "@type": "Offer",
+                price: "0",
+                priceCurrency: "USD",
+                description: "Free tier available",
+              },
+              description:
+                "AI technical co-founder that plans architecture, writes code, runs tests, and prepares deployments for non-technical founders.",
+              publisher: {
+                "@type": "Organization",
+                name: "Insourced AI",
+                url: "https://getinsourced.ai",
+              },
             }),
           }}
         />
