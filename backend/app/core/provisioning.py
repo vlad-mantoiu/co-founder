@@ -1,6 +1,6 @@
 """User provisioning on first login.
 
-Idempotent provisioning that creates UserSettings + starter Project for new Clerk users.
+Idempotent provisioning that creates UserSettings for new Clerk users.
 Uses ON CONFLICT DO NOTHING for race-safe inserts.
 """
 
@@ -11,7 +11,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.db.base import get_session_factory
 from app.db.models.plan_tier import PlanTier
-from app.db.models.project import Project
 from app.db.models.user_settings import UserSettings
 
 
@@ -20,7 +19,7 @@ async def provision_user_on_first_login(
     jwt_claims: dict,
     session: AsyncSession | None = None,
 ) -> UserSettings:
-    """Provision a new user on first login, creating UserSettings and starter project.
+    """Provision a new user on first login by creating UserSettings.
 
     This function is idempotent - repeat calls for the same user_id are no-ops.
     Uses PostgreSQL's ON CONFLICT DO NOTHING for race-safe inserts.
@@ -85,23 +84,5 @@ async def _do_provision(
 
     # Eagerly load plan_tier relationship
     await session.refresh(user_settings, ["plan_tier"])
-
-    # Check if user has any projects
-    project_count_result = await session.execute(select(Project).where(Project.clerk_user_id == clerk_user_id))
-    existing_projects = project_count_result.scalars().all()
-
-    # Create starter project if user has none
-    if len(existing_projects) == 0:
-        project_name = jwt_claims.get("company_name", "My First Project")
-
-        starter_project = Project(
-            clerk_user_id=clerk_user_id,
-            name=project_name,
-            description="",
-            stage_number=None,  # Pre-stage, ready for Phase 4 onboarding
-            status="active",
-        )
-        session.add(starter_project)
-        await session.commit()
 
     return user_settings

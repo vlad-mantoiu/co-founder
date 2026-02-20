@@ -20,6 +20,7 @@ from app.agent.runner import Runner
 from app.db.models.onboarding_session import OnboardingSession
 from app.db.models.plan_tier import PlanTier
 from app.db.models.project import Project
+from app.db.models.user_settings import UserSettings
 
 # Tier session limits (concurrent active sessions)
 TIER_SESSION_LIMITS = {
@@ -412,6 +413,14 @@ class OnboardingService:
 
             onboarding_session.project_id = project.id
             flag_modified(onboarding_session, "project_id")
+
+            # Mark onboarding complete at user level for first-time funnel routing.
+            settings_result = await session.execute(
+                select(UserSettings).where(UserSettings.clerk_user_id == user_id)
+            )
+            user_settings = settings_result.scalar_one_or_none()
+            if user_settings is not None and not user_settings.onboarding_completed:
+                user_settings.onboarding_completed = True
 
             await session.commit()
             await session.refresh(onboarding_session)

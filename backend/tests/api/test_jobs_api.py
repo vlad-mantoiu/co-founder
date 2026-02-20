@@ -19,7 +19,7 @@ from fakeredis import FakeAsyncRedis
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app.core.auth import ClerkUser, require_auth, require_subscription
+from app.core.auth import ClerkUser, require_auth, require_build_subscription
 from app.db.redis import get_redis
 
 pytestmark = pytest.mark.integration
@@ -65,7 +65,7 @@ def test_submit_job_returns_job_id_and_position(api_client: TestClient, fake_red
     """Test POST /api/jobs returns 201 with job_id, position, and usage counters."""
     app: FastAPI = api_client.app
     app.dependency_overrides[require_auth] = override_auth(user_a)
-    app.dependency_overrides[require_subscription] = override_subscription(user_a)
+    app.dependency_overrides[require_build_subscription] = override_subscription(user_a)
     app.dependency_overrides[get_redis] = lambda: fake_redis
 
     response = api_client.post(
@@ -100,11 +100,28 @@ def test_submit_job_requires_auth(api_client: TestClient, fake_redis):
     app.dependency_overrides.clear()
 
 
+def test_submit_job_without_subscription_returns_402(api_client: TestClient, fake_redis, user_a):
+    """POST /api/jobs without active subscription returns structured 402."""
+    app: FastAPI = api_client.app
+    app.dependency_overrides[require_auth] = override_auth(user_a)
+    app.dependency_overrides[get_redis] = lambda: fake_redis
+
+    response = api_client.post("/api/jobs", json={"project_id": str(uuid.uuid4()), "goal": "Add authentication"})
+
+    assert response.status_code == 402
+    detail = response.json()["detail"]
+    assert detail["code"] == "subscription_required"
+    assert "Active subscription required" in detail["message"]
+    assert detail["upgrade_url"] == "/billing"
+
+    app.dependency_overrides.clear()
+
+
 def test_submit_job_validates_goal(api_client: TestClient, fake_redis, user_a):
     """Test POST /api/jobs with empty goal returns 422 validation error."""
     app: FastAPI = api_client.app
     app.dependency_overrides[require_auth] = override_auth(user_a)
-    app.dependency_overrides[require_subscription] = override_subscription(user_a)
+    app.dependency_overrides[require_build_subscription] = override_subscription(user_a)
     app.dependency_overrides[get_redis] = lambda: fake_redis
 
     response = api_client.post(
@@ -125,7 +142,7 @@ def test_get_job_status_returns_current_state(api_client: TestClient, fake_redis
     """Test GET /api/jobs/{id} returns current status and usage counters."""
     app: FastAPI = api_client.app
     app.dependency_overrides[require_auth] = override_auth(user_a)
-    app.dependency_overrides[require_subscription] = override_subscription(user_a)
+    app.dependency_overrides[require_build_subscription] = override_subscription(user_a)
     app.dependency_overrides[get_redis] = lambda: fake_redis
 
     # Submit job first
@@ -152,7 +169,7 @@ def test_get_job_status_enforces_user_isolation(api_client: TestClient, fake_red
     """Test GET /api/jobs/{id} with wrong user returns 404 (user isolation)."""
     app: FastAPI = api_client.app
     app.dependency_overrides[require_auth] = override_auth(user_a)
-    app.dependency_overrides[require_subscription] = override_subscription(user_a)
+    app.dependency_overrides[require_build_subscription] = override_subscription(user_a)
     app.dependency_overrides[get_redis] = lambda: fake_redis
 
     # User A submits job
@@ -188,7 +205,7 @@ def test_confirm_iteration_grants_batch(api_client: TestClient, fake_redis, user
     """Test POST /api/jobs/{id}/confirm returns updated iteration counters."""
     app: FastAPI = api_client.app
     app.dependency_overrides[require_auth] = override_auth(user_a)
-    app.dependency_overrides[require_subscription] = override_subscription(user_a)
+    app.dependency_overrides[require_build_subscription] = override_subscription(user_a)
     app.dependency_overrides[get_redis] = lambda: fake_redis
 
     # Submit job
@@ -221,7 +238,7 @@ def test_confirm_iteration_when_not_at_limit_returns_400(api_client: TestClient,
     """Test POST /api/jobs/{id}/confirm when not at limit returns 400."""
     app: FastAPI = api_client.app
     app.dependency_overrides[require_auth] = override_auth(user_a)
-    app.dependency_overrides[require_subscription] = override_subscription(user_a)
+    app.dependency_overrides[require_build_subscription] = override_subscription(user_a)
     app.dependency_overrides[get_redis] = lambda: fake_redis
 
     # Submit job
@@ -241,7 +258,7 @@ def test_daily_limit_exceeded_returns_scheduled(api_client: TestClient, fake_red
     """Test 6th job for bootstrapper returns SCHEDULED status (daily limit 5)."""
     app: FastAPI = api_client.app
     app.dependency_overrides[require_auth] = override_auth(user_a)
-    app.dependency_overrides[require_subscription] = override_subscription(user_a)
+    app.dependency_overrides[require_build_subscription] = override_subscription(user_a)
     app.dependency_overrides[get_redis] = lambda: fake_redis
 
     # Submit 5 jobs to reach limit
@@ -268,7 +285,7 @@ def test_global_cap_exceeded_returns_503(api_client: TestClient, fake_redis, use
     """Test job submission when queue at 100 returns 503 with retry_after_minutes."""
     app: FastAPI = api_client.app
     app.dependency_overrides[require_auth] = override_auth(user_a)
-    app.dependency_overrides[require_subscription] = override_subscription(user_a)
+    app.dependency_overrides[require_build_subscription] = override_subscription(user_a)
     app.dependency_overrides[get_redis] = lambda: fake_redis
 
     # Pre-fill queue to 100 jobs

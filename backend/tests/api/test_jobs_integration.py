@@ -18,7 +18,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.agent.runner_fake import RunnerFake
-from app.core.auth import ClerkUser, require_auth, require_subscription
+from app.core.auth import ClerkUser, require_auth, require_build_subscription
 from app.db.redis import get_redis
 from app.queue.manager import QueueManager
 
@@ -83,7 +83,7 @@ def test_happy_path_end_to_end(api_client: TestClient, fake_redis, mock_runner, 
     """
     app: FastAPI = api_client.app
     app.dependency_overrides[require_auth] = override_auth(user_bootstrapper)
-    app.dependency_overrides[require_subscription] = override_subscription(user_bootstrapper)
+    app.dependency_overrides[require_build_subscription] = override_subscription(user_bootstrapper)
     app.dependency_overrides[get_redis] = lambda: fake_redis
 
     project_id = str(uuid.uuid4())
@@ -156,7 +156,7 @@ def test_concurrency_limiting(api_client: TestClient, fake_redis, mock_runner, u
     """
     app: FastAPI = api_client.app
     app.dependency_overrides[require_auth] = override_auth(user_bootstrapper)
-    app.dependency_overrides[require_subscription] = override_subscription(user_bootstrapper)
+    app.dependency_overrides[require_build_subscription] = override_subscription(user_bootstrapper)
     app.dependency_overrides[get_redis] = lambda: fake_redis
 
     project_id = str(uuid.uuid4())
@@ -181,7 +181,7 @@ def test_daily_limit_produces_scheduled_status(api_client: TestClient, fake_redi
     """
     app: FastAPI = api_client.app
     app.dependency_overrides[require_auth] = override_auth(user_bootstrapper)
-    app.dependency_overrides[require_subscription] = override_subscription(user_bootstrapper)
+    app.dependency_overrides[require_build_subscription] = override_subscription(user_bootstrapper)
     app.dependency_overrides[get_redis] = lambda: fake_redis
 
     project_id = str(uuid.uuid4())
@@ -213,7 +213,7 @@ def test_global_cap_rejection(api_client: TestClient, fake_redis, user_bootstrap
     """
     app: FastAPI = api_client.app
     app.dependency_overrides[require_auth] = override_auth(user_bootstrapper)
-    app.dependency_overrides[require_subscription] = override_subscription(user_bootstrapper)
+    app.dependency_overrides[require_build_subscription] = override_subscription(user_bootstrapper)
     app.dependency_overrides[get_redis] = lambda: fake_redis
 
     # Enqueue 100 jobs directly (async operation)
@@ -245,7 +245,7 @@ def test_user_isolation(api_client: TestClient, fake_redis, user_bootstrapper):
     - Verify 404 response
     """
     app: FastAPI = api_client.app
-    app.dependency_overrides[require_subscription] = override_subscription(user_bootstrapper)
+    app.dependency_overrides[require_build_subscription] = override_subscription(user_bootstrapper)
     app.dependency_overrides[get_redis] = lambda: fake_redis
 
     # User A submits job
@@ -279,7 +279,7 @@ def test_iteration_confirmation_flow(api_client: TestClient, fake_redis, mock_ru
     """
     app: FastAPI = api_client.app
     app.dependency_overrides[require_auth] = override_auth(user_bootstrapper)
-    app.dependency_overrides[require_subscription] = override_subscription(user_bootstrapper)
+    app.dependency_overrides[require_build_subscription] = override_subscription(user_bootstrapper)
     app.dependency_overrides[get_redis] = lambda: fake_redis
 
     project_id = str(uuid.uuid4())
@@ -323,7 +323,7 @@ def test_usage_counters_accuracy(api_client: TestClient, fake_redis, user_partne
     """
     app: FastAPI = api_client.app
     app.dependency_overrides[require_auth] = override_auth(user_partner)
-    app.dependency_overrides[require_subscription] = override_subscription(user_partner)
+    app.dependency_overrides[require_build_subscription] = override_subscription(user_partner)
     app.dependency_overrides[get_redis] = lambda: fake_redis
 
     project_id = str(uuid.uuid4())

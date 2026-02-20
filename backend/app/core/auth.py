@@ -204,6 +204,40 @@ async def require_subscription(user: ClerkUser = Depends(require_auth)) -> Clerk
     return user
 
 
+async def require_build_subscription(user: ClerkUser = Depends(require_auth)) -> ClerkUser:
+    """FastAPI dependency that requires an active subscription for build starts.
+
+    Returns a structured HTTP 402 response when subscription is missing.
+    """
+    from app.db.base import get_session_factory
+    from app.db.models.user_settings import UserSettings
+
+    factory = get_session_factory()
+    async with factory() as session:
+        result = await session.execute(
+            select(UserSettings).where(
+                UserSettings.clerk_user_id == user.user_id,
+            )
+        )
+        settings = result.scalar_one_or_none()
+
+        # Admins bypass subscription check
+        if settings and settings.is_admin:
+            return user
+
+        if settings is None or settings.stripe_subscription_status not in ("active", "trialing"):
+            raise HTTPException(
+                status_code=402,
+                detail={
+                    "code": "subscription_required",
+                    "message": "Active subscription required to start builds.",
+                    "upgrade_url": "/billing",
+                },
+            )
+
+    return user
+
+
 async def require_admin(user: ClerkUser = Depends(require_auth)) -> ClerkUser:
     """FastAPI dependency that requires admin privileges.
 

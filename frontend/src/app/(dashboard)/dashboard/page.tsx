@@ -36,19 +36,28 @@ interface Project {
 
 function CheckoutSuccessDetector() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const hasRun = useRef(false);
 
   useEffect(() => {
     if (hasRun.current) return;
     const success = searchParams.get("checkout_success");
+    const returnTo = searchParams.get("return_to");
     if (success === "true") {
       hasRun.current = true;
       toast.success("Subscription activated! Welcome aboard.");
+
+      if (returnTo && returnTo.startsWith("/")) {
+        router.replace(returnTo);
+        return;
+      }
+
       const url = new URL(window.location.href);
       url.searchParams.delete("checkout_success");
+      url.searchParams.delete("return_to");
       window.history.replaceState({}, "", url.toString());
     }
-  }, [searchParams]);
+  }, [searchParams, router]);
 
   return null;
 }
@@ -62,15 +71,25 @@ function CheckoutAutoRedirector({ getToken }: { getToken: () => Promise<string |
   useEffect(() => {
     const plan = searchParams.get("plan");
     const interval = searchParams.get("interval") || "monthly";
+    const returnTo = searchParams.get("return_to");
 
     if (!plan || checkoutTriggered.current) return;
     checkoutTriggered.current = true;
+    const selectedPlan = plan;
 
     async function triggerCheckout() {
       try {
+        const payload: { plan_slug: string; interval: string; return_to?: string } = {
+          plan_slug: selectedPlan,
+          interval,
+        };
+        if (returnTo && returnTo.startsWith("/")) {
+          payload.return_to = returnTo;
+        }
+
         const res = await apiFetch("/api/billing/checkout", getToken, {
           method: "POST",
-          body: JSON.stringify({ plan_slug: plan, interval }),
+          body: JSON.stringify(payload),
         });
         const data = await res.json();
         if (data.checkout_url) {
@@ -94,10 +113,21 @@ export default function DashboardPage() {
   const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
 
   useEffect(() => {
     async function fetchProjects() {
       try {
+        const statusRes = await apiFetch("/api/onboarding/status", getToken);
+        if (statusRes.ok) {
+          const statusData: { onboarding_completed: boolean } = await statusRes.json();
+          if (!statusData.onboarding_completed) {
+            setRedirecting(true);
+            router.replace("/onboarding");
+            return;
+          }
+        }
+
         const res = await apiFetch("/api/projects", getToken);
         if (res.ok) {
           const data = await res.json();
@@ -110,12 +140,18 @@ export default function DashboardPage() {
       }
     }
     fetchProjects();
-  }, [getToken]);
+  }, [getToken, router]);
 
   const hasProjects = projects.length > 0;
   const firstName = user?.firstName || "Builder";
 
-  if (!loaded) {
+  useEffect(() => {
+    if (!loaded || hasProjects || redirecting) return;
+    setRedirecting(true);
+    router.replace("/onboarding");
+  }, [loaded, hasProjects, redirecting, router]);
+
+  if (!loaded || redirecting) {
     return (
       <>
         <Suspense fallback={null}>
@@ -129,9 +165,8 @@ export default function DashboardPage() {
     );
   }
 
-  // No projects yet — redirect to onboarding flow
+  // No projects yet — keep onboarding as fallback entrypoint
   if (!hasProjects) {
-    router.replace("/onboarding");
     return (
       <div className="flex items-center justify-center h-64">
         <div className="w-8 h-8 border-2 border-brand border-t-transparent rounded-full animate-spin" />

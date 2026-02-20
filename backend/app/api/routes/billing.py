@@ -1,6 +1,7 @@
 """Billing routes — Stripe Checkout, Customer Portal, webhooks, and status."""
 
 from datetime import UTC, datetime, timedelta
+from urllib.parse import quote, urlparse
 
 import stripe
 import structlog
@@ -29,6 +30,7 @@ router = APIRouter()
 class CheckoutRequest(BaseModel):
     plan_slug: str
     interval: str  # "monthly" | "annual"
+    return_to: str | None = None
 
 
 class CheckoutResponse(BaseModel):
@@ -81,6 +83,17 @@ def _get_stripe() -> None:
     """Configure the stripe module with the secret key."""
     settings = get_settings()
     stripe.api_key = settings.stripe_secret_key
+
+
+def _validate_return_to(return_to: str | None) -> str | None:
+    """Validate return_to is a safe in-app relative path."""
+    if not return_to:
+        return None
+
+    parsed = urlparse(return_to)
+    if parsed.scheme or parsed.netloc or not return_to.startswith("/"):
+        raise HTTPException(status_code=400, detail="return_to must be a relative path starting with '/'")
+    return return_to
 
 
 async def _get_or_create_settings(clerk_user_id: str) -> UserSettings:
@@ -159,18 +172,24 @@ async def create_checkout_session(
     if not price_id:
         raise HTTPException(status_code=400, detail=f"Invalid plan/interval: {body.plan_slug}/{body.interval}")
 
+    validated_return_to = _validate_return_to(body.return_to)
+
     user_settings = await _get_or_create_settings(user.user_id)
     customer_id = await _get_or_create_stripe_customer(user_settings, user.user_id)
 
     settings = get_settings()
     _get_stripe()
 
+    success_url = f"{settings.frontend_url}/dashboard?checkout_success=true"
+    if validated_return_to:
+        success_url = f"{success_url}&return_to={quote(validated_return_to, safe='')}"
+
     checkout_session = await stripe.checkout.Session.create_async(
         customer=customer_id,
         mode="subscription",
         line_items=[{"price": price_id, "quantity": 1}],
-        success_url=f"{settings.frontend_url}/dashboard?checkout_success=true",
-        cancel_url=f"{settings.frontend_url}/pricing",
+        success_url=success_url,
+        cancel_url=f"{settings.frontend_url}/billing",
         metadata={
             "clerk_user_id": user.user_id,
             "plan_slug": body.plan_slug,

@@ -125,8 +125,8 @@ async def test_provision_is_idempotent(session: AsyncSession, bootstrapper_tier:
     assert len(all_settings) == 1
 
 
-async def test_provision_creates_starter_project(session: AsyncSession, bootstrapper_tier: PlanTier):
-    """Test that provisioning creates a starter project with stage_number=None."""
+async def test_provision_does_not_create_starter_project(session: AsyncSession, bootstrapper_tier: PlanTier):
+    """Test that provisioning does not auto-create projects."""
     clerk_user_id = "user_test_003"
     jwt_claims = {
         "email": "project@example.com",
@@ -136,18 +136,14 @@ async def test_provision_creates_starter_project(session: AsyncSession, bootstra
     # Provision user
     await provision_user_on_first_login(clerk_user_id, jwt_claims, session)
 
-    # Verify starter project created
+    # Verify no starter project is created
     result = await session.execute(select(Project).where(Project.clerk_user_id == clerk_user_id))
     projects = result.scalars().all()
-
-    assert len(projects) == 1
-    assert projects[0].name == "My First Project"
-    assert projects[0].stage_number is None
-    assert projects[0].status == "active"
+    assert len(projects) == 0
 
 
-async def test_provision_no_duplicate_projects(session: AsyncSession, bootstrapper_tier: PlanTier):
-    """Test that provisioning the same user twice creates only one project."""
+async def test_provision_repeat_calls_still_create_no_projects(session: AsyncSession, bootstrapper_tier: PlanTier):
+    """Test that repeated provisioning calls still do not create projects."""
     clerk_user_id = "user_test_004"
     jwt_claims = {
         "email": "nodup@example.com",
@@ -158,10 +154,10 @@ async def test_provision_no_duplicate_projects(session: AsyncSession, bootstrapp
     await provision_user_on_first_login(clerk_user_id, jwt_claims, session)
     await provision_user_on_first_login(clerk_user_id, jwt_claims, session)
 
-    # Verify only one project exists
+    # Verify no projects exist
     result = await session.execute(select(Project).where(Project.clerk_user_id == clerk_user_id))
     projects = result.scalars().all()
-    assert len(projects) == 1
+    assert len(projects) == 0
 
 
 async def test_provision_extracts_jwt_claims(session: AsyncSession, bootstrapper_tier: PlanTier):
@@ -171,7 +167,6 @@ async def test_provision_extracts_jwt_claims(session: AsyncSession, bootstrapper
         "email": "claims@example.com",
         "name": "Claims User",
         "image_url": "https://example.com/claims-avatar.jpg",
-        "company_name": "Test Company Inc",
     }
 
     # Provision user
@@ -181,9 +176,3 @@ async def test_provision_extracts_jwt_claims(session: AsyncSession, bootstrapper
     assert user_settings.email == "claims@example.com"
     assert user_settings.name == "Claims User"
     assert user_settings.avatar_url == "https://example.com/claims-avatar.jpg"
-
-    # Verify company_name used for project name
-    result = await session.execute(select(Project).where(Project.clerk_user_id == clerk_user_id))
-    projects = result.scalars().all()
-    assert len(projects) == 1
-    assert projects[0].name == "Test Company Inc"

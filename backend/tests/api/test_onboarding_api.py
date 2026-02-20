@@ -376,3 +376,48 @@ def test_edit_thesis_field_persists(api_client: TestClient, mock_runner, user_a)
 
     # Cleanup
     app.dependency_overrides.clear()
+
+
+def test_onboarding_status_false_for_new_user(api_client: TestClient, mock_runner, user_a):
+    """New users with no completed session should report onboarding_completed=false."""
+    app: FastAPI = api_client.app
+    app.dependency_overrides[require_auth] = override_auth(user_a)
+    app.dependency_overrides[get_runner] = lambda: mock_runner
+
+    response = api_client.get("/api/onboarding/status")
+    assert response.status_code == 200
+    assert response.json()["onboarding_completed"] is False
+
+    app.dependency_overrides.clear()
+
+
+def test_onboarding_status_true_after_project_creation(api_client: TestClient, mock_runner, user_a):
+    """Completed onboarding + project creation should set onboarding_completed=true."""
+    app: FastAPI = api_client.app
+    app.dependency_overrides[require_auth] = override_auth(user_a)
+    app.dependency_overrides[get_runner] = lambda: mock_runner
+
+    start_response = api_client.post("/api/onboarding/start", json={"idea": "Status funnel idea"})
+    assert start_response.status_code == 200
+    session_id = start_response.json()["id"]
+    questions = start_response.json()["questions"]
+
+    for question in questions:
+        if question["required"]:
+            answer_response = api_client.post(
+                f"/api/onboarding/{session_id}/answer",
+                json={"question_id": question["id"], "answer": f"Answer to {question['id']}"},
+            )
+            assert answer_response.status_code == 200
+
+    finalize_response = api_client.post(f"/api/onboarding/{session_id}/finalize")
+    assert finalize_response.status_code == 200
+
+    create_response = api_client.post(f"/api/onboarding/{session_id}/create-project")
+    assert create_response.status_code == 200
+
+    status_response = api_client.get("/api/onboarding/status")
+    assert status_response.status_code == 200
+    assert status_response.json()["onboarding_completed"] is True
+
+    app.dependency_overrides.clear()

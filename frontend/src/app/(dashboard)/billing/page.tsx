@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
-import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   CreditCard,
   ExternalLink,
@@ -96,10 +96,12 @@ function UsageMeter({ usage }: { usage: UsageData }) {
 
 export default function BillingPage() {
   const { getToken } = useAuth();
+  const searchParams = useSearchParams();
   const [status, setStatus] = useState<BillingStatus | null>(null);
   const [usage, setUsage] = useState<UsageData | null>(null);
   const [loading, setLoading] = useState(true);
   const [portalLoading, setPortalLoading] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -133,6 +135,35 @@ export default function BillingPage() {
       // Portal creation failed
     } finally {
       setPortalLoading(false);
+    }
+  }
+
+  async function handleCheckout(planSlug: string, interval: string) {
+    setCheckoutLoading(true);
+    try {
+      const rawReturnTo = searchParams.get("return_to");
+      const payload: { plan_slug: string; interval: string; return_to?: string } = {
+        plan_slug: planSlug,
+        interval,
+      };
+      if (rawReturnTo && rawReturnTo.startsWith("/")) {
+        payload.return_to = rawReturnTo;
+      }
+
+      const res = await apiFetch("/api/billing/checkout", getToken, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) return;
+
+      const data = await res.json();
+      if (data.checkout_url) {
+        window.location.href = data.checkout_url;
+      }
+    } catch {
+      // Checkout request failed
+    } finally {
+      setCheckoutLoading(false);
     }
   }
 
@@ -214,12 +245,18 @@ export default function BillingPage() {
               Manage Subscription
             </button>
           ) : (
-            <Link
-              href="/pricing"
+            <button
+              onClick={() => handleCheckout("bootstrapper", "monthly")}
+              disabled={checkoutLoading}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand text-white text-sm font-medium hover:bg-brand-dark transition-colors shadow-glow self-start"
             >
-              Upgrade Plan <ArrowRight className="w-4 h-4" />
-            </Link>
+              {checkoutLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <ArrowRight className="w-4 h-4" />
+              )}
+              Subscribe to Build
+            </button>
           )}
         </div>
       </GlassCard>
@@ -282,12 +319,18 @@ export default function BillingPage() {
                 From idea to running MVP in under 10 minutes
               </li>
             </ul>
-            <Link
-              href="/pricing"
+            <button
+              onClick={() => handleCheckout("bootstrapper", "monthly")}
+              disabled={checkoutLoading}
               className="inline-flex items-center gap-2 px-8 py-3 rounded-xl bg-brand text-white font-semibold hover:bg-brand-dark transition-colors shadow-glow"
             >
-              View Plans &amp; Pricing <ArrowRight className="w-4 h-4" />
-            </Link>
+              {checkoutLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <ArrowRight className="w-4 h-4" />
+              )}
+              Subscribe to Build
+            </button>
           </div>
         </GlassCard>
       )}

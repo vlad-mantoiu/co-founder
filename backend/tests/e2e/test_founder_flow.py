@@ -25,7 +25,7 @@ from app.api.routes.decision_gates import get_runner as get_gates_runner
 from app.api.routes.execution_plans import get_runner as get_plans_runner
 from app.api.routes.onboarding import get_runner as get_onboarding_runner
 from app.api.routes.understanding import get_runner as get_understanding_runner
-from app.core.auth import ClerkUser, require_auth, require_subscription
+from app.core.auth import ClerkUser, require_auth, require_build_subscription, require_subscription
 from app.db.redis import get_redis
 from tests.e2e.conftest import FakeSandboxRuntime
 
@@ -68,6 +68,7 @@ def setup_e2e_overrides(app: FastAPI, fake_redis):
     runner = RunnerFake()
     app.dependency_overrides[require_auth] = override_auth_e2e()
     app.dependency_overrides[require_subscription] = override_auth_e2e()
+    app.dependency_overrides[require_build_subscription] = override_auth_e2e()
     app.dependency_overrides[get_redis] = lambda: fake_redis
     app.dependency_overrides[get_onboarding_runner] = lambda: runner
     app.dependency_overrides[get_understanding_runner] = lambda: runner

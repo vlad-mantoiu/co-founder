@@ -126,11 +126,35 @@ export function FloatingChat({ projectId }: FloatingChatProps) {
             router.push(action.payload);
           } else if (action.type === "start_build" && action.payload) {
             try {
-              await apiFetch(
-                `/api/generation/start/${action.payload}`,
-                getToken,
-                { method: "POST" },
-              );
+              const buildResponse = await apiFetch("/api/generation/start", getToken, {
+                method: "POST",
+                body: JSON.stringify({
+                  project_id: action.payload,
+                  goal: text,
+                }),
+              });
+
+              if (buildResponse.status === 402) {
+                const payload = await buildResponse.json().catch(() => null);
+                const upgradeUrl =
+                  typeof payload?.detail?.upgrade_url === "string"
+                    ? payload.detail.upgrade_url
+                    : "/billing";
+                const returnTo = `${window.location.pathname}${window.location.search}`;
+                router.push(
+                  `${upgradeUrl}?return_to=${encodeURIComponent(returnTo)}`,
+                );
+                continue;
+              }
+
+              if (!buildResponse.ok) {
+                continue;
+              }
+
+              const buildData = await buildResponse.json();
+              if (buildData.job_id) {
+                router.push(`/projects/${action.payload}/build?job_id=${buildData.job_id}`);
+              }
             } catch {
               // Non-fatal
             }

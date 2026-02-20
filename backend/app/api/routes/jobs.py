@@ -7,7 +7,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from app.core.auth import ClerkUser, require_auth, require_subscription
+from app.core.auth import ClerkUser, require_auth, require_build_subscription
 from app.core.llm_config import get_or_create_user_settings
 from app.db.redis import get_redis
 from app.queue.estimator import WaitTimeEstimator
@@ -59,7 +59,7 @@ class ConfirmResponse(BaseModel):
 async def submit_job(
     request: SubmitJobRequest,
     background_tasks: BackgroundTasks,
-    user: ClerkUser = Depends(require_subscription),
+    user: ClerkUser = Depends(require_build_subscription),
     redis=Depends(get_redis),
 ):
     """Submit a new job to the queue.

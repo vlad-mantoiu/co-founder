@@ -22,7 +22,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.agent.runner_fake import RunnerFake
-from app.core.auth import ClerkUser, require_auth, require_subscription
+from app.core.auth import ClerkUser, require_auth, require_build_subscription, require_subscription
 from app.db.redis import get_redis
 from app.queue.schemas import JobStatus
 from app.queue.state_machine import JobStateMachine
@@ -153,7 +153,7 @@ def test_start_generation_returns_job_id(api_client: TestClient, fake_redis, use
 
     app: FastAPI = api_client.app
     app.dependency_overrides[require_auth] = override_auth(user_a)
-    app.dependency_overrides[require_subscription] = override_auth(user_a)
+    app.dependency_overrides[require_build_subscription] = override_auth(user_a)
     app.dependency_overrides[get_redis] = lambda: fake_redis
 
     async def mock_user_settings(*args, **kwargs):
@@ -175,6 +175,26 @@ def test_start_generation_returns_job_id(api_client: TestClient, fake_redis, use
     app.dependency_overrides.clear()
 
 
+def test_start_generation_requires_subscription_returns_402(api_client: TestClient, fake_redis, user_a):
+    """POST /api/generation/start without active subscription returns structured 402."""
+    app: FastAPI = api_client.app
+    app.dependency_overrides[require_auth] = override_auth(user_a)
+    app.dependency_overrides[get_redis] = lambda: fake_redis
+
+    response = api_client.post(
+        "/api/generation/start",
+        json={"project_id": str(uuid.uuid4()), "goal": "Build a todo app"},
+    )
+
+    assert response.status_code == 402
+    detail = response.json()["detail"]
+    assert detail["code"] == "subscription_required"
+    assert "Active subscription required" in detail["message"]
+    assert detail["upgrade_url"] == "/billing"
+
+    app.dependency_overrides.clear()
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Test 2: start blocked by pending gate
 # ──────────────────────────────────────────────────────────────────────────────
@@ -186,7 +206,7 @@ def test_start_generation_blocked_by_gate(api_client: TestClient, fake_redis, us
 
     app: FastAPI = api_client.app
     app.dependency_overrides[require_auth] = override_auth(user_a)
-    app.dependency_overrides[require_subscription] = override_auth(user_a)
+    app.dependency_overrides[require_build_subscription] = override_auth(user_a)
     app.dependency_overrides[get_redis] = lambda: fake_redis
 
     # Create a pending gate for this project first
@@ -408,7 +428,7 @@ def test_rerun_creates_new_version(api_client: TestClient, fake_redis, user_a):
 
     app: FastAPI = api_client.app
     app.dependency_overrides[require_auth] = override_auth(user_a)
-    app.dependency_overrides[require_subscription] = override_auth(user_a)
+    app.dependency_overrides[require_build_subscription] = override_auth(user_a)
     app.dependency_overrides[get_redis] = lambda: fake_redis
 
     async def mock_user_settings(*args, **kwargs):

@@ -453,11 +453,26 @@ export function useOnboarding() {
 
       const data = await response.json();
 
-      // Success - redirect to understanding page with project context
+      // Trigger teaser artifact generation (non-blocking for 409/accepted states).
+      try {
+        const generateResponse = await apiFetch("/api/artifacts/generate", getToken, {
+          method: "POST",
+          body: JSON.stringify({ project_id: data.project_id }),
+        });
+        if (!generateResponse.ok && generateResponse.status !== 409) {
+          // Teaser page can still poll and recover even if generation call fails.
+          console.warn("Failed to trigger artifact generation", generateResponse.status);
+        }
+      } catch {
+        // Non-fatal: teaser page can still render and allow manual subscribe flow.
+      }
+
       setState((s) => ({ ...s, isLoading: false }));
 
-      // Redirect to project-scoped understanding page with sessionId preserved
-      window.location.href = `/projects/${data.project_id}/understanding?sessionId=${state.sessionId}`;
+      const sessionQuery = state.sessionId
+        ? `?sessionId=${encodeURIComponent(state.sessionId)}`
+        : "";
+      window.location.href = `/projects/${data.project_id}/teaser${sessionQuery}`;
     } catch (err) {
       setState((s) => ({
         ...s,

@@ -14,6 +14,8 @@ from app.agent.runner_fake import RunnerFake
 from app.core.auth import ClerkUser, require_auth
 from app.core.llm_config import get_or_create_user_settings
 from app.db.base import get_session_factory
+from app.db.models.onboarding_session import OnboardingSession
+from app.db.models.user_settings import UserSettings
 from app.schemas.onboarding import (
     AnswerRequest,
     OnboardingQuestion,
@@ -25,6 +27,12 @@ from app.schemas.onboarding import (
 from app.services.onboarding_service import OnboardingService
 
 router = APIRouter()
+
+
+class OnboardingStatusResponse(BaseModel):
+    """Response model for onboarding completion status."""
+
+    onboarding_completed: bool
 
 
 def get_runner(request: Request) -> Runner:
@@ -175,14 +183,42 @@ async def list_sessions(
     ]
 
 
+@router.get("/status", response_model=OnboardingStatusResponse)
+async def get_onboarding_status(
+    user: ClerkUser = Depends(require_auth),
+):
+    """Get whether the user has completed onboarding at least once."""
+    factory = get_session_factory()
+    async with factory() as session:
+        settings_result = await session.execute(
+            select(UserSettings).where(UserSettings.clerk_user_id == user.user_id)
+        )
+        user_settings = settings_result.scalar_one_or_none()
+
+        completed_result = await session.execute(
+            select(OnboardingSession.id).where(
+                OnboardingSession.clerk_user_id == user.user_id,
+                OnboardingSession.status == "completed",
+            )
+        )
+        has_completed_session = completed_result.first() is not None
+
+        onboarding_completed = bool(user_settings and user_settings.onboarding_completed) or has_completed_session
+
+        # Backfill setting for users that completed onboarding before this flag was written.
+        if has_completed_session and user_settings and not user_settings.onboarding_completed:
+            user_settings.onboarding_completed = True
+            await session.commit()
+
+    return OnboardingStatusResponse(onboarding_completed=onboarding_completed)
+
+
 @router.get("/by-project/{project_id}", response_model=OnboardingSessionResponse)
 async def get_session_by_project(
     project_id: str,
     user: ClerkUser = Depends(require_auth),
 ):
     """Get the completed onboarding session for a project."""
-    from app.db.models.onboarding_session import OnboardingSession
-
     factory = get_session_factory()
     async with factory() as session:
         result = await session.execute(

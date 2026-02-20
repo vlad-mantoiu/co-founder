@@ -7,7 +7,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
-from app.core.auth import ClerkUser, require_auth, require_subscription
+from app.core.auth import ClerkUser, require_auth, require_build_subscription
 from app.db.base import get_session_factory
 from app.db.models.project import Project
 from app.db.redis import get_redis
@@ -152,7 +152,7 @@ async def _predicted_build_version(project_id: str) -> str:
 async def start_generation(
     request: StartGenerationRequest,
     background_tasks: BackgroundTasks,
-    user: ClerkUser = Depends(require_subscription),
+    user: ClerkUser = Depends(require_build_subscription),
     redis=Depends(get_redis),
 ):
     """Start a new generation build for a project.

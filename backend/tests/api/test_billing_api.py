@@ -204,12 +204,39 @@ class TestAsyncStripeSDK:
             ):
                 response = api_client.post(
                     "/api/billing/checkout",
-                    json={"plan_slug": "bootstrapper", "interval": "monthly"},
+                    json={
+                        "plan_slug": "bootstrapper",
+                        "interval": "monthly",
+                        "return_to": "/projects/abc123/understanding?sessionId=s1",
+                    },
                 )
 
             assert response.status_code == 200
             assert "checkout_url" in response.json()
             mock_checkout.assert_called_once()
+            kwargs = mock_checkout.call_args.kwargs
+            assert "checkout_success=true" in kwargs["success_url"]
+            assert "return_to=%2Fprojects%2Fabc123%2Funderstanding%3FsessionId%3Ds1" in kwargs["success_url"]
+        finally:
+            app.dependency_overrides.clear()
+
+    def test_checkout_rejects_external_return_to(self, api_client: TestClient, test_user):
+        """POST /billing/checkout rejects absolute/external return_to values."""
+        app: FastAPI = api_client.app
+        app.dependency_overrides[require_auth] = override_auth(test_user)
+
+        try:
+            response = api_client.post(
+                "/api/billing/checkout",
+                json={
+                    "plan_slug": "bootstrapper",
+                    "interval": "monthly",
+                    "return_to": "https://evil.example/phish",
+                },
+            )
+
+            assert response.status_code == 400
+            assert "relative path" in response.json()["detail"]
         finally:
             app.dependency_overrides.clear()
 
