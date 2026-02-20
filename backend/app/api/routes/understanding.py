@@ -336,14 +336,16 @@ async def finalize_interview(
                     row.generation_status = "generating"
                     row.current_content = None
                 else:
-                    db_session.add(Artifact(
-                        project_id=project_id,
-                        artifact_type=at.value,
-                        current_content=None,
-                        version_number=1,
-                        schema_version=1,
-                        generation_status="generating",
-                    ))
+                    db_session.add(
+                        Artifact(
+                            project_id=project_id,
+                            artifact_type=at.value,
+                            current_content=None,
+                            version_number=1,
+                            schema_version=1,
+                            generation_status="generating",
+                        )
+                    )
             await db_session.commit()
 
         # Launch background generation task

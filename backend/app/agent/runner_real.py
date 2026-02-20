@@ -828,11 +828,7 @@ Return ONLY a JSON object:
 
         system_msg = SystemMessage(content=COFOUNDER_SYSTEM.format(task_instructions=task_instructions))
         human_msg = HumanMessage(
-            content=(
-                f"Idea: {idea}\n\n"
-                f"Idea Brief:\n{json.dumps(clean_brief, indent=2)}\n\n"
-                f"Tier: {tier}"
-            )
+            content=(f"Idea: {idea}\n\nIdea Brief:\n{json.dumps(clean_brief, indent=2)}\n\nTier: {tier}")
         )
 
         t0 = time.perf_counter()
@@ -933,11 +929,7 @@ Return ONLY a JSON object:
 
         system_msg = SystemMessage(content=COFOUNDER_SYSTEM.format(task_instructions=task_instructions))
         human_msg = HumanMessage(
-            content=(
-                f"Idea: {idea}\n\n"
-                f"Idea Brief:\n{json.dumps(clean_brief, indent=2)}\n\n"
-                f"Tier: {tier}"
-            )
+            content=(f"Idea: {idea}\n\nIdea Brief:\n{json.dumps(clean_brief, indent=2)}\n\nTier: {tier}")
         )
 
         t0 = time.perf_counter()
