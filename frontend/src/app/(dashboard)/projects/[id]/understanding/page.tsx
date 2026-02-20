@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useSearchParams, useRouter, useParams } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
-import { ArrowLeft, Loader2, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Loader2, CheckCircle2, GitBranch, Clock, Layers } from "lucide-react";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api";
 import { useUnderstandingInterview } from "@/hooks/useUnderstandingInterview";
@@ -15,6 +15,9 @@ import { PlanComparisonTable } from "@/components/execution-plans/PlanComparison
 import { PlanOptionCard } from "@/components/execution-plans/PlanOptionCard";
 import { useDecisionGate } from "@/hooks/useDecisionGate";
 import { useExecutionPlans } from "@/hooks/useExecutionPlans";
+import { GenerationOverlay } from "@/components/generation/GenerationOverlay";
+import { GuidedWalkthrough } from "@/components/generation/GuidedWalkthrough";
+import type { WalkthroughStep } from "@/components/generation/GuidedWalkthrough";
 
 /**
  * Project-scoped Understanding Interview Page.
@@ -97,8 +100,39 @@ export default function ProjectUnderstandingPage() {
 
   // Local UI phase tracking
   const [uiPhase, setUiPhase] = useState<
-    "interview" | "gate_open" | "plan_selection" | "plan_selected" | "parked"
+    | "interview"
+    | "gate_open"
+    | "plan_selection"
+    | "plan_selected"
+    | "parked"
+    | "generating"
+    | "walkthrough"
   >("interview");
+
+  // Walkthrough steps — defined once, uses projectId
+  const walkthroughSteps: WalkthroughStep[] = [
+    {
+      title: "Here's your Strategy",
+      description:
+        "We analyzed your idea and organized your key concepts into a strategic plan. Your own words appear as anchor points in the graph.",
+      href: `/projects/${projectId}/strategy`,
+      icon: <GitBranch className="w-8 h-8" />,
+    },
+    {
+      title: "Here's your Timeline",
+      description:
+        "Your personalized MVP launch plan with concrete deliverables for each milestone. Adapted to your experience level and resources.",
+      href: `/projects/${projectId}/timeline`,
+      icon: <Clock className="w-8 h-8" />,
+    },
+    {
+      title: "Here's your Architecture",
+      description:
+        "The recommended tech stack for your idea, with cost estimates and alternatives. Simplified for clarity.",
+      href: `/projects/${projectId}/architecture`,
+      icon: <Layers className="w-8 h-8" />,
+    },
+  ];
 
   useEffect(() => {
     // Auto-start interview if onboarding session ID provided
@@ -268,7 +302,7 @@ export default function ProjectUnderstandingPage() {
               brief={state.brief}
               onEditSection={editBriefSection}
               onReInterview={reInterview}
-              onProceedToDecision={handleOpenGate}
+              onProceedToDecision={() => setUiPhase("generating")}
               artifactId={state.artifactId || ""}
               version={state.briefVersion}
               projectId={projectId}
@@ -392,6 +426,24 @@ export default function ProjectUnderstandingPage() {
               Return to Dashboard
             </button>
           </div>
+        )}
+
+        {/* GENERATING: Generation progress overlay */}
+        {uiPhase === "generating" && (
+          <GenerationOverlay
+            projectId={projectId}
+            onComplete={() => setUiPhase("walkthrough")}
+            onFailed={() => setUiPhase("walkthrough")}
+          />
+        )}
+
+        {/* WALKTHROUGH: Guided artifact reveal */}
+        {uiPhase === "walkthrough" && (
+          <GuidedWalkthrough
+            projectId={projectId}
+            steps={walkthroughSteps}
+            onComplete={() => router.push(`/projects/${projectId}`)}
+          />
         )}
 
         {/* RE_INTERVIEWING: Transition loading */}
