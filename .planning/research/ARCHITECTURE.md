@@ -1,8 +1,8 @@
-# Architecture Patterns: v0.2 Production-Ready Integration
+# Architecture Patterns: Marketing Site — Loading UX, Performance, SEO, GEO
 
-**Domain:** AI Co-Founder SaaS — Adding real LLM, Stripe billing, CI/CD, CloudWatch monitoring to existing architecture
-**Researched:** 2026-02-18
-**Confidence:** HIGH — based on direct codebase analysis of all relevant files
+**Domain:** Next.js 15 static export on CloudFront + S3 — premium loading UX, performance optimization, SEO, and GEO
+**Researched:** 2026-02-20
+**Confidence:** HIGH — based on direct codebase analysis of marketing site, CDK stack, CloudFront function, CI/CD workflow, combined with verification of Next.js 15 docs and ecosystem packages
 
 ---
 
@@ -10,740 +10,808 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                            FRONTEND LAYER                                    │
-│  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐               │
-│  │   Dashboard    │  │ Billing Page   │  │   Chat/Build   │               │
-│  │  (existing)    │  │  (existing)    │  │   (existing)   │               │
-│  └───────┬────────┘  └───────┬────────┘  └───────┬────────┘               │
-│          │  Next.js 14 + Clerk auth (unchanged)    │                        │
-├──────────┴────────────────────────────────────────┴────────────────────────┤
-│                           API LAYER (FastAPI)                               │
-│  ┌─────────────────┐  ┌────────────────┐  ┌────────────────┐              │
-│  │ /api/billing/*  │  │ /api/webhooks/ │  │ /api/health    │              │
-│  │ (EXISTING, add  │  │ stripe (EXISTS)│  │ (EXISTING)     │              │
-│  │  real Stripe)   │  │                │  │ (extend for    │              │
-│  └────────┬────────┘  └───────┬────────┘  │  monitoring)   │              │
-│           │                    │           └────────────────┘              │
-│           │            Stripe SDK (existing billing.py)                     │
-├───────────┴────────────────────────────────────────────────────────────────┤
-│                        SERVICE LAYER                                        │
-│  ┌──────────────────────────┐  ┌───────────────────────────────────────┐  │
-│  │    BillingService (NEW)  │  │  llm_config.py (EXISTING, activate)   │  │
-│  │  Wraps billing.py route  │  │  create_tracked_llm() already works   │  │
-│  │  handlers into service   │  │  UsageTrackingCallback already works  │  │
-│  │  for testability         │  │  MODEL_COSTS already defined          │  │
-│  └──────────────────────────┘  └───────────────────────────────────────┘  │
-├────────────────────────────────────────────────────────────────────────────┤
-│                     AGENT / RUNNER LAYER                                    │
-│  ┌──────────────────────────────────────────────────────────────────────┐ │
-│  │                    Runner Protocol (existing)                         │ │
-│  │  ┌───────────────────────┐    ┌──────────────────────────────────┐  │ │
-│  │  │  RunnerReal (MODIFY)  │    │  RunnerFake (EXISTING, tests only)│  │ │
-│  │  │  activate real Claude │    │  4 scenarios: happy_path,        │  │ │
-│  │  │  API calls in all 10  │    │  llm_failure, partial_build,     │  │ │
-│  │  │  Runner methods       │    │  rate_limited                    │  │ │
-│  │  └──────────┬────────────┘    └──────────────────────────────────┘  │ │
-│  │             │                                                          │ │
-│  │    ┌────────▼────────────────────────────────────────────────┐       │ │
-│  │    │          LangGraph Pipeline (existing, unchanged)        │       │ │
-│  │    │  Architect → Coder → Executor → Debugger → Reviewer → Git│       │ │
-│  │    │  Each node calls create_tracked_llm() — ALREADY WIRED   │       │ │
-│  │    └─────────────────────────────────────────────────────────┘       │ │
-│  └──────────────────────────────────────────────────────────────────────┘ │
-├────────────────────────────────────────────────────────────────────────────┤
-│                      QUEUE / WORKER LAYER (existing)                        │
-│  Redis sorted-set priority queue → JobStateMachine FSM → Worker            │
-│  Concurrency semaphores (user + project level) → GenerationService         │
-├────────────────────────────────────────────────────────────────────────────┤
-│                      PERSISTENCE LAYER (existing)                           │
-│  PostgreSQL (UserSettings + stripe fields exist) | Redis | Neo4j           │
-└────────────────────────────────────────────────────────────────────────────┘
+│                         BROWSER (CLIENT)                                     │
+│                                                                              │
+│  Phase 0: HTML arrives       Phase 1: JS hydrates    Phase 2: In-view       │
+│  ┌─────────────────────┐     ┌──────────────────┐    ┌────────────────────┐ │
+│  │ Splash overlay      │ →   │ Progress bar     │ → │ FadeIn / Stagger   │ │
+│  │ (pure CSS, no JS)   │     │ (framer-motion)  │    │ (existing, keep)   │ │
+│  │ brand logo + pulse  │     │ route transitions│    │                    │ │
+│  └─────────────────────┘     └──────────────────┘    └────────────────────┘ │
+│                                                                              │
+│  Skeleton layer (instant)    Fonts pre-loaded (link rel=preload)             │
+│  Image srcset (WebP/blur)    JSON-LD in <head> (baked at build time)         │
+└──────────────────────────────────────┬──────────────────────────────────────┘
+                                       │ HTTPS
+┌──────────────────────────────────────▼──────────────────────────────────────┐
+│                        CLOUDFRONT CDN (existing)                             │
+│                                                                              │
+│  Behavior: _next/static/*  ──── Cache: 1yr immutable (existing)             │
+│  Behavior: default         ──── Cache: 5min (existing)                      │
+│  Behavior: /images/*       ──── Cache: 1yr immutable (NEW — add behavior)   │
+│  Behavior: /sitemap.xml    ──── Cache: 1hr (NEW — add behavior)             │
+│                                                                              │
+│  CloudFront Function: url-handler.js (existing — www redirect + clean URLs) │
+│                                                                              │
+│  Response Headers: SECURITY_HEADERS policy (existing)                       │
+└──────────────────────────────────────┬──────────────────────────────────────┘
+                                       │ OAC (Origin Access Control)
+┌──────────────────────────────────────▼──────────────────────────────────────┐
+│                        S3 BUCKET: getinsourced-marketing                     │
+│                                                                              │
+│  out/                          (Next.js static export — existing)            │
+│  ├── index.html                HTML pages (5min TTL)                        │
+│  ├── about/index.html                                                        │
+│  ├── _next/static/             Hashed JS/CSS chunks (1yr TTL — existing)   │
+│  ├── _next/static/media/       Geist/SpaceGrotesk woff2 (1yr TTL)           │
+│  ├── images/                   Optimized WebP variants (NEW — 1yr TTL)      │
+│  ├── sitemap.xml               Generated at build by next-sitemap (NEW)     │
+│  ├── robots.txt                Static file in public/ (NEW)                  │
+│  └── llms.txt                  AI crawler guidance (NEW — static file)      │
+└─────────────────────────────────────────────────────────────────────────────┘
 
-CI/CD (GitHub Actions — EXISTS, extend):
-  test.yml:    postgres+redis services, pytest with RunnerFake
-  deploy.yml:  ECR push → CDK deploy → ECS force-deploy → ecs wait stable
-
-Monitoring (NEW — add to CDK ComputeStack):
-  ECS container logs → CloudWatch Log Groups (already configured via awsLogs driver)
-  CloudWatch Alarms → SNS Topic → Email/PagerDuty
+BUILD PIPELINE (GitHub Actions — existing, extend):
+  next build                     → out/ (HTML + hashed assets)
+  next-image-export-optimizer    → out/images/ WebP variants (NEW — postbuild step)
+  next-sitemap                   → out/sitemap.xml + public/robots.txt (NEW — postbuild)
+  aws s3 sync --delete           → S3 (existing)
+  CloudFront invalidation /*     → cache bust HTML pages (existing)
 ```
 
 ---
 
 ## Component Boundaries
 
-| Component | Responsibility | Communicates With | Status |
-|-----------|---------------|-------------------|--------|
-| `llm_config.py:create_tracked_llm()` | Resolve model per user plan, attach usage callback, return ChatAnthropic instance | Anthropic API, PostgreSQL (UsageLog), Redis (daily token counter) | EXISTING — activate by setting ANTHROPIC_API_KEY |
-| `agent/nodes/*.py` | 6 LangGraph nodes, each call `create_tracked_llm()` | llm_config.py, CoFounderState | EXISTING — already wired to real Anthropic |
-| `agent/runner_real.py:RunnerReal` | Wrap LangGraph graph + implement 10 Runner protocol methods with real LLM | LangGraph graph, create_tracked_llm | EXISTING skeleton, methods need real LLM implementation |
-| `agent/runner_fake.py:RunnerFake` | 4 deterministic scenarios for tests | No external deps | EXISTING — complete |
-| `api/routes/billing.py` | Stripe Checkout, Portal, status endpoints + 4 webhook handlers | Stripe SDK, UserSettings, PlanTier | EXISTING — complete, needs real Stripe keys |
-| `db/models/user_settings.py:UserSettings` | `stripe_customer_id`, `stripe_subscription_id`, `stripe_subscription_status`, `plan_tier_id` | PlanTier FK | EXISTING — all fields present |
-| `core/llm_config.py:resolve_llm_config()` | 3-level model resolution: admin override → plan default → global fallback | UserSettings, PlanTier | EXISTING — complete |
-| `.github/workflows/deploy.yml` | ECR push → CDK deploy → ECS force-deploy → wait stable | AWS ECR, CDK, ECS | EXISTING — works, add test gate |
-| `.github/workflows/test.yml` | pytest with postgres + redis services | GitHub Actions runners | EXISTING — works, needs env vars |
-| `infra/lib/compute-stack.ts` | ECS Fargate services, ALB, auto-scaling, secrets injection | ECS, Secrets Manager, Route53 | EXISTING — complete, add CloudWatch alarms |
-| CloudWatch Alarms + SNS | Alert on ECS task failures, high error rates, CPU/memory spikes | CloudWatch Metrics, SNS, Email | NEW — add to compute-stack.ts |
+| Component | Responsibility | Status | File(s) |
+|-----------|---------------|--------|---------|
+| `SplashOverlay` | CSS-only branded loading veil: shows brand mark + pulse on first paint, auto-dismisses when `load` fires | NEW | `src/components/marketing/splash-overlay.tsx` |
+| `PageProgressBar` | Thin top progress bar driven by framer-motion `useProgress` + Next.js router events; signals route transitions | NEW | `src/components/marketing/page-progress-bar.tsx` |
+| `SkeletonHero` | Above-fold skeleton rendered server-side; replaced by real content after hydration | NEW | `src/components/marketing/skeleton-hero.tsx` |
+| `FadeIn` / `StaggerContainer` / `StaggerItem` | Scroll-triggered reveal animations | EXISTING | `src/components/marketing/fade-in.tsx` |
+| `RootLayout` | HTML shell, font loading, JSON-LD, splash + progress bar mounts | MODIFY | `src/app/layout.tsx` |
+| `MarketingLayout` | Navbar + Footer wrapper | EXISTING (no change needed) | `src/app/(marketing)/layout.tsx` |
+| `generateMetadata()` | Per-page OG tags, canonical URLs, Twitter cards | MODIFY | each `page.tsx` |
+| `app/sitemap.ts` | Build-time sitemap generation via `next-sitemap` postbuild script | NEW | `public/` + `postbuild` script |
+| `app/robots.txt` | Static robots.txt file | NEW | `public/robots.txt` |
+| `public/llms.txt` | Static AI crawler guidance file | NEW | `public/llms.txt` |
+| `ExportedImage` | Drop-in `next/image` replacement for static export; generates WebP srcset at build time | NEW | all pages using images |
+| `CloudFront /images/* behavior` | Long-TTL caching for optimized image folder | NEW | `infra/lib/marketing-stack.ts` |
+| JSON-LD blocks | Structured data for Organization, SoftwareApplication, WebSite schemas | NEW | `src/app/layout.tsx` + per-page `page.tsx` |
 
 ---
 
-## Integration Pattern 1: Real LLM Activation (RunnerReal + llm_config)
+## Build-Time vs Runtime Split
 
-### What Already Exists
-
-The LLM integration is architecturally complete. Every LangGraph node already calls `create_tracked_llm()` which:
-- Resolves model name via 3-level fallback (`UserSettings.override_models` → `PlanTier.default_models` → `Settings.architect_model`)
-- Creates `ChatAnthropic` with `api_key=settings.anthropic_api_key`
-- Attaches `UsageTrackingCallback` that writes `UsageLog` rows and increments Redis daily counter
-- Enforces `is_suspended` and daily token limit before creating the LLM
-
-The 6 LangGraph nodes (`architect_node`, `coder_node`, `debugger_node`, `executor_node`, `reviewer_node`, `git_manager_node`) all call `create_tracked_llm()` with appropriate roles.
-
-### What Needs To Be Done
-
-**Problem:** `RunnerReal` has 7 methods that were left as stubs or use `create_tracked_llm()` inconsistently. The methods `generate_understanding_questions`, `generate_idea_brief`, `check_question_relevance`, `assess_section_confidence`, and `generate_execution_options` are defined in the `Runner` protocol but not yet implemented in `RunnerReal`.
-
-**Integration point:** `RunnerReal` follows the same pattern as the existing `generate_questions()` and `generate_brief()` implementations — create LLM via `create_tracked_llm(user_id, role, session_id)`, build `SystemMessage` + `HumanMessage`, call `llm.ainvoke()`, parse JSON response.
-
-### Data Flow: LLM Call Lifecycle
+This is the fundamental architectural question for a static export site. Everything below the line runs in CI; nothing above it runs on a server.
 
 ```
-Service layer calls runner.generate_questions(context)
-    ↓
-RunnerReal.generate_questions(context)
-    ↓
-create_tracked_llm(user_id=context["user_id"], role="architect", session_id=...)
-    ├── resolve_llm_config(user_id, "architect")
-    │       ├── get_or_create_user_settings(user_id)    [PostgreSQL]
-    │       ├── check is_suspended → raise PermissionError if true
-    │       ├── _check_daily_token_limit → Redis GET cofounder:usage:{user_id}:{today}
-    │       └── resolve: override_models → plan default_models → Settings.architect_model
-    └── ChatAnthropic(model=resolved_model, api_key=..., callbacks=[UsageTrackingCallback])
-    ↓
-llm.ainvoke([SystemMessage(...), HumanMessage(...)])
-    ↓ [Anthropic API call — real network I/O]
-UsageTrackingCallback.on_llm_end(response)
-    ├── extract token counts from LLMResult
-    ├── compute cost in microdollars via MODEL_COSTS dict
-    ├── INSERT UsageLog row (PostgreSQL) — async, non-blocking to agent
-    └── INCRBY Redis key cofounder:usage:{user_id}:{today}, EXPIRE 90000s
-    ↓
-Return parsed JSON to caller
-```
+BUILD TIME (next build + postbuild scripts — runs in GitHub Actions)
+─────────────────────────────────────────────────────────────────────
+  ✓ HTML generation (all 8 pages pre-rendered as index.html files)
+  ✓ Metadata + OG tags (generateMetadata() baked into HTML <head>)
+  ✓ JSON-LD structured data (baked into HTML <script type="ld+json">)
+  ✓ Font files (woff2 copied to _next/static/media/ with hash names)
+  ✓ JS/CSS chunks (hashed, immutable)
+  ✓ Image WebP variants + blur placeholders (next-image-export-optimizer)
+  ✓ sitemap.xml (next-sitemap postbuild script)
+  ✓ robots.txt (static file in public/ — copied verbatim)
+  ✓ llms.txt (static file in public/ — copied verbatim)
 
-### Key Constraint: JSON Parsing
+RUNTIME (browser — no server, no Node.js)
+─────────────────────────────────────────────────────────────────────
+  ✓ Splash overlay CSS animation (pure CSS, no JS needed)
+  ✓ Splash dismissal (JS event: window 'load' → remove class)
+  ✓ Progress bar (framer-motion, fires on Next.js router navigation)
+  ✓ FadeIn / StaggerContainer scroll reveals (framer-motion useInView)
+  ✓ Navbar scroll state (existing useEffect)
+  ✓ Mobile menu toggle (existing AnimatePresence)
+  ✓ Image lazy loading (browser native, ExportedImage srcset)
 
-All `RunnerReal` methods that return structured data use raw `json.loads(response.content)`. The Anthropic API can return valid JSON with markdown code fences (` ```json...``` `). This requires stripping fences before parsing. Existing implementations do not handle this — it is a latent bug.
-
-```python
-# Pattern that must be applied to all RunnerReal JSON-parsing methods:
-import re, json
-
-def _parse_json_response(content: str) -> dict | list:
-    # Strip markdown code fences if present
-    content = re.sub(r"^```(?:json)?\s*", "", content.strip())
-    content = re.sub(r"\s*```$", "", content)
-    return json.loads(content)
+NOT POSSIBLE (static export constraint — no server runtime)
+─────────────────────────────────────────────────────────────────────
+  ✗ Dynamic OG image generation (no Edge or Node runtime)
+  ✗ Per-request metadata variation (must be baked per route at build)
+  ✗ Server-side A/B testing
+  ✗ searchParams-dependent generateMetadata (static export blocks this)
+  ✗ Incremental Static Regeneration (ISR requires Next.js server)
 ```
 
 ---
 
-## Integration Pattern 2: Stripe Webhooks + Subscription Management
+## Loading State Layering
 
-### What Already Exists
-
-`backend/app/api/routes/billing.py` is a complete implementation:
-
-- `POST /api/billing/checkout` — creates Stripe Checkout session, lazy-creates Stripe Customer
-- `POST /api/billing/portal` — creates Customer Portal session
-- `GET /api/billing/status` — returns `plan_slug`, `stripe_subscription_status`, `has_subscription`
-- `POST /api/webhooks/stripe` — signature-verified webhook with 4 handlers:
-  - `checkout.session.completed` → upgrades `plan_tier_id` + sets `stripe_subscription_id`
-  - `customer.subscription.updated` → syncs `stripe_subscription_status`
-  - `customer.subscription.deleted` → downgrades to bootstrapper, clears subscription fields
-  - `invoice.payment_failed` → sets `stripe_subscription_status = "past_due"`
-
-`UserSettings` model has all required Stripe fields (`stripe_customer_id`, `stripe_subscription_id`, `stripe_subscription_status`).
-
-`PlanTier` seeded with `bootstrapper`/`partner`/`cto_scale` plans with `default_models` per role.
-
-Price IDs are already wired in `compute-stack.ts` environment variables and `Settings`.
-
-### What Needs To Be Done
-
-**Activation requirements only:**
-1. `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` must be set in `cofounder/app` Secrets Manager
-2. Stripe webhook endpoint registered in Stripe Dashboard: `https://api.cofounder.getinsourced.ai/api/webhooks/stripe`
-3. Webhook events enabled: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed`
-
-**Missing but needed for subscription enforcement:**
-
-The `resolve_llm_config()` function enforces `is_suspended` and daily token limits but does NOT check `stripe_subscription_status`. A user with `past_due` status can still generate LLM output. Need a guard:
-
-```python
-# In resolve_llm_config(), after suspended check:
-if user_settings.stripe_subscription_status == "past_due":
-    # Soft enforcement: downgrade to bootstrapper model limits
-    # Do not suspend — Stripe allows grace period for payment retry
-    pass  # Already handled by plan_tier_id staying unchanged until subscription.deleted
-```
-
-**Idempotency on webhooks:**
-
-Stripe can deliver webhooks multiple times. `_handle_checkout_completed` is not idempotent — calling it twice with same session would attempt to set `stripe_subscription_id` twice (harmless but should be explicit). Use `ON CONFLICT DO UPDATE` or check existing value before write.
-
-### Data Flow: Subscription Upgrade
+The three loading systems operate at different time ranges and must not conflict.
 
 ```
-User clicks "Upgrade to Partner" on /billing page
-    ↓
-POST /api/billing/checkout {plan_slug: "partner", interval: "monthly"}
-    ├── Clerk JWT → require_auth() → ClerkUser.user_id
-    ├── _get_or_create_settings(user_id)
-    ├── _get_or_create_stripe_customer(user_settings, user_id)
-    │       └── stripe.Customer.create(metadata={"clerk_user_id": ...})
-    │           + UPDATE user_settings SET stripe_customer_id = ... [PostgreSQL]
-    └── stripe.checkout.Session.create(customer=..., line_items=[price_id], mode="subscription")
-    ↓
-Return {checkout_url: "https://checkout.stripe.com/..."}
-    ↓
-Frontend redirect to Stripe hosted checkout
-    ↓
-User completes payment
-    ↓
-Stripe sends POST /api/webhooks/stripe {type: "checkout.session.completed"}
-    ├── stripe.Webhook.construct_event(body, sig, STRIPE_WEBHOOK_SECRET) — signature verify
-    ├── _handle_checkout_completed(session_data)
-    │       ├── SELECT plan_tier WHERE slug = "partner"
-    │       ├── UPDATE user_settings SET plan_tier_id=partner.id,
-    │       │     stripe_subscription_id=sub_id, stripe_subscription_status="active"
-    │       └── COMMIT
-    └── Return {"status": "ok"}
-    ↓
-Next LLM call: resolve_llm_config() reads PlanTier.default_models["architect"]
-    → returns "claude-opus-4-20250514" (partner tier, not bootstrapper)
+Timeline from navigation start (t=0ms)
+──────────────────────────────────────────────────────────────────────────────
+t=0ms   Browser requests HTML from CloudFront
+        ↓
+t=~50ms HTML arrives (CloudFront edge — fast)
+        CSS parsed → Splash overlay visible immediately (CSS-only, no JS)
+        Body has class "splash-visible" (set in <html> tag via inline script)
+        ↓
+t=~200ms  Fonts loaded (preloaded woff2, same CDN)
+          Above-fold skeleton visible (Tailwind skeleton classes, no JS needed)
+          ↓
+t=~400ms  React hydrates
+          Splash overlay begins fade-out animation (JS fires window 'load')
+          PageProgressBar mounts (hidden — no active navigation)
+          ↓
+t=~600ms  Splash fully gone (400ms CSS transition)
+          Page is interactive
+          ↓
+[User clicks nav link]
+          PageProgressBar animates to ~80% (signals navigation started)
+          ↓
+[New page HTML + JS loaded]
+          PageProgressBar completes to 100%, then fades
+          FadeIn components begin revealing as user scrolls
+──────────────────────────────────────────────────────────────────────────────
+
+Layer 1: Splash Overlay (t=0 → t=600ms)
+  - Pure CSS class on <body> or <html>
+  - Position: fixed, z-index: 9999, background: #050505 (obsidian)
+  - Content: brand logo + pulse animation (existing CSS keyframes)
+  - Dismissal: inline <script> in <head> adds listener for window 'load'
+               removes 'splash-visible' class → CSS transition fades overlay
+  - CONSTRAINT: Must not block LCP. Logo mark is text/SVG — no image to load.
+
+Layer 2: Page Transition Progress Bar (between-page navigations only)
+  - Thin 2px bar at top, color: #6467f2 (brand)
+  - framer-motion animates width 0% → 80% on navigation start
+  - Completes to 100% + fades after new page renders
+  - Implementation: @bprogress/next or custom hook with useRouter
+  - CONSTRAINT: Only visible during SPA navigation, never on first load
+
+Layer 3: Scroll-Triggered Reveals (existing FadeIn / StaggerContainer)
+  - Framer-motion useInView with margin: "-80px"
+  - Triggers as user scrolls — no change needed
+  - Ensure all above-fold content is NOT wrapped in FadeIn (CLS risk)
 ```
-
-### Component Boundary: Subscription Status in Worker
-
-The `JobWorker` (`queue/worker.py`) reads `tier` from `job_data` dict (set at job creation time). If a user upgrades mid-job, the running job uses the old tier's concurrency limits. This is acceptable for v0.2 — tier is set at job enqueue time, not re-evaluated during execution.
 
 ---
 
-## Integration Pattern 3: GitHub Actions CI/CD with ECS Deployment
-
-### What Already Exists
-
-`deploy.yml` is a complete pipeline:
-1. Checkout + AWS OIDC credentials via `role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}`
-2. ECR login
-3. Docker Buildx + build-and-push for backend + frontend (with GHA layer cache)
-4. CDK deploy (infra changes)
-5. ECS force-new-deployment for both services
-6. `aws ecs wait services-stable` — waits for deployment to complete
-
-`test.yml` runs pytest with postgres+redis services on push/PR to `main` and `develop`.
-
-### What Is Missing
-
-**Critical gap: tests don't gate deployment.** `deploy.yml` and `test.yml` are independent workflows. A broken commit to `main` deploys without tests running first.
-
-**Fix: Add test job as prerequisite in deploy.yml:**
-
-```yaml
-# .github/workflows/deploy.yml
-jobs:
-  test:
-    uses: ./.github/workflows/test.yml  # Reusable workflow, OR inline
-
-  deploy:
-    needs: test          # deploy only if test passes
-    runs-on: ubuntu-latest
-    ...
-```
-
-**Alternatively (simpler):** Merge test steps into deploy.yml before the build step. Tests run first; build only starts if tests pass.
-
-**Required GitHub secrets:**
-
-| Secret | Purpose | Where to Get |
-|--------|---------|--------------|
-| `AWS_DEPLOY_ROLE_ARN` | OIDC role for ECR+ECS+CDK | AWS IAM — likely exists |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Frontend build arg | Clerk Dashboard |
-| `ANTHROPIC_API_KEY` | Test env (RunnerReal smoke) | Anthropic Console |
-| `DATABASE_URL` | Test env (in test.yml env vars) | Already set as `postgresql://test_user:...` |
-| `REDIS_URL` | Test env | Already set as `redis://localhost:6379/0` |
-
-**Required test env vars for test.yml (currently missing for full RunnerReal smoke tests):**
-
-```yaml
-# .github/workflows/test.yml — add to Run tests step:
-env:
-  DATABASE_URL: postgresql://test_user:test_pass@localhost:5432/cofounder_test
-  REDIS_URL: redis://localhost:6379/0
-  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}  # Only for integration tests
-  CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
-  STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
-  STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
-```
-
-**Test separation strategy:**
-
-Tests should be split into two marks to control cost:
-
-```python
-# In conftest.py or pyproject.toml:
-# pytest.mark.unit     → uses RunnerFake only, no external API calls
-# pytest.mark.integration → uses RunnerReal, requires ANTHROPIC_API_KEY
-
-# CI runs:
-# make test-unit         # Always — fast, free, gates deployment
-# make test-integration  # Nightly or pre-release only
-```
-
-### Data Flow: Push to Main
+## Recommended Project Structure (Delta — New Files Only)
 
 ```
-git push origin main
-    ↓
-GitHub Actions: test.yml (parallel to nothing — should be first)
-    ├── Spin up postgres:16 + redis:7 services
-    ├── pip install -e ".[dev]"
-    └── make test  (uses RunnerFake for all tests)
-    ↓ [test must pass]
-GitHub Actions: deploy.yml (needs: test — to add)
-    ├── Configure AWS credentials (OIDC)
-    ├── ECR login
-    ├── docker build-push backend (SHA tag + latest tag, GHA cache)
-    ├── docker build-push frontend (with NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY build arg)
-    ├── npm ci && npx cdk deploy --all --require-approval never
-    ├── aws ecs update-service --force-new-deployment (backend + frontend)
-    └── aws ecs wait services-stable (both services)
-    ↓
-Deployment complete — ALB health checks validate /api/health returns 200
+marketing/
+├── src/
+│   ├── app/
+│   │   ├── layout.tsx               MODIFY: add JSON-LD, SplashOverlay, PageProgressBar
+│   │   ├── (marketing)/
+│   │   │   ├── page.tsx             MODIFY: add generateMetadata()
+│   │   │   ├── about/page.tsx       MODIFY: add generateMetadata()
+│   │   │   ├── pricing/page.tsx     MODIFY: add generateMetadata()
+│   │   │   ├── cofounder/page.tsx   MODIFY: add generateMetadata()
+│   │   │   └── cofounder/how-it-works/page.tsx  MODIFY: add generateMetadata()
+│   │   └── sitemap.ts               NEW: or use next-sitemap postbuild (preferred)
+│   └── components/
+│       └── marketing/
+│           ├── fade-in.tsx          EXISTING — no change
+│           ├── navbar.tsx           EXISTING — no change
+│           ├── footer.tsx           EXISTING — no change
+│           ├── splash-overlay.tsx   NEW: CSS-driven branded splash
+│           ├── page-progress-bar.tsx NEW: thin top nav progress bar
+│           └── skeleton-hero.tsx    NEW: above-fold skeleton (optional)
+├── public/
+│   ├── robots.txt                   NEW: static robots file
+│   ├── llms.txt                     NEW: AI crawler guidance
+│   └── og/
+│       └── default.png              NEW: default OG image (1200x630 static)
+├── images/                          NEW: source images for ExportedImage
+│   └── (hero images, screenshots)
+├── next.config.ts                   MODIFY: add ExportedImage loader
+├── next-sitemap.config.js           NEW: sitemap config
+└── package.json                     MODIFY: add postbuild script + new deps
 ```
-
-### CDK Deploy Scope
-
-CDK deploy runs on every push to `main` and deploys ALL stacks (`--all`). Current stacks:
-- `CoFounderDns`
-- `CoFounderNetwork`
-- `CoFounderDatabase`
-- `CoFounderCompute`
-
-For v0.2, the CloudWatch monitoring additions go into `CoFounderCompute` (already has ECS + logs). No new CDK stacks required.
 
 ---
 
-## Integration Pattern 4: CloudWatch + SNS Monitoring
+## Architectural Patterns
 
-### What Already Exists
+### Pattern 1: CSS-Only Splash with JS Dismissal
 
-ECS containers already emit logs to CloudWatch via `LogDrivers.awsLogs()` in `compute-stack.ts`:
-- Backend stream prefix: `backend`
-- Frontend stream prefix: `frontend`
-- Retention: `ONE_WEEK`
+**What:** Splash overlay uses only CSS for initial render. An inline `<script>` in `<head>` (runs before paint) sets a class. A tiny JS event listener removes the class when `load` fires, triggering a CSS transition fade.
 
-VPC flow logs already write to CloudWatch (`network-stack.ts` line 36).
+**When to use:** When you need a splash that appears before React hydrates — which is the case for static export where React is not available until JS downloads.
 
-ECS auto-scaling already configured (CPU target 70%, 1–4 tasks).
+**Why not Framer Motion for the splash itself:** Framer Motion requires React to be hydrated. The splash must appear at t=0ms, before hydration. CSS is guaranteed to render before any JS.
 
-### New Components Needed
+```tsx
+// src/app/layout.tsx — root layout
 
-All monitoring additions go into `infra/lib/compute-stack.ts`. Three constructs:
+// Inline script that runs before render — avoids flash of unstyled content
+const splashScript = `
+  document.documentElement.classList.add('splash-visible');
+  window.addEventListener('load', function() {
+    setTimeout(function() {
+      document.documentElement.classList.remove('splash-visible');
+    }, 100); // 100ms grace after load
+  }, { once: true });
+`;
 
-**1. SNS Topic for Alerts**
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en" className="dark">
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: splashScript }} />
+      </head>
+      <body className={`...fonts...`}>
+        <SplashOverlay />   {/* Pure CSS component — renders instantly */}
+        <PageProgressBar /> {/* Framer Motion — safe, only fires on navigation */}
+        {children}
+      </body>
+    </html>
+  );
+}
+```
+
+```css
+/* In globals.css — add to existing file */
+.splash-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #050505;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 1;
+  transition: opacity 0.4s ease-out;
+  pointer-events: none;  /* Don't block interaction during fade */
+}
+
+html:not(.splash-visible) .splash-overlay {
+  opacity: 0;
+  pointer-events: none;
+}
+```
+
+**Trade-offs:** Simple. Zero runtime dependencies. Works before hydration. Downside: splash shows on every page load including repeat visits — mitigate with sessionStorage flag.
+
+---
+
+### Pattern 2: Per-Page generateMetadata() in Static Export
+
+**What:** Each `page.tsx` exports `generateMetadata()` returning page-specific `title`, `description`, `openGraph`, `twitter`, and `canonical` URL. These are baked into HTML at build time.
+
+**When to use:** All pages. Even "simple" pages need distinct canonical URLs and OG tags to avoid duplicate content penalties.
+
+**Static export constraint:** `generateMetadata()` works in static export **only** for static routes (no `searchParams`). All 8 routes in this site are static — no dynamic segments — so this is fully compatible.
+
+```tsx
+// src/app/(marketing)/cofounder/page.tsx
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Co-Founder.ai — AI Technical Co-Founder for Non-Technical Founders",
+  description:
+    "Co-Founder.ai architects, codes, tests, and prepares deployments. " +
+    "Your AI technical co-founder that ships real software.",
+  openGraph: {
+    title: "Co-Founder.ai — AI Technical Co-Founder",
+    description: "Plan, build, test, and deploy with an AI co-founder.",
+    url: "https://getinsourced.ai/cofounder",
+    siteName: "Insourced AI",
+    images: [{ url: "https://getinsourced.ai/og/default.png", width: 1200, height: 630 }],
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Co-Founder.ai — AI Technical Co-Founder",
+    description: "Plan, build, test, and deploy with an AI co-founder.",
+    images: ["https://getinsourced.ai/og/default.png"],
+  },
+  alternates: {
+    canonical: "https://getinsourced.ai/cofounder",
+  },
+};
+
+export default function CoFounderPage() { ... }
+```
+
+**Note:** Use the static `metadata` object (not `generateMetadata()` function) for fully static routes. Both work, but the object form is simpler and avoids potential async build issues.
+
+---
+
+### Pattern 3: JSON-LD Structured Data Baked at Build Time
+
+**What:** JSON-LD `<script>` tags inserted directly in server components. For a static export site, "server component" means "renders at build time." The result is baked into HTML — no runtime fetch, no client-side injection.
+
+**Schemas to implement:**
+- `Organization` on root layout (site-wide)
+- `SoftwareApplication` on `/cofounder` page
+- `WebSite` with `SearchAction` on root layout (enables Google Sitelinks Search Box)
+- `FAQPage` if FAQ sections are added (high GEO value)
+
+```tsx
+// src/app/layout.tsx — Organization + WebSite schema
+const organizationSchema = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "Insourced AI",
+  url: "https://getinsourced.ai",
+  logo: "https://getinsourced.ai/og/default.png",
+  description:
+    "Insourced AI builds autonomous AI agents that help non-technical founders ship software faster.",
+  sameAs: [
+    "https://twitter.com/insourcedai",
+    // add LinkedIn, etc.
+  ],
+};
+
+// In page.tsx (not layout.tsx — schema is page-specific)
+const productSchema = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "Co-Founder.ai",
+  applicationCategory: "BusinessApplication",
+  operatingSystem: "Web",
+  url: "https://cofounder.getinsourced.ai",
+  description:
+    "AI technical co-founder that architects, codes, tests, and prepares deployments for non-technical founders.",
+  offers: {
+    "@type": "Offer",
+    priceCurrency: "USD",
+    price: "0",  // freemium entry
+    description: "Free tier available",
+  },
+};
+
+// Render as:
+<script
+  type="application/ld+json"
+  dangerouslySetInnerHTML={{
+    __html: JSON.stringify(organizationSchema).replace(/</g, "\\u003c"),
+  }}
+/>
+```
+
+**XSS note:** Always call `.replace(/</g, "\\u003c")` before injecting into `dangerouslySetInnerHTML`. This is the official Next.js recommendation.
+
+---
+
+### Pattern 4: Image Optimization for Static Export
+
+**What:** Replace `next/image` (which requires a server for on-demand optimization) with `ExportedImage` from `next-image-export-optimizer`. The package runs as a postbuild step, converts images to WebP, generates responsive srcset, and creates blur placeholders — all at build time.
+
+**When to use:** Any `<img>` or `<Image>` tag showing local static images. Not needed for decorative CSS gradients/backgrounds (already in the codebase) or inline SVGs.
+
+**Current state:** The site uses `images: { unoptimized: true }` in `next.config.ts`. This means the existing `next/image` usage (if any) gets no optimization. The codebase currently uses CSS-only for most visuals — good baseline.
+
+```bash
+npm install next-image-export-optimizer
+```
+
+```ts
+// next.config.ts — MODIFY
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  output: "export",
+  trailingSlash: true,
+  images: {
+    loader: "custom",
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    deviceSizes: [640, 750, 828, 1080, 1200],
+  },
+  env: {
+    nextImageExportOptimizer_imageFolderPath: "images",
+    nextImageExportOptimizer_exportFolderPath: "out",
+    nextImageExportOptimizer_quality: "80",
+    nextImageExportOptimizer_storePicturesInWEBP: "true",
+    nextImageExportOptimizer_generateAndUseBlurImages: "true",
+  },
+  reactStrictMode: true,
+};
+
+export default nextConfig;
+```
+
+```json
+// package.json — MODIFY scripts
+{
+  "scripts": {
+    "build": "next build",
+    "postbuild": "next-image-export-optimizer && next-sitemap",
+    "dev": "next dev",
+    "lint": "next lint"
+  }
+}
+```
+
+**Trade-offs:** Adds 2-5 seconds to CI build per image. Hash-based caching means images are only re-processed when source changes. AVIF is not supported by this package — WebP is the target format (still ~30% smaller than JPEG). This is acceptable for a marketing site.
+
+---
+
+### Pattern 5: Sitemap and robots.txt for Static Export
+
+**What:** Because `sitemap.(js|ts)` in App Router generates a Route Handler (not a static file), it **does not work** with `output: 'export'`. The static file is not written to `out/`. Use `next-sitemap` as a postbuild script instead — it reads the built `out/` directory, discovers all HTML files, and writes `sitemap.xml` to `out/` and `robots.txt` to `public/`.
+
+**robots.txt:** Simpler than sitemap. A static `public/robots.txt` file is copied to `out/robots.txt` verbatim during `next build`. No package needed.
+
+```bash
+npm install -D next-sitemap
+```
+
+```js
+// next-sitemap.config.js — NEW
+/** @type {import('next-sitemap').IConfig} */
+module.exports = {
+  siteUrl: "https://getinsourced.ai",
+  generateRobotsTxt: false,      // robots.txt is maintained as a static file
+  outDir: "./out",               // Write to out/ not public/ (static export)
+  trailingSlash: true,
+  changefreq: "weekly",
+  priority: 0.7,
+  sitemapSize: 7000,
+  exclude: ["/404", "/404/*"],
+};
+```
+
+```txt
+# public/robots.txt — NEW (static file, copied verbatim to out/)
+User-agent: *
+Allow: /
+
+# AI crawlers — allow indexing for GEO
+User-agent: GPTBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Googlebot
+Allow: /
+
+Sitemap: https://getinsourced.ai/sitemap.xml
+```
+
+---
+
+### Pattern 6: llms.txt for GEO (Generative Engine Optimization)
+
+**What:** A static Markdown file at `public/llms.txt` that guides AI crawlers to the most important content. The `llms.txt` spec (proposed standard, mid-2025) describes your site's pages with summaries, giving LLMs a structured map of what your site covers.
+
+**Evidence status:** As of late 2025, no major AI platform has confirmed they read `llms.txt` files. GPTBot, ClaudeBot, and PerplexityBot showed zero visits to `llms.txt` pages in October 2025 testing. The file has zero confirmed GEO benefit — LOW confidence on outcome.
+
+**Recommendation:** Implement anyway. It is a static file (`touch public/llms.txt`), costs nothing to add, and positions the site correctly if/when AI crawlers adopt the spec. Do not invest engineering time optimizing its contents.
+
+```markdown
+# public/llms.txt — NEW
+# Insourced AI — AI Co-Founder SaaS
+
+> Insourced AI builds autonomous AI agents that help non-technical founders ship software faster.
+> Start with Co-Founder.ai, an AI technical co-founder that plans architecture, writes code, runs tests, and prepares deployments.
+
+## Key Pages
+
+- [Home](https://getinsourced.ai/): Platform overview, flagship product Co-Founder.ai, product suite roadmap
+- [Co-Founder.ai](https://getinsourced.ai/cofounder/): AI technical co-founder for non-technical founders — architecture, code, tests, deployment
+- [How It Works](https://getinsourced.ai/cofounder/how-it-works/): Step-by-step flow from product requirement to reviewed PR
+- [Pricing](https://getinsourced.ai/pricing/): Plan tiers and pricing for Co-Founder.ai
+- [About](https://getinsourced.ai/about/): Company mission and team
+
+## Optional
+
+- [Terms](https://getinsourced.ai/terms/)
+- [Privacy](https://getinsourced.ai/privacy/)
+```
+
+---
+
+### Pattern 7: CloudFront Cache Behavior for Optimized Images
+
+**What:** The existing CDK stack has two behaviors: default (HTML, 5min TTL) and `_next/static/*` (assets, 1yr TTL). Image files produced by `next-image-export-optimizer` land in `out/images/` — outside `_next/static/`. A new CloudFront behavior is needed to give them long-TTL caching.
+
+**Where:** `infra/lib/marketing-stack.ts` — add to `additionalBehaviors`.
 
 ```typescript
-import * as sns from "aws-cdk-lib/aws-sns";
-import * as snsSubscriptions from "aws-cdk-lib/aws-sns-subscriptions";
-import * as cloudwatch from "aws-cdk-lib/aws-cloudwatch";
-import * as cloudwatchActions from "aws-cdk-lib/aws-cloudwatch-actions";
-
-// In ComputeStack constructor, after services are created:
-const alertTopic = new sns.Topic(this, "AlertTopic", {
-  topicName: "cofounder-alerts",
-  displayName: "Co-Founder App Alerts",
-});
-
-// Alert destination (add email via config, not hardcoded)
-alertTopic.addSubscription(
-  new snsSubscriptions.EmailSubscription("ops@getinsourced.ai")
-);
+// infra/lib/marketing-stack.ts — MODIFY additionalBehaviors
+additionalBehaviors: {
+  '_next/static/*': {
+    origin: s3Origin,
+    viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+    cachePolicy: assetCachePolicy,   // 1yr — existing
+    compress: true,
+    allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
+  },
+  'images/*': {                      // NEW — optimized image folder
+    origin: s3Origin,
+    viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+    cachePolicy: assetCachePolicy,   // 1yr — reuse existing 1yr policy
+    compress: true,
+    allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
+  },
+  'og/*': {                          // NEW — OG images (static, change rarely)
+    origin: s3Origin,
+    viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+    cachePolicy: assetCachePolicy,   // 1yr — invalidate manually on change
+    compress: false,                 // PNG/JPEG already compressed
+    allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
+  },
+},
 ```
 
-**2. CloudWatch Alarms (4 critical metrics)**
-
-```typescript
-// Alarm 1: Backend service unhealthy tasks
-const backendUnhealthyAlarm = new cloudwatch.Alarm(this, "BackendUnhealthy", {
-  metric: this.backendService.service.metricRunningTaskCount(),
-  threshold: 1,
-  comparisonOperator: cloudwatch.ComparisonOperator.LESS_THAN_THRESHOLD,
-  evaluationPeriods: 2,
-  treatMissingData: cloudwatch.TreatMissingData.BREACHING,
-  alarmName: "cofounder-backend-no-tasks",
-  alarmDescription: "Backend ECS service has no running tasks",
-});
-backendUnhealthyAlarm.addAlarmAction(new cloudwatchActions.SnsAction(alertTopic));
-
-// Alarm 2: High backend CPU
-const backendCpuAlarm = new cloudwatch.Alarm(this, "BackendHighCpu", {
-  metric: this.backendService.service.metricCpuUtilization(),
-  threshold: 85,
-  evaluationPeriods: 3,
-  alarmName: "cofounder-backend-high-cpu",
-  alarmDescription: "Backend CPU > 85% for 3 periods",
-});
-backendCpuAlarm.addAlarmAction(new cloudwatchActions.SnsAction(alertTopic));
-
-// Alarm 3: ALB 5xx error rate
-const alb5xxAlarm = new cloudwatch.Alarm(this, "Backend5xx", {
-  metric: this.backendService.loadBalancer.metricHttpCodeElb(
-    elasticLoadBalancingV2.HttpCodeElb.ELB_5XX_COUNT,
-    { period: cdk.Duration.minutes(5) }
-  ),
-  threshold: 10,
-  evaluationPeriods: 2,
-  alarmName: "cofounder-backend-5xx-errors",
-  alarmDescription: "More than 10 ALB 5xx errors in 5 minutes",
-});
-alb5xxAlarm.addAlarmAction(new cloudwatchActions.SnsAction(alertTopic));
-
-// Alarm 4: ALB target response time (P99 > 30s indicates LLM calls timing out)
-const albLatencyAlarm = new cloudwatch.Alarm(this, "BackendHighLatency", {
-  metric: this.backendService.loadBalancer.metricTargetResponseTime({
-    statistic: "p99",
-    period: cdk.Duration.minutes(5),
-  }),
-  threshold: 30,
-  evaluationPeriods: 2,
-  alarmName: "cofounder-backend-high-latency",
-  alarmDescription: "P99 response time > 30s (LLM call timeout risk)",
-});
-albLatencyAlarm.addAlarmAction(new cloudwatchActions.SnsAction(alertTopic));
-```
-
-**3. CloudWatch Log Metric Filter for Application Errors**
-
-```typescript
-// Log group already created by ECS logging driver
-const backendLogGroup = logs.LogGroup.fromLogGroupName(
-  this,
-  "BackendLogGroup",
-  "/aws/ecs/cofounder/backend"  // Matches stream prefix
-);
-
-// Filter for unhandled exceptions (logged in main.py generic_exception_handler)
-const errorFilter = new logs.MetricFilter(this, "BackendErrorFilter", {
-  logGroup: backendLogGroup,
-  metricName: "UnhandledExceptions",
-  metricNamespace: "CoFounder/Backend",
-  filterPattern: logs.FilterPattern.stringValue("$.level", "=", "ERROR"),
-  metricValue: "1",
-});
-
-const appErrorAlarm = new cloudwatch.Alarm(this, "BackendAppErrors", {
-  metric: errorFilter.metric({ period: cdk.Duration.minutes(5) }),
-  threshold: 5,
-  evaluationPeriods: 2,
-  alarmName: "cofounder-backend-app-errors",
-  alarmDescription: "More than 5 application errors in 5 minutes",
-});
-appErrorAlarm.addAlarmAction(new cloudwatchActions.SnsAction(alertTopic));
-```
-
-### Data Flow: Alert Lifecycle
-
-```
-ECS container (backend) → stdout → CloudWatch Logs (awsLogs driver)
-    ↓
-CloudWatch Log Group: /aws/ecs/cofounder/backend
-    ├── Log Metric Filter (ERROR level) → MetricFilter CloudWatch metric
-    └── ECS service metrics (CPU, task count) → built-in CloudWatch metrics
-    ↓
-CloudWatch Alarm evaluates every 5 minutes
-    └── Threshold exceeded → ALARM state
-    ↓
-SNS Topic: cofounder-alerts
-    └── Email subscription → ops@getinsourced.ai
-```
-
-### Application-Level Observability (No New Infra)
-
-`main.py` already has:
-- `http_exception_handler`: logs `HTTP {status} | debug_id={id} | correlation_id={id} | path=... | user_id=...`
-- `generic_exception_handler`: logs full exception with traceback, sanitized 500 response
-- `correlation.py` middleware: injects `X-Correlation-ID` header and structlog context
-
-These already emit structured logs that CloudWatch can filter. No changes needed to application code for basic monitoring.
-
-For LLM cost monitoring: `UsageLog` rows are written to PostgreSQL per call. A simple daily query against `usage_logs` gives cost visibility without additional tooling.
+**Important:** The existing `url-handler.js` CloudFront Function skips paths with file extensions (`!uri.includes('.')`). Image paths like `/images/hero.webp` and `/og/default.png` contain dots — they pass through the function unchanged. No modification to `url-handler.js` needed.
 
 ---
 
-## Component Dependencies (Build Order)
-
-Dependencies flow strictly: each item can only start when its prerequisites are complete.
+## Data Flow: Build Pipeline (CI/CD)
 
 ```
-1. Real LLM Key Activation (ANTHROPIC_API_KEY in Secrets Manager)
-   └── No code changes — operational step only
-   └── Prerequisite for: 2, 3
-
-2. RunnerReal Stub Completion (implement missing 5 protocol methods)
-   └── Requires: 1 (to test against real API)
-   └── Pattern: same as existing generate_questions() / generate_brief()
-   └── Prerequisite for: 3
-
-3. JSON Parse Hardening (strip markdown fences in all RunnerReal methods)
-   └── Requires: 2
-   └── Apply _parse_json_response() helper across all 10 methods
-   └── Prerequisite for: service layer to work reliably
-
-4. Stripe Key Activation + Webhook Registration
-   └── No code changes — operational step only
-   └── STRIPE_SECRET_KEY + STRIPE_WEBHOOK_SECRET in Secrets Manager
-   └── Register webhook URL in Stripe Dashboard
-   └── Prerequisite for: 5
-
-5. Subscription Enforcement Audit
-   └── Requires: 4
-   └── Verify past_due behavior is acceptable (grace period vs hard block)
-   └── Add idempotency guard to _handle_checkout_completed
-   └── Prerequisite for: billing integration tests pass
-
-6. CI/CD Test Gate (add needs: test to deploy.yml)
-   └── No infrastructure changes — workflow file change only
-   └── Add missing env vars to test.yml
-   └── Define pytest marks (unit vs integration)
-   └── Prerequisite for: 7
-
-7. CloudWatch Alarms + SNS (add to compute-stack.ts)
-   └── Requires: 6 (so monitoring goes live via the gated deploy pipeline)
-   └── Add SNS topic, 4 alarms, log metric filter
-   └── Add ops email as environment variable (not hardcoded)
-   └── Prerequisite for: production confidence
+git push → GitHub Actions: deploy-marketing.yml
+    ↓
+npm ci
+    ↓
+next build
+    ├── Generates out/ with all HTML pages
+    ├── Bakes metadata (title, OG, canonical) into each page's <head>
+    ├── Bakes JSON-LD <script> tags into HTML
+    ├── Copies public/ → out/ (robots.txt, llms.txt, og/ images)
+    └── Hashes and emits _next/static/ chunks + font files
+    ↓
+postbuild: next-image-export-optimizer
+    ├── Reads images/ source directory
+    ├── Converts to WebP at configured quality (80)
+    ├── Generates srcset variants at configured sizes
+    ├── Generates blur placeholder base64 strings
+    └── Writes to out/images/
+    ↓
+postbuild: next-sitemap
+    ├── Reads out/ directory, discovers all index.html files
+    ├── Generates sitemap.xml with URLs, lastmod, changefreq
+    └── Writes out/sitemap.xml
+    ↓
+aws s3 sync marketing/out/ s3://getinsourced-marketing/ --delete
+    ├── New/changed files uploaded
+    └── Removed files deleted (--delete flag)
+    ↓
+aws cloudfront create-invalidation --paths "/*"
+    └── Forces CloudFront edges to re-fetch HTML pages (5min TTL is also effective,
+        but invalidation makes changes visible in <30s vs up to 5min)
 ```
-
-**Recommended build order:**
-
-| Step | Component | Type | Estimated Effort |
-|------|-----------|------|------------------|
-| 1 | ANTHROPIC_API_KEY in Secrets Manager | Operational | 30 min |
-| 2 | RunnerReal: implement 5 missing methods | Code | 1-2 days |
-| 3 | JSON parse hardening across RunnerReal | Code | 2 hours |
-| 4 | Stripe keys in Secrets Manager + webhook registration | Operational | 1 hour |
-| 5 | Subscription enforcement audit + idempotency | Code | 2-4 hours |
-| 6 | CI/CD: test gates + env vars + pytest marks | Config/Code | 4-6 hours |
-| 7 | CloudWatch alarms + SNS in compute-stack.ts | IaC | 3-4 hours |
 
 ---
 
-## Modified vs New Components
+## Data Flow: First Page Load (User Browser)
 
-### Modified (existing files, targeted changes)
-
-| File | Change Type | What Changes |
-|------|-------------|--------------|
-| `backend/app/agent/runner_real.py` | Extend | Implement `generate_understanding_questions`, `generate_idea_brief`, `check_question_relevance`, `assess_section_confidence`, `generate_execution_options` using `create_tracked_llm()` pattern |
-| `backend/app/agent/runner_real.py` | Fix | Add `_parse_json_response()` helper, apply to all 10 methods |
-| `backend/app/api/routes/billing.py` | Fix | Add idempotency guard to `_handle_checkout_completed` (check if `stripe_subscription_id` already set before overwriting) |
-| `.github/workflows/deploy.yml` | Extend | Add `needs: test` dependency; optionally inline test steps |
-| `.github/workflows/test.yml` | Extend | Add missing env vars (`CLERK_SECRET_KEY`, `STRIPE_SECRET_KEY`); add pytest mark separation |
-| `infra/lib/compute-stack.ts` | Extend | Add SNS topic, 4 CloudWatch alarms, 1 log metric filter |
-
-### New (new files)
-
-| File | Purpose |
-|------|---------|
-| `backend/app/agent/runner_real.py:_parse_json_response()` | Shared JSON parse helper (within existing file) |
-| No new service files needed for v0.2 | Billing, LLM, and monitoring integrate at existing layers |
-
-### Unchanged (explicitly preserved)
-
-| Component | Why Unchanged |
-|-----------|---------------|
-| `LangGraph graph (agent/graph.py)` | All 6 nodes already call `create_tracked_llm()` — real LLM activates by providing the API key |
-| `billing.py` webhook handlers | Complete implementation — only operational activation needed |
-| `UserSettings` model | All Stripe fields already present |
-| `PlanTier` seed data | `bootstrapper`/`partner`/`cto_scale` with `default_models` already seeded |
-| `queue/worker.py` | `RunnerReal` injection already supported via `runner` parameter |
-| `queue/state_machine.py` | FSM transitions and Redis pub/sub complete |
-| `core/auth.py` | Clerk JWT verification unchanged |
-| `core/llm_config.py` | `create_tracked_llm()` + `UsageTrackingCallback` complete |
+```
+User navigates to getinsourced.ai
+    ↓
+CloudFront edge (nearest region — PriceClass 200 covers NA/EU/Asia)
+    ├── www.getinsourced.ai → 301 redirect to getinsourced.ai (CloudFront Function)
+    └── getinsourced.ai → serves index.html from cache (5min TTL)
+    ↓
+Browser parses HTML
+    ├── Inline <script> in <head> adds 'splash-visible' to <html> (sync, no delay)
+    ├── Discovers <link rel="preload"> for woff2 fonts → parallel fetch begins
+    ├── Discovers <link rel="preload"> for critical CSS
+    └── Splash overlay CSS class → overlay renders at t=~0ms
+    ↓
+React JS downloads (_next/static/ — from CloudFront, 1yr cache after first load)
+    ↓
+React hydrates (~400ms on fast connection, ~800ms on 3G)
+    ├── window 'load' event fires (all resources including fonts done)
+    ├── Inline script removes 'splash-visible' class
+    ├── CSS transition fades splash overlay over 400ms
+    └── PageProgressBar mounts (hidden — no navigation in progress)
+    ↓
+Page fully interactive — FadeIn components animate on scroll
+```
 
 ---
 
-## Patterns to Follow
+## Integration Points: New vs Modified vs Unchanged
 
-### Pattern 1: LLM Method in RunnerReal
+### New Files
 
-Every new RunnerReal method follows the same structure:
+| File | Purpose | Why New |
+|------|---------|---------|
+| `marketing/src/components/marketing/splash-overlay.tsx` | Branded CSS-driven loading veil | Does not exist — new feature |
+| `marketing/src/components/marketing/page-progress-bar.tsx` | Top progress bar for route changes | Does not exist — new feature |
+| `marketing/public/robots.txt` | SEO crawler guidance | Missing from codebase |
+| `marketing/public/llms.txt` | AI crawler guidance (GEO) | New GEO feature |
+| `marketing/public/og/default.png` | Default OG image (1200x630) | Missing — OG tags exist but no image |
+| `marketing/next-sitemap.config.js` | next-sitemap configuration | Required by new postbuild script |
+| `marketing/images/` | Source images for ExportedImage | New folder for image pipeline |
 
-```python
-async def generate_understanding_questions(self, context: dict) -> list[dict]:
-    """Implement Runner protocol method with real LLM."""
-    user_id = context.get("user_id", "system")
-    session_id = context.get("session_id", "default")
+### Modified Files
 
-    llm = await create_tracked_llm(
-        user_id=user_id,
-        role="architect",  # Use "architect" for strategic reasoning, "coder" for generation
-        session_id=session_id,
-    )
+| File | Change | Impact |
+|------|--------|--------|
+| `marketing/src/app/layout.tsx` | Add inline splash script, SplashOverlay component, PageProgressBar component, Organization + WebSite JSON-LD | Root layout — renders on every page |
+| `marketing/src/app/(marketing)/page.tsx` | Add per-page `metadata` export | SEO — home page |
+| `marketing/src/app/(marketing)/cofounder/page.tsx` | Add per-page `metadata` + SoftwareApplication JSON-LD | SEO + GEO — product page |
+| `marketing/src/app/(marketing)/about/page.tsx` | Add per-page `metadata` | SEO |
+| `marketing/src/app/(marketing)/pricing/page.tsx` | Add per-page `metadata` | SEO |
+| `marketing/src/app/(marketing)/cofounder/how-it-works/page.tsx` | Add per-page `metadata` | SEO |
+| `marketing/next.config.ts` | Switch `images` from `unoptimized: true` to custom loader config for next-image-export-optimizer | Required for image optimization pipeline |
+| `marketing/package.json` | Add `postbuild` script, add `next-image-export-optimizer` and `next-sitemap` deps | New build pipeline steps |
+| `marketing/src/app/globals.css` | Add splash overlay CSS classes | Loading UX |
+| `infra/lib/marketing-stack.ts` | Add `images/*` and `og/*` CloudFront behaviors with 1yr TTL | Required for long-term image caching |
 
-    system_msg = SystemMessage(content="...specific system prompt...")
-    human_msg = HumanMessage(content=f"...{context}...")
+### Unchanged Files
 
-    response = await llm.ainvoke([system_msg, human_msg])
-    return _parse_json_response(response.content)  # Always use shared parser
+| File | Why Unchanged |
+|------|---------------|
+| `marketing/src/components/marketing/fade-in.tsx` | Works correctly — existing scroll animations are correct architecture |
+| `marketing/src/components/marketing/navbar.tsx` | No changes needed |
+| `marketing/src/components/marketing/footer.tsx` | No changes needed |
+| `marketing/src/components/marketing/insourced-home-content.tsx` | Content component — SEO and UX changes live in layout + page.tsx |
+| `infra/functions/url-handler.js` | Extension check (`!uri.includes('.')`) correctly passes image URLs — no change needed |
+| `.github/workflows/deploy-marketing.yml` | `postbuild` script runs automatically as part of `npm run build` — no workflow change needed |
+| `infra/lib/marketing-stack.ts` cache policies | `assetCachePolicy` (1yr) is reused for new image behaviors — no new policy needed |
+
+---
+
+## Suggested Build Order (Dependencies)
+
+Each step can only start after its prerequisites are complete.
+
+```
+Step 1: SEO Metadata (no dependencies — pure TypeScript changes)
+  ├── Add per-page metadata exports to all 5 content pages
+  ├── Add canonical URL to all pages
+  ├── Add missing OG image path to existing root metadata
+  └── Verify generateMetadata produces correct HTML in next build output
+
+Step 2: robots.txt + sitemap (depends on: knowing final URL structure from Step 1)
+  ├── Create public/robots.txt
+  ├── Install next-sitemap
+  ├── Create next-sitemap.config.js
+  └── Add postbuild script to package.json
+      └── Verify out/sitemap.xml generated after npm run build
+
+Step 3: JSON-LD (depends on: Step 1 — canonical URLs must be correct first)
+  ├── Add Organization + WebSite schema to layout.tsx
+  ├── Add SoftwareApplication schema to /cofounder/page.tsx
+  └── Validate with Google Rich Results Test
+
+Step 4: Image Pipeline (independent of Steps 1-3 — no dependencies)
+  ├── Install next-image-export-optimizer
+  ├── Modify next.config.ts (swap unoptimized for custom loader)
+  ├── Create images/ source directory with any new images
+  ├── Add postbuild step (if not already done in Step 2)
+  └── Verify out/images/ generated with WebP variants
+
+Step 5: CloudFront Behaviors for images (depends on: Step 4 — images/ folder must exist)
+  ├── Add images/* behavior to marketing-stack.ts
+  ├── Add og/* behavior to marketing-stack.ts
+  └── Deploy CDK stack (npx cdk deploy CoFounderMarketing)
+
+Step 6: Splash Overlay (independent — pure CSS + minimal JS)
+  ├── Add splash CSS to globals.css
+  ├── Create SplashOverlay component
+  ├── Add inline script to layout.tsx
+  └── Mount SplashOverlay in layout.tsx body
+
+Step 7: Page Progress Bar (independent — pure React component)
+  ├── Install @bprogress/next (or implement custom with framer-motion)
+  ├── Create PageProgressBar component
+  └── Mount in layout.tsx body
+
+Step 8: llms.txt (independent — static file only)
+  └── Create public/llms.txt with site map summary
+      (No technical dependencies — lowest priority, do last)
 ```
 
-### Pattern 2: Stripe Webhook Idempotency
+---
 
-```python
-async def _handle_checkout_completed(session_data: dict) -> None:
-    ...
-    async with factory() as session:
-        ...
-        # Idempotency: skip if subscription already set to same value
-        if user_settings.stripe_subscription_id == subscription_id:
-            logger.info("checkout.session.completed already processed for sub %s", subscription_id)
-            return
-        user_settings.plan_tier_id = tier.id
-        user_settings.stripe_subscription_id = subscription_id
-        user_settings.stripe_subscription_status = "active"
-        ...
+## CloudFront Caching Implications
+
+```
+Asset Type             Cache TTL    Cache Key       Invalidation Strategy
+─────────────────────────────────────────────────────────────────────────
+HTML pages             5min         URL (no QS)     /*  on every deploy (existing)
+_next/static/ JS/CSS   365days      URL             None needed — content-hashed names
+_next/static/ fonts    365days      URL             None needed — content-hashed names
+images/ WebP           365days      URL             None needed — content-hashed by optimizer
+og/ images             365days      URL             Manual invalidation: /og/* when changed
+sitemap.xml            NEW          5min or 1hr     /* on deploy (included in existing /* invalidation)
+robots.txt             NEW          1day            /* on deploy
+llms.txt               NEW          1day            /* on deploy
 ```
 
-### Pattern 3: CloudWatch Alarm in CDK
+**Key insight:** The existing `/*` invalidation in deploy-marketing.yml correctly busts all non-hashed files (HTML, sitemap, robots.txt, llms.txt) on every deploy. The image and static asset files never need invalidation because their filenames change when content changes (content-addressed naming).
 
-All alarms follow the same pattern: metric → alarm → SNS action. Thresholds should be environment-parameterized, not hardcoded, to allow tuning without code changes.
-
-```typescript
-// Use CfnParameter or environment variable for alert email
-const alertEmail = new cdk.CfnParameter(this, "AlertEmail", {
-  type: "String",
-  default: "ops@getinsourced.ai",
-  description: "Email for operational alerts",
-});
-```
+**Sitemap cache consideration:** `sitemap.xml` does not have a dedicated CloudFront behavior — it falls through to the default HTML behavior (5min TTL). This is correct. Search engines that fetch sitemap.xml will always get a fresh copy within 5 minutes of deploy.
 
 ---
 
 ## Anti-Patterns to Avoid
 
-### Anti-Pattern 1: Calling Anthropic API Directly in Services
+### Anti-Pattern 1: Using loading.js for the Splash
 
-Services that need LLM output should always go through `RunnerReal` (or `RunnerFake` in tests), not instantiate `ChatAnthropic` directly.
+**What people do:** Create `app/loading.js` (Next.js streaming Suspense fallback) for the splash screen.
 
-**Why:** Direct instantiation bypasses:
-- Usage tracking (no `UsageLog` row written)
-- Redis daily counter (token limit not enforced)
-- Model resolution (user's plan-based model not used)
-- Suspension check (suspended users can still call LLM)
+**Why it's wrong:** `loading.js` is a server-streaming feature. With `output: 'export'` (static), `loading.js` has no effect — it's simply ignored. The splash will never appear.
 
-```python
-# BAD — service bypasses all controls
-from langchain_anthropic import ChatAnthropic
-llm = ChatAnthropic(model="claude-opus-4-20250514", api_key=settings.anthropic_api_key)
+**Do this instead:** Pure CSS class on `<html>` with inline `<script>` in `<head>` (Pattern 1 above).
 
-# GOOD — goes through controlled path
-llm = await create_tracked_llm(user_id=user_id, role="architect", session_id=session_id)
-```
+---
 
-### Anti-Pattern 2: Deploying Without Test Gate
+### Anti-Pattern 2: Wrapping Above-Fold Content in FadeIn
 
-The existing `deploy.yml` does not require `test.yml` to pass. A failed test suite currently does not block deployment.
+**What people do:** Apply `FadeIn` animation to the hero headline and CTA buttons.
 
-**Why it's wrong:** Production receives broken code. LLM integration bugs in `RunnerReal` ship to users. Stripe webhook handlers break without knowing.
+**Why it's wrong:** Content in viewport on load with `opacity: 0` causes Cumulative Layout Shift (CLS) and delays Largest Contentful Paint (LCP). Google PageSpeed will penalize it. The `InsourcedHero` section already uses `framer-motion` with `animate={{ opacity: 1 }}` — this is correct for the hero because it fires immediately on mount, not on scroll.
 
-**Fix:** Add `needs: test` to the deploy job. If test job must be inlined (not reusable), copy test steps before the build steps.
+**What to watch:** The `FadeIn` component uses `useInView` with `once: true`. Any content that is in the initial viewport and wrapped in `FadeIn` starts invisible and snaps visible immediately. This is fine if the animation completes before the user reads it, but harmful if the content is LCP-critical.
 
-### Anti-Pattern 3: Hardcoding Alert Destinations in CDK
+**Do this instead:** Never wrap `h1`, hero CTA, or any above-fold text in `FadeIn`. Reserve scroll-triggered reveals for content below the fold (sections 2+). The existing codebase already does this correctly (`InsourcedHero` does NOT use `FadeIn` — it uses direct `motion.div` with `animate={{ opacity: 1 }}`).
 
-```typescript
-// BAD — ops email hardcoded, requires code change to update
-alertTopic.addSubscription(new snsSubscriptions.EmailSubscription("vlad@example.com"));
+---
 
-// GOOD — passed as environment variable or CDK context
-const alertEmail = this.node.tryGetContext("alertEmail") || "ops@getinsourced.ai";
-alertTopic.addSubscription(new snsSubscriptions.EmailSubscription(alertEmail));
-```
+### Anti-Pattern 3: Using next/image Without ExportedImage Wrapper
 
-### Anti-Pattern 4: Parsing LLM JSON Without Fence Stripping
+**What people do:** Add `<Image src="/some-photo.jpg">` using `next/image` in a static export.
 
-Claude API (and most LLMs) often wrap JSON in markdown code fences. Calling `json.loads()` directly on the raw response content will throw `JSONDecodeError`.
+**Why it's wrong:** `images: { unoptimized: true }` is set in `next.config.ts`. This means `next/image` passes through the original file with no resizing, no WebP conversion, no srcset. The browser downloads the full-size original on every device.
 
-```python
-# BAD — will fail when model adds ```json fences
-result = json.loads(response.content)
+**Do this instead:** Replace `next/image` with `ExportedImage` from `next-image-export-optimizer`. Keep source images in `marketing/images/` and let the postbuild step generate optimized variants.
 
-# GOOD — strips fences first
-def _parse_json_response(content: str) -> dict | list:
-    content = content.strip()
-    if content.startswith("```"):
-        content = re.sub(r"^```(?:json)?\s*", "", content)
-        content = re.sub(r"\s*```$", "", content)
-    return json.loads(content)
-```
+---
 
-### Anti-Pattern 5: Synchronous Stripe API Calls in Webhook Handler
+### Anti-Pattern 4: App Router sitemap.ts in Static Export
 
-The Stripe SDK's sync methods (`stripe.Customer.create()`) block the asyncio event loop. The billing.py implementation uses sync Stripe calls inside async FastAPI handlers.
+**What people do:** Create `app/sitemap.ts` with `export default function sitemap()` and expect a `sitemap.xml` in `out/`.
 
-```python
-# Current (problematic in production under load):
-customer = stripe.Customer.create(...)  # Blocks event loop
+**Why it's wrong:** `sitemap.ts` generates a Route Handler — a dynamic HTTP endpoint. Static export does not export Route Handlers. `next build` with `output: 'export'` will either throw an error or silently omit the file from `out/`.
 
-# Better for v0.2 (run in executor):
-import asyncio
-customer = await asyncio.get_event_loop().run_in_executor(
-    None, lambda: stripe.Customer.create(metadata={"clerk_user_id": clerk_user_id})
-)
-```
+**Do this instead:** Use `next-sitemap` as a postbuild step. It reads the generated `out/` directory and produces `out/sitemap.xml` directly.
 
-This is a moderate concern for v0.2 — acceptable short-term, fix before significant load.
+---
+
+### Anti-Pattern 5: Injecting JSON-LD in a Client Component
+
+**What people do:** Add `"use client"` to a component that renders a JSON-LD `<script>` tag.
+
+**Why it's wrong:** With static export, client components render once on the server at build time AND once in the browser after hydration. This causes the JSON-LD `<script>` tag to appear twice in the DOM — Google may interpret duplicate structured data inconsistently.
+
+**Do this instead:** Keep JSON-LD in Server Components (no `"use client"` directive). In static export, Server Components are the default for layout.tsx and page.tsx — just don't mark them as client components. The JSON-LD renders once at build time and appears exactly once in the HTML.
 
 ---
 
 ## Scalability Considerations
 
-| Concern | At 10 users (now) | At 100 users | At 1000 users |
-|---------|-------------------|--------------|----------------|
-| **LLM cost** | Low — RunnerFake in tests, few real calls | Monitor via `UsageLog` table, alert at $X/day | Add request coalescing in `create_tracked_llm()` for identical prompts |
-| **Stripe webhooks** | Single FastAPI instance handles fine | Fine — stateless handler | Consider webhook queue (Redis) if handler latency spikes |
-| **Sync Stripe calls** | Acceptable | Acceptable | Replace with async Stripe SDK or run_in_executor |
-| **CloudWatch costs** | Low — 4 alarms, 1 log filter | Low | Log filtering can get expensive at high log volume — add log level filtering |
-| **GitHub Actions** | Free tier sufficient | Free tier sufficient | Consider self-hosted runner for faster build times |
-| **ECS task count** | 1 task (current) | Auto-scales 1-4 (already configured) | Add separate worker service for background job processing |
+This site is a static CDN-served marketing page. "Scaling" means CloudFront edge capacity, which is effectively unlimited. The scaling concerns are different from an application server:
+
+| Concern | Now (< 10K visits/mo) | At 100K visits/mo | At 1M visits/mo |
+|---------|----------------------|-------------------|-----------------|
+| CloudFront costs | Negligible | ~$15/mo | ~$150/mo |
+| Build time | ~90s (add ~10s for postbuild) | Same | Same |
+| Image optimization build time | Fast (few images) | Fast (hash-cached) | Fast (hash-cached) |
+| SEO performance | Core Web Vitals need to be GREEN | Same — static = already optimal | Same |
+| GEO performance | Structured data and content quality | Add more FAQ, How-To schemas | Consider blog/content for citation surface area |
+| Sitemap freshness | next-sitemap on every deploy — sufficient | Same | Add sitemap index if >50K pages (not applicable) |
+
+**First actual bottleneck:** Core Web Vitals scores, not infrastructure. The marketing site's LCP is the h1 text — currently fast. The risk is that adding the splash overlay delays perceived LCP. Mitigate by ensuring splash dismisses within 600ms and never blocks interaction.
 
 ---
 
 ## Sources
 
-All findings based on direct analysis of codebase at `/Users/vladcortex/co-founder/`:
-
-| File | Relevance |
-|------|-----------|
-| `backend/app/core/llm_config.py` | Complete LLM tracking implementation — HIGH confidence |
-| `backend/app/agent/runner_real.py` | RunnerReal methods — stub identification |
-| `backend/app/agent/runner.py` | Runner protocol — 10 required methods |
-| `backend/app/agent/nodes/*.py` | All nodes use `create_tracked_llm()` — confirmed |
-| `backend/app/api/routes/billing.py` | Complete Stripe implementation — HIGH confidence |
-| `backend/app/db/models/user_settings.py` | Stripe fields present — HIGH confidence |
-| `backend/app/queue/worker.py` | RunnerReal injection pattern — confirmed |
-| `infra/lib/compute-stack.ts` | ECS services, logging driver, no alarms — confirmed |
-| `.github/workflows/deploy.yml` | Missing test gate — confirmed |
-| `.github/workflows/test.yml` | Missing env vars — confirmed |
-| `backend/app/core/config.py` | All secrets configured — confirmed |
-
-**Confidence: HIGH** — all claims are based on reading the actual source files, not assumptions.
+| Source | Type | Confidence |
+|--------|------|------------|
+| Direct analysis: `marketing/src/` codebase | Codebase | HIGH |
+| Direct analysis: `infra/lib/marketing-stack.ts` | Codebase | HIGH |
+| Direct analysis: `infra/functions/url-handler.js` | Codebase | HIGH |
+| Direct analysis: `.github/workflows/deploy-marketing.yml` | Codebase | HIGH |
+| `nextjs.org/docs/app/guides/json-ld` (fetched 2026-02-20) | Official docs | HIGH |
+| `nextjs.org/docs/app/api-reference/file-conventions/metadata/sitemap` (fetched 2026-02-20) | Official docs | HIGH |
+| `nextjs.org/docs/app/api-reference/file-conventions/metadata/robots` (fetched 2026-02-20) | Official docs | HIGH |
+| `github.com/Niels-IO/next-image-export-optimizer` (fetched 2026-02-20) | Package docs | HIGH |
+| WebSearch: GEO/llms.txt adoption evidence | Community research | MEDIUM |
+| WebSearch: @bprogress/next progress bar | Community research | MEDIUM |
+| WebSearch: CloudFront cache-control strategy | Community research | MEDIUM |
 
 ---
 
-*Architecture research for: AI Co-Founder SaaS v0.2 — Real LLM, Stripe, CI/CD, CloudWatch*
-*Researched: 2026-02-18*
-*Confidence: HIGH — direct codebase analysis*
+*Architecture research for: AI Co-Founder SaaS marketing site — loading UX, performance, SEO, GEO*
+*Researched: 2026-02-20*
+*Confidence: HIGH — direct codebase analysis + verified against official Next.js 15 docs*

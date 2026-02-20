@@ -1,274 +1,328 @@
-# Technology Stack
+# Stack Research: Marketing Site — Premium UX, Performance, SEO & GEO
 
-**Project:** AI Co-Founder SaaS — v0.2 Production Ready
-**Researched:** 2026-02-18
+**Project:** getinsourced.ai Marketing Site
+**Milestone scope:** Premium loading UX + performance optimization + SEO + GEO
+**Researched:** 2026-02-20
 **Confidence:** HIGH
 
 ---
 
 ## Scope
 
-This document covers ONLY the stack additions required for v0.2. It does not re-document v0.1 choices (FastAPI, LangGraph, PostgreSQL, Redis, Neo4j, Clerk, E2B, WeasyPrint, etc.) that are already validated and installed.
+This document covers ONLY new additions to the marketing site located at `/marketing/`. The existing stack is already validated:
 
-The four capability areas driving new stack decisions:
+| Already Installed | Version | Do Not Re-Research |
+|------------------|---------|-------------------|
+| `next` | `^15.0.0` | Static export (`output: 'export'`), App Router |
+| `react` / `react-dom` | `^19.0.0` | — |
+| `framer-motion` | `^12.34.0` | Page animations, exit animations (AnimatePresence) |
+| `tailwindcss` | `^4.0.0` | Animation utilities (`animate-pulse`, `animate-spin`) |
+| `geist` | `^1.3.0` | Self-hosted font (already using GeistSans, GeistMono) |
+| `next/font/google` | part of Next.js | Space Grotesk already optimized at build time |
+| `clsx` + `tailwind-merge` | installed | — |
 
-1. Real LLM integration (Claude API live calls replacing stubs)
-2. Stripe subscription billing (checkout, webhooks, tier enforcement)
-3. GitHub Actions CI + automated ECS deploy
-4. AWS CloudWatch + SNS monitoring
-
----
-
-## What the Codebase Already Has (Do NOT Re-Add)
-
-Confirmed present in `pyproject.toml` and deployed code — these are already wired, not gaps:
-
-| Capability | Library | Version Constraint | Status |
-|------------|---------|-------------------|--------|
-| Anthropic SDK (direct) | `anthropic` | `>=0.40.0` | Installed. Current: 0.81.0 |
-| LangChain Anthropic bridge | `langchain-anthropic` | `>=0.3.0` | Installed. Current: 1.3.3 |
-| LangChain Core | `langchain-core` | `>=0.3.0` | Installed |
-| LangGraph | `langgraph` | `>=0.2.0` | Installed |
-| LangGraph Postgres checkpoint | `langgraph-checkpoint-postgres` | `>=2.0.0` | Installed |
-| Stripe Python SDK | `stripe` | `>=11.0.0` | Installed. Current: 14.3.0 |
-| Usage tracking (token logging) | via `langchain_core.callbacks.AsyncCallbackHandler` | — | Fully implemented in `llm_config.py` |
-| LLM model routing | `resolve_llm_config()` + `create_tracked_llm()` | — | Fully implemented |
-| Stripe checkout + portal + webhooks | `billing.py` route | — | Fully implemented |
-| Billing page (frontend) | Custom fetch + Clerk auth | — | Fully implemented |
-| CI workflows | `.github/workflows/deploy.yml` + `test.yml` | — | Basic structure exists |
-| ECS deploy via CDK | `infra/lib/compute-stack.ts` | — | Deployed |
-| Docker layer caching | `docker/build-push-action@v5` with GHA cache | — | In deploy.yml |
+**Static export constraint:** All additions must work with `output: 'export'`. No SSR, no Server Actions, no Route Handlers at runtime. Everything baked to HTML/CSS/JS at build time and served from S3/CloudFront.
 
 ---
 
-## Gaps — What Needs to Be Added or Fixed
+## The Four Feature Areas — Decisions
 
-### 1. Real LLM Integration
+### 1. Branded Splash Screen + Skeleton Screens + Progress Bar
 
-**Assessment:** The architecture is complete. `RunnerReal` calls `create_tracked_llm()` which calls `ChatAnthropic`. Token tracking, model routing, and plan-tier enforcement are all wired. The implementation gap is that `RunnerReal` methods like `generate_understanding_questions`, `generate_idea_brief`, `check_question_relevance`, `assess_section_confidence`, and `generate_execution_options` exist as protocol stubs but their implementations in `runner_real.py` are incomplete — they make basic LLM calls but lack production-grade prompts, structured output parsing, and retry/fallback logic.
+**Decision:** Use existing `framer-motion` for splash screen, Tailwind `animate-pulse` for skeletons, and `nextjs-toploader` for the route progress bar. No new animation library.
 
-**No new library needed.** The fix is implementation work, not stack additions.
+**Rationale:**
 
-| Concern | What to Do | Library |
-|---------|-----------|---------|
-| Structured JSON output from Claude | Use `with_structured_output()` or Pydantic model + JSON parsing | `langchain-anthropic` (already installed) |
-| Streaming to frontend during interview | Use `ChatAnthropic.astream()` + FastAPI `StreamingResponse` | `langchain-anthropic` + `fastapi` (both installed) |
-| Retry on transient 529/overload | Use `tenacity` for exponential backoff on `anthropic.InternalServerError` | **ADD: `tenacity>=9.0.0`** |
-| Token count enforcement during generation | Already handled by `_check_daily_token_limit()` in Redis | No addition needed |
+- `framer-motion` is already installed at v12.34.0. A branded splash screen is a `'use client'` component wrapping `AnimatePresence` with an opacity exit animation. Zero new bytes.
+- Tailwind's `animate-pulse` utility is a CSS keyframe that already ships in the Tailwind v4 bundle. Skeleton screens are styled `<div>` placeholders — no skeleton library adds value over raw Tailwind for a static marketing site with 8 pages.
+- `nextjs-toploader` (v3.9.17) is the standard for Next.js top-of-page progress bars. It wraps `nprogress` and uses the App Router's `usePathname`/`useRouter` hooks. Works correctly as a `'use client'` component in static export because it only fires on client-side navigations — no server runtime required.
 
-**One addition required — `tenacity`:**
+**Why not `@bprogress/next`:** `next-nprogress-bar` and its successor `@bprogress/next` are heavier re-architectures of the same concept. `nextjs-toploader` has an explicit "works with Next.js 15" claim, is actively maintained (v3.9.17 published September 2025), and has a simpler API surface. Recommendation is `nextjs-toploader`.
 
-```toml
-# pyproject.toml addition
-"tenacity>=9.0.0"
-```
-
-Why `tenacity` not a custom retry loop: Anthropic SDK does not auto-retry 529 overload errors by default (it retries network errors and 5xx server errors, but Sonnet/Opus rate limits return 529 which needs application-level handling). `tenacity` provides `@retry`, `wait_exponential`, and `stop_after_attempt` in 3 lines. It's also already a transitive dependency of `langchain-core` — pinning it explicitly ensures the version you expect.
-
-**Confidence:** HIGH — verified by reading `langchain-anthropic==1.3.3` docs and the existing `llm_config.py`.
+**Why no skeleton library (e.g., `react-loading-skeleton`):** A static marketing site's "skeleton" use case is page-load shimmer on above-the-fold sections during hydration. This is 2-3 `animate-pulse` divs per section. Pulling in a 15 KB skeleton library for 10 lines of Tailwind is waste.
 
 ---
 
-### 2. Stripe Subscription Billing
+### 2. Image Optimization for Static Export
 
-**Assessment:** Backend is fully implemented. `billing.py` has checkout, portal, webhook handlers (checkout.session.completed, subscription.updated, subscription.deleted, invoice.payment_failed) with signature verification. Frontend billing page exists. Price IDs are wired into CDK environment variables.
+**Decision:** Use `next-export-optimize-images` (v4.7.0). It is the superior of the two main options.
 
-**The actual gaps are:**
+**Rationale:**
 
-| Gap | What to Do | Library |
-|-----|-----------|---------|
-| Webhook idempotency (Stripe retries for 72h) | Store processed `event.id` in Redis with 72h TTL before processing | `redis` (already installed) — implementation gap, not library gap |
-| Async Stripe API calls | Current code uses sync `stripe.*` calls in async FastAPI handlers — this blocks the event loop | **ADD: `stripe[async]` or use `anyio.to_thread.run_sync()`** |
-| Frontend: redirect to Stripe-hosted checkout | Already works (backend returns `checkout_url`, frontend redirects) | No addition needed |
-| Plan enforcement in agent pipeline | `resolve_llm_config()` raises `PermissionError` on suspended/overlimit — wired | No addition needed |
-| Stripe test mode in CI | Use Stripe test keys (`sk_test_*`) — no mock library needed for webhook tests; use `stripe.Webhook.construct_event()` with a computed signature | `pytest-mock` (already in dev deps) |
+Next.js `output: 'export'` disables the built-in Image Optimization API (which requires a Node.js server at request time). The `images: { unoptimized: true }` in the current `next.config.ts` means no WebP conversion, no responsive srcsets, no blur placeholders — images are served raw.
 
-**Stripe async fix — the most important addition:**
+Two libraries solve this at build time using Sharp:
 
-The `stripe` Python SDK >= 12.0 ships async support via `httpx`. The existing code calls `stripe.checkout.Session.create(...)` synchronously inside `async def` FastAPI endpoints. This blocks the asyncio event loop.
+| | `next-export-optimize-images` v4.7.0 | `next-image-export-optimizer` v1.20.1 |
+|---|---|---|
+| Configuration | Simple — wraps `withExportImages()` in next.config | Verbose, separate build script step |
+| Multi-format support | Yes — WebP + AVIF + JPEG/PNG via `<Picture>` | No — single output format only |
+| All `next/image` props | Supported | Partial |
+| Remote images | Supported | Supported |
+| Last publish | ~5 months ago (Sept 2025) | ~24 days ago (Jan 2026) |
+| Recommendation | **Use this** | Second choice |
 
-Option A (recommended): Use `stripe`'s built-in async client:
-```python
-import stripe
-stripe.api_key = settings.stripe_secret_key
-# Use stripe.checkout.Session.create_async(...)  — available in stripe>=12.0
-```
+`next-export-optimize-images` is maintained by dc7290 and has active development, simpler config, and supports multiple output formats. Its own comparison page (verified) explicitly notes `next-image-export-optimizer` has "complicated and cumbersome settings" and lacks multi-format support.
 
-Option B: Wrap in `anyio.to_thread.run_sync()` — no new library since `anyio` is a FastAPI transitive dep.
+**What this replaces in `next.config.ts`:** `images: { unoptimized: true }` is replaced by `withExportImages()` wrapper with a custom image loader.
 
-**Recommendation: Option A.** The installed `stripe>=11.0.0` constraint should be bumped:
+**What you get:** WebP conversion (~40-70% size reduction), responsive `srcset` generation, blur placeholder data URIs (tiny inline LQIP), all at build time. CloudFront serves the pre-generated variants.
 
-```toml
-# pyproject.toml — update constraint
-"stripe>=14.0.0"
-```
-
-Version 14.3.0 is current (verified PyPI, Jan 28 2026). The jump from 11 → 14 brings async support maturity, improved type hints, and Python 3.7/3.8 deprecation cleanup. No breaking API changes for the endpoints used (`checkout.Session`, `billing_portal.Session`, `Webhook`).
-
-**No new Python library.** Bump the existing `stripe` constraint.
-
-**Frontend:** No `@stripe/stripe-js` or `@stripe/react-stripe-js` needed. The existing pattern (backend returns a URL, frontend does `window.location.href = url`) redirects to Stripe-hosted Checkout. This is the correct approach for a SaaS with server-side billing — avoids PCI scope on the frontend.
-
-**Confidence:** HIGH — verified by reading `billing.py`, `billing/page.tsx`, and Stripe SDK changelog.
+**No `sharp` install needed:** `next-export-optimize-images` declares `sharp` as a peer dependency. Next.js 15 already installs `sharp` automatically when `sharp` is detected — the `sharp` package is already present in the marketing site's `node_modules` (confirmed in codebase).
 
 ---
 
-### 3. GitHub Actions CI + Automated ECS Deploy
+### 3. SEO — Meta Tags, Open Graph, Structured Data, Sitemap
 
-**Assessment:** Two workflows exist. `test.yml` runs backend tests with Postgres + Redis services. `deploy.yml` builds Docker images, runs CDK deploy, then force-deploys ECS services. This is functional but has meaningful gaps.
+**Decision:** Use Next.js 15 built-in `generateMetadata` for meta/OG, inline `<script type="application/ld+json">` for JSON-LD structured data with `schema-dts` for TypeScript types, static `opengraph-image.png` files per page, and `next-sitemap` for sitemap.xml + robots.txt generation.
 
-**Current gaps:**
+**Rationale:**
 
-| Gap | Problem | Fix |
-|-----|---------|-----|
-| CDK deploy on every push | CDK `--all` re-runs full infrastructure synthesis, causing drift risk and 3-5 min overhead even when only app code changed | Split into infra-deploy (CDK, manual or on infra changes) and app-deploy (image build + ECS only) |
-| No test gate before deploy | `deploy.yml` does not call tests first; broken code can reach production | Add test job as dependency (`needs: test`) |
-| Using `latest` image tag for ECS | Rolling back means manually reverting; no traceability | Tag with `${{ github.sha }}` (already done for ECR push) but ECS task definition must pin sha tag, not `latest` |
-| Task definition not rendered before deploy | `deploy.yml` uses `aws ecs update-service --force-new-deployment` which picks up `latest` tag — if the image wasn't promoted correctly this breaks | Use `aws-actions/amazon-ecs-render-task-definition@v1` + `aws-actions/amazon-ecs-deploy-task-definition@v2` pattern |
-| No wait with rollback signal | `aws ecs wait services-stable` waits indefinitely; no deployment alarm | Add `--timeout` or use the deploy action's built-in wait |
-| Frontend tests absent | No linting or type-check in CI | Add frontend lint + typecheck job |
-| OIDC already configured | `role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}` with `id-token: write` is the right pattern (verified) | No change needed |
+**Meta tags and Open Graph:** The App Router's `generateMetadata` function is the official, zero-dependency solution. It works perfectly with static export — Next.js bakes all metadata into each page's HTML at build time. The existing `layout.tsx` already uses this pattern with a basic `metadata` export. Expanding it requires no new library.
 
-**Actions to use (all official, verified current):**
+**Open Graph images:** Static `.png` files placed at `app/(marketing)/page/opengraph-image.png` are automatically picked up by Next.js and linked as `og:image` in the generated HTML. The alternative (dynamic `opengraph-image.tsx` with `ImageResponse`) requires the Edge Runtime and does not work with `output: 'export'`. Static image files are the correct approach for a static export site.
 
-| Action | Version | Purpose |
-|--------|---------|---------|
-| `actions/checkout@v4` | v4 | Already used |
-| `aws-actions/configure-aws-credentials@v4` | v4 | Already used — correct OIDC pattern |
-| `aws-actions/amazon-ecr-login@v2` | v2 | Already used |
-| `docker/setup-buildx-action@v3` | v3 | Already used |
-| `docker/build-push-action@v5` | v5 | Already used |
-| `aws-actions/amazon-ecs-render-task-definition@v1` | v1 | **ADD** — injects new image SHA into task def JSON |
-| `aws-actions/amazon-ecs-deploy-task-definition@v2` | v2 | **ADD** — registers new task def revision + deploys |
-| `actions/setup-python@v5` | v5 | Already used in test.yml |
-| `actions/setup-node@v4` | v4 | Already used |
+**JSON-LD structured data:** The official Next.js docs (verified, version 16.1.6, Feb 16 2026) recommend rendering structured data as a raw `<script type="application/ld+json">` tag in page or layout components. This is a zero-library pattern — just a JSX script tag with `dangerouslySetInnerHTML`. It works in static export because it's just HTML output.
 
-**Task definition files to add to repo:**
+Use `schema-dts` (v1.1.5 — Google's TypeScript type definitions for Schema.org vocabulary) as a dev-only type aid. It has zero runtime cost — it's TypeScript types only, no JS in the bundle. Recommended directly by the official Next.js JSON-LD docs.
 
-```
-infra/task-definitions/
-  backend.json      # Snapshot of current task def (download via AWS CLI, commit)
-  frontend.json     # Snapshot of current task def
-```
+**Priority schema types for an AI SaaS marketing site:**
+- `Organization` — in root layout (site identity, logo, social links)
+- `SoftwareApplication` — on the product/features page
+- `FAQPage` — on pricing page and homepage FAQ section (pages with FAQPage markup are 3.2x more likely to appear in Google AI Overviews per 2025 research)
+- `WebPage` or `WebSite` — root layout
 
-These JSON files are rendered by `amazon-ecs-render-task-definition` to inject the new image URI before deploying. This replaces the current `--force-new-deployment` approach and enables sha-pinned, traceable deploys with rollback.
-
-**No new npm packages or Python packages needed.** All additions are to the GitHub Actions YAML files and a task definition JSON pattern.
-
-**Confidence:** HIGH — verified by reading `deploy.yml`, `aws-actions/amazon-ecs-deploy-task-definition` README (v2), and AWS ECS GitHub Actions blog post.
+**Sitemap:** `next-sitemap` (v4.2.3) generates `sitemap.xml` and `robots.txt` as a postbuild step. It runs `node node_modules/next-sitemap/bin/next-sitemap --config next-sitemap.config.js` after `next build` and writes the files into the `out/` directory for static export. Last published ~2 years ago — it is feature-complete and stable. The alternative (built-in `sitemap.ts` file convention) requires App Router route handlers which are not available in static export mode. `next-sitemap` is the correct choice for `output: 'export'`.
 
 ---
 
-### 4. AWS CloudWatch + SNS Monitoring
+### 4. GEO — Generative Engine Optimization
 
-**Assessment:** The CDK `compute-stack.ts` has:
-- `containerInsights: true` on the ECS cluster (Container Insights metrics enabled)
-- `awsLogs` log driver routing container stdout to CloudWatch Logs
-- Log retention set to `ONE_WEEK`
-- CPU auto-scaling policy
+**Decision:** Zero new libraries. GEO is a content and file strategy, not a library problem.
 
-**What's missing:** No alarms, no SNS topic, no notification to a human when things break.
+**Rationale:**
 
-**CDK additions required (TypeScript, in `infra/lib/`):**
+GEO optimization for AI engines (Google AI Overviews, Perplexity, Bing Copilot, ChatGPT) consists of:
 
-| Addition | CDK Construct | Purpose |
-|----------|--------------|---------|
-| SNS Topic | `aws-cdk-lib/aws-sns` | Central alert bus for all alarms |
-| Email subscription | `aws-cdk-lib/aws-sns-subscriptions` | Notify `ops@` email on alarm |
-| New CloudWatch stack | New file `monitoring-stack.ts` | Isolate monitoring from compute; avoids circular deps |
-| ALB 5xx alarm | `aws_cloudwatch.Alarm` on `HTTPCode_ELB_5XX_Count` | Alert on backend error spike |
-| ECS CPU alarm | `aws_cloudwatch.Alarm` on `CPUUtilization` | Alert before OOM kills / task churn |
-| ECS Memory alarm | `aws_cloudwatch.Alarm` on `MemoryUtilization` | Alert before ECS task OOM |
-| ECS Task Count alarm | `aws_cloudwatch.Alarm` on `RunningTaskCount` | Alert if tasks drop to 0 (service down) |
-| RDS CPU alarm | `aws_cloudwatch.Alarm` on RDS `CPUUtilization` | Alert on DB overload |
-| Log metric filter for errors | `aws_logs.MetricFilter` on `/backend` log group | Count Python `ERROR` log lines → alarm |
+1. **`llms.txt`** — A static Markdown file at `public/llms.txt`, placed manually. No tooling needed. The specification (llmstxt.org) defines a simple Markdown format with H1 site name, optional blockquote summary, and H2-delimited link lists. This is a 20-line handwritten file.
 
-**No new CDK library needed.** All constructs are in `aws-cdk-lib` (already installed in `infra/`).
+2. **`robots.txt`** — Generated by `next-sitemap` (already decided above). Add explicit allow/disallow rules for AI crawlers. For GEO optimization, allow AI search crawlers (`PerplexityBot`, `OAI-SearchBot`, `Google-Extended`) while optionally restricting training crawlers (`GPTBot`, `ClaudeBot`, `CCBot`). The robots.txt can be customized via `next-sitemap.config.js`.
 
-```typescript
-// All imports from existing aws-cdk-lib
-import * as cloudwatch from "aws-cdk-lib/aws-cloudwatch";
-import * as cloudwatchActions from "aws-cdk-lib/aws-cloudwatch-actions";
-import * as sns from "aws-cdk-lib/aws-sns";
-import * as snsSubscriptions from "aws-cdk-lib/aws-sns-subscriptions";
-import * as logs from "aws-cdk-lib/aws-logs";
-```
+3. **`FAQPage` JSON-LD schema** — Already covered in SEO section above. FAQPage markup is the highest-impact structured data type for AI Overview inclusion (confirmed by multiple 2025 sources).
 
-**Optional: `cdk-monitoring-constructs`**
-There is a higher-level library `cdk-monitoring-constructs` (cdklabs, TypeScript) that provides pre-wired alarm patterns for ECS/RDS/ALB. It would reduce boilerplate by ~60% but adds a dependency and some opinion on thresholds. Given this project has a single engineer and known metrics, writing explicit alarms is clearer and easier to adjust. **Do not add this dependency.**
+4. **Content formatting** — Headers, numbered lists, concise definitions, and entity clarity help LLMs extract and cite content. This is page copy, not code.
 
-**No Python backend changes needed.** CloudWatch Logs already receives all stdout/stderr from containers. `asgi-correlation-id` already attaches correlation IDs to log lines. No `boto3` or `watchtower` (Python CloudWatch Logs handler) needed — the ECS log driver handles log shipping natively.
+5. **Canonical `og:url`** — Already covered by `generateMetadata`.
 
-**Confidence:** HIGH — verified by reading `compute-stack.ts`, CloudWatch ECS metric names from AWS docs, and CDK construct library.
+`llms.txt` adoption: Over 844,000 websites have implemented it as of October 2025 (BuiltWith). Major companies (Stripe, Cloudflare, Anthropic) have implemented it. No LLM provider has made an official statement about actively reading it, but cost of adoption is one static file.
 
 ---
 
-## Full Diff: New Additions Only
+## Complete Stack Additions
 
-### Backend (`pyproject.toml`)
+### New npm Dependencies
 
-```toml
-# Add to [project.dependencies]
-"tenacity>=9.0.0",    # Retry logic for Claude 529/overload errors
+| Package | Version | Purpose | Install As |
+|---------|---------|---------|------------|
+| `nextjs-toploader` | `^3.9.17` | Route progress bar (NProgress-based, App Router aware) | `dependency` |
+| `next-export-optimize-images` | `^4.7.0` | Build-time image optimization + WebP conversion for static export | `dependency` |
+| `next-sitemap` | `^4.2.3` | sitemap.xml + robots.txt generation as postbuild step | `dependency` |
+| `schema-dts` | `^1.1.5` | TypeScript type definitions for Schema.org JSON-LD (zero runtime cost) | `devDependency` |
 
-# Update existing constraint (no new dep, just version bump)
-"stripe>=14.0.0",     # Was >=11.0.0; 14.x adds mature async support
-```
+### No New Dependencies For
+
+| Feature | Why No Library Needed |
+|---------|----------------------|
+| Splash screen animation | `framer-motion` already installed — use `AnimatePresence` + `motion.div` |
+| Skeleton screens | Tailwind `animate-pulse` + styled divs — sufficient for 8-page static site |
+| Meta tags / Open Graph | Next.js 15 `generateMetadata` built-in |
+| JSON-LD rendering | Raw `<script>` JSX tag — official Next.js recommendation |
+| `llms.txt` | Static Markdown file in `public/` — no tooling |
+| Font optimization | Already done — `next/font/google` self-hosts Space Grotesk at build time |
+| Bundle analysis | `@next/bundle-analyzer` if needed — dev-only, install on demand |
+
+---
+
+## Installation
 
 ```bash
-cd backend && uv add "tenacity>=9.0.0"
-# Update stripe constraint in pyproject.toml manually, then:
-uv sync
+cd /Users/vladcortex/co-founder/marketing
+
+# Runtime dependencies
+npm install nextjs-toploader next-export-optimize-images next-sitemap
+
+# Dev-only (TypeScript types, zero runtime)
+npm install -D schema-dts
 ```
-
-### Frontend (`package.json`)
-
-No new dependencies. The Stripe Checkout redirect pattern (backend returns URL, frontend redirects) is already implemented and does not require `@stripe/stripe-js` or `@stripe/react-stripe-js`.
-
-### GitHub Actions (`.github/workflows/`)
-
-No new npm or pip packages. Additions are to the YAML workflow files:
-- Add `needs: test` dependency to deploy job
-- Add `aws-actions/amazon-ecs-render-task-definition@v1` step
-- Replace `--force-new-deployment` with `aws-actions/amazon-ecs-deploy-task-definition@v2`
-- Add frontend lint job to `test.yml`
-- Add task definition JSON files to `infra/task-definitions/`
-
-### Infrastructure (`infra/`)
-
-No new npm packages. CloudWatch/SNS constructs are already in `aws-cdk-lib`. Add a new file:
-- `infra/lib/monitoring-stack.ts` — SNS topic, alarm definitions, metric filters
 
 ---
 
-## Complete Version Reference
+## Integration Points
 
-| Library / Tool | Where | Version | Source | Confidence |
-|---------------|-------|---------|--------|-----------|
-| `anthropic` | Backend | 0.81.0 current, `>=0.40.0` already in pyproject | [PyPI/GitHub releases](https://github.com/anthropics/anthropic-sdk-python/releases) | HIGH |
-| `langchain-anthropic` | Backend | 1.3.3 current, `>=0.3.0` already in pyproject | [PyPI](https://pypi.org/project/langchain-anthropic/) | HIGH |
-| `tenacity` | Backend — **NEW** | `>=9.0.0` (latest 9.0.0) | [PyPI](https://pypi.org/project/tenacity/) | HIGH |
-| `stripe` | Backend — bump constraint | `>=14.0.0` (14.3.0 current, Jan 28 2026) | [PyPI](https://pypi.org/project/stripe/) | HIGH |
-| `aws-actions/amazon-ecs-render-task-definition` | CI — **NEW** | `v1` | [GitHub Marketplace](https://github.com/marketplace/actions/amazon-ecs-render-task-definition-action) | HIGH |
-| `aws-actions/amazon-ecs-deploy-task-definition` | CI — **NEW** | `v2` | [GitHub Marketplace](https://github.com/marketplace/actions/amazon-ecs-deploy-task-definition-action-for-github-actions) | HIGH |
-| `aws-cdk-lib/aws-cloudwatch` | Infra — **NEW usage** | Part of aws-cdk-lib (already installed) | [CDK docs](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_cloudwatch.Alarm.html) | HIGH |
-| `aws-cdk-lib/aws-sns` | Infra — **NEW usage** | Part of aws-cdk-lib (already installed) | CDK docs | HIGH |
+### `next.config.ts` — Image Optimization
+
+```typescript
+import withExportImages from 'next-export-optimize-images';
+import type { NextConfig } from 'next';
+
+const nextConfig: NextConfig = {
+  output: 'export',
+  trailingSlash: true,
+  reactStrictMode: true,
+  // Remove: images: { unoptimized: true }
+  // next-export-optimize-images installs its own loader
+};
+
+export default withExportImages(nextConfig);
+```
+
+### `package.json` — Postbuild Sitemap
+
+```json
+{
+  "scripts": {
+    "build": "next build",
+    "postbuild": "next-sitemap",
+    "dev": "next dev",
+    "lint": "next lint"
+  }
+}
+```
+
+### `next-sitemap.config.js` — Sitemap + Robots Configuration
+
+```javascript
+/** @type {import('next-sitemap').IConfig} */
+module.exports = {
+  siteUrl: 'https://getinsourced.ai',
+  generateRobotsTxt: true,
+  outDir: './out',  // Must match static export output dir
+  robotsTxtOptions: {
+    policies: [
+      { userAgent: '*', allow: '/' },
+      // Allow AI search (GEO) — these index for retrieval, not training
+      { userAgent: 'PerplexityBot', allow: '/' },
+      { userAgent: 'OAI-SearchBot', allow: '/' },
+      { userAgent: 'Google-Extended', allow: '/' },
+      // Optionally restrict training crawlers (decision for content team)
+      // { userAgent: 'GPTBot', disallow: '/' },
+      // { userAgent: 'ClaudeBot', disallow: '/' },
+    ],
+    additionalSitemaps: [],
+  },
+};
+```
+
+### `app/layout.tsx` — Progress Bar + JSON-LD
+
+```typescript
+import NextTopLoader from 'nextjs-toploader';
+import { WithContext, Organization } from 'schema-dts';
+
+const orgSchema: WithContext<Organization> = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: 'Insourced AI',
+  url: 'https://getinsourced.ai',
+  logo: 'https://getinsourced.ai/logo.png',
+};
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en" className="dark">
+      <body className={`${GeistSans.variable} ...`}>
+        <NextTopLoader color="#your-brand-color" showSpinner={false} />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(orgSchema).replace(/</g, '\\u003c'),
+          }}
+        />
+        {children}
+      </body>
+    </html>
+  );
+}
+```
+
+### `public/llms.txt` — GEO File (Static)
+
+```markdown
+# Insourced AI
+
+> AI Technical Co-Founder and autonomous agents for non-technical founders.
+> Insourced AI helps founders ship software faster without outsourced dev teams.
+
+## Product
+
+- [AI Co-Founder](https://getinsourced.ai/cofounder): Plan, build, test, and deploy with an AI technical co-founder
+- [Pricing](https://getinsourced.ai/pricing): Plans for solo founders to teams
+
+## Company
+
+- [About](https://getinsourced.ai/about): Mission and team
+- [Contact](https://getinsourced.ai/contact): Get in touch
+```
+
+### Splash Screen Component Pattern
+
+```typescript
+// src/components/SplashScreen.tsx
+'use client';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect } from 'react';
+
+export function SplashScreen() {
+  const [show, setShow] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setShow(false), 1800);
+    return () => clearTimeout(t);
+  }, []);
+  return (
+    <AnimatePresence>
+      {show && (
+        <motion.div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black"
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.4 }}
+        >
+          {/* Brand mark / wordmark */}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+```
+
+### Skeleton Screen Pattern (No Library)
+
+```typescript
+// src/components/skeletons/HeroSkeleton.tsx
+export function HeroSkeleton() {
+  return (
+    <div className="animate-pulse space-y-4">
+      <div className="h-12 w-3/4 rounded-lg bg-white/10" />
+      <div className="h-6 w-1/2 rounded-lg bg-white/10" />
+      <div className="h-10 w-32 rounded-lg bg-white/10" />
+    </div>
+  );
+}
+```
 
 ---
 
 ## Alternatives Considered and Rejected
 
-| Category | Rejected Option | Why Rejected | What to Use Instead |
-|----------|----------------|-------------|-------------------|
-| LLM retries | Custom retry loop | Reinventing tenacity; no jitter/exponential backoff built in | `tenacity` |
-| LLM retries | `backoff` library | Less maintained than tenacity; tenacity has better async support | `tenacity` |
-| Stripe async | `httpx` wrapper around sync Stripe | Extra abstraction; stripe SDK already uses httpx internally in v14 | Stripe native async (`stripe.checkout.Session.create_async`) |
-| Stripe frontend | `@stripe/stripe-js` + `@stripe/react-stripe-js` | Necessary only for Stripe Elements (custom card form); Stripe-hosted Checkout needs only a redirect URL | Backend-generated `checkout_url`, `window.location.href` redirect |
-| CI deploy | AWS CodePipeline | Significant added complexity; separate service to manage; GHA already established | Improve existing GHA workflow |
-| CI deploy | Keep `--force-new-deployment` | Uses `latest` tag; no rollback traceability; no alarm-triggered rollback | `amazon-ecs-render-task-definition` + `amazon-ecs-deploy-task-definition` |
-| Monitoring | `watchtower` (Python CloudWatch Logs handler) | Unnecessary — ECS awslogs driver already ships container stdout to CloudWatch | No change to backend; awslogs driver handles it |
-| Monitoring | `cdk-monitoring-constructs` | Extra dependency; explicit alarms are clearer for a single-engineer team | Raw `aws_cloudwatch.Alarm` constructs |
-| Monitoring | Datadog/New Relic | Cost; overkill for current scale; adds agent sidecar complexity | CloudWatch (native, zero marginal cost for Container Insights + standard metrics) |
+| Category | Recommended | Alternative | Why Not |
+|----------|-------------|-------------|---------|
+| Progress bar | `nextjs-toploader@3.9.17` | `@bprogress/next` | Heavier re-architecture of same concept; `nextjs-toploader` has explicit Next.js 15 support and simpler API |
+| Image optimization | `next-export-optimize-images@4.7.0` | `next-image-export-optimizer@1.20.1` | `next-image-export-optimizer` has single-format limitation, more complex config per its own comparison docs |
+| Skeleton screens | Tailwind `animate-pulse` (built-in) | `react-loading-skeleton` | 15 KB library for 3 divs on an 8-page static site; pure waste |
+| Sitemap | `next-sitemap@4.2.3` | Built-in `sitemap.ts` | Built-in requires App Router route handlers → unavailable in `output: 'export'` mode |
+| JSON-LD rendering | Raw `<script>` JSX tag | `next-seo` | `next-seo` is a full SEO management library; App Router's `generateMetadata` covers all meta/OG needs; JSON-LD is 2 lines of JSX |
+| OG images | Static `.png` files | Dynamic `opengraph-image.tsx` (ImageResponse) | `ImageResponse` requires Edge Runtime; incompatible with `output: 'export'` |
+| GEO | Static `public/llms.txt` | Automated llms.txt generation libraries | No mature library exists; the file is 20 lines of Markdown written once |
+| Font optimization | `next/font/google` (already used) | Self-hosted `.woff2` files manually | `next/font/google` already self-hosts at build time with zero external requests — identical outcome, less work |
 
 ---
 
@@ -276,98 +330,61 @@ No new npm packages. CloudWatch/SNS constructs are already in `aws-cdk-lib`. Add
 
 | Package | Why Not |
 |---------|---------|
-| `@stripe/stripe-js` | Not needed — Stripe-hosted Checkout requires only a URL redirect |
-| `@stripe/react-stripe-js` | Not needed — no custom card input form planned |
-| `watchtower` | Not needed — ECS log driver handles CloudWatch log shipping |
-| `boto3` / `botocore` | Not needed in backend — CloudWatch is infra-only via CDK |
-| `cdk-monitoring-constructs` | Not needed — raw CDK constructs are sufficient and more explicit |
-| `backoff` | Replaced by `tenacity` |
-| `celery` | Not needed — LangGraph + Redis priority queue already handles work scheduling |
-| `arq` | Not needed — existing custom worker (`queue/worker.py`) with Redis semaphores covers the use case |
-| Any new frontend state management | Billing state is simple (single fetch, no subscription); no zustand or Redux needed for this feature |
+| `next-seo` | Superseded by App Router's `generateMetadata` for all meta/OG needs; adds unnecessary abstraction and bundle overhead |
+| `react-loading-skeleton` | Tailwind `animate-pulse` does the same job for zero bytes |
+| `@bprogress/next` | `nextjs-toploader` is simpler and has the same capability |
+| `next-image-export-optimizer` | Inferior to `next-export-optimize-images` for multi-format and config simplicity |
+| `next-export-optimize-images` + `images: { unoptimized: true }` simultaneously | They are mutually exclusive — one replaces the other |
+| Dynamic `opengraph-image.tsx` / `ImageResponse` | Requires Edge Runtime; does not work with `output: 'export'` |
+| Any SSR-requiring package | The site is `output: 'export'` — anything requiring a runtime server breaks the build |
+| `@next/bundle-analyzer` (production dep) | Install as a dev-only tool on-demand when investigating bundle size; not a permanent dependency |
 
 ---
 
-## Integration Points with Existing Stack
+## Static Export Compatibility Summary
 
-### LLM Integration → Existing Pattern
+| Feature | Library/Pattern | Compatible with `output: 'export'`? | Notes |
+|---------|----------------|--------------------------------------|-------|
+| Progress bar | `nextjs-toploader` | Yes | Client-only, no server needed |
+| Splash screen | `framer-motion` (existing) | Yes | `'use client'` component |
+| Skeleton screens | Tailwind `animate-pulse` | Yes | Pure CSS |
+| Image optimization | `next-export-optimize-images` | Yes — designed for this | Runs at build time via Sharp |
+| Meta / OG tags | `generateMetadata` | Yes — baked into HTML at build | — |
+| Static OG images | `opengraph-image.png` file | Yes | Auto-linked by Next.js |
+| JSON-LD | Raw `<script>` tag | Yes | Just HTML output |
+| `schema-dts` | TypeScript types only | Yes | Zero runtime, dev dep only |
+| Sitemap | `next-sitemap` postbuild | Yes — writes into `out/` | Must set `outDir: './out'` |
+| robots.txt | `next-sitemap` | Yes | Generated into `out/` |
+| `llms.txt` | Static file in `public/` | Yes | Copied to `out/` by Next.js |
 
-```
-RunnerReal.generate_*()
-  → create_tracked_llm(user_id, role, session_id)      # llm_config.py
-      → resolve_llm_config()                            # plan tier → model name
-      → ChatAnthropic(model=..., callbacks=[UsageTrackingCallback])
-          → on_llm_end() writes UsageLog to Postgres + increments Redis counter
-  ← structured JSON parsed via Pydantic or json.loads()
-  ← tenacity @retry wraps the entire ainvoke() call
-```
+---
 
-### Stripe → Existing Pattern
+## Version Compatibility
 
-```
-POST /api/billing/checkout
-  → _build_price_map() reads settings.stripe_price_*  # env vars from CDK/Secrets Manager
-  → stripe.checkout.Session.create_async(...)          # bump to async
-  ← checkout_url returned to frontend
-
-POST /api/webhooks/stripe
-  → stripe.Webhook.construct_event() signature verification
-  → store event.id in Redis with 72h TTL (idempotency check — ADD THIS)
-  → _handle_checkout_completed() / _handle_subscription_updated() etc.
-  → UserSettings.plan_tier_id updated in Postgres
-  → LLM routing picks up new tier on next request
-```
-
-### CI/CD → Existing Pattern
-
-```
-push to main
-  → test job: pytest backend + eslint/tsc frontend
-  → deploy job (needs: test):
-      → build + push backend image (SHA tag)
-      → build + push frontend image (SHA tag)
-      → render backend task def JSON with new image URI (render-task-definition@v1)
-      → deploy backend task def to ECS (deploy-task-definition@v2, wait for stability)
-      → render + deploy frontend task def
-      (CDK deploy: separate manual workflow or on infra/ file changes only)
-```
-
-### CloudWatch → Existing Pattern
-
-```
-ECS Fargate container stdout/stderr
-  → awsLogs driver (already configured in compute-stack.ts)
-  → CloudWatch Logs /ecs/backend stream
-  → MetricFilter counts ERROR lines → custom metric
-  → Alarm on custom metric → SNS topic → email
-
-ALB access logs
-  → CloudWatch metric HTTPCode_ELB_5XX_Count
-  → Alarm threshold (e.g., >10 in 1 minute) → SNS topic → email
-
-ECS Container Insights (containerInsights: true already set)
-  → CPUUtilization, MemoryUtilization, RunningTaskCount metrics
-  → Alarms → SNS topic → email
-```
+| Package | Requires | Notes |
+|---------|----------|-------|
+| `nextjs-toploader@^3.9.17` | Next.js 14+ | Explicitly tested with Next.js 15 |
+| `next-export-optimize-images@^4.7.0` | Next.js 13+ | App Router supported |
+| `next-sitemap@^4.2.3` | Next.js 12+ | Stable, feature-complete, no breaking changes in 2+ years |
+| `schema-dts@^1.1.5` | TypeScript 4.1+ | Currently on TS ^5.0.0 — compatible |
 
 ---
 
 ## Sources
 
-- [Anthropic Python SDK releases — GitHub](https://github.com/anthropics/anthropic-sdk-python/releases) (HIGH — official, verified Feb 18 2026)
-- [langchain-anthropic — PyPI](https://pypi.org/project/langchain-anthropic/) (HIGH — official, verified Feb 18 2026)
-- [stripe — PyPI](https://pypi.org/project/stripe/) (HIGH — official, 14.3.0 verified Jan 28 2026)
-- [tenacity — PyPI](https://pypi.org/project/tenacity/) (HIGH — official)
-- [aws-actions/amazon-ecs-deploy-task-definition — GitHub](https://github.com/aws-actions/amazon-ecs-deploy-task-definition) (HIGH — official AWS action, v2 verified)
-- [aws-actions/configure-aws-credentials — GitHub](https://github.com/aws-actions/configure-aws-credentials) (HIGH — official AWS action, v4)
-- [CloudWatch Alarm → ECS Fargate — AWS docs](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-alarm-failure.html) (HIGH — official AWS)
-- [Recommended CloudWatch alarms — AWS docs](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/Best_Practice_Recommended_Alarms_AWS_Services.html) (HIGH — official AWS)
-- [CDK FargateService construct — AWS docs](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_ecs.FargateService.html) (HIGH — official AWS CDK)
-- [Stripe idempotency — Stripe docs](https://docs.stripe.com/api/idempotent_requests) (HIGH — official Stripe)
-- [Stripe webhook best practices — Stigg](https://www.stigg.io/blog-posts/best-practices-i-wish-we-knew-when-integrating-stripe-webhooks) (MEDIUM — community, corroborated by official docs)
-- [LangChain streaming — LangChain docs](https://docs.langchain.com/oss/python/langgraph/streaming) (HIGH — official LangChain)
+- [Next.js JSON-LD guide (v16.1.6)](https://nextjs.org/docs/app/guides/json-ld) — official, verified Feb 16 2026 — HIGH confidence
+- [next-export-optimize-images comparison page](https://next-export-optimize-images.vercel.app/docs/comparison) — official project docs, verified — HIGH confidence
+- [nextjs-toploader — GitHub TheSGJ](https://github.com/TheSGJ/nextjs-toploader) — v3.9.17, explicit Next.js 15 support confirmed — HIGH confidence
+- [next-sitemap — GitHub iamvishnusankar](https://github.com/iamvishnusankar/next-sitemap) — v4.2.3, output: 'export' supported — HIGH confidence
+- [schema-dts — npm](https://www.npmjs.com/package/schema-dts) — v1.1.5, zero dependencies, Google project — HIGH confidence
+- [llmstxt.org specification](https://llmstxt.org/) — official proposal site, Markdown format verified — HIGH confidence
+- [next-image-export-optimizer — npm](https://www.npmjs.com/package/next-image-export-optimizer) — v1.20.1, WebSearch confirmed — MEDIUM confidence
+- [next-export-optimize-images — npm](https://www.npmjs.com/package/next-export-optimize-images) — v4.7.0, WebSearch confirmed — MEDIUM confidence
+- [GEO FAQPage schema impact](https://seotuners.com/blog/seo/schema-for-aeo-geo-faq-how-to-entities-that-win/) — community source, multiple corroborating sources — MEDIUM confidence
+- [AI crawler robots.txt guide 2025](https://www.adnanzameer.com/2025/09/how-to-allow-ai-bots-in-your-robotstxt.html) — WebSearch, multiple sources agree — MEDIUM confidence
+- [Tailwind animate-pulse](https://tailwindcss.com/docs/animation) — official Tailwind docs — HIGH confidence
 
 ---
 
-*Stack research for: AI Co-Founder SaaS — v0.2 Production Ready (LLM integration, Stripe billing, CI/CD, CloudWatch)*
-*Researched: 2026-02-18*
+*Stack research for: getinsourced.ai marketing site — premium loading UX, performance, SEO, GEO*
+*Researched: 2026-02-20*

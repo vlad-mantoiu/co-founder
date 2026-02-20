@@ -1,213 +1,198 @@
 # Project Research Summary
 
-**Project:** AI Co-Founder SaaS — v0.2 Production Ready
-**Domain:** AI SaaS platform — LLM activation, Stripe billing, CI/CD hardening, CloudWatch monitoring
-**Researched:** 2026-02-18
+**Project:** getinsourced.ai Marketing Site — Premium UX, Performance, SEO & GEO
+**Domain:** Next.js 15 static export on CloudFront + S3 — loading UX, performance optimization, technical SEO, and Generative Engine Optimization
+**Researched:** 2026-02-20
 **Confidence:** HIGH
 
 ## Executive Summary
 
-The v0.2 work is a production-readiness upgrade, not a feature expansion. The v0.1 codebase is architecturally complete: all services, schemas, routes, and LangGraph nodes are wired — but every real-world capability is either stubbed or operationally unactivated. The `RunnerReal` class has 10 protocol methods; 7 are stubs or shallow skeletons that return fake inventory-tracker content to real founders. Stripe billing routes are fully coded but live keys are not in Secrets Manager and the webhook endpoint is not registered in the Stripe Dashboard. CI deploys to production without running tests. CloudWatch receives logs but has zero alarms. The recommended approach is activate, harden, and gate in strict dependency order: real LLM calls first (everything else depends on it), Stripe live activation in parallel, CI test-gating and path filtering, then CloudWatch alarms as the final observability layer.
+The getinsourced.ai marketing site is a Next.js 15 static export (`output: "export"`) delivered via S3 + CloudFront. This constraint is the single most important architectural fact of the milestone: it eliminates SSR, ISR, Route Handlers, and any runtime server — everything must be either baked at build time or handled purely in the browser. The site already has a working foundation (8 pages, Framer Motion v12, Tailwind v4, Space Grotesk font, CloudFront CDN), so this milestone is additive rather than greenfield. The recommended approach is minimal new dependencies: `nextjs-toploader` for the progress bar, `next-export-optimize-images` for WebP conversion, `next-sitemap` for sitemap generation, and `schema-dts` as a dev-only TypeScript aid — four packages total. Everything else (splash screen, skeleton screens, meta tags, JSON-LD, robots.txt, llms.txt) uses existing tooling or zero-dependency patterns.
 
-The primary risk cluster is silent failures. Three of the ten identified pitfalls involve errors being swallowed with no observable signal: `UsageTrackingCallback` catches all DB/Redis exceptions with bare `except: pass`; `architect_node` silently falls back to a 1-step plan when Claude returns JSON wrapped in markdown fences; and `detect_llm_risks()` always returns an empty list, making the risk dashboard completely dark even during LLM failures. These must be addressed before RunnerReal is wired in production — otherwise the system appears healthy while producing broken output. The second major risk is the `MemorySaver` default in `RunnerReal`: it is not thread-safe and will cause state corruption between concurrent users the moment real LangGraph graph invocations begin. Replace with `AsyncPostgresSaver` from `langgraph-checkpoint-postgres` (already installed) before enabling RunnerReal in any environment.
+The strategic split is: SEO and structured data first (high value, zero risk, required for everything else), loading UX second (branded splash + progress bar add polish but must not regress LCP), and GEO third (FAQPage schema + answer-format copy + llms.txt). The most important performance fix — removing Framer Motion's `initial={{ opacity: 0 }}` from above-fold content — should happen before any loading UX work is added, because the splash screen would mask a pre-existing LCP regression that Lighthouse would then attribute to the new splash. Fix the performance baseline first, measure it, then layer loading UX on top.
 
-The minimal stack additions required are small: one new Python package (`tenacity>=9.0.0` for Claude 529 retry logic), a constraint bump on the existing `stripe` package to `>=14.0.0` for native async support, and two new GitHub Actions (`amazon-ecs-render-task-definition@v1`, `amazon-ecs-deploy-task-definition@v2`) to replace the fragile `--force-new-deployment` ECS deploy pattern. All CloudWatch and SNS constructs are already in the installed `aws-cdk-lib`. No new frontend dependencies are needed.
+The top risk is the CloudFront `SECURITY_HEADERS` managed policy: it silently blocks third-party scripts via an invisible CSP that lives in AWS, not in source code. This must be replaced with a custom `ResponseHeadersPolicy` in CDK before any SEO verification tools or analytics are added. The second risk is building loading UX features using patterns that only work in `next dev` but silently fail in the static export production build — specifically, `loading.tsx` (which static export ignores completely) and `useState(false)` splash initialization (which causes hydration mismatches and double-flash). Every loading UX feature must be tested against `next build && npx serve out`, not `npm run dev`.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The existing stack requires no structural additions for v0.2. The Anthropic SDK (`0.81.0`), `langchain-anthropic` (`1.3.3`), `stripe` (`14.3.0`), LangGraph, and `langgraph-checkpoint-postgres` are all already installed and at current versions. The sole new backend dependency is `tenacity>=9.0.0` for exponential backoff on Anthropic 529 overload errors — the Anthropic SDK does not auto-retry these by default. The `stripe` version constraint should be bumped from `>=11.0.0` to `>=14.0.0` to unlock native async support (`stripe.checkout.Session.create_async()`), eliminating the current event-loop blocking in async FastAPI handlers. No new frontend packages are needed; the Stripe Checkout redirect pattern (backend returns URL, frontend redirects) avoids any need for `@stripe/stripe-js`.
+The existing stack requires zero changes to core technology. The four new packages are justified by specific static-export gaps that have no native solution. `next-export-optimize-images` replaces the `images: { unoptimized: true }` escape hatch with build-time Sharp-powered WebP conversion — the only viable image optimization path for a runtime-serverless site. `nextjs-toploader` provides the progress bar because App Router has no `router.events` API. `next-sitemap` is required because the App Router's built-in `sitemap.ts` convention generates a Route Handler that static export silently omits from `out/`. `schema-dts` is a dev-only TypeScript type package from Google — zero runtime cost.
 
-**Core technologies (new additions only):**
-- `tenacity>=9.0.0`: retry library — handles Claude 529 overload with exponential backoff + jitter; 3-line decorator; already a transitive dep of `langchain-core`
-- `stripe>=14.0.0` (constraint bump, not new dep): enables native async Stripe API calls; eliminates event loop blocking under concurrent checkouts
-- `aws-actions/amazon-ecs-render-task-definition@v1`: CI action — injects image SHA into task definition JSON for traceable, rollback-capable deploys
-- `aws-actions/amazon-ecs-deploy-task-definition@v2`: CI action — registers new task def revision + deploys with built-in stability wait
-- `aws-cdk-lib/aws-cloudwatch` + `aws-cdk-lib/aws-sns` (already installed, new usage in CDK): SNS topic and CloudWatch alarm constructs
+**Core technologies:**
+- `next-export-optimize-images@^4.7.0`: build-time WebP + srcset generation — replaces `images: { unoptimized: true }`, only viable image optimization for static export
+- `nextjs-toploader@^3.9.17`: route progress bar — required because App Router has no `router.events`; explicit Next.js 15 support confirmed
+- `next-sitemap@^4.2.3`: postbuild sitemap + robots.txt — required because `sitemap.ts` Route Handler is not exported in static builds
+- `schema-dts@^1.1.5` (devDependency): TypeScript types for Schema.org JSON-LD — zero runtime, zero bundle impact
+- `framer-motion@^12.34.0` (existing): splash screen exit via `AnimatePresence`, hero entry — do not add a second animation library
+- `tailwindcss@^4.0.0` (existing): `animate-pulse` for skeleton screens — sufficient for a static marketing site, no skeleton library needed
 
 ### Expected Features
 
-**Must have (table stakes — P0 for v0.2):**
-- RunnerReal: all 10 methods implemented with real Claude calls — without this, every interview and artifact is fake inventory-tracker content shown to real founders
-- Stripe production activation: checkout → webhook → DB update verified with test-mode keys; webhook endpoint registered at `api.cofounder.getinsourced.ai/api/webhooks/stripe`
-- CI test gate: `deploy.yml` must `needs: test` — currently broken code deploys to production silently
-- CI ruff lint gate: 10 minutes to add, catches real bugs before deploy
-- CloudWatch error rate alarm + ECS health alarm: basic outage detection; service can currently be down for hours undetected
-- Stripe webhook idempotency: `event.id` deduplication before any handler executes; Stripe delivers at-least-once
+**Must have (table stakes):**
+- Sitemap.xml — reliable crawler discovery for all 8 pages; without it indexing is unreliable
+- robots.txt — explicit allow for GPTBot, ClaudeBot, PerplexityBot; missing means crawler uncertainty
+- Canonical URL per page — prevents duplicate content penalty from www vs. naked domain on CloudFront
+- Organization schema (JSON-LD in root layout) — establishes brand entity for Google and AI engines
+- LCP fix: hero above-fold — Framer Motion `initial={{ opacity: 0 }}` on the H1 actively hurts LCP; confirmed ranking signal regression
+- prefers-reduced-motion support — WCAG 2.1 AA; `fade-in.tsx` currently runs animations unconditionally
+- Page-transition progress bar — perceived performance signal for between-page navigations
 
-**Should have (v0.2 polish — P1):**
-- Structured JSON logging (`python-json-logger` or `structlog`): enables CloudWatch Insights queries; prerequisite for effective metric filters
-- LLM retry with `tenacity`: exponential backoff in RunnerReal; prevents cascading failures on Anthropic rate limits
-- Usage meter in billing page: token usage vs. plan limit builds trust; data already exists in `UsageLog` and Redis
-- CloudWatch LLM latency tracking: per-method P50/P95/P99; know if generation is slow before users complain
-- Frontend typecheck in CI: `npx tsc --noEmit` — catches TypeScript errors before production
-- Annual/monthly pricing toggle: estimated 20–30% revenue uplift; price IDs already wired in CDK
+**Should have (competitive differentiators):**
+- Branded splash screen — first-visit only, sessionStorage gate, <1.2s, CSS overlay (not a content gate)
+- SoftwareApplication schema on `/cofounder` — enables rich results for product queries
+- FAQPage schema + answer-format content sections — highest-impact GEO signal; correlates with AI Overview citations
+- OG image (static 1200x630 PNG + `metadataBase`) — social sharing currently shows blank cards
+- llms.txt in `public/` — zero-cost forward-compatibility signal for AI crawlers, 20 lines of Markdown
 
-**Defer (v0.3+):**
-- PR preview environments: high infra cost (~$150/mo per env); not justified pre-PMF
-- Adaptive question depth: requires session-aware prompting; medium complexity
-- OpenTelemetry distributed tracing: add when traffic warrants (10k+ req/day)
-- Canary deploys (ALB weighted routing): add when 2+ ECS tasks are continuously running
-- Grace period for failed payments: add when first payment failures occur in production
-- Per-seat team pricing: no team features exist yet
+**Defer (v2+):**
+- CloudFront image optimization via Lambda@Edge — only needed when raster hero images are added; current site is CSS-only
+- Framer Motion bundle splitting / CSS scroll animation replacement — audit first; build only if Lighthouse data justifies the refactor cost
+- Per-page OG images — shared default OG image is sufficient for launch; per-page variants need design time per page
+- View Transitions API — progressive enhancement for Chrome 126+, not a launch blocker
 
 ### Architecture Approach
 
-The v0.2 architecture is defined by activation and hardening of existing components, not new system design. The `RunnerReal` class is the single critical path: implementing its 7 remaining stub methods using the existing `create_tracked_llm()` pattern (which already handles model resolution, usage tracking, tier enforcement, and suspension checks) activates the entire LLM pipeline. All 6 LangGraph nodes already call `create_tracked_llm()` — real LLM invocations begin the moment `ANTHROPIC_API_KEY` is present and `AsyncPostgresSaver` replaces `MemorySaver`. Stripe is a pure operational activation: code is complete, keys must be set in Secrets Manager, webhook URL registered in Stripe Dashboard. CI/CD is a workflow configuration change (`needs: test`, path filters, SHA-pinned task definitions). CloudWatch monitoring extends `compute-stack.ts` with an SNS topic and 4–5 alarm constructs — no new CDK stacks needed.
+The site operates on a strict build-time vs. runtime split. Everything that affects SEO and structured data is baked into HTML at build time — crawlers see fully populated `<head>` tags with zero JavaScript execution. Loading UX features (splash overlay, progress bar, scroll reveals) operate exclusively at runtime in the browser. The CSS-first approach for the splash screen is architecturally mandated: it must appear at t=0ms before React hydrates, which means it cannot depend on `useState` or Framer Motion — it must be a CSS class on `<html>` toggled by a tiny inline `<script>` in `<head>`. The build pipeline gains two postbuild steps (image optimization and sitemap generation) and the CDK infra gains two new CloudFront behaviors for `images/*` and `og/*` with 1-year immutable TTLs.
 
 **Major components:**
-1. `RunnerReal` (`backend/app/agent/runner_real.py`) — implement 5 missing protocol methods + `_parse_json_response()` helper + `AsyncPostgresSaver` wiring; this is the entire LLM activation surface
-2. `billing.py` (`backend/app/api/routes/billing.py`) — add webhook idempotency (`event.id` deduplication), async Stripe calls, startup PRICE_MAP validation; code is otherwise complete
-3. `.github/workflows/deploy.yml` + `test.yml` — add `needs: test` dependency, path filters (`dorny/paths-filter`), `render-task-definition@v1` + `deploy-task-definition@v2`, frontend lint job
-4. `infra/lib/compute-stack.ts` — add SNS topic, 4 CloudWatch alarms (ECS task count, CPU, ALB 5xx, ALB latency), 1 log metric filter for ERROR lines
-5. `UsageTrackingCallback` (`core/llm_config.py`) — fix silent `except: pass` swallowing of DB/Redis write failures; log at WARNING level with error context
-6. `detect_llm_risks()` (`domain/risks.py`) — replace `[]` stub with real Redis usage-check implementation; wire `build_failure_count` to `UsageLog` data
+1. `SplashOverlay` — CSS-only branded loading veil; shown via `<html class="splash-visible">` before hydration, dismissed by `window` `load` event; must use `useState(true)` (not `useState(false)`) to avoid hydration mismatch
+2. `PageProgressBar` — thin top bar using `nextjs-toploader`; fires only on between-page navigations, never on first load; 100ms delay threshold prevents flicker on fast navigations
+3. `generateMetadata()` — per-page static metadata export in each `page.tsx`; baked into HTML at build time; uses `metadataBase: new URL('https://getinsourced.ai')` to resolve relative OG image paths to absolute URLs
+4. JSON-LD blocks — Organization + WebSite schema in root layout, SoftwareApplication + FAQPage in per-page Server Components; must NOT be in `"use client"` components or AI crawlers will not see them
+5. Postbuild pipeline — `next-export-optimize-images` (WebP variants) then `next-sitemap` (sitemap.xml); run in `postbuild` script after `next build`
 
 ### Critical Pitfalls
 
-1. **`MemorySaver` default in production `RunnerReal`** — `MemorySaver` is documented as test-only and causes state corruption under concurrent users. Replace with `AsyncPostgresSaver.from_conn_string()` before enabling any real LangGraph graph invocation. `create_production_graph()` already exists in `graph.py` but is never called from production code paths.
+1. **SECURITY_HEADERS managed policy silently blocks third-party scripts** — Replace `ResponseHeadersPolicy.SECURITY_HEADERS` with a custom CDK `ResponseHeadersPolicy` before adding any analytics, verification scripts, or Clerk integrations. The managed policy is invisible in source code and produces no build errors — only silent CSP violations in the browser console that block third-party resources.
 
-2. **Claude JSON wrapped in markdown code blocks** — `json.loads(response.content)` fails silently in `architect_node` (falls back to 1-step plan) and will fail in all RunnerReal methods. Apply `_parse_json_response()` helper that strips ` ```json ``` ` fences, or use Anthropic structured outputs beta header. Never silently continue on `JSONDecodeError` — raise and log the malformed content.
+2. **`loading.tsx` is silently ignored in static export** — Never use `loading.tsx` for skeleton screens. It works in `next dev` but is completely ignored in the static `out/` build. Test all loading UX with `next build && npx serve out`, not `npm run dev`.
 
-3. **Stripe webhook non-idempotency** — `_handle_checkout_completed()` and all 4 handlers are not idempotent. Stripe delivers at-least-once; a duplicate webhook fires the handler twice. Add a `stripe_events` table with `event_id` unique constraint; check before processing. Revenue-critical: must be in place before live mode.
+3. **Splash screen hydration mismatch / double-flash** — Initialize `showSplash` to `true` in `useState` (not `false`). Use CSS `opacity` transition for dismissal. Do NOT use `document.fonts.ready` as the dismissal trigger — fires inconsistently on CloudFront edge caches.
 
-4. **`UsageTrackingCallback` silently swallows DB/Redis failures** — bare `except: pass` blocks mean token limits are never enforced if Redis is briefly unavailable. Log failures at WARNING level; implement startup reconciliation between `UsageLog` (Postgres) and Redis daily counters. Bootstrapper users can burn unlimited tokens during a Redis blip.
+4. **JSON-LD structured data in `"use client"` components** — AI crawlers do not execute JavaScript. JSON-LD must be in Server Components. Verify with `curl https://getinsourced.ai/ | grep application/ld+json` — if no output, the structured data is client-only and invisible to every crawler and AI engine.
 
-5. **ECS rolling deploy causes 30-second 502s** — default ALB deregistration delay is 300s with 30s health check intervals; old task receives SIGTERM but ALB continues routing traffic for up to 90s. Add SIGTERM handler in `main.py` to immediately return 503 on health check; set `deregistration_delay` to 60s in CDK. `AsyncPostgresSaver` checkpointing (from Pitfall 1) enables mid-execution builds to resume after deploy.
+5. **OG image `metadataBase` missing** — Without `metadataBase: new URL('https://getinsourced.ai')` in root layout, relative OG image paths render as relative URLs that social scrapers cannot follow — social sharing shows blank cards. Build does not fail or warn when `metadataBase` is absent.
+
+6. **CloudFront stale HTML without post-deploy invalidation** — Every deploy must end with `aws cloudfront create-invalidation --paths "/*"`. Upload hashed `_next/static/` assets first, then HTML, then invalidate — this order prevents a window where new HTML references non-existent chunk filenames.
+
+7. **Sitemap Route Handler not exported in static builds** — App Router's `sitemap.ts` generates a Route Handler that static export omits silently from `out/`. Use `next-sitemap` as a `postbuild` script. Configure `outDir: './out'` and `trailingSlash: true` to match CloudFront URL rewriting.
 
 ## Implications for Roadmap
 
-Based on research, the dependency chain is strict: LLM activation first → parallel Stripe + CI hardening → CloudWatch monitoring last. Features within each phase are grouped by their shared risk surface and code dependencies.
+Based on research, the dependency chain is clear: security headers first (CSP blocks everything else if untouched), then performance baseline (LCP fix must precede splash screen or the regression is masked), then SEO infrastructure, then loading UX, then GEO. Features within each phase are grouped by their shared risk surface and code dependencies.
 
-### Phase 1: LLM Activation and Hardening
+### Phase 1: Security Headers + Baseline Audit
 
-**Rationale:** Every other v0.2 capability depends on RunnerReal working correctly. LLM latency alarms cannot be set up until real calls flow. The risk dashboard is misleading until `detect_llm_risks()` reads real data. This phase has the most dangerous pitfalls (MemorySaver state corruption, silent JSON failures, silent callback failures) that must be fixed before anything else is built on top of them.
+**Rationale:** The CloudFront SECURITY_HEADERS managed policy is a silent prerequisite blocker. Every subsequent phase adds scripts or relies on verified tooling (Google Rich Results Test, social preview debuggers) that CSP may silently block. This must be the first change — before any loading UX or SEO scripts are added — or every test runs against a broken baseline. Also establishes the Lighthouse LCP/CLS/INP baseline scores before any changes are made.
+**Delivers:** Custom CDK `ResponseHeadersPolicy` with explicit source allowlists in source control; Lighthouse baseline scores documented; confirmed zero CSP errors in browser console; font preloading verified.
+**Addresses:** SECURITY_HEADERS pitfall (Critical Pitfall 1); baseline before any measurement.
+**Avoids:** Testing SEO and loading features against a CSP-broken environment where verification tools are silently blocked.
 
-**Delivers:** Real Claude-powered onboarding, understanding interviews, idea briefs, and artifact cascades replacing fake inventory-tracker content in production. Observable LLM errors and usage in logs.
+### Phase 2: Performance Baseline + LCP Fix
 
-**Addresses:** RunnerReal all 10 methods, `_parse_json_response()` helper, `AsyncPostgresSaver` wiring, `UsageTrackingCallback` error logging fix, `detect_llm_risks()` implementation, `tenacity` retry logic, `stripe>=14.0.0` bump.
+**Rationale:** The Framer Motion `initial={{ opacity: 0 }}` on above-fold hero content is a pre-existing LCP regression that must be fixed before the splash screen ships. If the splash is added first, it visually masks the LCP issue — Lighthouse still penalizes it, but the developer experience hides it. Fix LCP first, measure, then add the splash overlay on top of a known-good performance baseline. prefers-reduced-motion touches the same `fade-in.tsx` file, so group it here.
+**Delivers:** Green LCP score (< 2.5s); WCAG 2.1 AA prefers-reduced-motion compliance via `useReducedMotion()` in `fade-in.tsx`; confirmed CLS < 0.1 on all pages; all `<Image>` components with explicit `width`/`height` dimensions.
+**Addresses:** Hero animation LCP risk (FEATURES.md P1); WCAG compliance (FEATURES.md P1); Image CLS pitfall (Critical Pitfall + PITFALLS.md Pitfall 7).
+**Uses:** `framer-motion@12` `useReducedMotion()` hook — already installed, zero new dependencies.
 
-**Avoids:** Pitfalls 1 (MemorySaver), 2 (JSON fence parsing), 3 (UsageTrackingCallback silent failures), 9 (detect_llm_risks stub).
+### Phase 3: SEO Infrastructure
 
-**Research flag:** STANDARD PATTERNS — direct codebase inspection identified all gaps; implementation follows existing `create_tracked_llm()` + `Runner` protocol patterns already in the codebase. No additional research phase needed.
+**Rationale:** Sitemap, robots.txt, canonical URLs, OG image, and Organization schema are all build-time or static file changes with no runtime complexity. Grouping them in one phase avoids fragmented deploys and ensures `metadataBase` is set before any OG image work proceeds. This phase must complete before the GEO phase because Organization schema is a prerequisite for SoftwareApplication and FAQPage schemas (they reference the same entity). robots.txt must ship before sitemap submission.
+**Delivers:** `sitemap.xml` accessible at `https://getinsourced.ai/sitemap.xml`; `robots.txt` with explicit AI crawler allows; canonical URLs on all 8 pages; Organization + WebSite JSON-LD baked into root layout HTML; OG image (static 1200x630 PNG) with absolute URL via `metadataBase`; SoftwareApplication schema on `/cofounder`.
+**Addresses:** All P1 SEO table stakes (FEATURES.md); Sitemap pitfall (Pitfall 5); OG metadataBase pitfall (Pitfall 6); robots.txt S3 upload pitfall (Pitfall 9); JSON-LD server component requirement (Pitfall 8).
+**Uses:** `next-sitemap@^4.2.3`; `schema-dts@^1.1.5` (devDependency); `generateMetadata()` built-in; static `public/robots.txt`.
+**Avoids:** App Router `sitemap.ts` Route Handler (incompatible with static export); dynamic OG image generation via `ImageResponse` (requires Edge Runtime); JSON-LD in `"use client"` components.
 
----
+### Phase 4: Loading UX
 
-### Phase 2: Stripe Live Activation
+**Rationale:** Splash screen and progress bar ship after the performance baseline is confirmed clean (Phase 2) and SEO metadata is verified (Phase 3). The splash must be implemented with the CSS-first pattern — `useState(true)`, CSS class on `<html>`, inline `<script>` in `<head>` — not `loading.tsx` and not `useState(false)`. Progress bar needs a 100ms show-delay to prevent flicker on fast static page navigations. This phase has the highest FOUC/hydration-mismatch risk and requires explicit testing against the static build (`next build && npx serve out`), not the dev server.
+**Delivers:** Branded first-visit splash overlay (sessionStorage gate, CSS opacity transition, <1.2s maximum); `nextjs-toploader` route progress bar; skeleton shimmer on Navbar via `animate-pulse`.
+**Addresses:** Premium loading UX differentiators (FEATURES.md P2); branded first impression for cold-traffic founders.
+**Uses:** `nextjs-toploader@^3.9.17`; `framer-motion AnimatePresence` (existing) for optional splash exit animation; Tailwind `animate-pulse` (built-in) for skeletons.
+**Avoids:** `loading.tsx` (silently ignored in static export — Critical Pitfall 2); `useState(false)` splash initialization (hydration mismatch — Critical Pitfall 3); `document.fonts.ready` dismissal trigger (inconsistent on CDN edges).
 
-**Rationale:** Can run in parallel with Phase 1 (no shared code dependencies). Stripe routes are code-complete; this phase is almost entirely operational activation plus one code hardening task (idempotency). Sequencing after Phase 1 is preferred so end-to-end integration tests can exercise the full payment → LLM access pathway.
+### Phase 5: Image Pipeline
 
-**Delivers:** Working subscription billing end-to-end: checkout → webhook → plan tier upgrade → LLM model tier enforcement in production.
+**Rationale:** Image optimization infrastructure can be wired up whether or not raster images currently exist in the site. Setting up `next-export-optimize-images`, updating `next.config.ts`, and adding the CloudFront `images/*` behavior creates the pipeline so that when product screenshots or hero images are added, they are automatically optimized. The OG image from Phase 3 serves as the first image through this pipeline.
+**Delivers:** `next-export-optimize-images` replacing `images: { unoptimized: true }`; postbuild script generating WebP variants in `out/images/`; `images/*` and `og/*` CloudFront behaviors with 1-year TTL in CDK; OG image from Phase 3 served with correct long-term caching.
+**Uses:** `next-export-optimize-images@^4.7.0`; CDK `additionalBehaviors` additions in `infra/lib/marketing-stack.ts`.
+**Avoids:** Lambda@Edge image optimization (deferred until raster hero images are actually introduced into the site).
 
-**Addresses:** `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` in Secrets Manager, Stripe Dashboard webhook registration, `_handle_checkout_completed` idempotency guard, `PRICE_MAP` startup validation in lifespan, async Stripe SDK calls, pricing page checkout button wiring.
+### Phase 6: GEO + Content
 
-**Avoids:** Pitfalls 4 (duplicate webhook handlers), 5 (PRICE_MAP lazy global with no validation).
-
-**Research flag:** STANDARD PATTERNS — Stripe webhook idempotency is a well-documented pattern; all code is already written. Operational activation steps are clearly enumerated.
-
----
-
-### Phase 3: CI/CD Hardening
-
-**Rationale:** Can begin in parallel with Phase 1 and 2 (no code dependencies). The critical gap (no test gate before deploy) is a safety risk independent of LLM or Stripe work. Path filtering prevents wasted CI minutes and unnecessary ECS churn. Must include the SIGTERM handler and ECS deregistration delay fix before automated deploy frequency increases.
-
-**Delivers:** A deploy pipeline that cannot ship broken code, that path-filters to only rebuild what changed, and that deploys via SHA-pinned task definitions with rollback capability.
-
-**Addresses:** `deploy.yml` `needs: test`, `dorny/paths-filter` path filtering, `ruff check` + `mypy` + frontend `tsc` lint gates, `amazon-ecs-render-task-definition@v1` + `amazon-ecs-deploy-task-definition@v2` replacing `--force-new-deployment`, pytest mark separation (unit vs integration), SIGTERM handler in `main.py`, ALB deregistration delay reduction to 60s, pytest-asyncio scope fix (`asyncio_default_fixture_loop_scope = "session"`).
-
-**Avoids:** Pitfalls 7 (CI rebuilds both services on every push), 8 (ECS deploy 502s from missing deregistration delay), 10 (long-lived AWS IAM credentials — verify OIDC is already in place).
-
-**Research flag:** STANDARD PATTERNS — GitHub Actions + ECS deploy patterns are well-documented; OIDC setup already exists per `deploy.yml` inspection. No additional research needed.
-
----
-
-### Phase 4: CloudWatch Observability
-
-**Rationale:** Must come after Phase 1 (LLM calls must flow to validate LLM alarms) and Phase 3 (monitoring goes live through the hardened deploy pipeline). Basic health alarms (ECS task count, ALB 5xx) can technically be set up earlier, but LLM latency metrics and error metric filters only become meaningful after RunnerReal is active and structured logging is in place.
-
-**Delivers:** Proactive alerting via SNS email on ECS failures, ALB 5xx spikes, high CPU, and high latency. Custom LLM latency metrics per Runner method. Business metric events (new subscriptions, artifacts generated). Structured JSON logging enabling CloudWatch Insights queries.
-
-**Addresses:** SNS topic + email subscription in `compute-stack.ts`, 4 CloudWatch alarms (ECS RunningTaskCount, CPU, ALB 5xx, ALB P99 latency), CloudWatch log metric filter for Python ERROR lines, structured JSON logging (`python-json-logger`), LLM latency custom metrics in RunnerReal per method, usage meter in billing page.
-
-**Avoids:** Silent outages (currently zero alarms exist); LLM failures invisible to operators; CloudWatch metric filters matching nothing (requires structured logging first).
-
-**Research flag:** STANDARD PATTERNS — CloudWatch + SNS CDK constructs are well-documented; all constructs are in installed `aws-cdk-lib`. Structured logging patterns are standard Python.
-
----
+**Rationale:** GEO is the highest content-effort, lowest technical-complexity phase. FAQPage schema requires answer-format copy to exist on the page first — the content must be written before the structured data can be accurate. llms.txt is a 20-line static file with no technical dependencies. This phase is last because it builds on all prior SEO infrastructure (Organization schema from Phase 3 must exist first) and requires content team collaboration on the FAQ copy.
+**Delivers:** FAQPage JSON-LD on `/cofounder` and `/pricing` (3-5 Q&A pairs each); answer-format "What is Co-Founder.ai?" content section on `/cofounder`; `public/llms.txt` with site map summary; Google Rich Results Test validation passing for all structured data.
+**Addresses:** GEO differentiators (FEATURES.md P2); FAQPage schema GEO signal; AI engine citation visibility.
+**Avoids:** JSON-LD in `"use client"` components (Critical Pitfall 4); placeholder or inaccurate schema data (structured data with wrong claims is worse than no structured data).
 
 ### Phase Ordering Rationale
 
-- **LLM first** because it is the literal critical path: Stripe plan enforcement depends on LLM tier routing, CloudWatch LLM alarms depend on real calls flowing, the risk dashboard depends on real usage data. Nothing else produces meaningful signal until RunnerReal is live.
-- **Stripe in parallel with Phase 1** because billing routes share zero code with the LLM path; it is operational activation + one idempotency fix with no coupling.
-- **CI before CloudWatch** because monitoring goes live through a deploy — if the deploy pipeline is still broken (no test gate, no path filters), CloudWatch CDK changes can ship alongside a broken backend silently. Fix the pipe before adding instrumentation.
-- **CloudWatch last** because alarms on LLM errors have nothing to alarm on until real calls flow; and structured logging (prerequisite for effective metric filters) should be established first to avoid empty filter matches.
-- **Technical debt items (MemorySaver, JSON parsing, silent callback failures) are all in Phase 1** — they are not separate phases. They are latent bugs in the LLM path that will manifest the moment RunnerReal is enabled; they must be fixed in the same phase.
+- Security headers first because CSP silently blocks verification tools and analytics — every subsequent test runs against a broken baseline if this is skipped
+- LCP fix before splash screen because the splash visually masks a pre-existing LCP regression that Lighthouse still measures and penalizes
+- SEO metadata before GEO because Organization schema is a prerequisite for SoftwareApplication and FAQPage schemas — they reference the same entity
+- Image pipeline can run in parallel with Phase 4 loading UX if bandwidth allows — there are no cross-phase dependencies between them
+- GEO last because it requires accurate content (content team dependency) and has no technical blockers from earlier phases beyond Organization schema existing
 
 ### Research Flags
 
-**Phases with standard patterns (skip `/gsd:research-phase` during planning):**
-- **Phase 1 (LLM Activation):** All gaps identified by direct codebase inspection; implementation follows existing `create_tracked_llm()` protocol pattern already in the codebase. `AsyncPostgresSaver` is already installed.
-- **Phase 2 (Stripe):** Code is complete; operational activation steps and idempotency pattern are well-documented by Stripe official docs.
-- **Phase 3 (CI/CD):** GitHub Actions + ECS patterns are well-documented; OIDC already configured per `deploy.yml`.
-- **Phase 4 (CloudWatch):** CDK alarm constructs are documented; all in installed `aws-cdk-lib`.
+Phases likely needing deeper research during planning:
+- **Phase 1:** Custom CDK `ResponseHeadersPolicy` syntax — CDK v2 API for custom response headers policies has specific constructor syntax; verify exact CDK construct shape before coding to avoid CloudFormation deployment errors
+- **Phase 4:** `nextjs-toploader` interaction with `AnimatePresence` splash exit — both manipulate visibility simultaneously during the 400ms splash fade; test in isolation against the static build before shipping
 
-**No phases require `/gsd:research-phase` during planning.** All research is HIGH confidence based on direct source inspection of the existing codebase.
+Phases with standard patterns (skip research-phase):
+- **Phase 2:** Framer Motion `useReducedMotion()` — official, documented API with no static export caveats
+- **Phase 3:** `generateMetadata()` + `next-sitemap` — HIGH confidence, both covered by official Next.js docs with static export compatibility confirmed
+- **Phase 5:** `next-export-optimize-images` — official project docs explicitly document configuration for the exact `output: "export"` use case
+- **Phase 6:** JSON-LD in Server Components — official Next.js JSON-LD guide covers the exact pattern with the XSS escape note
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Verified against installed packages in `pyproject.toml`, `package.json`, and `infra/`; all versions confirmed on PyPI and GitHub. One new package (`tenacity`), one constraint bump (`stripe`). |
-| Features | HIGH | Based on direct inspection of `runner_real.py`, `billing.py`, `test.yml`, `deploy.yml`, and `compute-stack.ts`; gaps are code-evident, not inferred. |
-| Architecture | HIGH | All integration patterns traced through actual source files; no assumptions. `create_tracked_llm()`, `billing.py`, LangGraph nodes, and CDK constructs all read directly. |
-| Pitfalls | HIGH | All 10 pitfalls verified against codebase; warning signs and recovery steps grounded in actual code behavior. Sources include official LangGraph, pytest-asyncio, Stripe, and AWS documentation. |
+| Stack | HIGH | All 4 new packages verified against official docs or explicit version support claims. Rejection decisions for alternatives are based on official comparison pages and documented limitations. |
+| Features | HIGH | Based on direct codebase inspection of `/marketing/` plus verified 2026 sources. Priority matrix grounded in actual implementation cost estimates and confirmed SEO/GEO impact data from multiple sources. |
+| Architecture | HIGH | Based on direct codebase analysis of `marketing/src/`, `infra/lib/marketing-stack.ts`, `infra/functions/url-handler.js`, and `.github/workflows/deploy-marketing.yml` combined with verified Next.js 15 official docs. |
+| Pitfalls | HIGH | All 9 pitfalls verified against official docs, GitHub issues, or direct codebase inspection. Warning signs and recovery steps are specific, actionable, and grounded in actual code behavior. |
 
-**Overall confidence: HIGH**
+**Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **`ANTHROPIC_API_KEY` presence in `cofounder/app` secret:** Phase 1 cannot be tested in production until this is confirmed set. Operational prerequisite, not a code gap — verify before Phase 1 deploy.
-- **`pytest-asyncio` scope fix:** The 18 deferred integration tests need `asyncio_default_fixture_loop_scope = "session"` in `pyproject.toml` and `@pytest_asyncio.fixture(loop_scope="session")` on the `engine` fixture. Fix before expanding the test suite in Phase 1 — otherwise new tests will also fail in parallel runs.
-- **Stripe price IDs in CDK env vs. Secrets Manager:** Price IDs are currently wired as CDK environment variables in `compute-stack.ts`, visible in CloudFormation console. PITFALLS.md flags this as a low-severity security concern. Trade-off: price IDs are not secrets in the traditional sense. Decision deferred to Phase 2 planning — move to `cofounder/app` Secrets Manager if desired before Phase 2 deploy.
-- **Stripe Dashboard webhook registration ordering:** The webhook endpoint must be reachable via HTTPS before registering in the Stripe Dashboard. Operational ordering within Phase 2: deploy the service, then register the URL at `api.cofounder.getinsourced.ai/api/webhooks/stripe`.
+- **llms.txt confirmed GEO impact:** As of early 2026, no major AI crawler has confirmed they act on `llms.txt`. The file has zero confirmed GEO benefit. Build it (20 lines, zero cost), but do not invest engineering time optimizing its content or treat it as a ranking lever.
+- **View Transitions API interaction with Framer Motion:** The experimental `viewTransition: true` Next.js config flag is Chrome 126+ only and may conflict with Framer Motion layout animations on shared elements. Test in isolation before enabling — this feature may need to be deferred if conflicts are found.
+- **Raster image presence assumption:** Research assumes the current site is CSS-only (CSS glows, SVG icons). If product screenshots or hero mockup images are added during this milestone, Phase 5 becomes higher priority and image CLS (PITFALLS.md Pitfall 7) becomes an immediate risk. Audit final designs before committing to phase order.
+- **Google Search Console access:** SEO verification (sitemap submission, canonical URL confirmation, rich results indexing) requires access to Google Search Console for `getinsourced.ai`. Confirm access is available before Phase 3 ships.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-
-**Direct codebase inspection:**
-- `backend/pyproject.toml` — installed package versions, confirmed Feb 18 2026
-- `backend/app/core/llm_config.py` — `create_tracked_llm()`, `UsageTrackingCallback`, `MODEL_COSTS`
-- `backend/app/agent/runner_real.py` — stub identification; 7 of 10 methods unimplemented or skeleton
-- `backend/app/agent/runner.py` — 10-method Runner protocol (all method signatures)
-- `backend/app/api/routes/billing.py` — all 4 webhook handlers confirmed complete
-- `infra/lib/compute-stack.ts` — ECS setup, log drivers, confirmed zero existing alarms
-- `.github/workflows/deploy.yml` + `test.yml` — gaps confirmed by inspection
-- `backend/app/domain/risks.py` — `detect_llm_risks()` confirmed as `[]` stub
-
-**Official documentation:**
-- [Anthropic Python SDK releases](https://github.com/anthropics/anthropic-sdk-python/releases) — version 0.81.0 confirmed
-- [stripe PyPI](https://pypi.org/project/stripe/) — 14.3.0 current, Jan 28 2026
-- [tenacity PyPI](https://pypi.org/project/tenacity/) — 9.0.0 current
-- [aws-actions/amazon-ecs-deploy-task-definition v2](https://github.com/aws-actions/amazon-ecs-deploy-task-definition) — official AWS action
-- [CloudWatch Alarm ECS Fargate — AWS docs](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-alarm-failure.html)
-- [CDK FargateService construct — AWS CDK v2 docs](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_ecs.FargateService.html)
-- [Anthropic Structured Outputs](https://platform.claude.com/docs/en/build-with-claude/structured-outputs)
-- [Stripe Webhooks: Handle Events](https://docs.stripe.com/webhooks)
-- [OIDC for GitHub Actions on AWS](https://aws.amazon.com/blogs/security/use-iam-roles-to-connect-github-actions-to-actions-in-aws/)
-- [pytest-asyncio 0.24 Fixture Loop Scope](https://pytest-asyncio.readthedocs.io/en/v0.24.0/how-to-guides/change_default_fixture_loop.html)
-- [LangGraph MemorySaver Thread Safety Discussion #1454](https://github.com/langchain-ai/langgraph/discussions/1454)
-- [LangGraph Persistence Documentation](https://docs.langchain.com/oss/python/langgraph/persistence)
+- `/Users/vladcortex/co-founder/marketing/` — direct codebase inspection; confirmed stack, constraints, existing animation patterns
+- `/Users/vladcortex/co-founder/infra/lib/marketing-stack.ts` — confirmed CloudFront behaviors, cache policies, SECURITY_HEADERS policy usage
+- `/Users/vladcortex/co-founder/infra/functions/url-handler.js` — confirmed extension-check logic that passes image URLs unchanged
+- `/Users/vladcortex/co-founder/.github/workflows/deploy-marketing.yml` — confirmed S3 sync and CloudFront invalidation pattern
+- [Next.js JSON-LD Guide (v16.1.6)](https://nextjs.org/docs/app/guides/json-ld) — JSON-LD in Server Components, XSS escape pattern
+- [Next.js Metadata docs](https://nextjs.org/docs/app/getting-started/metadata-and-og-images) — `generateMetadata`, `metadataBase` requirement
+- [next-export-optimize-images comparison](https://next-export-optimize-images.vercel.app/docs/comparison) — package selection rationale vs. alternative
+- [nextjs-toploader GitHub (v3.9.17)](https://github.com/TheSGJ/nextjs-toploader) — Next.js 15 support confirmed
+- [next-sitemap GitHub](https://github.com/iamvishnusankar/next-sitemap) — static export support, `outDir` config
+- [Next.js Static Export limitations](https://nextjs.org/docs/pages/guides/static-exports) — `loading.tsx` incompatibility confirmed
+- [Next.js sitemap.ts static export bug #59136](https://github.com/vercel/next.js/issues/59136) — Route Handler omission confirmed
+- [Clerk CSP Headers docs](https://clerk.com/docs/guides/secure/best-practices/csp-headers) — CSP allowlist requirements
+- [Tailwind animate-pulse docs](https://tailwindcss.com/docs/animation) — built-in skeleton animation
 
 ### Secondary (MEDIUM confidence)
+- [GEO FAQPage schema impact](https://seotuners.com/blog/seo/schema-for-aeo-geo-faq-how-to-entities-that-win/) — 3.2x AI Overview citation correlation for FAQPage markup; multiple corroborating sources
+- [AI crawler robots.txt guide 2025](https://www.adnanzameer.com/2025/09/how-to-allow-ai-bots-in-your-robotstxt.html) — PerplexityBot, OAI-SearchBot allow rules
+- [SaaS above-fold behavior (CXL)](https://cxl.com/blog/above-the-fold/) — 57% viewing time above fold statistic
+- [Next.js Core Web Vitals / Framer Motion LCP](https://makersden.io/blog/optimize-web-vitals-in-nextjs-2025) — confirmed LCP regression from `initial={{ opacity: 0 }}` on above-fold elements
+- [Open Graph metadataBase requirement (Next.js Discussion #50546)](https://github.com/vercel/next.js/discussions/50546) — confirmed metadataBase requirement for non-Vercel deployments
 
-- [Stripe webhook best practices — Stigg](https://www.stigg.io/blog-posts/best-practices-i-wish-we-knew-when-integrating-stripe-webhooks) — corroborated by official Stripe docs
-- [Monorepo Path Filters in GitHub Actions — OneUptime](https://oneuptime.com/blog/post/2025-12-20-monorepo-path-filters-github-actions/view) — dorny/paths-filter pattern
-- [Zero-Downtime ECS Fargate Rolling Updates — Grammarly Engineering](https://medium.com/engineering-at-grammarly/perfecting-smooth-rolling-updates-in-amazon-elastic-container-service-690d1aeb44cc) — SIGTERM + deregistration delay pattern
-- [Implementing Webhook Idempotency — Hookdeck](https://hookdeck.com/webhooks/guides/implement-webhook-idempotency) — event ID deduplication pattern
-- [LangChain streaming docs](https://docs.langchain.com/oss/python/langgraph/streaming) — streaming pattern for artifact generation
+### Tertiary (LOW confidence)
+- [llmstxt.org specification](https://llmstxt.org/) — spec format; no confirmed crawler adoption as of early 2026
+- [GEO llms.txt effectiveness 2026](https://searchsignal.online/blog/llms-txt-2026) — confirmed zero benefit from major AI crawlers as of late 2025
+- [View Transitions API + Next.js](https://nextjs.org/docs/app/api-reference/config/next-config-js/viewTransition) — experimental flag; Chrome 126+ only; interaction with Framer Motion unverified
 
 ---
-*Research completed: 2026-02-18*
+*Research completed: 2026-02-20*
 *Ready for roadmap: yes*

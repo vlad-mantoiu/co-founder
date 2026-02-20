@@ -1,278 +1,197 @@
-# Feature Research: v0.2 Production Ready
+# Feature Research: Marketing Site — Loading UX, Performance, SEO, GEO
 
-**Domain:** AI Co-Founder SaaS — LLM integration, Stripe billing, CI/CD, CloudWatch monitoring
-**Researched:** 2026-02-18
-**Confidence:** HIGH
-
----
-
-## Context: What Already Exists (v0.1)
-
-Before mapping the new feature landscape, record what is built and wired:
-
-| Component | Status | Notes |
-|-----------|--------|-------|
-| Runner protocol (`Runner`) | Built | 10-method abstract interface — clean seam for swap |
-| RunnerFake | Built | All 10 methods, deterministic, powering all flows |
-| RunnerReal skeleton | Built | `run()` and `step()` wrap LangGraph; `generate_questions/brief/artifacts` are placeholder LLM calls with raw JSON parsing |
-| Stripe routes (`billing.py`) | Built | checkout, portal, status, webhooks — all 4 handlers wired |
-| Stripe price IDs | Wired | In compute-stack.ts and config |
-| Billing page (`/billing`) | Built | Shows plan status, portal button |
-| GitHub Actions test.yml | Built | Runs pytest on push/PR — no lint, no type check |
-| GitHub Actions deploy.yml | Built | Build → ECR push → CDK deploy → ECS force-deploy |
-| CloudWatch log groups | Wired | `awsLogs` on both containers, 1-week retention |
-| ECS autoscaling | Wired | CPU 70%, 1–4 tasks |
-| Artifact generator | Built | Cascade logic, tier filtering, version rotation — uses RunnerFake |
-| Understanding interview | Built | Full session lifecycle — uses RunnerFake |
-| Onboarding service | Built | Full flow — uses RunnerFake |
-
-**The core gap**: RunnerFake powers everything. `RunnerReal` only implements `run()`/`step()` (LangGraph) and has shallow stubs for `generate_questions/brief/artifacts`. The remaining 7 Runner methods (`generate_understanding_questions`, `generate_idea_brief`, `check_question_relevance`, `assess_section_confidence`, `generate_execution_options`) are not implemented in RunnerReal. Zero real LLM calls flow through the interview/artifact path in production.
+**Domain:** SaaS Marketing Site — Premium loading experience, page performance optimization, technical SEO, and Generative Engine Optimization (GEO)
+**Researched:** 2026-02-20
+**Confidence:** HIGH (direct codebase inspection + verified current sources)
 
 ---
 
-## Pillar 1: Real LLM Integration
+## Context: What Already Exists
 
-### Table Stakes
+This milestone builds on a working static marketing site. Features that are already shipped are out of scope.
 
-Features users expect from any AI product that claims to be "powered by Claude."
+| Component | Status | Constraint for This Milestone |
+|-----------|--------|-------------------------------|
+| 8 static pages (home, cofounder, pricing, about, contact, privacy, terms, 404) | Built | Static export (`output: "export"`) — no server-side rendering |
+| Framer Motion scroll animations (FadeIn, StaggerContainer) | Built | Already on `framer-motion@12` — keep; do not replace |
+| Framer Motion hero entry animations | Built | Already provides entry UX — splash layer must compose with this |
+| CloudFront CDN delivery | Built | No Lambda@Edge or image optimization currently configured |
+| `next/image` with `{ unoptimized: true }` | Built | Static export disables built-in image optimization |
+| Basic metadata (title, description, OG, Twitter cards) | Built | Partial — no sitemap, no structured data, no canonical per-page |
+| Zero Clerk/auth JS on marketing site | Built | Must stay zero-auth — no session-dependent features |
+| Tailwind CSS v4, Space Grotesk / Geist fonts | Built | CSS variables already defined; animations (`shimmer`, `marquee`) exist |
+| Google Fonts (`Space_Grotesk`) via next/font | Built | Font is self-hosted at build time — no render-blocking external request |
 
-| Feature | Why Expected | Complexity | Dependencies on Existing | Notes |
-|---------|--------------|------------|--------------------------|-------|
-| **Dynamic onboarding questions** | Static/fake questions instantly reveal the product is hollow; founders expect questions tailored to their idea | MEDIUM | RunnerFake→RunnerReal swap; `generate_questions()` method | Needs structured output: list of `{id, text, input_type, required, options, follow_up_hint}`. The fake returns hardcoded inventory-tracker questions to every user. |
-| **Dynamic understanding questions** | Same reason — current fake returns identical 6 questions regardless of idea | MEDIUM | `generate_understanding_questions()` method | Must use idea text + onboarding answers as context. 6–8 questions minimum per research. |
-| **Real ThesisSnapshot generation** | `generate_brief()` in RunnerReal is a stub; production sends fake inventory tracker content to real founders | MEDIUM | `generate_brief()` method | Output must match existing `ThesisSnapshot` schema (problem, target_user, value_prop, key_constraint, differentiation, monetization_hypothesis, assumptions, risks, smallest_viable_experiment) |
-| **Real Idea Brief generation** | `generate_idea_brief()` not implemented in RunnerReal at all | MEDIUM | `generate_idea_brief()` method | Must match `RationalisedIdeaBrief` schema with confidence_scores dict |
-| **Real artifact cascade** | RunnerReal `generate_artifacts()` stub returns raw JSON — no structured output, no prompts.py used | MEDIUM-HIGH | `generate_artifacts()`, `prompts.py` already has 5 system prompts | Must use the existing system prompts in `prompts.py`. Cascade: Brief → MVP Scope → Milestones → Risk Log → How It Works |
-| **Structured JSON output** | LLM responses must be parseable into Pydantic schemas without brittle regex | MEDIUM | Anthropic SDK, existing Pydantic schemas | Use Anthropic tool-use / structured outputs. Raw `json.loads(response.content)` in RunnerReal is fragile — any preamble text breaks it. |
-| **LLM error handling with retry** | Anthropic API failures (rate limits, timeouts) must degrade gracefully, not 500 | MEDIUM | RunnerReal, existing `RuntimeError` patterns | Exponential backoff (3 retries), user-facing error message, fallback to RunnerFake in test env. |
-| **Section confidence assessment** | `assess_section_confidence()` not in RunnerReal; used during brief editing | LOW | `assess_section_confidence()` method | Simple LLM call: "given this section content, return strong/moderate/needs_depth." |
-| **Question relevance checking** | `check_question_relevance()` not in RunnerReal; used in edit_answer flow | LOW | `check_question_relevance()` method | Determines if earlier answer change makes remaining questions stale. Binary: needs_regeneration bool. |
-| **Execution options generation** | `generate_execution_options()` not in RunnerReal; blocks decision gate | MEDIUM | `generate_execution_options()` method | Generates 2–3 build options from Idea Brief. Must match ExecutionPlanOptions schema. |
-
-### Differentiators
-
-| Feature | Value Proposition | Complexity | Dependencies | Notes |
-|---------|-------------------|------------|--------------|-------|
-| **Adaptive question depth** | Questions that get harder/more specific as the founder reveals more context in earlier answers | HIGH | RunnerReal, understanding session state | Pass prior Q&A pairs as context to each new question generation. Current fake returns all 6 at once upfront. |
-| **Co-founder voice consistency** | All LLM outputs use "we" language throughout (not "the user" or "you should") | LOW | All prompts.py prompts | Already designed in prompts.py — just needs to be activated. RunnerReal stubs use generic voice. |
-| **Tier-differentiated output quality** | Higher tiers get richer analysis (more depth in briefs, more options for execution plans) | MEDIUM | Tier-aware prompting, existing tier filter | Currently filtering happens post-generation. Could also vary prompt instructions by tier for richer output on higher plans. |
-| **Regeneration with context preservation** | When a section is regenerated, preserve user edits in other sections; incorporate prior brief as context | MEDIUM | ArtifactService `regenerate_artifact()`, RunnerReal | Currently passes `prior_artifacts` but RunnerReal ignores them in stubs. |
-
-### Anti-Features
-
-| Anti-Feature | Why Requested | Why Problematic | Alternative |
-|--------------|---------------|-----------------|-------------|
-| **Free-form chat to replace structured interview** | "Let me just describe everything in one message" | Founders ramble; structured questions extract specific signal (problem, target user, monetization) that drives artifact quality | Keep structured Q&A; add a "quick mode" that pre-fills reasonable defaults and asks 3 must-answer questions |
-| **Streaming tokens to browser for interviews** | "I want to see Claude thinking" | Interview Q&A is sequential turn-based — streaming adds complexity with no UX gain; artifacts are better shown complete | Stream only for artifacts (where generation takes 10–30s); show spinner for Q&A (sub-3s target) |
-| **Multiple LLM providers (OpenAI, Gemini)** | "Let me choose my AI" | Each model needs different prompt tuning; quality variance confuses users; doubles testing burden | Opinionated: Anthropic only. Opus for planning, Sonnet for execution — already designed in config.py |
-| **Real-time LLM cost per call shown to user** | "Show me the token cost of each question" | Creates anxiety, discourages use, doesn't map to value delivered | Show aggregate usage at billing level (tokens/day vs. plan limit), not per-interaction cost |
+**Stack constraints that shape every decision below:**
+- `output: "export"` + CloudFront = static HTML/CSS/JS only. No server components, no ISR, no middleware.
+- `next/image` with `unoptimized: true` = images are NOT auto-converted to WebP/AVIF. Must solve at the CDN layer or pre-build.
+- Framer Motion is a client JS bundle already on the page. Additional animation libraries would compound bundle size.
+- No Clerk on marketing site = no hydration cost from auth. Good baseline LCP.
 
 ---
 
-## Pillar 2: Stripe Subscription Billing
+## Feature Landscape
 
-### Table Stakes
+### Table Stakes (Users Expect These)
 
-| Feature | Why Expected | Complexity | Dependencies on Existing | Notes |
-|---------|--------------|------------|--------------------------|-------|
-| **Checkout flow completes** | The route exists (`/api/billing/checkout`) but has never been tested end-to-end in production; Stripe price IDs are wired but keys may not be in Secrets Manager | LOW | `billing.py` complete, `billing/page.tsx` partial | Need to verify `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` are in `cofounder/app` secret. Price IDs already in compute-stack.ts. |
-| **Webhook signature verification** | Stripe mandates HTTPS endpoint with signature check; current code has it but it must be reachable | LOW | `_handle_checkout_completed`, `_handle_subscription_updated`, etc. | Webhook endpoint must not be behind `require_auth` — it is not currently (correct). Needs ngrok/tunnel for local testing or production URL registered in Stripe dashboard. |
-| **Plan upgrade after checkout** | `_handle_checkout_completed` updates `plan_tier_id` in DB — this is the critical money path | LOW | `UserSettings`, `PlanTier` models | The handler exists; needs integration test that sends a real Stripe test-mode webhook and verifies DB state changes. |
-| **Downgrade on cancellation** | `_handle_subscription_deleted` downgrades to bootstrapper | LOW | `billing.py` complete | Covered in existing code; needs integration test. |
-| **Past-due handling** | `_handle_payment_failed` sets `past_due` status | LOW | `billing.py` complete | Must verify that `require_subscription` in auth.py gates past-due users correctly. |
-| **Customer portal** | Users must be able to update payment, cancel, view invoices | LOW | `create_portal_session` endpoint complete, billing page has button | Portal URL must redirect back to `/billing` — configured in `create_portal_session`. |
-| **Pricing page checkout button** | Marketing pricing page must link to `POST /api/billing/checkout` | LOW | `pricing-content.tsx` | Current pricing page exists as marketing content; needs real checkout buttons wired. |
-| **Subscription status shown in UI** | Billing page shows plan and status | LOW | `billing/page.tsx` complete | Already done. |
+Features that every credible SaaS marketing site has in 2026. Missing any of these registers as "unpolished" or "won't rank."
 
-### Differentiators
-
-| Feature | Value Proposition | Complexity | Dependencies | Notes |
-|---------|-------------------|------------|--------------|-------|
-| **Usage meter shown to user** | Non-technical founders panic about "limits" without visibility — showing tokens used vs. allowed builds trust | MEDIUM | `UsageLog` table, Redis daily counters already tracking | Backend has usage tracking; frontend has no usage dashboard yet. Add usage bar to billing page. |
-| **Annual/monthly toggle on pricing** | 20–30% revenue uplift from annual plans; reduces churn | LOW | Price IDs for annual already in compute-stack.ts | Pricing page UI needs toggle; checkout request already accepts `interval` param. |
-| **Checkout success page with upsell** | Post-checkout, show what they unlocked and suggest trying a feature | LOW | Billing page already handles `?session_id=` param | Add a "You're now on Partner — here's what you can do" state. |
-| **Grace period for failed payments** | Don't hard-block users the moment a payment fails — give 3-day window | MEDIUM | `stripe_subscription_status` field, `require_subscription` check | Set grace window in `require_subscription`: allow `past_due` users for 72h after failure event timestamp. |
-
-### Anti-Features
-
-| Anti-Feature | Why Requested | Why Problematic | Alternative |
-|--------------|---------------|-----------------|-------------|
-| **Custom billing (Paddle, LemonSqueezy)** | "Stripe is expensive (2.9%)" | Stripe handles global tax compliance, disputes, refunds — replacing it early wastes engineering; global tax is a legal nightmare | Stay on Stripe; tax handling via Stripe Tax is one config flag |
-| **Crypto payments** | "Accept ETH/USDC" | Regulatory exposure, conversion overhead, tiny market overlap with non-technical founders | Not in scope for v0.2 or v0.3 |
-| **Custom invoice templates** | "I want my company name on invoices" | Stripe portal handles this automatically with customer metadata | Configure Stripe Customer with founder's company name during checkout; no custom invoice code needed |
-| **Per-seat pricing for teams** | "Charge per additional user" | No team features exist yet; adding seat counting before multi-user auth creates orphaned billing state | When team collaboration ships (v0.4+), add seat quantity to existing Stripe subscription |
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| **Page-transition progress bar** | Users expect visual feedback when navigating between pages; without it, clicks feel broken on slower connections | LOW | Use `@bprogress/next` (successor to next-nprogress-bar, actively maintained as of 2026). Thin branded bar at top. Wraps usePathname + `<Suspense>`. Works with static export since it reacts to client-side route changes only. |
+| **Sitemap.xml** | Google, Bing, and all AI crawlers need a sitemap to discover all 8 pages. Without it, indexing is unreliable. | LOW | Next.js `app/sitemap.ts` auto-generates at build time with static export. Returns all 8 page URLs with `lastModified`. CloudFront serves `sitemap.xml` directly. |
+| **robots.txt** | Every crawler (Googlebot, GPTBot, ClaudeBot, PerplexityBot) checks robots.txt first. Missing = crawler uncertainty. | LOW | `app/robots.ts` in Next.js static export. Allow all known AI crawlers explicitly. Disallow nothing on marketing site. |
+| **Canonical URL per page** | Prevents duplicate-content penalties if CloudFront serves both `www.` and naked domain, or HTTP and HTTPS | LOW | Add `<link rel="canonical">` via Next.js `metadata.alternates.canonical` in each page's `generateMetadata`. Already have trailing slash config — canonicals must include trailing slash consistently. |
+| **Open Graph image (og:image)** | Social shares from Twitter/X, LinkedIn, Slack show a preview card. Without og:image, the card is blank. | MEDIUM | Static export cannot generate dynamic OG images at runtime. Pre-generate a static `og-image.png` (1200×630) per page and reference it. Or generate one shared brand OG image for the site and reference from all pages. |
+| **Structured data — Organization schema** | Google, ChatGPT, Perplexity use schema.org to understand what the company is, its URL, social profiles, and contact. | LOW | Inject `<script type="application/ld+json">` in root layout with `Organization` schema. Includes name, url, logo, sameAs (LinkedIn, Twitter). |
+| **Structured data — SoftwareApplication schema** | Marks the product as software, enabling rich results and improving AI citation quality for product queries. | LOW | Add `SoftwareApplication` schema to the cofounder product page. Fields: name, applicationCategory, offers (price, currency), operatingSystem. |
+| **Font preloading** | Space Grotesk is loaded via `next/font/google` which self-hosts at build. But the woff2 file still needs `<link rel="preload">` to avoid invisible text flash (FOIT). | LOW | Next.js `next/font` generates `preload: true` by default. Verify the preload link is in the HTML head. If not, add explicit `preload` option to the Space_Grotesk call. |
+| **Accessible animations (prefers-reduced-motion)** | WCAG 2.1 AA requires respecting the OS reduced-motion preference. Framer Motion animations (FadeIn, stagger) currently run unconditionally. | LOW | Wrap Framer Motion `animate` variants with a `useReducedMotion()` hook from Framer Motion. If `reducedMotion` is true, skip y-offset animations and use fade-only or instant transitions. Affects `fade-in.tsx`, `home-content.tsx` hero animations. |
+| **Core Web Vitals: LCP under 2.5s** | Google uses LCP as a ranking signal. Site currently has large animated sections and potential hero image issues. | MEDIUM | Audit: identify LCP element (likely hero H1 or terminal mockup). Ensure it is in the initial HTML (static), not lazy-loaded. Hero section uses Framer Motion `initial={{ opacity: 0 }}` which hides the LCP element until hydration — this actively hurts LCP. Fix: render hero visually at SSG time, animate only opacity (no y-offset) from CSS, or use `initial={false}` for above-fold elements. |
+| **Core Web Vitals: No CLS** | Layout shifts from fonts loading or images without dimensions tank CLS scores. | LOW | Space Grotesk via next/font sets `font-display: swap` and reserves space. No `<img>` tags without `width`/`height`. Animated gradient glows are position:absolute and pointer-events:none — no layout impact. Verify marquee section doesn't cause horizontal scroll-induced layout shift. |
 
 ---
 
-## Pillar 3: CI/CD Pipelines
+### Differentiators (Competitive Advantage)
 
-### Table Stakes
+Features that distinguish the site as genuinely premium and AI-visible — not expected, but impactful.
 
-What every production SaaS CI/CD pipeline must have.
-
-| Feature | Why Expected | Complexity | Dependencies on Existing | Notes |
-|---------|--------------|------------|--------------------------|-------|
-| **Tests pass before deploy** | Current deploy.yml does not run tests; a failing commit can deploy to production | LOW | `test.yml` exists but is separate from `deploy.yml` | Add `needs: test` dependency in `deploy.yml`. The test job already spins up postgres+redis services. |
-| **Linting gated on CI** | Ruff is in pyproject.toml dev deps but not in test.yml | LOW | `Ruff 0.8.0+` in stack | Add `ruff check .` step before pytest in test.yml. Failing lint blocks merge. |
-| **Type checking gated on CI** | mypy is in dev deps but not run in CI | LOW | `mypy 1.13.0+` in stack | Add `mypy app/` step. Will require fixing existing type errors first — scope as a separate task. |
-| **Frontend lint/typecheck on CI** | No frontend CI exists at all | LOW | ESLint 9.0.0+, tsc already in package.json | Add `npm run lint && npx tsc --noEmit` as a new `frontend-test` job in test.yml |
-| **Separate test and deploy workflows** | Already separated into test.yml and deploy.yml — good pattern | Done | Already done | No change needed here. |
-| **Deploy only on main** | deploy.yml already gates on `push: branches: [main]` | Done | Already done | Correct. |
-| **Rollback capability** | Current deploy.yml has no rollback — if ECS deployment fails, service is degraded | MEDIUM | ECR tags with `github.sha`, ECS | Add rollback step: on deploy failure, `aws ecs update-service --task-definition <previous>`. Use ECR image tag from last successful deploy stored in SSM Parameter Store. |
-| **Health check after deploy** | `aws ecs wait services-stable` exists but does not verify the app is actually healthy | LOW | `/api/health` endpoint exists | After `services-stable`, curl the health endpoint and fail the job if it returns non-200. |
-| **Secret scanning** | Stripe keys, Anthropic keys must never be committed | LOW | GitHub Actions | Add `gitleaks` or GitHub's built-in secret scanning (free for public repos, available in settings for private). |
-
-### Differentiators
-
-| Feature | Value Proposition | Complexity | Dependencies | Notes |
-|---------|-------------------|------------|--------------|-------|
-| **Docker layer caching** | Current deploy.yml has `cache-from: type=gha` — already configured. Worth verifying it's cutting build times | Done | Already in deploy.yml | Confirm cache hit rates in Actions logs. May need `cache-to: type=gha,mode=max` tuning. |
-| **PR preview environments** | Each PR gets a temporary URL to test against — catches regressions before merge | HIGH | Separate ECS task or Vercel preview | Not worth the infra complexity for a small team pre-PMF. Defer to v0.3. |
-| **Test coverage reporting** | `pytest-cov` is in dev deps; coverage % visible in PRs | LOW | `pytest-cov` already installed | Add `--cov=app --cov-report=xml` to test step; upload to Codecov (free tier). |
-| **Canary deploys** | Route 10% of traffic to new version before full cutover | HIGH | ALB weighted routing, two ECS task definitions | Not needed at current scale (1 task). Add when traffic justifies it. |
-| **Database migration in CI** | Run `alembic upgrade head` as a pre-deploy step with dry-run | MEDIUM | Alembic already in stack | Add `alembic upgrade head --sql` (dry-run to stdout) to CI; actual migration runs on container startup via lifespan. |
-
-### Anti-Features
-
-| Anti-Feature | Why Requested | Why Problematic | Alternative |
-|--------------|---------------|-----------------|-------------|
-| **Multi-environment pipeline (dev/staging/prod)** | "I want a staging environment" | Each environment is another ECS cluster + RDS instance + ~$150/mo; pre-PMF burn is unjustified | Use `workflow_dispatch` with environment input for manual "staging" deploys to same infra with feature flags; add real staging after first paying customers |
-| **Jenkins/CircleCI migration** | "GitHub Actions has limits" | GitHub Actions free tier is 2,000 min/mo — more than enough for this project; migration is pure overhead | Stay on GitHub Actions; optimize job parallelism and caching |
-| **Kubernetes (EKS)** | "Let's be cloud-native" | ECS Fargate already provides container orchestration; EKS adds $70+/mo cluster fee and significant ops overhead | Stay on ECS; migrate to EKS when pod count justifies it (likely never for this product) |
-| **Automatic database migrations in deploy pipeline** | "Run alembic before deploying" | Race condition risk — new ECS task starts before migration completes on old schema | Run migrations in container lifespan startup (already done in `main.py`); migration is idempotent |
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| **Branded splash screen (first-visit only)** | Non-technical founders who arrive from ads or cold outreach land on a premium brand moment — the site logo/wordmark fades in, a thin progress bar animates, then content reveals. Signals trust before a word is read. | MEDIUM | Implemented entirely in CSS + a single client component. Show only on first visit (sessionStorage flag). Auto-dismiss after 800–1200ms or when `DOMContentLoaded` fires (whichever comes first). Must not block LCP: render page HTML beneath the splash layer immediately; splash is a positioned overlay. Framer Motion `AnimatePresence` handles exit. |
+| **Skeleton shimmer on slow connections** | When a user navigates between pages on a slow connection (3G, throttled), the next page takes 300–700ms to hydrate. A CSS skeleton shimmer on the Navbar height prevents the jarring blank-page flash. | LOW | Pure CSS shimmer animation (already in `globals.css` as `--animate-shimmer`). Show a Navbar-height placeholder until client hydration completes. No JS required — just a CSS class toggled via the progress bar library's callbacks. |
+| **View Transitions API for page navigation** | Native browser cross-page fade/morph transitions on Chrome 126+ and Edge 126+. No JavaScript animation library needed for the transition itself. Produces a premium MPA-style navigation feel. | MEDIUM | Next.js 15 has experimental `viewTransition: true` config flag. Add `@view-transition { navigation: auto }` CSS rule for same-origin navigations. Safari/Firefox do not support it — progressive enhancement, falls back to instant navigation. Works with static export since it's a browser-level feature. Must test interaction with Framer Motion entry animations (both should not fight each other). |
+| **llms.txt file** | Helps AI agents and documentation tools understand the site structure. Broad adoption signal (844k+ sites as of Oct 2025). Low cost, no downside. | LOW | Place a markdown-formatted `llms.txt` in the `public/` folder. Lists all pages, their purpose, and key content. Links to key landing pages. Caveat: Google and major AI crawlers are not currently confirmed to act on it — treat as a forward-compatibility signal, not a ranking lever. |
+| **GEO: Answer-formatted content** | ChatGPT, Perplexity, and Google AI Overviews cite sources that answer questions directly and authoritatively. The current page copy uses marketing voice ("Ship faster…") rather than answer voice ("Co-Founder.ai is an AI technical co-founder that…"). | MEDIUM | Add a dedicated "What is Co-Founder.ai?" section or FAQ block using `<dt>`/`<dd>` markup or a clean Q&A section. Write in the third-person declarative voice AI engines extract from. FAQPage schema.org markup signals these as Q&A pairs to AI systems. Does not require changing hero copy — add a below-fold section or an about page expansion. |
+| **FAQPage structured data** | Google AI Overviews and Perplexity pull FAQ answers directly from structured data. High citation rate for "what is X" queries. | LOW | Add `FAQPage` JSON-LD to the cofounder product page and pricing page. 3–5 questions per page. Questions should match real founder queries: "How does Co-Founder.ai work?", "What does it cost?", "Is my code private?". |
+| **Image optimization via CloudFront** | `next/image` with `unoptimized: true` serves original PNG/JPG. CloudFront can convert to WebP/AVIF via Lambda@Edge or CloudFront Functions, reducing hero image sizes by 30–70%. | HIGH | AWS provides a reference architecture: CloudFront + Lambda@Edge for on-the-fly image format conversion based on `Accept` header. This is the correct solution for a static export — no Next.js image server needed. Complexity is real: requires CDK changes, Lambda function, CloudFront cache behavior updates. Worth it only if the site uses hero images. Current site uses CSS glows and SVG icons, not raster hero images — assess whether this is actually needed before building. |
+| **Performance: Framer Motion bundle splitting** | Framer Motion is ~45KB gzipped. It is used on every page (hero animations, FadeIn, StaggerContainer). Splitting it so only the used APIs load reduces Time to Interactive. | MEDIUM | Use `import { motion, useInView } from "framer-motion"` (already correct) rather than wildcard import. Verify Next.js static export tree-shakes unused Framer Motion features. Alternatively, replace FadeIn/StaggerContainer with pure CSS scroll-driven animations (CSS `@keyframes` + `IntersectionObserver` polyfill) to eliminate Framer Motion from scroll-animation paths — keeping Framer Motion only for hero entry and AnimatePresence splash. This is a significant refactor; only worthwhile if Lighthouse shows Framer Motion as a blocking resource. |
 
 ---
 
-## Pillar 4: CloudWatch Monitoring
+### Anti-Features (Commonly Requested, Often Problematic)
 
-### Table Stakes
+Features that seem premium but actively hurt a static marketing site.
 
-| Feature | Why Expected | Complexity | Dependencies on Existing | Notes |
-|---------|--------------|------------|--------------------------|-------|
-| **Application error tracking** | CloudWatch log groups exist (1-week retention) but there are no metric filters or alarms on error rates | LOW | Log groups already in compute-stack.ts | Add CloudWatch Metric Filter: `ERROR` in backend logs → alarm if >5 errors in 5 min → SNS → email |
-| **Health check alarm** | ECS already performs health checks but no alarm notifies on sustained unhealthy state | LOW | ECS health check in compute-stack.ts | ALB unhealthy host count alarm: >0 for 2 consecutive periods → SNS alert |
-| **5xx rate alarm** | ALB metrics expose `HTTPCode_Target_5XX_Count` — no alarm defined | LOW | ALB already created by `ApplicationLoadBalancedFargateService` | Alarm: >10 5xx per 5 min → SNS → email |
-| **Response latency alarm** | `TargetResponseTime` ALB metric — no alarm | LOW | ALB metrics available | Alarm: P99 >5s → warning; P99 >10s → critical |
-| **Stripe webhook failure tracking** | Failed webhook handling (DB write fails) currently silent | LOW | `billing.py` has logger.error calls | Add CloudWatch Metric Filter on `"Stripe webhook"` log events with `ERROR` level |
-| **Anthropic API error tracking** | LLM calls will fail; currently no monitoring | LOW | Will be added in RunnerReal | Log all Anthropic errors with a structured tag; add metric filter + alarm |
-| **Token usage dashboard** | Understanding LLM costs before they surprise you | MEDIUM | `usage_logs` table already tracking tokens | Create CloudWatch dashboard from custom metrics; OR query RDS directly and expose via `/api/admin/usage` |
-| **ECS task restart alarm** | Container crashes produce ECS task restarts; currently invisible | LOW | ECS CloudWatch metrics | Alarm on `RunningTaskCount` dropping to 0 for backend service |
-
-### Differentiators
-
-| Feature | Value Proposition | Complexity | Dependencies | Notes |
-|---------|-------------------|------------|--------------|-------|
-| **Structured JSON logging** | CloudWatch Insights queries are vastly more powerful with structured logs (vs. string search) | LOW | Backend Python logging already configured | Add `python-json-logger` or structlog; emit `{level, message, user_id, correlation_id, duration_ms}` JSON |
-| **Request tracing with correlation IDs** | Correlation ID middleware already exists in `middleware/correlation.py` — expose it in CloudWatch Insights queries | Done | Already built | Ensure correlation_id appears in every log line (confirm middleware is adding it to all logger output) |
-| **LLM latency tracking** | Track P50/P95/P99 for each Runner method separately (questions, brief, artifacts) | MEDIUM | RunnerReal timing hooks | Wrap each LLM call with `time.perf_counter()`; emit custom CloudWatch metric `LLMLatency` with dimension `Method` |
-| **Business metric dashboard** | New signups/day, checkout conversions, artifacts generated — visible in CloudWatch | MEDIUM | Stripe webhooks, usage_logs | On each `checkout.session.completed`, emit custom metric `NewSubscription`; on artifact generation, emit `ArtifactGenerated`. Create CloudWatch Dashboard. |
-| **Cost anomaly detection** | AWS Cost Anomaly Detection is free to set up; alerts when daily spend spikes | LOW | AWS Cost Anomaly Detection service | Enable via AWS Console (or CDK); set threshold at +50% vs. trailing 30-day average. |
-
-### Anti-Features
-
-| Anti-Feature | Why Requested | Why Problematic | Alternative |
-|--------------|---------------|-----------------|-------------|
-| **Datadog/New Relic/Sentry** | "CloudWatch is not a real observability platform" | $50–500+/mo for tools that duplicate what CloudWatch provides for this traffic level; adds APM agent overhead | Use CloudWatch + structured logs; add Sentry for frontend error tracking only (generous free tier) |
-| **OpenTelemetry full instrumentation** | "Industry standard for observability" | Correct for high-scale services; for this product at this stage, adds weeks of setup for marginal gain | Add OTEL when traffic warrants distributed tracing (likely 10k+ req/day). Use `OTEL_EXPORTER_OTLP_ENDPOINT` pointing to CloudWatch OTLP endpoint when ready. |
-| **Custom Grafana on EC2** | "Grafana is better than CloudWatch dashboards" | Runs 24/7 EC2 instance, maintenance burden, more cost | CloudWatch dashboards are sufficient at this scale; revisit when marketing team needs self-serve analytics |
-| **PagerDuty on-call rotation** | "Real companies have on-call" | Single engineer or small team; PagerDuty minimum is ~$19/user/mo; on-call rotation is 1 person | SNS → email/SMS is sufficient; set up a simple phone number via SNS for critical alarms |
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| **Full-page loader that blocks content render** | "Feels premium like Linear or Vercel" | Hides actual content from LCP measurement. Google penalizes pages where content is blocked by JS-rendered loaders. Hurts crawlability. AI crawlers that don't execute JS see nothing. | Use a splash overlay that sits on top of already-rendered HTML — content is in the DOM, just visually obscured for <1.2s. Remove overlay via CSS class toggle, not conditional rendering. |
+| **Skeleton screens for every page section** | "Looks like a real app loading" | Marketing pages are statically rendered — all content is in the HTML on first load. Skeletons only make sense when data is fetched async. Showing skeletons for content that's already in the DOM is performative and adds CLS risk. | Reserve skeleton treatment for the Navbar (which hydrates client-side) or any async-fetched content. Not for static hero/pricing sections. |
+| **Heavy JS animation libraries (GSAP, three.js, Lottie)** | "We want the particle background / 3D hero scene" | These libraries are 200–800KB. On a 3G connection they block TTI for 3–8 seconds. Non-technical founders on mobile are the target user — they will bounce before the site loads. | Use CSS animations for ambient effects (already done with gradient glows in `globals.css`). Use Framer Motion (already installed) for purposeful transitions. Treat any proposed 3D or particle effect as requiring a performance budget justification. |
+| **Client-side analytics that block render** | "Add Mixpanel, Segment, Hotjar, FullStory all at once" | Each analytics script adds 50–200ms to TTI. The marketing site currently has zero analytics JS — that's actually a performance advantage. | Add one lightweight, privacy-friendly analytics tool (e.g., Plausible at 1KB, or Posthog with the `capture_pageview: false` init + deferred load). Load it `defer` or after `window.onload`. Never load multiple competing analytics tools. |
+| **Parallax scrolling effects** | "Feels premium and modern" | Parallax causes CLS and repaints on scroll (INP regression). On mobile it often breaks entirely. Most high-converting SaaS sites (Linear, Vercel, Stripe) do NOT use parallax — they use opacity and y-offset reveals. | The existing Framer Motion `useInView` fade-up pattern is already the correct approach. Extend that, do not add parallax. |
+| **Custom web fonts beyond what's already loaded** | "Add a display font for the hero headline" | Each additional font family is 50–200KB and a render-blocking request. The site already loads Space Grotesk (display) + Geist Sans + Geist Mono — three families. | Use the existing font stack. If a decorative font is needed, load a single weight with `font-display: optional` to prevent render blocking. |
+| **Dynamic OG image generation (Vercel OG)** | "Generate OG images with live data" | Static export means no server-side runtime. `@vercel/og` requires an Edge runtime or serverless function. Cannot be used with `output: "export"`. | Pre-generate static OG images at build time (PNG files in `/public/og/`). 1200×630, one per key page. Reference by URL in metadata. |
+| **llms.txt as primary GEO strategy** | "llms.txt will make us rank in ChatGPT" | As of early 2026, Google confirms llms.txt has zero effect on rankings or AI Overview citations. GPTBot, ClaudeBot, and PerplexityBot are not confirmed to act on it. | Real GEO is content-level: answer-format writing, schema.org FAQ markup, authoritative entity mentions, and backlinks from trusted domains. llms.txt is a low-cost future signal — build it, but do not count on it. |
 
 ---
 
 ## Feature Dependencies
 
 ```
-[Real LLM Integration]
-    └──requires──> [RunnerReal: all 10 methods implemented]
-    └──requires──> [Anthropic structured outputs / tool-use]
-    └──enables──> [Real artifact generation]
-    └──enables──> [Real interview quality]
+[Sitemap.xml]
+    └──required-by──> [Google indexing of all 8 pages]
+    └──required-by──> [AI crawler discovery]
 
-[RunnerReal: generate_questions]
-    └──feeds──> [OnboardingService.start_session]
-    └──feeds──> [UnderstandingService.start_session]
+[robots.txt]
+    └──required-by──> [AI crawlers: GPTBot, ClaudeBot, PerplexityBot access]
+    └──must-allow──> [Sitemap.xml URL]
 
-[RunnerReal: generate_artifacts]
-    └──feeds──> [ArtifactGenerator.generate_cascade]
-    └──feeds──> [ArtifactGenerator.generate_artifact]
+[Canonical URL per page]
+    └──requires──> [Consistent trailing-slash config] (already set)
+    └──prevents──> [Duplicate content from www vs naked domain]
 
-[Stripe Billing: Checkout]
-    └──requires──> [STRIPE_SECRET_KEY in Secrets Manager]
-    └──requires──> [Stripe price IDs in config] (already done)
-    └──requires──> [Webhook endpoint reachable via HTTPS] (production only)
-    └──produces──> [plan_tier_id update in UserSettings]
-    └──feeds──> [require_subscription in auth.py]
+[Organization schema]
+    └──required-for──> [Google Knowledge Panel]
+    └──enhances──> [GEO: brand entity recognition in AI search]
+    └──feeds-into──> [SoftwareApplication schema] (references Organization as "author")
 
-[Stripe Billing: Webhooks]
-    └──requires──> [STRIPE_WEBHOOK_SECRET in Secrets Manager]
-    └──requires──> [Stripe dashboard webhook registration]
-    └──produces──> [plan upgrades, downgrades, past-due status]
+[SoftwareApplication schema]
+    └──requires──> [Organization schema defined]
+    └──enhances──> [FAQPage schema] (references same entity)
+    └──placed-on──> [/cofounder page]
 
-[CI/CD: Tests before deploy]
-    └──requires──> [deploy.yml needs: test job]
-    └──requires──> [test.yml passes]
-    └──blocks──> [deploy job] until green
+[FAQPage schema]
+    └──requires──> [Answer-format content section on page]
+    └──placed-on──> [/cofounder page, /pricing page]
 
-[CI/CD: Linting in CI]
-    └──requires──> [ruff check passes on all Python files]
-    └──requires──> [eslint/tsc passes on frontend]
+[Answer-format content sections (GEO)]
+    └──feeds-into──> [FAQPage schema]
+    └──independent-of──> [structured data — can ship separately]
 
-[CloudWatch: Error alarms]
-    └──requires──> [Structured logging format]
-    └──requires──> [SNS topic + email subscription]
-    └──requires──> [CloudWatch Metric Filters on log groups]
+[Branded splash screen]
+    └──requires──> [CSS overlay approach] (must NOT use conditional rendering that hides content from crawler)
+    └──composes-with──> [Framer Motion AnimatePresence] (for exit animation)
+    └──must-not-block──> [LCP element render]
+    └──triggers-once-per-session──> [sessionStorage flag]
 
-[CloudWatch: LLM latency tracking]
-    └──requires──> [RunnerReal implemented]
-    └──requires──> [Custom CloudWatch metrics in RunnerReal]
+[Page-transition progress bar]
+    └──uses──> [@bprogress/next or similar]
+    └──hooks-into──> [Next.js usePathname]
+    └──optional-enhancement──> [Skeleton shimmer on Navbar]
 
-[Usage meter in billing UI]
-    └──requires──> [usage_logs data being written] (already happening with RunnerFake)
-    └──requires──> [API endpoint to read usage for current user]
-    └──requires──> [billing/page.tsx usage bar component]
+[View Transitions API]
+    └──requires──> [next.config.ts: viewTransition: true] (experimental)
+    └──requires──> [CSS: @view-transition { navigation: auto }]
+    └──conflicts-with──> [Framer Motion layout animations on same elements — test carefully]
+    └──progressive-enhancement──> [Chrome 126+ only; Safari/Firefox fall back gracefully]
+
+[LCP fix: hero above-fold]
+    └──requires──> [Framer Motion initial={false} for above-fold elements OR CSS-only opacity fade]
+    └──improves──> [Core Web Vitals LCP score]
+    └──must-precede──> [splash screen implementation] (splash must not re-introduce LCP regression)
+
+[prefers-reduced-motion]
+    └──requires──> [useReducedMotion() hook in fade-in.tsx]
+    └──affects──> [home-content.tsx hero animations]
+    └──affects──> [Splash screen animation duration]
+
+[Font preloading verification]
+    └──depends-on──> [next/font Space_Grotesk config]
+    └──verify-before──> [shipping splash screen] (FOIT during splash would look broken)
+
+[CloudFront image optimization]
+    └──requires──> [Lambda@Edge or CloudFront Function]
+    └──requires──> [CDK stack changes]
+    └──blocked-by──> [assessment: do we have raster hero images at all?]
+    └──defer-if──> [site uses only CSS glows and SVG icons — currently the case]
+
+[llms.txt]
+    └──independent──> [all other features]
+    └──placed-in──> [public/llms.txt]
+    └──low-risk──> [build it alongside sitemap; minimal effort]
 ```
-
-### Dependency Notes
-
-- **RunnerReal must be completed first**: Every other LLM feature depends on it. It is the critical path for Pillar 1.
-- **Stripe verification is low-risk but sequential**: Checkout → verify webhook receipt → verify DB state change. Can be done in a single phase.
-- **CI/CD improvements are independent**: Can be done in parallel with LLM work; no shared dependencies.
-- **CloudWatch alarms require RunnerReal**: LLM error and latency alarms cannot be validated until real LLM calls flow.
-- **Structured logging enables CloudWatch Insights**: Do structured logging before setting up metric filters, or the filters will match nothing.
 
 ---
 
-## MVP Definition for v0.2
+## MVP Definition
 
-### Launch With (v0.2 core — ship this)
+### Launch With (this milestone core — ship this first)
 
-These are the minimum changes that make the product not embarrassing to show paying customers.
+The minimum set that makes the site search-ready and performance-defensible.
 
-- [ ] **RunnerReal: all 10 methods** — Without this, every interview and artifact is fake inventory-tracker content shown to real founders. This is the single most critical item.
-- [ ] **Stripe: production verification** — Checkout → webhook → DB update flow verified with Stripe test mode. Founders cannot pay without this.
-- [ ] **CI: tests before deploy** — Gate deploy.yml on test job. Currently broken code can reach production silently.
-- [ ] **CI: ruff lint in CI** — Takes 10 minutes to add, catches real bugs.
-- [ ] **CloudWatch: error rate alarm + health alarm** — Basic outage detection. Without it, the service can be down for hours undetected.
-- [ ] **Stripe webhook registration** — The webhook endpoint is built; it must be registered in the Stripe dashboard pointing at `https://api.cofounder.getinsourced.ai/api/webhooks/stripe`.
+- [ ] **Sitemap.xml** — Required for reliable Google + AI crawler indexing of all 8 pages. 30 minutes to implement.
+- [ ] **robots.txt** — Explicit allow for GPTBot, ClaudeBot, PerplexityBot. 15 minutes.
+- [ ] **Canonical URL per page** — Prevents duplicate content issues with CloudFront domain aliases. 1 hour.
+- [ ] **Organization schema (JSON-LD)** — Establishes brand entity for Google and AI engines. 1 hour in root layout.
+- [ ] **LCP fix: hero above-fold elements** — Framer Motion `initial={{ opacity: 0 }}` currently hides the H1 until hydration. Fix to CSS-only or `initial={false}` for elements above the fold. Critical for both ranking and UX. 2-4 hours.
+- [ ] **prefers-reduced-motion support** — WCAG 2.1 AA compliance. Wrap `fade-in.tsx` animations with `useReducedMotion()`. 1-2 hours.
+- [ ] **Page-transition progress bar** — Thin branded bar using `@bprogress/next`. Makes internal navigation feel instantaneous even on slow connections. 2 hours.
 
-### Add After Core Ships (v0.2 polish)
+### Add After Core Ships
 
-- [ ] **Structured JSON logging** — Enables CloudWatch Insights debugging; worth doing immediately after core
-- [ ] **LLM error handling with retry** — Exponential backoff in RunnerReal; prevents cascading failures on Anthropic rate limits
-- [ ] **Usage meter in billing page** — Token usage vs. plan limit builds trust with founders
-- [ ] **CloudWatch: LLM latency tracking** — Know if generation is too slow before users complain
-- [ ] **CI: frontend typecheck** — Catches TypeScript errors before they reach production
-- [ ] **Annual/monthly toggle on pricing page** — Revenue uplift with minimal work
-- [ ] **Checkout success state in billing page** — Post-checkout UX; currently the `?session_id` param is captured but UI does nothing with it
+- [ ] **Branded splash screen** — First-visit overlay with logo + progress bar → content reveal. Deferred until LCP fix is confirmed working (avoid re-introducing LCP regression). 4-6 hours.
+- [ ] **SoftwareApplication schema** — On `/cofounder` page. Enables rich results for product queries. 1 hour.
+- [ ] **FAQPage schema + answer-format content** — 3-5 Q&A pairs on `/cofounder` and `/pricing`. Core GEO signal. 3-4 hours for copy + markup.
+- [ ] **Open Graph image** — Static 1200×630 PNG for social sharing. Currently OG tags exist but reference no image URL. 2 hours (design) + 30 minutes (wire up).
+- [ ] **llms.txt** — Markdown manifest of site structure in `public/llms.txt`. 30 minutes.
+- [ ] **View Transitions API** — Progressive enhancement for Chrome/Edge. Enabled via config flag + one CSS rule. 1-2 hours. Test against Framer Motion animations before shipping.
 
-### Future Consideration (v0.3+)
+### Future Consideration (defer)
 
-- [ ] **Adaptive question depth** — Questions get harder as founder reveals more; requires session-aware prompting
-- [ ] **PR preview environments** — Each PR gets a live URL; high infra cost, defer until team grows
-- [ ] **AWS Cost Anomaly Detection** — Free to enable; set up when monthly bill exceeds $500
-- [ ] **OpenTelemetry / distributed tracing** — Add when traffic justifies; OTEL → CloudWatch OTLP path exists
-- [ ] **Canary deploys** — ALB weighted routing; add when 2+ ECS tasks are running
-- [ ] **Grace period for failed payments** — Reduce churn; add when first payment failures occur
+- [ ] **CloudFront image optimization (Lambda@Edge)** — Only needed if raster hero images are introduced. Current site is CSS-glow + SVG. Defer until images are added; then implement the AWS reference architecture.
+- [ ] **Framer Motion bundle splitting / replacement with CSS scroll animations** — Only if Lighthouse shows Framer Motion as a blocking resource with a measurable INP impact. Audit first; build only if data justifies the refactor cost.
+- [ ] **Per-page OG image generation** — A static shared OG image is sufficient for launch. Per-page variants add brand authority but require design time per page. Do after launch.
 
 ---
 
@@ -280,73 +199,80 @@ These are the minimum changes that make the product not embarrassing to show pay
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| RunnerReal: all 10 methods | HIGH | MEDIUM | P0 |
-| Stripe production verification | HIGH | LOW | P0 |
-| CI: tests before deploy | HIGH | LOW | P0 |
-| Stripe webhook registration | HIGH | LOW | P0 |
-| CloudWatch: error alarm + health alarm | HIGH | LOW | P0 |
-| CI: ruff lint | MEDIUM | LOW | P0 |
-| Structured JSON logging | MEDIUM | LOW | P1 |
-| LLM error handling with retry | HIGH | LOW | P1 |
-| Usage meter in billing page | MEDIUM | MEDIUM | P1 |
-| CloudWatch: LLM latency metrics | MEDIUM | LOW | P1 |
-| CI: frontend typecheck | MEDIUM | LOW | P1 |
-| Annual/monthly pricing toggle | MEDIUM | LOW | P1 |
-| Checkout success page state | LOW | LOW | P1 |
-| Tier-differentiated output quality | MEDIUM | MEDIUM | P2 |
-| Co-founder voice consistency audit | LOW | LOW | P2 |
-| Adaptive question depth | MEDIUM | HIGH | P2 |
-| CloudWatch business metric dashboard | MEDIUM | MEDIUM | P2 |
-| Grace period for failed payments | MEDIUM | MEDIUM | P2 |
-| PR preview environments | LOW | HIGH | P3 |
-| OpenTelemetry instrumentation | LOW | HIGH | P3 |
-| Canary deploys | LOW | HIGH | P3 |
+| Sitemap.xml | HIGH (crawler discovery) | LOW | P1 |
+| robots.txt (allow AI crawlers) | HIGH (GEO access) | LOW | P1 |
+| Canonical URL per page | HIGH (SEO hygiene) | LOW | P1 |
+| Organization schema | HIGH (brand entity for AI) | LOW | P1 |
+| LCP fix: hero above-fold | HIGH (ranking signal + UX) | LOW-MEDIUM | P1 |
+| prefers-reduced-motion | HIGH (WCAG compliance) | LOW | P1 |
+| Page-transition progress bar | MEDIUM (perceived performance) | LOW | P1 |
+| Branded splash screen | MEDIUM (premium first impression) | MEDIUM | P2 |
+| SoftwareApplication schema | MEDIUM (rich results) | LOW | P2 |
+| FAQPage schema + answer copy | HIGH (GEO citation signal) | MEDIUM | P2 |
+| Open Graph image | MEDIUM (social sharing) | MEDIUM | P2 |
+| llms.txt | LOW (future signal) | LOW | P2 |
+| View Transitions API | LOW (nice UX, limited browser support) | LOW | P2 |
+| CloudFront image optimization | LOW (not needed with current assets) | HIGH | P3 |
+| Framer Motion bundle split | LOW (only if measured problem) | HIGH | P3 |
 
-**Priority Key:**
-- P0: Must ship for v0.2 to be considered production-ready
-- P1: Should ship in v0.2 polish cycle
-- P2: Target for v0.3
-- P3: Defer until scale justifies
+**Priority key:**
+- P1: Must have for this milestone to improve SEO/GEO/performance meaningfully
+- P2: Should have — adds real value with manageable effort
+- P3: Nice to have — defer until data justifies the cost
 
 ---
 
-## Cross-Pillar Ordering Notes
+## Competitor Feature Analysis
 
-For roadmap phase ordering:
+SaaS marketing sites in the AI-tools space that non-technical founders compare against:
 
-1. **RunnerReal must be Phase 1** of v0.2. Everything else (LLM error handling, LLM latency tracking, co-founder voice) depends on it.
-2. **Stripe verification can run in parallel** with RunnerReal — they share no dependencies.
-3. **CI improvements are fully independent** — can be a single focused phase before or in parallel with anything.
-4. **CloudWatch alarms should come after RunnerReal** — alarms for LLM errors have nothing to alarm on until real calls flow. Basic health alarms (ECS, ALB 5xx) can be done independently.
-5. **Structured logging should precede CloudWatch metric filters** — otherwise filters match nothing.
+| Feature | Linear.app | Vercel.com | Our Approach |
+|---------|------------|------------|--------------|
+| Loading progress bar | Yes (top bar on navigation) | Yes (integrated with RSC streaming) | @bprogress/next top bar; simpler than RSC streaming (static export) |
+| Structured data | Organization + SoftwareApp | Organization + WebSite | Organization + SoftwareApp + FAQPage |
+| Splash screen | No | No | First-visit only, max 1.2s, CSS overlay — not a gated loader |
+| Animations | CSS-only scroll reveals | Framer Motion + CSS | Already have Framer Motion; add prefers-reduced-motion support |
+| Sitemap | Yes | Yes | Generate via Next.js app/sitemap.ts |
+| OG images | Dynamic (server-rendered) | Dynamic (Vercel OG) | Static pre-generated PNG (static export constraint) |
+| GEO / llms.txt | Not detected | Yes (llms.txt present) | llms.txt + FAQPage schema + answer-format content sections |
+| Image format (WebP/AVIF) | Yes (server-side) | Yes (Vercel image CDN) | Not needed currently (CSS-only visuals); add CloudFront function if raster images added |
+
+---
+
+## User Behavior Context
+
+Non-technical founders arriving at getinsourced.ai:
+
+- **57% of viewing time is spent above the fold** (CXL research). The hero section is the single highest-leverage area. An LCP regression here costs more than any loading animation gains.
+- **Users will scroll if the hero is compelling** — 76% of sessions include scrolling, 22% scroll to the bottom. The existing page copy and comparison table are the scroll incentive. Loading UX should not obscure or delay these.
+- **Mobile is the dominant first-touch device** for cold-traffic founders. Page-transition delay and animation jank are most noticeable on mobile. The progress bar and reduced-motion support matter here.
+- **AI search (Perplexity, ChatGPT)** is how non-technical founders now research tools before visiting marketing sites. GEO work (FAQPage schema, answer-format copy, entity recognition via Organization schema) increases the probability of being cited before the founder ever opens a browser tab.
+- **First visit is high-stakes.** A branded splash screen (first-visit only, <1.2s) signals craft and legitimacy. Repeat visitors must never see it again — sessionStorage gate is required.
 
 ---
 
 ## Sources
 
-### LLM Integration Patterns
-- RunnerReal (`/Users/vladcortex/co-founder/backend/app/agent/runner_real.py`) — stub implementations reveal gap
-- Runner protocol (`/Users/vladcortex/co-founder/backend/app/agent/runner.py`) — all 10 method signatures
-- Artifact prompts (`/Users/vladcortex/co-founder/backend/app/artifacts/prompts.py`) — prompts already written, not yet wired to RunnerReal
-- Anthropic tool-use / structured outputs: HIGH confidence (training data + verified via SDK docs)
-
-### Stripe Billing
-- Billing routes (`/Users/vladcortex/co-founder/backend/app/api/routes/billing.py`) — all 4 handlers implemented
-- Compute stack (`/Users/vladcortex/co-founder/infra/lib/compute-stack.ts`) — price IDs wired
-- Billing page (`/Users/vladcortex/co-founder/frontend/src/app/(dashboard)/billing/page.tsx`) — status display done
-- Stripe best practices: HIGH confidence (official Stripe docs pattern — webhook signature verification, idempotency keys)
-
-### CI/CD
-- Test workflow (`/Users/vladcortex/co-founder/.github/workflows/test.yml`) — gaps identified
-- Deploy workflow (`/Users/vladcortex/co-founder/.github/workflows/deploy.yml`) — no test gate
-- GitHub Actions current-year patterns: MEDIUM confidence (training data, verified patterns)
-
-### CloudWatch Monitoring
-- Compute stack — log groups, ECS autoscaling already configured
-- CloudWatch Metric Filters, Alarms, Dashboards: MEDIUM-HIGH confidence (AWS CDK docs patterns)
+- Existing marketing site codebase: `/Users/vladcortex/co-founder/marketing/` — direct inspection, HIGH confidence
+- `next.config.ts` (`output: "export"`, `images: { unoptimized: true }`) — confirmed static export constraints
+- `marketing/package.json` — framer-motion@12, next@15, react@19 confirmed
+- `fade-in.tsx` — Framer Motion animation patterns confirmed; no reduced-motion support yet
+- `home-content.tsx` — Hero Framer Motion entry animations confirmed; LCP risk identified
+- `globals.css` — shimmer, marquee, fade-up animations already defined in CSS
+- [@bprogress/next npm](https://www.npmjs.com/package/next-nprogress-bar) — MEDIUM confidence (successor library identified, actively maintained as of 2026)
+- [Next.js View Transitions config](https://nextjs.org/docs/app/api-reference/config/next-config-js/viewTransition) — MEDIUM confidence (experimental flag, Chrome 126+ only)
+- [next-view-transitions GitHub](https://github.com/shuding/next-view-transitions) — community library option
+- [GEO / llms.txt effectiveness](https://searchsignal.online/blog/llms-txt-2026) — HIGH confidence: confirmed llms.txt not acted upon by major crawlers as of late 2025
+- [Schema.org structured data for SaaS SEO 2026](https://comms.thisisdefinition.com/insights/ultimate-guide-to-structured-data-for-seo) — HIGH confidence: Organization, SoftwareApplication, FAQPage are the correct types
+- [GEO for AI search citation](https://llmrefs.com/generative-engine-optimization) — HIGH confidence: FAQPage schema and answer-format content are the most actionable signals
+- [SaaS landing page user behavior](https://cxl.com/blog/above-the-fold/) — MEDIUM confidence: 57% above-fold viewing time statistic
+- [Next.js Core Web Vitals / LCP](https://makersden.io/blog/optimize-web-vitals-in-nextjs-2025) — HIGH confidence: static rendering produces fast LCP; Framer Motion initial hidden state is a known LCP risk
+- [prefers-reduced-motion WCAG](https://www.w3.org/WAI/WCAG21/Techniques/css/C39) — HIGH confidence: W3C official guidance
+- [CloudFront image optimization](https://aws.amazon.com/blogs/networking-and-content-delivery/image-optimization-using-amazon-cloudfront-and-aws-lambda/) — HIGH confidence: AWS reference architecture; HIGH complexity, deferred
+- [SaaS loading UX patterns](https://userpilot.com/blog/loading-page-examples/) — MEDIUM confidence: industry patterns reviewed
 
 ---
 
-*Feature research for: AI Co-Founder SaaS v0.2 Production Ready*
-*Researched: 2026-02-18*
-*Confidence: HIGH (direct codebase inspection + established patterns for Stripe/CloudWatch/CI)*
+*Feature research for: SaaS Marketing Site — Loading UX, Performance, SEO, GEO*
+*Researched: 2026-02-20*
+*Confidence: HIGH (direct codebase inspection + verified 2026 sources)*
