@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 ## Current Position
 
 Phase: 22 of 27 (Security Headers + Baseline Audit)
-Plan: 2 of 2 in current phase — COMPLETE
-Status: Phase 22 complete — ready for Phase 23
-Last activity: 2026-02-20 — 22-02 complete (Custom CSP + security headers deployed to CloudFront)
+Plan: 3 of 3 in current phase (Tasks 1-2 complete; awaiting Task 3 human-verify checkpoint)
+Status: Phase 22 in progress — 22-03 at checkpoint (Rich Results Test human verify)
+Last activity: 2026-02-20 — 22-03 Tasks 1+2 complete (Organization+WebSite JSON-LD deployed to CloudFront)
 
 Progress: [████████████████░░░░░░░░░░░░░░] 80% (v0.1 + v0.2 + v0.3 shipped; Phase 22 complete; 5 phases remaining)
 
@@ -51,6 +51,8 @@ Recent decisions affecting current work:
 - [22-02]: style-src 'unsafe-inline' accepted — Framer Motion sets inline style= attributes for animations; CSP blocking would freeze animations
 - [22-02]: frame-ancestors 'self' not 'none' — enables Google Rich Results Test iframe rendering
 - [22-02]: HSTS preload: false — near-permanent preload list commitment, deferred until domain is stable
+- [Phase 22]: No SearchAction on WebSite JSON-LD — site has no search functionality
+- [Phase 22]: logo field omitted from Organization JSON-LD schema — no public/logo.png exists; avoids 404 reference
 
 ### Pending Todos
 
@@ -66,8 +68,8 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-20
-Stopped at: Completed 22-02-PLAN.md (Custom CSP and security headers deployed to CloudFront, verified zero violations)
-Resume file: .planning/phases/22-security-headers-baseline-audit/22-02-SUMMARY.md
+Stopped at: Checkpoint in 22-03-PLAN.md Task 3 — human-verify Rich Results Test (Tasks 1+2 complete, JSON-LD deployed)
+Resume file: .planning/phases/22-security-headers-baseline-audit/22-03-SUMMARY.md
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
