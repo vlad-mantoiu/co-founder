@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 ## Current Position
 
 Phase: 22.1 (End-to-End Flow — Strategy Graph, Timeline & Architecture from Real Data)
-Plan: 0 of TBD in current phase
-Status: Phase 22.1 inserted — ready for planning
-Last activity: 2026-02-21 — Phase 22.1 inserted after Phase 22 (urgent: E2E flow broken)
+Plan: 0 of 6 in current phase (4 waves)
+Status: Phase 22.1 planned — ready for execution
+Last activity: 2026-02-21 — Phase 22.1 plans created and verified (6 plans, 4 waves)
 
 Progress: [█████████████████░░░░░░░░░░░░░] 81% (v0.1 + v0.2 + v0.3 shipped; Phase 22 complete; 5 phases remaining)
 
@@ -73,8 +73,8 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Phase 22.1 context gathered — ready for planning
-Resume file: .planning/phases/22.1-end-to-end-flow-strategy-graph-timeline-architecture-from-real-data/22.1-CONTEXT.md
+Stopped at: Phase 22.1 planned and verified — ready for execution
+Resume file: .planning/phases/22.1-end-to-end-flow-strategy-graph-timeline-architecture-from-real-data/22.1-01-PLAN.md
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
