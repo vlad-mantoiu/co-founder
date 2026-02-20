@@ -1,14 +1,20 @@
 """Understanding interview API routes — 8 endpoints for interview lifecycle."""
 
+from uuid import UUID
+
 from anthropic._exceptions import OverloadedError
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
+from sqlalchemy import select
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.agent.llm_helpers import enqueue_failed_request
 from app.agent.runner import Runner
 from app.agent.runner_fake import RunnerFake
 from app.core.auth import ClerkUser, require_auth
 from app.db.base import get_session_factory
+from app.db.models.artifact import Artifact
+from app.schemas.artifacts import ArtifactType
 from app.schemas.understanding import (
     EditAnswerRequest,
     EditAnswerResponse,
@@ -45,6 +51,86 @@ def get_runner(request: Request) -> Runner:
         return RunnerReal(checkpointer=checkpointer)
     else:
         return RunnerFake()
+
+
+async def _background_generate_e2e_artifacts(
+    project_id: UUID,
+    user_id: str,
+    runner: Runner,
+    idea: str,
+    brief: dict,
+    tier: str,
+    onboarding_answers: dict,
+) -> None:
+    """Background generation of Strategy Graph, Timeline, and Architecture.
+
+    Generates all 3 E2E artifacts in sequence with 3 silent retries each.
+    On success: updates artifact row with content, sets generation_status="idle".
+    On final failure: sets generation_status="failed" and logs a warning.
+    """
+    import logging
+
+    bg_logger = logging.getLogger(__name__)
+    session_factory = get_session_factory()
+
+    artifact_types_and_generators = [
+        (
+            ArtifactType.STRATEGY_GRAPH,
+            "generate_strategy_graph",
+            {"idea": idea, "brief": brief, "onboarding_answers": onboarding_answers},
+        ),
+        (
+            ArtifactType.MVP_TIMELINE,
+            "generate_mvp_timeline",
+            {"idea": idea, "brief": brief, "tier": tier},
+        ),
+        (
+            ArtifactType.APP_ARCHITECTURE,
+            "generate_app_architecture",
+            {"idea": idea, "brief": brief, "tier": tier},
+        ),
+    ]
+
+    for artifact_type, method_name, kwargs in artifact_types_and_generators:
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                content = await getattr(runner, method_name)(**kwargs)
+                # Update artifact row with generated content
+                async with session_factory() as session:
+                    result = await session.execute(
+                        select(Artifact).where(
+                            Artifact.project_id == project_id,
+                            Artifact.artifact_type == artifact_type.value,
+                        )
+                    )
+                    artifact = result.scalar_one_or_none()
+                    if artifact:
+                        artifact.current_content = content
+                        artifact.generation_status = "idle"
+                        flag_modified(artifact, "current_content")
+                        await session.commit()
+                break  # Success — move to next artifact
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    # All retries failed — mark as failed
+                    async with session_factory() as session:
+                        result = await session.execute(
+                            select(Artifact).where(
+                                Artifact.project_id == project_id,
+                                Artifact.artifact_type == artifact_type.value,
+                            )
+                        )
+                        artifact = result.scalar_one_or_none()
+                        if artifact:
+                            artifact.generation_status = "failed"
+                            await session.commit()
+                    bg_logger.warning(
+                        "E2E artifact generation failed after %d retries: %s — %s",
+                        max_retries,
+                        artifact_type.value,
+                        str(e),
+                    )
 
 
 @router.post("/start", response_model=StartUnderstandingResponse)
@@ -200,13 +286,21 @@ async def edit_answer(
 @router.post("/{session_id}/finalize", response_model=IdeaBriefResponse)
 async def finalize_interview(
     session_id: str,
+    background_tasks: BackgroundTasks,
     user: ClerkUser = Depends(require_auth),
     runner: Runner = Depends(get_runner),
 ):
     """Finalize interview and generate Rationalised Idea Brief (UNDR-02).
 
+    After finalize completes:
+    1. Pre-creates 3 artifact rows (STRATEGY_GRAPH, MVP_TIMELINE, APP_ARCHITECTURE)
+       with generation_status="generating" (avoids polling race condition)
+    2. Launches background task to generate all 3 artifacts via LLM
+    3. Returns IdeaBriefResponse immediately (generation continues in background)
+
     Args:
         session_id: Understanding session ID
+        background_tasks: FastAPI BackgroundTasks for async generation
         user: Authenticated user from JWT
         runner: Runner instance (injected)
 
@@ -224,6 +318,34 @@ async def finalize_interview(
         result = await service.finalize(user.user_id, session_id)
 
         brief = RationalisedIdeaBrief(**result["brief"])
+
+        # Pre-create 3 E2E artifact rows with generation_status="generating"
+        # BEFORE launching the background task to avoid polling race condition
+        project_id = UUID(result["project_id"])
+        async with session_factory() as db_session:
+            for at in [ArtifactType.STRATEGY_GRAPH, ArtifactType.MVP_TIMELINE, ArtifactType.APP_ARCHITECTURE]:
+                artifact = Artifact(
+                    project_id=project_id,
+                    artifact_type=at.value,
+                    current_content=None,
+                    version_number=1,
+                    schema_version=1,
+                    generation_status="generating",
+                )
+                db_session.add(artifact)
+            await db_session.commit()
+
+        # Launch background generation task
+        background_tasks.add_task(
+            _background_generate_e2e_artifacts,
+            project_id=project_id,
+            user_id=user.user_id,
+            runner=runner,
+            idea=result["idea_text"],
+            brief=result["brief"],
+            tier=result["tier"],
+            onboarding_answers=result["onboarding_answers"],
+        )
 
         return IdeaBriefResponse(
             brief=brief,

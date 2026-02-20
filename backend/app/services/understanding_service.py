@@ -307,6 +307,10 @@ class UnderstandingService:
                 "brief": brief_content,
                 "artifact_id": str(artifact.id),
                 "version": artifact.version_number,
+                "project_id": str(understanding.project_id),
+                "idea_text": onboarding.idea_text,
+                "onboarding_answers": onboarding.answers or {},
+                "tier": tier_slug,
             }
 
     async def get_brief(self, clerk_user_id: str, project_id: str) -> dict[str, Any]:

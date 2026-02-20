@@ -23,6 +23,7 @@ from app.db.models.project import Project
 from app.schemas.artifacts import (
     AnnotateRequest,
     ArtifactResponse,
+    ArtifactType,
     EditSectionRequest,
     GenerateArtifactsRequest,
     RegenerateArtifactRequest,
@@ -180,6 +181,67 @@ async def generate_artifacts(
         artifact_count=5,
         status="generating",
     )
+
+
+@router.get("/project/{project_id}/generation-status")
+async def get_e2e_generation_status(
+    project_id: UUID,
+    user: ClerkUser = Depends(require_auth),
+):
+    """Get generation status for the 3 E2E artifacts (Strategy Graph, Timeline, Architecture).
+
+    Returns status for each artifact type. Frontend polls this every 2 seconds.
+
+    Returns:
+        {
+            "artifacts": {
+                "strategy_graph": {"status": "generating"|"idle"|"failed"|"not_started", "has_content": bool},
+                "mvp_timeline": {...},
+                "app_architecture": {...}
+            },
+            "all_complete": bool,
+            "any_failed": bool
+        }
+
+    Raises:
+        HTTPException(404): If project not found or unauthorized
+    """
+    session_factory = get_session_factory()
+    async with session_factory() as session:
+        # Verify project ownership
+        result = await session.execute(
+            select(Project).where(
+                Project.id == project_id,
+                Project.clerk_user_id == user.user_id,
+            )
+        )
+        if result.scalar_one_or_none() is None:
+            raise HTTPException(status_code=404, detail="Project not found")
+
+        # Get status for all 3 E2E artifact types
+        e2e_types = [ArtifactType.STRATEGY_GRAPH, ArtifactType.MVP_TIMELINE, ArtifactType.APP_ARCHITECTURE]
+        statuses = {}
+        for at in e2e_types:
+            result = await session.execute(
+                select(Artifact).where(
+                    Artifact.project_id == project_id,
+                    Artifact.artifact_type == at.value,
+                )
+            )
+            artifact = result.scalar_one_or_none()
+            statuses[at.value] = {
+                "status": artifact.generation_status if artifact else "not_started",
+                "has_content": artifact.current_content is not None if artifact else False,
+            }
+
+        all_done = all(s["status"] == "idle" and s["has_content"] for s in statuses.values())
+        any_failed = any(s["status"] == "failed" for s in statuses.values())
+
+        return {
+            "artifacts": statuses,
+            "all_complete": all_done,
+            "any_failed": any_failed,
+        }
 
 
 @router.get("/{artifact_id}", response_model=ArtifactResponse)
