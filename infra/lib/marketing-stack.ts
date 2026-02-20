@@ -71,6 +71,78 @@ export class MarketingStack extends cdk.Stack {
     // 6. OAC origin — L2 construct auto-creates OAC + auto-adds scoped bucket policy
     const s3Origin = origins.S3BucketOrigin.withOriginAccessControl(bucket);
 
+    // 6b. Custom response headers policy — replaces managed SECURITY_HEADERS preset
+    // Managed preset (67f7725c) has no CSP and no Permissions-Policy; source-controlling is required
+    const marketingResponseHeadersPolicy = new cloudfront.ResponseHeadersPolicy(
+      this,
+      'MarketingResponseHeadersPolicy',
+      {
+        responseHeadersPolicyName: 'Marketing-SecurityHeaders',
+        comment: 'Custom security headers for getinsourced.ai - v0.4',
+        securityHeadersBehavior: {
+          contentSecurityPolicy: {
+            override: true,
+            contentSecurityPolicy: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-inline'",  // Next.js static export: self.__next_f.push() inline scripts
+              "style-src 'self' 'unsafe-inline'",   // Framer Motion: sets opacity/transform via inline style=
+              "font-src 'self'",                    // Geist/Space Grotesk self-hosted via next/font
+              "img-src 'self' data:",               // data: for any future base64 images
+              "connect-src 'self'",
+              "media-src 'none'",
+              "object-src 'none'",
+              "child-src 'none'",
+              "base-uri 'self'",
+              "form-action 'self'",
+              "frame-ancestors 'self'",             // 'self' not 'none': allows Google Rich Results Test preview iframe
+              "upgrade-insecure-requests",
+            ].join('; '),
+          },
+          contentTypeOptions: { override: true },
+          frameOptions: {
+            frameOption: cloudfront.HeadersFrameOption.SAMEORIGIN,
+            override: true,
+          },
+          referrerPolicy: {
+            referrerPolicy: cloudfront.HeadersReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN,
+            override: true,
+          },
+          strictTransportSecurity: {
+            accessControlMaxAge: cdk.Duration.seconds(63072000), // 2 years (up from 1 year in managed preset)
+            includeSubdomains: true,                             // all getinsourced.ai subdomains are HTTPS-only
+            preload: false,                                      // do not commit to preload list — near-permanent
+            override: true,
+          },
+          xssProtection: {
+            protection: true,
+            modeBlock: true,
+            override: true,
+          },
+        },
+        // Permissions-Policy must use customHeadersBehavior — not a native securityHeadersBehavior field
+        customHeadersBehavior: {
+          customHeaders: [
+            {
+              header: 'Permissions-Policy',
+              value: [
+                'camera=()',
+                'microphone=()',
+                'geolocation=()',
+                'payment=()',
+                'usb=()',
+                'magnetometer=()',
+                'accelerometer=()',
+                'gyroscope=()',
+                'display-capture=()',
+                'interest-cohort=()',
+              ].join(', '),
+              override: true,
+            },
+          ],
+        },
+      }
+    );
+
     // 7. CloudFront Distribution
     const distribution = new cloudfront.Distribution(this, 'Distribution', {
       defaultBehavior: {
@@ -83,7 +155,7 @@ export class MarketingStack extends cdk.Stack {
           function: cfFunction,
           eventType: cloudfront.FunctionEventType.VIEWER_REQUEST,
         }],
-        responseHeadersPolicy: cloudfront.ResponseHeadersPolicy.SECURITY_HEADERS,
+        responseHeadersPolicy: marketingResponseHeadersPolicy,
       },
       additionalBehaviors: {
         '_next/static/*': {
