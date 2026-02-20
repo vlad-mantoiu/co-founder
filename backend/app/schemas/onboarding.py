@@ -89,6 +89,7 @@ class OnboardingSessionResponse(BaseModel):
     """Response for an onboarding session."""
 
     id: str
+    project_id: str | None = None
     status: str
     current_question_index: int
     total_questions: int

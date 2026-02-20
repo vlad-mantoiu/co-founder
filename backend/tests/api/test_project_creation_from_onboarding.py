@@ -110,7 +110,7 @@ def test_create_project_from_completed_session(api_client: TestClient, mock_runn
     # Verify session is linked to project
     session_response = api_client.get(f"/api/onboarding/{session_id}")
     assert session_response.status_code == 200
-    # Session should now have project_id set (verified indirectly via successful creation)
+    assert session_response.json()["project_id"] == data["project_id"]
 
     # Verify project exists in projects list
     projects_response = api_client.get("/api/projects")
@@ -173,26 +173,34 @@ def test_create_project_respects_tier_limit(api_client: TestClient, mock_runner,
     """Test that create-project returns 403 when project limit reached."""
     app: FastAPI = api_client.app
 
-    # Create max projects for bootstrapper tier (1 project)
-    # First, create a project via regular route to hit the limit
+    # Create max projects for bootstrapper tier (2 projects) to hit the cap.
     app.dependency_overrides[require_auth] = override_auth(user_a)
     app.dependency_overrides[require_subscription] = override_auth(user_a)
 
-    existing_project_response = api_client.post(
-        "/api/projects", json={"name": "Existing project", "description": "First project"}
+    first_existing_project_response = api_client.post(
+        "/api/projects", json={"name": "Existing project 1", "description": "First project"}
     )
-    assert existing_project_response.status_code == 200
+    assert first_existing_project_response.status_code == 200
+    second_existing_project_response = api_client.post(
+        "/api/projects", json={"name": "Existing project 2", "description": "Second project"}
+    )
+    assert second_existing_project_response.status_code == 200
 
-    # Now complete onboarding for a second project
-    session_id = complete_onboarding_flow(api_client, user_a, "Second project idea", mock_runner)
+    # Now complete onboarding for a third project.
+    session_id = complete_onboarding_flow(api_client, user_a, "Third project idea", mock_runner)
 
     # Try to create project from onboarding (should fail - limit reached)
     create_response = api_client.post(f"/api/onboarding/{session_id}/create-project")
 
     assert create_response.status_code == 403
     detail = create_response.json()["detail"]
-    assert "limit reached" in detail.lower()
-    assert "upgrade" in detail.lower()
+    assert detail["code"] == "project_limit_reached"
+    assert "limit reached" in detail["message"].lower()
+    assert detail["active_count"] == 2
+    assert detail["max_projects"] == 2
+    assert detail["upgrade_url"] == "/billing"
+    assert detail["projects_url"] == "/projects"
+    assert len(detail["active_projects"]) == 2
 
     # Cleanup
     app.dependency_overrides.clear()
@@ -285,6 +293,27 @@ def test_resume_after_abandon_shows_no_active(api_client: TestClient, mock_runne
     assert len(in_progress_sessions) == 0
 
     # Cleanup
+    app.dependency_overrides.clear()
+
+
+def test_list_sessions_includes_project_id_when_created(api_client: TestClient, mock_runner, user_a):
+    """Completed sessions should include project_id after project creation."""
+    app: FastAPI = api_client.app
+    app.dependency_overrides[require_auth] = override_auth(user_a)
+    app.dependency_overrides[get_runner] = lambda: mock_runner
+
+    session_id = complete_onboarding_flow(api_client, user_a, "Session project link test", mock_runner)
+    create_response = api_client.post(f"/api/onboarding/{session_id}/create-project")
+    assert create_response.status_code == 200
+    project_id = create_response.json()["project_id"]
+
+    sessions_response = api_client.get("/api/onboarding/sessions")
+    assert sessions_response.status_code == 200
+    sessions = sessions_response.json()
+    matched_session = next((s for s in sessions if s["id"] == session_id), None)
+    assert matched_session is not None
+    assert matched_session["project_id"] == project_id
+
     app.dependency_overrides.clear()
 
 

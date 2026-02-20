@@ -45,9 +45,27 @@ export interface OnboardingSessionInfo {
   id: string;
   idea_text: string;
   status: string;
+  project_id?: string | null;
   current_question_index: number;
   total_questions: number;
   created_at: string;
+}
+
+export interface ProjectSummary {
+  id: string;
+  name: string;
+  status: string;
+  created_at: string;
+}
+
+export interface ProjectLimitError {
+  code: "project_limit_reached";
+  message: string;
+  active_count: number;
+  max_projects: number;
+  upgrade_url: string;
+  projects_url: string;
+  active_projects: ProjectSummary[];
 }
 
 interface OnboardingState {
@@ -61,8 +79,10 @@ interface OnboardingState {
   thesisSnapshot: ThesisSnapshot | null;
   thesisEdits: Record<string, string>;
   error: string | null;
+  projectLimitError: ProjectLimitError | null;
   isLoading: boolean;
-  activeSessions: OnboardingSessionInfo[];
+  inProgressSessions: OnboardingSessionInfo[];
+  completedWithoutProjectSessions: OnboardingSessionInfo[];
 }
 
 const INITIAL_STATE: OnboardingState = {
@@ -76,8 +96,10 @@ const INITIAL_STATE: OnboardingState = {
   thesisSnapshot: null,
   thesisEdits: {},
   error: null,
+  projectLimitError: null,
   isLoading: false,
-  activeSessions: [],
+  inProgressSessions: [],
+  completedWithoutProjectSessions: [],
 };
 
 /**
@@ -88,6 +110,17 @@ const INITIAL_STATE: OnboardingState = {
 export function useOnboarding() {
   const { getToken } = useAuth();
   const [state, setState] = useState<OnboardingState>(INITIAL_STATE);
+
+  const isProjectLimitError = (detail: unknown): detail is ProjectLimitError => {
+    if (!detail || typeof detail !== "object") return false;
+    const candidate = detail as Partial<ProjectLimitError>;
+    return (
+      candidate.code === "project_limit_reached" &&
+      typeof candidate.message === "string" &&
+      typeof candidate.active_count === "number" &&
+      typeof candidate.max_projects === "number"
+    );
+  };
 
   /**
    * Submit initial idea to start onboarding session.
@@ -104,11 +137,19 @@ export function useOnboarding() {
           phase: "expanding",
           idea: trimmed,
           error: null,
+          projectLimitError: null,
         }));
         return;
       }
 
-      setState((s) => ({ ...s, phase: "loading_question", isLoading: true, idea: trimmed, error: null }));
+      setState((s) => ({
+        ...s,
+        phase: "loading_question",
+        isLoading: true,
+        idea: trimmed,
+        error: null,
+        projectLimitError: null,
+      }));
 
       try {
         const response = await apiFetch("/api/onboarding/start", getToken, {
@@ -137,6 +178,7 @@ export function useOnboarding() {
           ...s,
           phase: "error",
           error: (err as Error).message,
+          projectLimitError: null,
           isLoading: false,
         }));
       }
@@ -148,7 +190,7 @@ export function useOnboarding() {
    * Continue with idea from "expanding" phase (even if < 10 words).
    */
   const continueAnyway = useCallback(async () => {
-    setState((s) => ({ ...s, phase: "loading_question", isLoading: true, error: null }));
+    setState((s) => ({ ...s, phase: "loading_question", isLoading: true, error: null, projectLimitError: null }));
 
     try {
       const response = await apiFetch("/api/onboarding/start", getToken, {
@@ -177,6 +219,7 @@ export function useOnboarding() {
         ...s,
         phase: "error",
         error: (err as Error).message,
+        projectLimitError: null,
         isLoading: false,
       }));
     }
@@ -188,7 +231,7 @@ export function useOnboarding() {
   const finalize = useCallback(async () => {
     if (!state.sessionId) return;
 
-    setState((s) => ({ ...s, phase: "finalizing", isLoading: true, error: null }));
+    setState((s) => ({ ...s, phase: "finalizing", isLoading: true, error: null, projectLimitError: null }));
 
     try {
       const response = await apiFetch(`/api/onboarding/${state.sessionId}/finalize`, getToken, {
@@ -212,6 +255,7 @@ export function useOnboarding() {
         ...s,
         phase: "error",
         error: (err as Error).message,
+        projectLimitError: null,
         isLoading: false,
       }));
     }
@@ -224,7 +268,7 @@ export function useOnboarding() {
     async (questionId: string, answer: string) => {
       if (!state.sessionId) return;
 
-      setState((s) => ({ ...s, isLoading: true, error: null }));
+      setState((s) => ({ ...s, isLoading: true, error: null, projectLimitError: null }));
 
       try {
         const response = await apiFetch(`/api/onboarding/${state.sessionId}/answer`, getToken, {
@@ -265,6 +309,7 @@ export function useOnboarding() {
           ...s,
           phase: "error",
           error: (err as Error).message,
+          projectLimitError: null,
           isLoading: false,
         }));
       }
@@ -318,6 +363,7 @@ export function useOnboarding() {
             ...s,
             thesisEdits: edits,
             error: (err as Error).message,
+            projectLimitError: null,
           };
         });
       }
@@ -330,7 +376,7 @@ export function useOnboarding() {
    */
   const resumeSession = useCallback(
     async (sessionId: string) => {
-      setState((s) => ({ ...s, isLoading: true, error: null }));
+      setState((s) => ({ ...s, isLoading: true, error: null, projectLimitError: null }));
 
       try {
         const response = await apiFetch(`/api/onboarding/${sessionId}`, getToken, {
@@ -363,14 +409,17 @@ export function useOnboarding() {
           thesisSnapshot: data.thesis_snapshot,
           thesisEdits: {},
           error: null,
+          projectLimitError: null,
           isLoading: false,
-          activeSessions: [],
+          inProgressSessions: [],
+          completedWithoutProjectSessions: [],
         });
       } catch (err) {
         setState((s) => ({
           ...s,
           phase: "error",
           error: (err as Error).message,
+          projectLimitError: null,
           isLoading: false,
         }));
       }
@@ -391,26 +440,51 @@ export function useOnboarding() {
 
       if (!response.ok) {
         // If error, just proceed to idea_input
-        setState((s) => ({ ...s, phase: "idea_input", isLoading: false }));
+        setState((s) => ({
+          ...s,
+          phase: "idea_input",
+          projectLimitError: null,
+          inProgressSessions: [],
+          completedWithoutProjectSessions: [],
+          isLoading: false,
+        }));
         return;
       }
 
       const sessions: OnboardingSessionInfo[] = await response.json();
       const inProgressSessions = sessions.filter((s) => s.status === "in_progress");
+      const completedWithoutProjectSessions = sessions.filter(
+        (s) => s.status === "completed" && !s.project_id,
+      );
 
-      if (inProgressSessions.length > 0) {
+      if (inProgressSessions.length > 0 || completedWithoutProjectSessions.length > 0) {
         setState((s) => ({
           ...s,
           phase: "idle",
-          activeSessions: inProgressSessions,
+          inProgressSessions,
+          completedWithoutProjectSessions,
           isLoading: false,
         }));
       } else {
-        setState((s) => ({ ...s, phase: "idea_input", isLoading: false }));
+        setState((s) => ({
+          ...s,
+          phase: "idea_input",
+          projectLimitError: null,
+          inProgressSessions: [],
+          completedWithoutProjectSessions: [],
+          isLoading: false,
+        }));
       }
     } catch {
       // On error, just go to idea_input
-      setState((s) => ({ ...s, phase: "idea_input", isLoading: false }));
+      setState((s) => ({
+        ...s,
+        phase: "idea_input",
+        projectLimitError: null,
+        inProgressSessions: [],
+        completedWithoutProjectSessions: [],
+        isLoading: false,
+      }));
     }
   }, [getToken]);
 
@@ -418,7 +492,14 @@ export function useOnboarding() {
    * Start fresh onboarding (skip active sessions).
    */
   const startFresh = useCallback(() => {
-    setState((s) => ({ ...s, phase: "idea_input", activeSessions: [] }));
+    setState((s) => ({
+      ...s,
+      phase: "idea_input",
+      error: null,
+      projectLimitError: null,
+      inProgressSessions: [],
+      completedWithoutProjectSessions: [],
+    }));
   }, []);
 
   /**
@@ -427,7 +508,7 @@ export function useOnboarding() {
   const createProject = useCallback(async () => {
     if (!state.sessionId) return;
 
-    setState((s) => ({ ...s, isLoading: true, error: null }));
+    setState((s) => ({ ...s, isLoading: true, error: null, projectLimitError: null }));
 
     try {
       const response = await apiFetch(`/api/onboarding/${state.sessionId}/create-project`, getToken, {
@@ -435,20 +516,31 @@ export function useOnboarding() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({}));
+        const detail = errorData?.detail;
 
         // Handle project limit error (403)
-        if (response.status === 403) {
+        if (response.status === 403 && isProjectLimitError(detail)) {
           setState((s) => ({
             ...s,
             phase: "error",
-            error: errorData.detail || "Project limit reached. Upgrade to create more projects.",
+            error: detail.message,
+            projectLimitError: detail,
             isLoading: false,
           }));
           return;
         }
 
-        throw new Error(errorData.detail || `API error: ${response.status}`);
+        const detailMessage =
+          typeof detail === "string"
+            ? detail
+            : typeof detail === "object" &&
+                detail !== null &&
+                "message" in detail &&
+                typeof (detail as { message?: unknown }).message === "string"
+              ? (detail as { message: string }).message
+              : `API error: ${response.status}`;
+        throw new Error(detailMessage);
       }
 
       const data = await response.json();
@@ -478,6 +570,7 @@ export function useOnboarding() {
         ...s,
         phase: "error",
         error: (err as Error).message,
+        projectLimitError: null,
         isLoading: false,
       }));
     }

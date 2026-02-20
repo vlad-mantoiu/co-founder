@@ -325,14 +325,13 @@ class OnboardingService:
             return onboarding_session
 
     async def create_project_from_session(
-        self, user_id: str, session_id: str, tier_slug: str
+        self, user_id: str, session_id: str
     ) -> tuple[OnboardingSession, Project]:
         """Create a Project from a completed onboarding session.
 
         Args:
             user_id: Clerk user ID
             session_id: Onboarding session UUID
-            tier_slug: User's plan tier (for project limit checks)
 
         Returns:
             Tuple of (updated OnboardingSession, new Project)
@@ -369,25 +368,58 @@ class OnboardingService:
                     detail="Project already created from this session.",
                 )
 
-            # Check project limit for user's tier (read from DB)
-            tier_result = await session.execute(select(PlanTier).where(PlanTier.slug == tier_slug))
-            tier = tier_result.scalar_one()
-            max_projects = tier.max_projects
+            # Check project limit from effective user settings (override or plan tier default).
+            settings_result = await session.execute(
+                select(UserSettings, PlanTier)
+                .join(PlanTier, UserSettings.plan_tier_id == PlanTier.id)
+                .where(UserSettings.clerk_user_id == user_id)
+            )
+            settings_row = settings_result.one_or_none()
+            if settings_row is None:
+                raise HTTPException(status_code=404, detail="User settings not found")
+
+            user_settings, plan_tier = settings_row._tuple()
+            max_projects = (
+                user_settings.override_max_projects
+                if user_settings.override_max_projects is not None
+                else plan_tier.max_projects
+            )
 
             if max_projects != -1:
-                # Count active projects for user
+                # Fetch active projects so we can return actionable context on limit errors.
                 result = await session.execute(
-                    select(func.count(Project.id)).where(
+                    select(Project).where(
                         Project.clerk_user_id == user_id,
                         Project.status == "active",
                     )
+                    .order_by(Project.created_at.desc())
                 )
-                active_count = result.scalar() or 0
+                active_projects = list(result.scalars().all())
+                active_count = len(active_projects)
 
                 if active_count >= max_projects:
                     raise HTTPException(
                         status_code=403,
-                        detail=f"Project limit reached ({active_count}/{max_projects}). Upgrade your plan to create more projects.",
+                        detail={
+                            "code": "project_limit_reached",
+                            "message": (
+                                f"Project limit reached ({active_count}/{max_projects}). "
+                                "Abandon a project or upgrade to continue."
+                            ),
+                            "active_count": active_count,
+                            "max_projects": max_projects,
+                            "upgrade_url": "/billing",
+                            "projects_url": "/projects",
+                            "active_projects": [
+                                {
+                                    "id": str(project.id),
+                                    "name": project.name,
+                                    "status": project.status,
+                                    "created_at": project.created_at.isoformat(),
+                                }
+                                for project in active_projects
+                            ],
+                        },
                     )
 
             # Create Project from idea_text
@@ -415,11 +447,7 @@ class OnboardingService:
             flag_modified(onboarding_session, "project_id")
 
             # Mark onboarding complete at user level for first-time funnel routing.
-            settings_result = await session.execute(
-                select(UserSettings).where(UserSettings.clerk_user_id == user_id)
-            )
-            user_settings = settings_result.scalar_one_or_none()
-            if user_settings is not None and not user_settings.onboarding_completed:
+            if not user_settings.onboarding_completed:
                 user_settings.onboarding_completed = True
 
             await session.commit()

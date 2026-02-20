@@ -97,6 +97,7 @@ export default function ProjectsPage() {
   const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchProjects() {
@@ -114,6 +115,26 @@ export default function ProjectsPage() {
     }
     fetchProjects();
   }, [getToken]);
+
+  async function handleAbandonProject(projectId: string) {
+    const confirmed = window.confirm(
+      "Abandon this project? You can restore flow by starting or resuming onboarding after this.",
+    );
+    if (!confirmed) return;
+
+    setDeletingProjectId(projectId);
+    try {
+      const response = await apiFetch(`/api/projects/${projectId}`, getToken, {
+        method: "DELETE",
+      });
+      if (!response.ok) return;
+
+      setProjects((prev) => prev.filter((project) => project.id !== projectId));
+      router.push("/onboarding");
+    } finally {
+      setDeletingProjectId(null);
+    }
+  }
 
   if (!loaded) {
     return (
@@ -177,73 +198,84 @@ export default function ProjectsPage() {
           {projects.map((project) => {
             const state = getProjectState(project);
             return (
-              <Link key={project.id} href={state.route}>
-                <GlassCard
-                  variant="strong"
-                  className="group hover:ring-1 hover:ring-brand/30 transition-all cursor-pointer h-full"
-                >
-                  {/* Name + state badge */}
-                  <div className="flex items-start justify-between gap-3">
-                    <h3 className="font-display font-semibold text-white group-hover:text-brand transition-colors">
-                      {project.name}
-                    </h3>
-                    <span
-                      className={`flex-shrink-0 px-2.5 py-1 text-xs rounded-full font-medium ${state.color}`}
-                    >
-                      {state.label}
-                    </span>
-                  </div>
+              <GlassCard
+                key={project.id}
+                variant="strong"
+                className="group hover:ring-1 hover:ring-brand/30 transition-all h-full"
+              >
+                {/* Name + state badge */}
+                <div className="flex items-start justify-between gap-3">
+                  <h3 className="font-display font-semibold text-white group-hover:text-brand transition-colors">
+                    {project.name}
+                  </h3>
+                  <span
+                    className={`flex-shrink-0 px-2.5 py-1 text-xs rounded-full font-medium ${state.color}`}
+                  >
+                    {state.label}
+                  </span>
+                </div>
 
-                  {/* Description */}
-                  {project.description && (
-                    <p className="text-sm text-muted-foreground mt-1.5 line-clamp-2">
-                      {project.description}
-                    </p>
-                  )}
+                {/* Description */}
+                {project.description && (
+                  <p className="text-sm text-muted-foreground mt-1.5 line-clamp-2">
+                    {project.description}
+                  </p>
+                )}
 
-                  {/* Stage progress dots */}
-                  <div className="mt-4 flex items-center gap-1.5">
-                    {stageLabels.map((label, i) => (
-                      <div key={label} className="flex items-center gap-1.5">
+                {/* Stage progress dots */}
+                <div className="mt-4 flex items-center gap-1.5">
+                  {stageLabels.map((label, i) => (
+                    <div key={label} className="flex items-center gap-1.5">
+                      <div
+                        className={`w-2.5 h-2.5 rounded-full transition-colors ${
+                          i < state.stageIndex
+                            ? "bg-neon-green"
+                            : i === state.stageIndex
+                              ? "bg-brand"
+                              : "bg-white/10"
+                        }`}
+                        title={label}
+                      />
+                      {i < stageLabels.length - 1 && (
                         <div
-                          className={`w-2.5 h-2.5 rounded-full transition-colors ${
+                          className={`w-6 h-0.5 ${
                             i < state.stageIndex
-                              ? "bg-neon-green"
-                              : i === state.stageIndex
-                                ? "bg-brand"
-                                : "bg-white/10"
+                              ? "bg-neon-green/40"
+                              : "bg-white/5"
                           }`}
-                          title={label}
                         />
-                        {i < stageLabels.length - 1 && (
-                          <div
-                            className={`w-6 h-0.5 ${
-                              i < state.stageIndex
-                                ? "bg-neon-green/40"
-                                : "bg-white/5"
-                            }`}
-                          />
-                        )}
-                      </div>
-                    ))}
-                    <span className="ml-2 text-xs text-muted-foreground">
-                      {stageLabels[state.stageIndex]}
-                    </span>
-                  </div>
+                      )}
+                    </div>
+                  ))}
+                  <span className="ml-2 text-xs text-muted-foreground">
+                    {stageLabels[state.stageIndex]}
+                  </span>
+                </div>
 
-                  {/* Footer: date + next action */}
-                  <div className="mt-4 flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">
-                      Created{" "}
-                      {new Date(project.created_at).toLocaleDateString()}
-                    </span>
-                    <span className="inline-flex items-center gap-1 text-xs font-medium text-brand group-hover:underline">
+                {/* Footer: date + actions */}
+                <div className="mt-4 flex items-center justify-between gap-3">
+                  <span className="text-xs text-muted-foreground">
+                    Created{" "}
+                    {new Date(project.created_at).toLocaleDateString()}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleAbandonProject(project.id)}
+                      disabled={deletingProjectId === project.id}
+                      className="inline-flex items-center gap-1 text-xs font-medium text-amber-400 hover:text-amber-300 transition-colors disabled:opacity-60"
+                    >
+                      {deletingProjectId === project.id ? "Abandoning..." : "Abandon"}
+                    </button>
+                    <Link
+                      href={state.route}
+                      className="inline-flex items-center gap-1 text-xs font-medium text-brand hover:underline"
+                    >
                       {state.action}
                       <ArrowRight className="w-3.5 h-3.5" />
-                    </span>
+                    </Link>
                   </div>
-                </GlassCard>
-              </Link>
+                </div>
+              </GlassCard>
             );
           })}
         </div>

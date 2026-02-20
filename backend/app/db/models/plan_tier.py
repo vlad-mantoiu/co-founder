@@ -18,7 +18,7 @@ class PlanTier(Base):
     price_yearly_cents = Column(Integer, nullable=False, default=0)
 
     # Limits (-1 = unlimited)
-    max_projects = Column(Integer, nullable=False, default=1)
+    max_projects = Column(Integer, nullable=False, default=2)
     max_sessions_per_day = Column(Integer, nullable=False, default=10)
     max_tokens_per_day = Column(Integer, nullable=False, default=500_000)
 

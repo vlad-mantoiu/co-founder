@@ -88,6 +88,7 @@ async def start_onboarding(
         # Convert to response
         return OnboardingSessionResponse(
             id=str(session.id),
+            project_id=str(session.project_id) if session.project_id else None,
             status=session.status,
             current_question_index=session.current_question_index,
             total_questions=session.total_questions,
@@ -140,6 +141,7 @@ async def submit_answer(
 
     return OnboardingSessionResponse(
         id=str(session.id),
+        project_id=str(session.project_id) if session.project_id else None,
         status=session.status,
         current_question_index=session.current_question_index,
         total_questions=session.total_questions,
@@ -171,6 +173,7 @@ async def list_sessions(
     return [
         OnboardingSessionResponse(
             id=str(s.id),
+            project_id=str(s.project_id) if s.project_id else None,
             status=s.status,
             current_question_index=s.current_question_index,
             total_questions=s.total_questions,
@@ -235,6 +238,7 @@ async def get_session_by_project(
 
     return OnboardingSessionResponse(
         id=str(onboarding.id),
+        project_id=str(onboarding.project_id) if onboarding.project_id else None,
         status=onboarding.status,
         current_question_index=onboarding.current_question_index,
         total_questions=onboarding.total_questions,
@@ -270,6 +274,7 @@ async def get_session(
 
     return OnboardingSessionResponse(
         id=str(session.id),
+        project_id=str(session.project_id) if session.project_id else None,
         status=session.status,
         current_question_index=session.current_question_index,
         total_questions=session.total_questions,
@@ -311,6 +316,7 @@ async def finalize_session(
 
         return OnboardingSessionResponse(
             id=str(session.id),
+            project_id=str(session.project_id) if session.project_id else None,
             status=session.status,
             current_question_index=session.current_question_index,
             total_questions=session.total_questions,
@@ -362,6 +368,7 @@ async def edit_thesis_field(
 
     return OnboardingSessionResponse(
         id=str(session.id),
+        project_id=str(session.project_id) if session.project_id else None,
         status=session.status,
         current_question_index=session.current_question_index,
         total_questions=session.total_questions,
@@ -427,13 +434,9 @@ async def create_project_from_session(
         HTTPException(400): If session not completed or project already created
         HTTPException(403): If user has reached tier project limit
     """
-    # Get user's tier
-    user_settings = await get_or_create_user_settings(user.user_id)
-    tier_slug = user_settings.plan_tier.slug
-
     session_factory = get_session_factory()
     service = OnboardingService(runner, session_factory)
-    onboarding_session, project = await service.create_project_from_session(user.user_id, session_id, tier_slug)
+    _, project = await service.create_project_from_session(user.user_id, session_id)
 
     return CreateProjectResponse(
         project_id=str(project.id),

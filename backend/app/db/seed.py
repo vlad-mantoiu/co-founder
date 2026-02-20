@@ -11,7 +11,7 @@ PLAN_TIERS = [
         "name": "Bootstrapper",
         "price_monthly_cents": 9900,
         "price_yearly_cents": 94800,
-        "max_projects": 3,
+        "max_projects": 2,
         "max_sessions_per_day": 10,
         "max_tokens_per_day": 500_000,
         "default_models": {

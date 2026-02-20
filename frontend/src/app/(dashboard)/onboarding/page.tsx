@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import Link from "next/link";
 import { useOnboarding } from "@/hooks/useOnboarding";
 import { IdeaInput } from "@/components/onboarding/IdeaInput";
 import { ConversationalQuestion } from "@/components/onboarding/ConversationalQuestion";
@@ -39,8 +40,14 @@ export default function OnboardingPage() {
     fetchActiveSessions();
   }, [fetchActiveSessions]);
 
-  // Welcome back screen (active sessions)
-  if (state.phase === "idle" && state.activeSessions.length > 0) {
+  // Welcome back screen (resumable sessions)
+  if (
+    state.phase === "idle" &&
+    (state.inProgressSessions.length > 0 || state.completedWithoutProjectSessions.length > 0)
+  ) {
+    const resumableCount =
+      state.inProgressSessions.length + state.completedWithoutProjectSessions.length;
+
     return (
       <div className="flex flex-col items-center justify-center min-h-screen px-4 py-8">
         <div className="w-full max-w-2xl space-y-6">
@@ -49,12 +56,12 @@ export default function OnboardingPage() {
               Welcome Back
             </h2>
             <p className="text-muted-foreground">
-              You have {state.activeSessions.length} onboarding session{state.activeSessions.length > 1 ? "s" : ""} in progress
+              You have {resumableCount} onboarding session{resumableCount > 1 ? "s" : ""} to continue
             </p>
           </div>
 
           <div className="space-y-4">
-            {state.activeSessions.map((session) => {
+            {state.inProgressSessions.map((session) => {
               const progress = Math.round((session.current_question_index / session.total_questions) * 100);
               const ideaPreview = session.idea_text.length > 100
                 ? session.idea_text.substring(0, 100) + "..."
@@ -70,7 +77,7 @@ export default function OnboardingPage() {
                   <div className="space-y-2">
                     <p className="text-white font-medium">{ideaPreview}</p>
                     <p className="text-sm text-muted-foreground">
-                      {session.current_question_index} of {session.total_questions} questions answered • Started {relativeTime}
+                      In progress: {session.current_question_index} of {session.total_questions} questions answered • Started {relativeTime}
                     </p>
                   </div>
 
@@ -80,6 +87,37 @@ export default function OnboardingPage() {
                       className="flex-1 px-4 py-2 bg-brand hover:bg-brand/90 text-white font-medium rounded-lg transition-colors"
                     >
                       Continue ({progress}%)
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+
+            {state.completedWithoutProjectSessions.map((session) => {
+              const ideaPreview = session.idea_text.length > 100
+                ? session.idea_text.substring(0, 100) + "..."
+                : session.idea_text;
+              const createdAt = new Date(session.created_at);
+              const relativeTime = formatRelativeTime(createdAt);
+
+              return (
+                <div
+                  key={session.id}
+                  className="p-6 bg-brand/10 border border-brand/30 rounded-xl space-y-4"
+                >
+                  <div className="space-y-2">
+                    <p className="text-white font-medium">{ideaPreview}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Completed onboarding with no project yet • Started {relativeTime}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => resumeSession(session.id)}
+                      className="flex-1 px-4 py-2 bg-brand hover:bg-brand/90 text-white font-medium rounded-lg transition-colors"
+                    >
+                      Review Snapshot &amp; Create Project
                     </button>
                   </div>
                 </div>
@@ -102,6 +140,68 @@ export default function OnboardingPage() {
 
   // Error state
   if (state.phase === "error") {
+    if (state.projectLimitError) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-screen px-4 py-8">
+          <div className="w-full max-w-2xl space-y-6">
+            <div className="space-y-3 text-center">
+              <h2 className="text-2xl font-display font-bold text-white">
+                Project limit reached
+              </h2>
+              <p className="text-muted-foreground">
+                {state.projectLimitError.message}
+              </p>
+            </div>
+
+            {state.projectLimitError.active_projects.length > 0 ? (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground text-center">
+                  Resume one of your active projects or abandon one to continue onboarding.
+                </p>
+                {state.projectLimitError.active_projects.map((project) => (
+                  <Link
+                    key={project.id}
+                    href={`/projects/${project.id}`}
+                    className="block p-4 bg-white/5 border border-white/10 rounded-xl hover:border-brand/40 transition-colors"
+                  >
+                    <p className="text-white font-medium">{project.name}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {project.status} • Created {new Date(project.created_at).toLocaleDateString()}
+                    </p>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center">
+                No active projects were returned. Open your projects list to manage limits.
+              </p>
+            )}
+
+            <div className="grid sm:grid-cols-3 gap-3">
+              <Link
+                href={state.projectLimitError.projects_url || "/projects"}
+                className="px-4 py-3 rounded-xl bg-white/10 hover:bg-white/15 text-white text-center font-medium transition-colors"
+              >
+                Go to Projects
+              </Link>
+              <Link
+                href={state.projectLimitError.upgrade_url || "/billing"}
+                className="px-4 py-3 rounded-xl bg-brand hover:bg-brand/90 text-white text-center font-medium transition-colors"
+              >
+                Upgrade Plan
+              </Link>
+              <button
+                onClick={startFresh}
+                className="px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-white font-medium transition-colors"
+              >
+                Start Fresh
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="flex flex-col items-center justify-center min-h-screen px-4">
         <div className="w-full max-w-md space-y-6 text-center">
