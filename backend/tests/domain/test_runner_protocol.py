@@ -61,6 +61,24 @@ def test_runner_is_runtime_checkable():
         async def generate_execution_options(self, brief: dict, feedback: str | None = None) -> dict:
             return {"options": [], "recommended_id": ""}
 
+        async def generate_strategy_graph(self, idea: str, brief: dict, onboarding_answers: dict) -> dict:
+            return {"nodes": [], "edges": [], "anchor_phrases": []}
+
+        async def generate_mvp_timeline(self, idea: str, brief: dict, tier: str) -> dict:
+            return {"milestones": [], "long_term_roadmap": [], "total_mvp_weeks": 8, "adapted_for": tier}
+
+        async def generate_app_architecture(self, idea: str, brief: dict, tier: str) -> dict:
+            return {
+                "components": [],
+                "connections": [],
+                "cost_estimate": {
+                    "startup_monthly": 0,
+                    "scale_monthly": 0,
+                    "breakdown": [],
+                },
+                "integration_recommendations": [],
+            }
+
     complete = CompleteRunner()
     # If runtime_checkable is working, isinstance should return True
     assert isinstance(complete, Runner), "Runner protocol must support isinstance checks (runtime_checkable)"
