@@ -33,6 +33,7 @@ Progress: [█████████████████░░░░░░
 
 *Updated after each plan completion*
 | Phase 22.1 P04 | 2 | 2 tasks | 2 files |
+| Phase 22.1 P03 | 2 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -59,6 +60,8 @@ Recent decisions affecting current work:
 - [22.1-01]: RunnerFake tier adaptation — bootstrapper MVP Timeline starts with 2-week no-code validation sprint, managed services (Render/Clerk/Resend) over AWS
 - [Phase 22.1]: Expand/collapse toggle per card (locked): each component card defaults to simplified view; 'Show technical detail' reveals alternatives chips and technical notes
 - [Phase 22.1]: Dual-mode architecture page: fetch artifact on mount always, session mode takes priority when ?session= param present, empty state links to Understanding Interview
+- [Phase 22.1]: Dual-mode page pattern: fetch artifact first, fallback to system data (Neo4j/Kanban) — no tab switching UI needed
+- [Phase 22.1]: Anchor nodes rendered 1.5x larger in force graph; anchor_phrases shown as amber pill tags above graph for 'this AI gets my idea' signal
 
 ### Pending Todos
 
