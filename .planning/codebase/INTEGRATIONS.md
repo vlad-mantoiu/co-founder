@@ -1,179 +1,200 @@
 # External Integrations
 
-**Analysis Date:** 2026-02-16
+**Analysis Date:** 2026-02-20
 
 ## APIs & External Services
 
-**Anthropic Claude API:**
-- LLM reasoning engine for all agent roles (Architect, Coder, Debugger, Reviewer)
-- SDK: `langchain-anthropic 0.3.0+`, `anthropic 0.40.0+`
-- Auth: `ANTHROPIC_API_KEY` (env var)
-- Models used: claude-opus-4-20250514 (architect/reviewer), claude-sonnet-4-20250514 (coder/debugger)
-- Configured at `backend/app/core/config.py` (line 60-63)
+**LLM & Code Generation:**
+- **Anthropic Claude API** - LLM backbone for AI Co-Founder
+  - SDK: `anthropic` (0.40+)
+  - Auth: `ANTHROPIC_API_KEY`
+  - Models configured: Claude Opus 4.20250514 (Architect/Reviewer), Claude Sonnet 4.20250514 (Coder/Debugger)
+  - Implementation: `backend/app/core/llm_config.py` (LangChain integration)
 
-**GitHub API v2022-11-28:**
-- Repository cloning, branch creation, file commits, pull request management
-- Client: Custom `GitHubClient` at `backend/app/integrations/github.py`
-- Auth: GitHub App (JWT + installation access tokens)
-- Credentials: `GITHUB_APP_ID`, `GITHUB_PRIVATE_KEY` (env vars)
-- Base URL: `https://api.github.com`
-- Supports: create branches, commit multiple files, open/merge PRs, add comments
+**Code Sandbox & Execution:**
+- **E2B Cloud** - Secure, isolated code execution environment
+  - SDK: `e2b-code-interpreter` (1.0.0+)
+  - Auth: `E2B_API_KEY`
+  - Implementation: `backend/app/sandbox/e2b_runtime.py`
+  - Fallback: Local execution when E2B not configured (for dev/demo)
+  - Supports templates: "base", "python", "node"
 
-**E2B Sandbox API:**
-- Secure code execution environment for running tests and build commands
-- SDK: `e2b-code-interpreter 1.0.0+`
-- Auth: `E2B_API_KEY` (env var)
-- Runtime: `E2BSandboxRuntime` class at `backend/app/sandbox/e2b_runtime.py`
-- Templates supported: "base", "python", "node"
-- Provides: file I/O, shell execution, background process management
+**Version Control:**
+- **GitHub API** - Repository management and pull requests
+  - Client: Custom `GitHubClient` in `backend/app/integrations/github.py`
+  - Auth: GitHub App (JWT-based with installation tokens)
+  - Required env vars: `GITHUB_APP_ID`, `GITHUB_PRIVATE_KEY`
+  - Capabilities: Clone repos, manage branches, commit code, create PRs, push changes
 
-**Stripe Payment API:**
-- Billing, subscriptions, pricing tiers, customer portal
-- SDK: `stripe 11.0.0+`
-- Auth: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (env vars)
-- Routes: `backend/app/api/routes/billing.py` (checkout, portal, webhooks, status)
-- Price IDs: Configured per plan/interval (bootstrapper, partner, cto_scale × monthly/annual)
-- Webhook endpoint: POST `/api/billing/webhooks/stripe` (signature verification required)
-
-**Mem0 Semantic Memory API:**
-- User preference extraction and personalization memory
-- SDK: `mem0ai 0.1.0+`
-- Auth: Uses Anthropic key internally
-- Client: `SemanticMemory` at `backend/app/memory/mem0_client.py`
-- Features: add memories, search, get_all, delete, update, inject into prompts
-- Uses: Stores facts like "User prefers TypeScript", injected into agent prompts
+**Memory & Context:**
+- **Mem0 AI** - Memory management for agent state
+  - SDK: `mem0ai` (0.1.0+)
+  - Purpose: Persistent memory of project context and decisions
+  - Implementation: Integrated in backend (see `backend/app` for usage)
 
 ## Data Storage
 
 **Databases:**
-- **PostgreSQL 16.4 (RDS)**
-  - Connection: `DATABASE_URL` env var (postgresql+asyncpg://cofounder:password@endpoint:5432/cofounder)
-  - Client: SQLAlchemy AsyncEngine at `backend/app/db/base.py`
-  - Tables: user_settings, usage_log, plan_tier, project
-  - Migrations: Alembic at `backend/app/db/migrations/`
-  - Seeding: `backend/app/db/seed.py` (populates plan tiers on startup)
+- **PostgreSQL** 16 (primary)
+  - Connection: `DATABASE_URL` (asyncpg driver for backend)
+  - Client: `sqlalchemy` ORM with async support
+  - Schema: Managed by `alembic` migrations in `backend/alembic/`
+  - Hosted: AWS RDS (production), Docker container (local dev)
+  - Contains: Users, projects, artifacts, execution logs, billing records
 
-- **Redis (ElastiCache)**
-  - Connection: `REDIS_URL` env var (redis://endpoint:6379)
-  - Client: redis.asyncio at `backend/app/db/redis.py`
-  - Purpose: Session caching, rate limiting, background queues
+- **Redis** 7 (cache/queue)
+  - Connection: `REDIS_URL`
+  - Client: `redis` Python library (async support)
+  - Purpose: Session cache, job queue, distributed locks
+  - Hosted: AWS ElastiCache (production), Docker container (local dev)
+  - Used by: Core locking (`backend/app/core/locking.py`), job queue, rate limiting
 
-- **Neo4j Aura (Graph Database)**
-  - Connection: `NEO4J_URI`, `NEO4J_PASSWORD` env vars
-  - Client: neo4j async driver at `backend/app/memory/knowledge_graph.py`
-  - Purpose: Code structure, function/class relationships, import graph analysis
+- **Neo4j** 5 (optional graph database)
+  - Connection: `NEO4J_URI`, `NEO4J_PASSWORD`
+  - Client: `neo4j` Python driver
+  - Purpose: Knowledge graph of project dependencies (optional feature flag)
+  - Hosted: Docker container (local dev only, not in production stack)
+  - Status: Integrated but optional (`feature_flags.strategy_graph`)
 
 **File Storage:**
-- Local filesystem within E2B sandbox (temporary per execution)
-- No persistent external blob storage (S3) in current stack
+- **AWS S3** - Static marketing site assets and generated artifacts
+  - SDK: `boto3`
+  - Buckets:
+    - `getinsourced-marketing` - Marketing site static export (CloudFront CDN)
+  - Implementation: CI/CD pipeline syncs build output in `deploy-marketing.yml`
 
 **Caching:**
-- Redis (as above) for session/request caching
+- **AWS ElastiCache (Redis)** - Production cache layer
+- **Redis** - Local development caching (Docker)
 
 ## Authentication & Identity
 
-**Auth Provider:** Clerk (https://clerk.dev)
-- Frontend SDK: `@clerk/nextjs 6.0.0+` at `frontend/src/middleware.ts`
-- Backend JWT verification: PyJWT at `backend/app/core/auth.py`
-- Public key endpoint: JWKS at `https://{clerk_domain}/.well-known/jwks.json`
-- Credentials: `CLERK_SECRET_KEY`, `CLERK_PUBLISHABLE_KEY` (env vars)
-- Configuration at `backend/app/core/config.py` (line 39-47)
-- Allowed origins: localhost:3000, cofounder.getinsourced.ai, getinsourced.ai, www.getinsourced.ai
+**Primary Auth Provider:**
+- **Clerk** - User authentication and session management
+  - Frontend SDK: `@clerk/nextjs` (6.0.0)
+  - Backend integration: Custom JWT verification in `backend/app/core/auth.py`
+  - Required env vars: `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
+  - Allowed Origins: `localhost:3000`, `cofounder.getinsourced.ai`, `getinsourced.ai`, `www.getinsourced.ai`
+  - Frontend routes: Sign-in, sign-up, user dashboard
+  - JWT verification: Backend validates Clerk JWTs via JWKS endpoint
+  - Session caching: In-memory provisioning cache to minimize DB queries
 
-**Auth Middleware:**
-- Frontend: Clerk middleware in `middleware.ts` (protects non-public routes)
-- Backend: `require_auth()` dependency at `backend/app/core/auth.py:93-116` validates JWT
-- Admin checks: `require_admin()` via Clerk JWT claim or database flag
-- Subscription checks: `require_subscription()` verifies Stripe subscription status
+**JWT Token Handling:**
+- `PyJWT` (2.8+) and `jwt` library - Token parsing and validation
+- `cryptography` (42.0+) - Key cryptographic operations
 
 ## Monitoring & Observability
 
-**Error Tracking:** Not detected
+**Error Tracking & Logs:**
+- **AWS CloudWatch** - Metrics and dashboards (production)
+  - SDK: `boto3` with CloudWatch API
+  - Implementation: `backend/app/metrics/cloudwatch.py`
+  - Metrics: Custom application metrics via `put_metric_data`
 
-**Logs:**
-- Backend: Python logging to CloudWatch via ECS task definition (log group: `/aws/ecs/cofounder-backend`)
-- Retention: 1 week (configured in `infra/lib/compute-stack.ts`)
+**Structured Logging:**
+- **structlog** (25.0+) - JSON structured logging for production
+  - Configuration: `backend/app/core/logging.py`
+  - Format: JSON in production, human-readable in development
+  - Correlation IDs: Via `asgi-correlation-id` middleware
+
+**Correlation Tracking:**
+- `asgi-correlation-id` (4.3.0+) - Request tracing across services
+  - Middleware: `backend/app/middleware/correlation.py`
 
 ## CI/CD & Deployment
 
 **Hosting:**
-- AWS ECS Fargate (linux/amd64)
-  - Frontend: ALB + Fargate service at port 3000
-  - Backend: ALB + Fargate service at port 8000
-  - Health check: `GET /api/health` (backend)
+- **AWS ECS Fargate** - Container orchestration for backend
+- **AWS S3 + CloudFront** - Static hosting for marketing site
+- **AWS ALB** - Load balancing for backend services
 
-**CI Pipeline:**
-- Manual deployment via `scripts/deploy.sh`
-- Process: Docker build (amd64), ECR push, CDK deploy, ECS force update
-- GitHub Actions (defined in `.github/workflows/`) but not seen to auto-trigger
+**Deployment Pipelines:**
+- **GitHub Actions** - Automated CI/CD workflows
+  - `.github/workflows/test.yml` - Runs on PR/push (unit/integration tests)
+  - `.github/workflows/deploy.yml` - Production deployment (backend + frontend)
+  - `.github/workflows/deploy-marketing.yml` - Marketing site deployment (path-filtered, triggers on `marketing/**` changes)
+
+**AWS Authentication:**
+- **OIDC Provider** - Keyless GitHub Actions authentication to AWS
+  - Stack: `github-deploy-stack.ts` (CDK)
+  - Configuration: Stored in GitHub Secrets (`AWS_DEPLOY_ROLE_ARN`)
 
 **Infrastructure as Code:**
-- AWS CDK (TypeScript 2.170.0+)
-- Stacks: CoFounderDns, CoFounderNetwork, CoFounderDatabase, CoFounderCompute
-- Secrets: AWS Secrets Manager (`cofounder/app`, `cofounder/database`)
+- **AWS CDK** (TypeScript) - All infrastructure defined in `infra/lib/`
+  - Stacks: DNS, VPC, RDS, ECS, Marketing (S3+CloudFront), Observability
 
 ## Environment Configuration
 
-**Required env vars (production in AWS Secrets Manager):**
-```
-ANTHROPIC_API_KEY=sk-ant-...
-CLERK_SECRET_KEY=sk_live_...
-CLERK_PUBLISHABLE_KEY=pk_live_...
-E2B_API_KEY=...
-DATABASE_URL=postgresql+asyncpg://cofounder:password@rds-endpoint:5432/cofounder
-REDIS_URL=redis://elasticache-endpoint:6379
-GITHUB_APP_ID=123456
-GITHUB_PRIVATE_KEY=-----BEGIN RSA PRIVATE KEY-----...
-NEO4J_URI=neo4j+s://aura-endpoint
-NEO4J_PASSWORD=...
-STRIPE_SECRET_KEY=sk_live_...
-STRIPE_WEBHOOK_SECRET=whsec_...
-STRIPE_PRICE_BOOTSTRAPPER_MONTHLY=price_...
-STRIPE_PRICE_BOOTSTRAPPER_ANNUAL=price_...
-STRIPE_PRICE_PARTNER_MONTHLY=price_...
-STRIPE_PRICE_PARTNER_ANNUAL=price_...
-STRIPE_PRICE_CTO_MONTHLY=price_...
-STRIPE_PRICE_CTO_ANNUAL=price_...
-```
+**Required Environment Variables:**
 
-**Secrets location:**
-- Production: AWS Secrets Manager `cofounder/app` (auto-injected by ECS task role)
-- Development: `.env` file (loaded by Pydantic settings at runtime)
+**Anthropic:**
+- `ANTHROPIC_API_KEY` - Claude API key for LLM operations
+
+**Clerk Auth:**
+- `CLERK_SECRET_KEY` - Backend secret
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` - Frontend public key
+
+**Database:**
+- `DATABASE_URL` - PostgreSQL connection string
+- `REDIS_URL` - Redis connection string
+- `NEO4J_URI` - Neo4j connection (optional)
+- `NEO4J_PASSWORD` - Neo4j password (optional)
+
+**E2B Sandbox:**
+- `E2B_API_KEY` - Code execution API key
+
+**GitHub:**
+- `GITHUB_APP_ID` - GitHub App ID
+- `GITHUB_PRIVATE_KEY` - GitHub App private key (PEM format)
+
+**Stripe (Payments):**
+- `STRIPE_SECRET_KEY` - API key for backend operations
+- `STRIPE_WEBHOOK_SECRET` - Webhook signature verification
+- `STRIPE_PRICE_*` - Price IDs for subscription tiers (bootstrapper, partner, cto × monthly/annual)
+
+**App URLs:**
+- `BACKEND_URL` - Backend API origin (for CORS)
+- `FRONTEND_URL` - Frontend origin (for redirects)
+- `NEXT_PUBLIC_BACKEND_URL` - Backend URL exposed to frontend
+
+**Secrets Location:**
+- AWS Secrets Manager (production):
+  - `cofounder/app` - Application keys (API keys, Stripe, etc.)
+  - `cofounder/database` - RDS credentials
+- `.env` file (local development) - Git-ignored, never committed
 
 ## Webhooks & Callbacks
 
 **Incoming Webhooks:**
-- Stripe webhook at `POST /api/billing/webhooks/stripe` (signature verification required)
-  - Events: subscription created/updated/deleted, customer.subscription.* events
-  - Endpoint: `backend/app/api/routes/billing.py`
+- **Stripe Webhook Endpoint** - `/api/webhooks/stripe`
+  - Purpose: Process subscription events (created, updated, deleted, payment failed)
+  - Implementation: `backend/app/api/routes/billing.py` (line 311+)
+  - Signature Verification: Via `STRIPE_WEBHOOK_SECRET`
+  - Events handled: customer.subscription.*, invoice.payment_action_required
 
 **Outgoing Webhooks:**
-- None detected in current codebase
+- None currently implemented
+- GitHub integration uses polling/API calls, not webhooks
+- Future: Webhook support for third-party integrations
 
-## Cross-Origin Configuration
+**GitHub Integrations (Polling-based):**
+- Repository status checks
+- Commit status tracking
+- PR creation and updates
+- Implementation: `backend/app/integrations/github.py` (manual API calls)
 
-**CORS:**
-- Allowed origins (backend FastAPI): localhost:3000, cofounder.getinsourced.ai, getinsourced.ai, www.getinsourced.ai
-- Allow credentials: true
-- Allow methods: *
-- Allow headers: *
-- Configured at `backend/app/main.py:52-65`
+## Third-Party Service Summary
 
-## Domain & DNS
-
-**Domain:** cofounder.getinsourced.ai
-- Zone: Route53 (aws_region us-east-1)
-- Certificate: ACM for `cofounder.getinsourced.ai` (auto-managed by CDK)
-- Frontend: alias to CloudFront/ALB for cofounder.getinsourced.ai
-- Backend API: alias to ALB for api.cofounder.getinsourced.ai
-- Configured in `infra/lib/dns-stack.ts`
-
-## Rate Limiting & Quotas
-
-- Not explicitly configured in current stack
-- Plan-based usage tracking in `backend/app/db/models/usage_log.py`
-- LLM token costs tracked per user/model at `backend/app/core/llm_config.py`
+| Service | Type | Purpose | Auth Method | Status |
+|---------|------|---------|-------------|--------|
+| Anthropic Claude | LLM | Code generation & reasoning | API key | Active |
+| E2B | Sandbox | Code execution | API key | Active |
+| GitHub | VCS | Repository management | App JWT | Active |
+| Clerk | Auth | User authentication | JWT | Active |
+| Stripe | Payments | Subscriptions & billing | API key + webhooks | Active |
+| Mem0 | Memory | Context persistence | Embedded | Active |
+| AWS | Cloud | Compute, storage, cache | IAM OIDC | Active |
 
 ---
 
-*Integration audit: 2026-02-16*
+*Integration audit: 2026-02-20*

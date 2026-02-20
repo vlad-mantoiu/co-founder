@@ -1,187 +1,404 @@
 # Coding Conventions
 
-**Analysis Date:** 2026-02-16
+**Analysis Date:** 2026-02-20
 
-## Naming Patterns
+## Overview
+
+This monorepo uses three distinct technology stacks with separate conventions:
+
+- **Backend:** Python 3.12 FastAPI with ruff/mypy linting
+- **Frontend:** Next.js 15 TypeScript with ESLint
+- **Marketing:** Next.js 15 static export (minimal conventions—no testing)
+
+## Backend Conventions (Python)
+
+### Naming Patterns
 
 **Files:**
-- Python: `snake_case.py` (e.g., `test_auth.py`, `e2b_runtime.py`)
-- TypeScript/React: `camelCase.ts` or `PascalCase.tsx` for components (e.g., `useAgentStream.ts`, `ChatWindow.tsx`, `BrandNav.tsx`)
-- Test files: `test_*.py` (Python), co-located with source or in `/tests/` directory
+- Module files: `snake_case.py`
+  - Location-based: `app/api/routes/generation.py`, `app/db/models/user_settings.py`, `app/schemas/onboarding.py`
+  - Meaningful suffixes: `_service.py`, `_helpers.py`, `_fake.py` (for test doubles)
 
-**Functions:**
-- Python: `snake_case` (e.g., `decode_clerk_jwt`, `_extract_frontend_api_domain`, `executor_node`)
-- TypeScript: `camelCase` for regular functions (e.g., `useAgentStream`), `PascalCase` for React components (e.g., `ChatWindow`)
-- Private functions: Prefix with underscore `_function_name` in both Python and TypeScript
+**Functions and Methods:**
+- Function names: `snake_case`
+- Private functions: leading underscore `_like_this()`
+- Async functions: `async def` prefix, named as regular functions
+- Examples from codebase:
+  - `decode_clerk_jwt()` — decoding logic
+  - `_verify_project_ownership()` — private helper with underscore
+  - `require_auth()` — dependency functions named as requirements
+  - `require_build_subscription()` — additional requirements
 
 **Variables:**
-- Python: `snake_case` (e.g., `session_id`, `user_id`, `price_map`)
-- TypeScript: `camelCase` for variables (e.g., `demoMode`, `mobileOpen`, `isActive`)
-- Constants: `UPPER_SNAKE_CASE` (e.g., `PRICE_MAP`, `ENTITY_KEYWORDS`, `STAGE_LOGS`)
+- Local variables: `snake_case`
+- Constants: `SCREAMING_SNAKE_CASE`
+  - Example: `STAGE_LABELS`, `TERMINAL_STATES` in `app/api/routes/generation.py`
+  - Example: `_TEST_CLERK_PK`, `_TEST_ISSUER` in test files
+- Module-level caches: `_provisioned_cache` — underscore-prefixed
+- Type annotations: always use modern `| None` syntax, never `Optional[T]`
 
-**Types:**
-- Python: Class names `PascalCase` (e.g., `ClerkUser`, `UserSettings`, `Episode`)
-- TypeScript: Interface/Type `PascalCase` (e.g., `ChatWindowProps`, `AnalysisState`)
-- Generic type parameters: Single uppercase letter or descriptive name
+**Types and Classes:**
+- Classes: `PascalCase`
+  - Data models (SQLAlchemy): `UserSettings`, `OnboardingSession`, `Project`
+  - Pydantic schemas: `StartOnboardingRequest`, `OnboardingSessionResponse`, `ThesisSnapshot`
+  - Exceptions: `CoFounderError`, `AgentExecutionError`, `SandboxError`
+  - Dataclasses: `@dataclass` with frozen=True when appropriate
 
-## Code Style
+### Code Style
 
 **Formatting:**
-- Python: Ruff formatter with line length 100 (configured in `backend/pyproject.toml`)
-- TypeScript: ESLint with Next.js/TypeScript recommended config (`frontend/eslint.config.mjs`)
-- No Prettier configuration; rely on ESLint defaults
+- Line length: 120 characters (configured in `backend/pyproject.toml`)
+- Indentation: 4 spaces
 
 **Linting:**
-- **Python:**
-  - Tool: Ruff
-  - Selected rules: `E` (errors), `F` (Pyflakes), `I` (import sorting), `N` (naming), `W` (warnings), `UP` (pyupgrade)
-  - Line length: 100 characters
-  - See: `backend/pyproject.toml` [tool.ruff.lint]
+- Tool: Ruff (configured in `backend/pyproject.toml`)
+- Configuration:
+  ```toml
+  [tool.ruff]
+  target-version = "py312"
+  line-length = 120
 
-- **TypeScript:**
-  - Tool: ESLint 9.x with @eslint/eslintrc
-  - Config extends: `next/core-web-vitals`, `next/typescript`
-  - Ignores: node_modules, .next, build, out directories
-  - See: `frontend/eslint.config.mjs`
+  [tool.ruff.lint]
+  select = ["E", "F", "I", "N", "W", "UP"]  # Errors, Fixes, Imports, Naming, Warnings, Upgrades
+  extend-ignore = ["E501"]  # Ignore line length (handled by formatter)
+  ```
+- Per-file ignores: `app/main.py` and test files exempt from E402 (module-level import not at top)
 
-**TypeScript:**
-- `strict: true` mode enabled in `frontend/tsconfig.json`
-- Module resolution: `bundler` (Next.js native)
-- Target: `ES2017`
-- Path aliases: `@/*` maps to `./src/*`
+**Type Checking:**
+- Tool: mypy with strict mode
+- Configuration in `backend/pyproject.toml`: `strict = true`
+- All public functions should have type annotations
+- Use `| None` (Python 3.10+) instead of `Optional[T]`
 
-## Import Organization
+### Import Organization
 
-**Order (Python):**
-1. Standard library imports (`import sys`, `from datetime import`)
-2. Third-party imports (`from fastapi import`, `from sqlalchemy import`)
-3. Local imports (`from app.core.config import`)
-4. Special: Type hints imported as `from typing import` or `import` with `from __future__ import annotations`
-
-**Order (TypeScript):**
-1. External packages (`import React`, `from framer-motion import`)
-2. Next.js/internal packages (`from next/navigation`, `import Link from next/link`)
-3. Component imports (`import { ChatWindow }`)
-4. Custom hooks (`from @/hooks/useAdmin`)
-5. Type/utility imports (`import type { ChatWindowProps }`)
+**Order:**
+1. Standard library (`import os`, `import json`, `from datetime import datetime`)
+2. Third-party (`import fastapi`, `import pydantic`, `import structlog`)
+3. Local application (`from app.core.auth import ClerkUser`, `from app.db.base import get_session_factory`)
 
 **Path Aliases:**
-- Frontend: `@/*` → `src/*` (used throughout: `@/hooks`, `@/components`, `@/lib`)
-- Python: Absolute imports from `app` (e.g., `from app.core.auth import`)
-
-## Error Handling
+- No path aliases configured—imports use absolute `app.` paths
+- Example: `from app.api.routes.generation import StartGenerationRequest`
 
 **Patterns:**
-- **Python:**
-  - Use domain-specific exceptions from `app.core.exceptions` (e.g., `SandboxError`, `AgentExecutionError`)
-  - FastAPI routes raise `HTTPException` with status codes
-  - Catch specific exceptions; avoid bare `except:`
-  - Include context in exceptions using `from exc` (e.g., `raise ValueError(...) from exc`)
-  - Example: `except pyjwt.ExpiredSignatureError: raise HTTPException(status_code=401, detail="Token expired")`
+- Relative imports not used; all imports from root `app` package
+- Explicit imports preferred: `from module import SpecificClass` rather than `import module`
+- Modules imported only once per file, at top
 
-- **TypeScript:**
-  - Return error objects or use try-catch in async functions
-  - Conditional rendering for error states (e.g., `{state.error && <p>{state.error}</p>}`)
-  - No explicit error classes; handle with simple objects/strings
+### Error Handling
 
-## Logging
+**HTTP Exceptions:**
+- Use FastAPI `HTTPException` for all API errors
+- Always include `status_code` and `detail` message
+- Examples from codebase:
+  ```python
+  raise HTTPException(status_code=401, detail="Token expired")
+  raise HTTPException(status_code=404, detail="Project not found")
+  raise HTTPException(status_code=403, detail="Admin access required")
+  ```
 
-**Framework:**
-- Python: Standard library `logging` module
-- Pattern: `logger = logging.getLogger(__name__)`
-- Logger setup in route modules (e.g., `backend/app/api/routes/billing.py`)
+**Custom Exceptions:**
+- Base class: `CoFounderError` in `app/core/exceptions.py`
+- Subclasses: `AgentExecutionError`, `SandboxError`, `MemoryError`, `GitOperationError`, `RetryLimitExceededError`
+- Custom exceptions store context (e.g., `RetryLimitExceededError` stores `step` and `attempts`)
 
-**Patterns:**
-- Use `logger.info()` for informational messages: `logger.info("Stripe webhook received: %s", event_type)`
-- Use `logger.warning()` for warnings: `logger.warning("checkout.session.completed missing metadata: %s", session_data.get("id"))`
-- Use `logger.error()` for errors: `logger.error("Unknown plan slug from checkout: %s", plan_slug)`
-- Format strings with `%s` placeholders, not f-strings in logging calls
-- No logging in frontend (TypeScript/React)
+**Exception Details:**
+- HTTP responses should have lowercase first letter in detail messages when describing errors: `"Token expired"`, `"Retry limit exceeded"`
+- Include HTTP status codes in docstrings under "Raises:" section
 
-## Comments
+**Try/Except:**
+- Catch specific exceptions, not generic `Exception` unless explicitly needed for cleanup/logging
+- Dangerous broad catches documented with comments:
+  ```python
+  except Exception:
+      logger.error("operation_failed", error=str(e))
+  ```
+
+### Logging
+
+**Framework:** Structlog (structured JSON logging)
+
+**Configuration:** `app/core/logging.py`
+- JSON output in production (CloudWatch Insights compatible)
+- Console renderer in development (human-readable)
+- Automatic correlation ID injection via `asgi-correlation-id`
+
+**Usage Patterns:**
+
+Get logger at module top:
+```python
+import structlog
+
+logger = structlog.get_logger(__name__)
+```
+
+Log with keyword arguments (structured):
+```python
+logger.info("operation_started", user_id=user_id, project_id=project_id)
+logger.warning("claude_overloaded_retrying", attempt=rs.attempt_number, sleep_seconds=rs.next_action.sleep)
+logger.error("operation_failed", error=str(e), context=additional_data)
+```
+
+**Event Names:**
+- Snake_case event names: `"operation_started"`, `"claude_overloaded_retrying"`, `"permission_denied"`
+- Events are queryable in CloudWatch Insights by name
+
+### Comments
 
 **When to Comment:**
-- Document non-obvious algorithms or business logic
-- Use section markers for clarity: `# ── Section Name ──────────────────────────────────────`
-- Example from `backend/app/api/routes/billing.py`:
+- Private helper functions: document purpose and parameters
+- Complex logic: explain "why", not "what" (code shows what)
+- Docstrings: required on public functions, classes, and modules
+- Section separators: Use comment bars for major code sections (see `generation.py`)
+
+**Module Docstrings:**
+- Always present, summary + list of contents
+- Example:
+  ```python
+  """Generation API routes — start, status, cancel, preview-viewed."""
   ```
-  # ── Request / Response schemas ──────────────────────────────────────
-  # ── Helpers ─────────────────────────────────────────────────────────
+
+**Function Docstrings:**
+- Google-style format
+- Include Args, Raises, Returns (if not obvious)
+- Examples from auth.py:
+  ```python
+  def decode_clerk_jwt(token: str) -> ClerkUser:
+      """Verify and decode a Clerk session JWT.
+
+      Raises ``HTTPException(401)`` on any validation failure.
+      """
   ```
 
-**Docstrings/JSDoc:**
-- **Python:**
-  - Module docstrings at file top: `"""Module purpose and contents."""`
-  - Function docstrings with purpose: `"""Verify and decode a Clerk session JWT.\n\nRaises HTTPException(401) on any validation failure."""`
-  - Class docstrings: `"""Represents a single task execution episode."""`
-  - Multi-line docstrings with params/returns when helpful
+**Class Docstrings:**
+- One-liner summary for schemas and models
+- Example:
+  ```python
+  class StartOnboardingRequest(BaseModel):
+      """Request to start a new onboarding session."""
+  ```
 
-- **TypeScript:**
-  - React components with props interface: `interface ChatWindowProps { demoMode?: boolean; }`
-  - Hooks with return type annotations
-  - JSDoc comments rare; rely on TypeScript types for documentation
+### Function Design
 
-## Function Design
-
-**Size:**
-- Keep functions focused on single responsibility
-- Python functions: typically 20-60 lines
-- TypeScript React components: 30-100 lines (depends on complexity)
-- Extract helper functions for repeated logic
+**Async/Await:**
+- All database queries and API calls: `async def`
+- Route handlers: `async def` (FastAPI convention)
+- Pure computation: regular `def` (but can be async if consistency helps)
+- Test functions: `async def` when testing async code, marked with `@pytest.mark.asyncio`
 
 **Parameters:**
-- Python: Use type hints (PEP 484 style)
-  - Example: `async def executor_node(state: CoFounderState) -> dict:`
-  - Avoid `**kwargs`; use explicit parameters
-
-- TypeScript: Always use type annotations
-  - Example: `async def require_auth(credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme)) -> ClerkUser:`
-  - Use union types: `stripe_subscription_status: str | None`
+- Dependency injection: use FastAPI `Depends()` for shared logic
+- Request/response bodies: define Pydantic `BaseModel` classes
+- Path/query parameters: typed FastAPI path/query parameters
+- Private helpers: receive concrete instances, not dependencies
 
 **Return Values:**
-- Explicit type annotations on all functions
-- Python: Return typed dicts or Pydantic models (`BaseModel`)
-- TypeScript: Return JSX, types, or promises
-- Avoid `None` returns; use sentinel values or raise exceptions
+- Route handlers return Pydantic `BaseModel` instances (FastAPI auto-serializes)
+- Non-route functions return appropriate types with full annotations
+- None is explicit, never silent
 
-## Module Design
+**Size Guidelines:**
+- Aim for <50 lines per function
+- Complex operations split into named helper functions
+- Helpers kept in same file when tightly coupled, extracted to `_helpers.py` when reusable
+
+### Module Design
 
 **Exports:**
-- **Python:**
-  - No `__all__` convention observed; import directly from modules
-  - Example: `from app.core.auth import ClerkUser, require_auth, decode_clerk_jwt`
+- No `__all__` list used in observed codebase
+- Everything at module level is importable
+- Private helpers use leading underscore
 
-- **TypeScript:**
-  - Export named exports: `export function BrandNav() { ... }`
-  - Export types: `import type { ChatWindowProps }`
-  - Re-export from barrel files (e.g., `export { ChatWindow } from "./ChatWindow"`)
+**Barrel Files (Imports):**
+- `app/schemas/__init__.py`: empty
+- `app/db/models/__init__.py`: imports models for metadata population
+- Not used as re-export entry points
 
-**Barrel Files:**
-- Used minimally; imports are direct (e.g., `from app.core.auth import`, not `from app.core import`)
-- Frontend: Direct component imports (`from @/components/chat/ChatWindow`)
+## Frontend Conventions (TypeScript/Next.js)
 
-## Async/Await
+### Naming Patterns
 
-**Python:**
-- Use `async/await` throughout backend (FastAPI, SQLAlchemy async)
-- All database queries marked `async`
-- Example: `async with factory() as session: result = await session.execute(...)`
+**Files:**
+- Pages/layouts: `PascalCase/page.tsx` or `PascalCase/layout.tsx`
+  - Example: `app/(dashboard)/projects/[id]/page.tsx`
+  - Dynamic routes in square brackets: `[id]`
+  - Optional routes: `[[...slug]]` (catch-all)
 
-**TypeScript:**
-- React hooks use `useState`, `useCallback`, `useRef` (no async effect directly)
-- Custom hooks return state management objects: `{ state, start, reset, abort }`
+**Components:**
+- Component files: `PascalCase.tsx` for default exports
+- Example: `components/ui/alert-dialog.tsx`, `components/ui/glass-card.tsx`
 
-## Type Strictness
+**Functions:**
+- Component functions: `PascalCase` (React convention)
+- Hook functions: `useCamelCase` (React convention)
+- Utility functions: `camelCase`
+- Private functions: same, no underscore prefix
 
-**Python:**
-- MyPy enabled with `strict = true` in `backend/pyproject.toml`
-- All function arguments and returns must have type hints
+**Variables:**
+- Local state: `camelCase`
+- Constants: `SCREAMING_SNAKE_CASE` or `camelCase` depending on scope
+- Type aliases: `PascalCase`
 
-**TypeScript:**
-- Strict mode enabled: `"strict": true` in `frontend/tsconfig.json`
-- Always annotate function parameters and return types
-- Use discriminated unions for state: `state.phase === "idle" | "parsing" | "complete"`
+**Types and Interfaces:**
+- Interfaces: `PascalCase`
+- Type aliases: `PascalCase`
+- Prop types: `ComponentNameProps`
+  - Example: `interface AlertDialogProps { ... }`
+
+### Code Style
+
+**Formatting:**
+- Tool: ESLint with Next.js flat config
+- Config file: `frontend/eslint.config.mjs`
+- Extends: `next/core-web-vitals`, `next/typescript`
+- No Prettier detected; uses ESLint rules for formatting
+
+**TypeScript Configuration:**
+- `frontend/tsconfig.json` — strict mode enabled
+- Compiler options:
+  - `strict: true`
+  - `noEmit: true`
+  - `jsx: preserve` (Next.js handles JSX)
+  - Path alias: `@/*` maps to `./src/*`
+
+**Lint Rules:**
+- Configured in `frontend/eslint.config.mjs`
+- Ignores: `node_modules`, `.next`, `out`, `build`, `next-env.d.ts`
+- Enforces: Next.js best practices and core web vitals
+
+### Import Organization
+
+**Order:**
+1. React/Next.js imports (`import type`, `import { ... }`)
+2. Third-party UI/utility libraries (`framer-motion`, `geist`, `lucide-react`)
+3. Local components and utilities (relative imports with `@/` alias)
+
+**Path Aliases:**
+- `@/*` → `./src/*`
+- Used throughout codebase: `import { cn } from "@/lib/utils"`
+- Preferred over relative `../../../` paths
+
+**Patterns:**
+- Type imports: `import type { ... }` for types only
+- Component imports: named exports
+- Example structure:
+  ```typescript
+  import { useState } from "react";
+  import { motion } from "framer-motion";
+  import { cn } from "@/lib/utils";
+  ```
+
+### Error Handling
+
+**Client-side:**
+- Try/catch for async operations (fetching, API calls)
+- Toast notifications for user feedback (via `sonner` library)
+- Fallback UI when data fails to load
+
+**API Error Responses:**
+- Structured error responses from FastAPI backend include:
+  - `status_code`: HTTP status
+  - `detail`: Human-readable error message
+
+### Comments
+
+**When to Comment:**
+- Complex logic in hooks or context providers
+- Non-obvious prop handling or conditional rendering
+- Store structure or algorithm explanation
+
+**JSDoc/TSDoc:**
+- Not heavily used in observed codebase
+- Optional for exported components and hooks
+
+### Function Design
+
+**React Components:**
+- Functional components with hooks (no class components)
+- Props typed with interfaces: `interface AlertDialogProps { ... }`
+- Example from `alert-dialog.tsx`:
+  ```typescript
+  export function AlertDialog({ open: controlledOpen, onOpenChange, children }: AlertDialogProps) {
+    const [internalOpen, setInternalOpen] = useState(false);
+    // ...
+  }
+  ```
+
+**Props:**
+- Typed interfaces with required/optional fields
+- Example: `variant?: keyof typeof variants` (for discriminated unions)
+- Spread children: `children: React.ReactNode`
+
+**Hooks:**
+- Custom hooks start with `use` prefix
+- Return typed values: `const [value, setValue] = useState<Type>(initial)`
+- Context hooks: `const context = useContext(Context)`
+
+**Size Guidelines:**
+- Keep components <200 lines
+- Extract sub-components for reusable parts
+- Move complex state logic to custom hooks
+
+### Module Design
+
+**Component Organization:**
+- `components/ui/` — shadcn-style reusable components
+- `components/` — page-specific components
+- `lib/` — utility functions
+- `app/` — Next.js app router structure
+
+**Exports:**
+- Default exports for pages
+- Named exports for components and utilities
+- No barrel files observed in frontend
+
+## Marketing Site Conventions (Next.js 15 Static)
+
+**Structure:** `/marketing` directory
+**Type:** Static export (no API, no database)
+**Testing:** None yet (no test framework configured)
+**Linting:** Inherits root eslint config if present
+
+No specific conventions documented—treat as minimal Next.js static site.
+
+## Cross-Cutting Patterns
+
+### Async/Await Consistency
+
+**Backend:**
+- All I/O operations: `async def`
+- Dependencies marked with `async def` signature
+- Test markers: `@pytest.mark.asyncio` for async tests
+
+**Frontend:**
+- Async functions for API calls and heavy computations
+- Hooks using async operations: wrapped in `useEffect` or custom hooks
+- Client components marked with `"use client"` when needed
+
+### Dependencies and Injection
+
+**Backend (FastAPI):**
+- Use `Depends()` for injection
+- Example: `require_auth: ClerkUser = Depends(require_auth)`
+- Overrideable in tests: `app.dependency_overrides[require_auth] = mock_override`
+
+**Frontend:**
+- Context API for global state
+- Props for component composition
+- React.lazy for code-splitting
+
+### Testing Conventions in Code
+
+**Backend:**
+- Docstrings reference test cases by requirement ID: "ONBD-05", "CNTR-02"
+- Private functions tested indirectly through public functions
+- Fixtures provided for mocking and setup
+
+**Frontend:**
+- No tests currently—only linting/type checking
+- When adding tests: follow Jest/Vitest conventions
 
 ---
 
-*Convention analysis: 2026-02-16*
+*Convention analysis: 2026-02-20*

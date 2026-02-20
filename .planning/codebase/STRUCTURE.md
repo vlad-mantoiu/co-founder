@@ -1,372 +1,427 @@
 # Codebase Structure
 
-**Analysis Date:** 2026-02-16
+**Analysis Date:** 2026-02-20
 
 ## Directory Layout
 
 ```
 co-founder/
-├── backend/                          # FastAPI + LangGraph application
+├── backend/                       # FastAPI + LangGraph agent backend
 │   ├── app/
-│   │   ├── __init__.py
-│   │   ├── main.py                   # FastAPI app factory, lifespan
-│   │   ├── agent/
-│   │   │   ├── __init__.py
-│   │   │   ├── state.py              # CoFounderState schema
-│   │   │   ├── graph.py              # StateGraph definition, routing
-│   │   │   └── nodes/                # Specialist agent nodes
-│   │   │       ├── architect.py      # Plan generation
-│   │   │       ├── coder.py          # Code generation
-│   │   │       ├── executor.py       # Code execution in E2B
-│   │   │       ├── debugger.py       # Error analysis & fix proposals
-│   │   │       ├── reviewer.py       # Quality/safety review
-│   │   │       └── git_manager.py    # Git commit & push
+│   │   ├── main.py               # FastAPI app factory, lifespan handler
 │   │   ├── api/
-│   │   │   ├── routes/
-│   │   │   │   ├── __init__.py       # APIRouter composition
-│   │   │   │   ├── agent.py          # POST /api/agent/chat/stream
-│   │   │   │   ├── projects.py       # CRUD /api/projects
-│   │   │   │   ├── admin.py          # GET/PUT /api/admin/*
-│   │   │   │   ├── billing.py        # Stripe webhooks
-│   │   │   │   └── health.py         # /api/health
-│   │   │   └── schemas/
-│   │   │       └── admin.py          # Pydantic models for admin endpoints
-│   │   ├── core/
-│   │   │   ├── __init__.py
-│   │   │   ├── auth.py               # Clerk JWT, require_auth, require_admin
-│   │   │   ├── config.py             # Pydantic Settings (env vars)
-│   │   │   ├── llm_config.py         # Model resolution + usage tracking
-│   │   │   ├── exceptions.py         # Custom exception classes
-│   │   │   └── locking.py            # Redis distributed locks
+│   │   │   ├── routes/           # REST endpoint definitions
+│   │   │   │   ├── agent.py      # /api/agent/chat, /api/agent/run
+│   │   │   │   ├── projects.py   # /api/projects CRUD
+│   │   │   │   ├── jobs.py       # /api/jobs polling, status
+│   │   │   │   ├── onboarding.py # /api/onboarding session flows
+│   │   │   │   ├── understanding.py # /api/understanding interview
+│   │   │   │   ├── execution_plans.py # /api/plans CRUD
+│   │   │   │   ├── decision_gates.py # /api/gates approve/reject
+│   │   │   │   ├── artifacts.py  # /api/artifacts retrieval
+│   │   │   │   ├── dashboard.py  # /api/dashboard summary stats
+│   │   │   │   ├── timeline.py   # /api/timeline progress tracking
+│   │   │   │   ├── strategy_graph.py # /api/graph Neo4j operations
+│   │   │   │   ├── billing.py    # Stripe webhook, checkout links
+│   │   │   │   ├── health.py     # /api/health, /api/ready liveness
+│   │   │   │   └── admin.py      # /api/admin/* (user-facing controls)
+│   │   │   └── schemas/          # Request/response Pydantic models
+│   │   │       └── admin.py      # Admin API schemas
+│   │   ├── agent/
+│   │   │   ├── graph.py          # LangGraph builder, entry point
+│   │   │   ├── state.py          # CoFounderState TypedDict + initial state factory
+│   │   │   ├── runner.py         # Agent invocation wrapper (async)
+│   │   │   ├── runner_real.py    # Real E2B sandbox execution
+│   │   │   ├── runner_fake.py    # Mock sandbox for testing
+│   │   │   ├── nodes/            # Six LangGraph node implementations
+│   │   │   │   ├── architect.py  # Plans steps from goal (Claude Opus)
+│   │   │   │   ├── coder.py      # Generates code (Claude Sonnet)
+│   │   │   │   ├── executor.py   # Runs code in E2B, captures output
+│   │   │   │   ├── debugger.py   # Analyzes failures, proposes fixes
+│   │   │   │   ├── reviewer.py   # Code quality check, test validation
+│   │   │   │   └── git_manager.py # Commits, pushes to GitHub
+│   │   │   ├── tools/            # Agent tool definitions (stub, TBD)
+│   │   │   ├── llm_helpers.py    # LLM prompt engineering utilities
+│   │   │   └── path_safety.py    # Sandbox path validation
 │   │   ├── db/
-│   │   │   ├── __init__.py
-│   │   │   ├── base.py               # AsyncSession factory, Base ORM
-│   │   │   ├── redis.py              # Redis connection pool
-│   │   │   ├── seed.py               # Plan tier initialization
-│   │   │   └── models/
-│   │   │       ├── __init__.py
-│   │   │       ├── plan_tier.py      # Subscription plans
-│   │   │       ├── user_settings.py  # Per-user limits & overrides
-│   │   │       ├── project.py        # User projects
-│   │   │       └── usage_log.py      # LLM token usage tracking
-│   │   ├── memory/
-│   │   │   ├── __init__.py
-│   │   │   ├── episodic.py           # Task history in SQLAlchemy
-│   │   │   └── mem0_client.py        # Semantic memory via Mem0 AI
-│   │   ├── sandbox/
-│   │   │   ├── __init__.py
-│   │   │   └── e2b_runtime.py        # E2B cloud sandbox wrapper
-│   │   └── integrations/
-│   │       ├── __init__.py
-│   │       └── github.py             # GitHub App REST client
-│   ├── tests/                        # Pytest test files
-│   ├── scripts/                      # Helper scripts
-│   ├── pyproject.toml                # Poetry config, dependencies
-│   ├── README.md                     # Backend setup & architecture docs
-│   └── .env                          # Local environment (not committed)
-│
-├── frontend/                         # Next.js 14 React application
+│   │   │   ├── __init__.py       # init_db(), close_db(), connection pool
+│   │   │   ├── base.py           # SQLAlchemy Base declarative
+│   │   │   ├── redis.py          # Redis client, cache methods
+│   │   │   ├── seed.py           # Startup data seeding (plan tiers)
+│   │   │   ├── models/           # SQLAlchemy ORM models
+│   │   │   │   ├── project.py    # Project entity
+│   │   │   │   ├── job.py        # Job (task execution record)
+│   │   │   │   ├── onboarding_session.py # Idea capture + requirements
+│   │   │   │   ├── understanding_session.py # User interview transcript
+│   │   │   │   ├── decision_gate.py # Approval gate state
+│   │   │   │   ├── artifact.py   # Generated docs (plan, brief, code)
+│   │   │   │   ├── stage_event.py # Progress milestone tracking
+│   │   │   │   ├── stage_config.py # Stage template metadata
+│   │   │   │   ├── plan_tier.py  # Subscription tier info
+│   │   │   │   ├── stripe_event.py # Webhook event log
+│   │   │   │   ├── user_settings.py # Per-user config, feature flags
+│   │   │   │   └── usage_log.py  # Job iterations, usage quotas
+│   │   │   └── graph/            # Neo4j graph database
+│   │   │       └── strategy_graph.py # Strategy node/edge management
+│   │   ├── services/             # Business logic
+│   │   │   ├── onboarding_service.py # Idea capture → project setup
+│   │   │   ├── understanding_service.py # Interview Q&A loop
+│   │   │   ├── execution_plans_service.py # Plan CRUD + recommendations
+│   │   │   └── billing_service.py # Stripe integration, plan checks
+│   │   ├── schemas/              # Pydantic models for routes
+│   │   │   ├── onboarding.py    # CreateProjectRequest, IdeaInput
+│   │   │   ├── understanding.py # QuestionRequest, InterviewResponse
+│   │   │   ├── execution_plans.py # PlanStep, ExecutionPlanResponse
+│   │   │   ├── decision_gates.py # GateApprovalRequest
+│   │   │   ├── artifacts.py     # ArtifactResponse
+│   │   │   ├── dashboard.py     # DashboardStats
+│   │   │   ├── timeline.py      # TimelineEventResponse
+│   │   │   └── strategy_graph.py # GraphNodeInput, GraphQueryResponse
+│   │   ├── memory/               # Semantic memory + knowledge graphs
+│   │   │   ├── mem0_client.py   # Mem0 API wrapper (semantic memory)
+│   │   │   ├── episodic.py      # Episodic memory storage
+│   │   │   └── knowledge_graph.py # Knowledge graph operations
+│   │   ├── sandbox/              # E2B sandbox integration
+│   │   │   └── e2b_client.py    # E2B API wrapper (TBD)
+│   │   ├── communication/        # External integrations
+│   │   │   └── github.py        # GitHub API client (clone, push, PR)
+│   │   ├── artifacts/            # Artifact generation
+│   │   │   ├── generator.py     # Artifact orchestration
+│   │   │   ├── prompts.py       # LLM prompt templates
+│   │   │   ├── exporter.py      # Document export (Markdown, PDF)
+│   │   │   └── markdown_exporter.py # Markdown-specific export
+│   │   ├── core/                 # Cross-cutting infrastructure
+│   │   │   ├── config.py        # Settings (env vars, defaults)
+│   │   │   ├── auth.py          # Clerk JWT verification middleware
+│   │   │   ├── logging.py       # structlog configuration
+│   │   │   ├── exceptions.py    # Custom exception classes
+│   │   │   ├── feature_flags.py # Feature flag evaluation
+│   │   │   ├── llm_config.py    # LLM client factories, token tracking
+│   │   │   ├── locking.py       # Distributed locking (Redis)
+│   │   │   └── provisioning.py  # Resource provisioning (TBD)
+│   │   ├── middleware/           # FastAPI middleware
+│   │   │   └── correlation.py   # Correlation ID injection
+│   │   └── metrics/              # Observability
+│   │       └── cloudwatch.py    # CloudWatch metrics publishing
+│   └── tests/                    # Pytest test suite
+│       └── (test files)
+├── frontend/                      # Next.js 14 SPA (cofounder.getinsourced.ai)
+│   ├── src/
+│   │   ├── app/                  # Next.js App Router
+│   │   │   ├── layout.tsx        # Root layout (Clerk, fonts, CSS)
+│   │   │   ├── globals.css       # Global styles + Tailwind
+│   │   │   ├── (dashboard)/      # Protected routes group
+│   │   │   │   ├── dashboard/
+│   │   │   │   │   └── page.tsx  # /dashboard (projects list, checkout)
+│   │   │   │   ├── projects/[id]/
+│   │   │   │   │   └── page.tsx  # /projects/{id} (project workspace)
+│   │   │   │   └── projects/
+│   │   │   │       └── page.tsx  # /projects (my projects list)
+│   │   │   ├── (admin)/          # Admin routes
+│   │   │   │   └── admin/        # /admin/* (workspace controls)
+│   │   │   ├── sign-in/
+│   │   │   │   └── page.tsx      # Clerk sign-in page
+│   │   │   ├── sign-up/
+│   │   │   │   └── page.tsx      # Clerk sign-up page
+│   │   │   ├── icon.svg          # Favicon
+│   │   │   ├── apple-icon.svg    # iOS bookmark icon
+│   │   │   ├── not-found.tsx     # 404 page
+│   │   │   └── middleware.ts     # Clerk auth middleware
+│   │   ├── components/           # React components
+│   │   │   ├── ui/               # shadcn/ui base components
+│   │   │   │   └── *.tsx         # Button, Card, Input, Dialog, etc.
+│   │   │   ├── chat/             # Chat interface
+│   │   │   │   ├── ChatWindow.tsx # Main chat UI
+│   │   │   │   └── types.ts      # ChatMessage, ChatWindowProps
+│   │   │   ├── dashboard/        # Dashboard widgets
+│   │   │   │   ├── ProjectCard.tsx
+│   │   │   │   └── StatsOverview.tsx
+│   │   │   ├── timeline/         # Timeline visualization
+│   │   │   │   ├── Timeline.tsx
+│   │   │   │   └── types.ts
+│   │   │   ├── build/            # Build progress display
+│   │   │   │   └── BuildProgress.tsx
+│   │   │   ├── execution-plans/  # Execution plan UI
+│   │   │   │   └── PlanViewer.tsx
+│   │   │   ├── decision-gates/   # Approval gate UI
+│   │   │   │   └── GatePrompt.tsx
+│   │   │   ├── understanding/    # Interview session UI
+│   │   │   │   └── InterviewWidget.tsx
+│   │   │   ├── strategy-graph/   # Graph visualization
+│   │   │   │   └── GraphView.tsx
+│   │   │   ├── deploy/           # Deploy status UI
+│   │   │   │   └── DeployStatus.tsx
+│   │   │   ├── graph/            # General UI components
+│   │   │   ├── admin/            # Admin panel components
+│   │   │   └── onboarding/       # Onboarding flow components
+│   │   ├── hooks/                # React custom hooks
+│   │   │   ├── useAgentStream.ts # Real-time agent updates
+│   │   │   ├── useDashboard.ts   # Dashboard data fetching
+│   │   │   ├── useExecutionPlans.ts # Plan CRUD
+│   │   │   ├── useDecisionGate.ts # Gate approval
+│   │   │   ├── useUnderstandingInterview.ts # Interview session
+│   │   │   ├── useBuildProgress.ts # Build status polling
+│   │   │   ├── useDemoSequence.ts # Demo mode flow
+│   │   │   ├── useAdmin.ts       # Admin API client
+│   │   │   └── useOnboarding.ts  # Onboarding flow
+│   │   ├── lib/                  # Utilities
+│   │   │   ├── api.ts            # apiFetch() wrapper with auth
+│   │   │   ├── admin-api.ts      # Admin-specific API client
+│   │   │   └── utils.ts          # cn(), classname merging
+│   │   └── middleware.ts         # Next.js middleware (Clerk)
+│   ├── next.config.ts            # Next.js config
+│   ├── tsconfig.json             # TypeScript config
+│   ├── package.json              # Dependencies (Next.js, Clerk, shadcn/ui)
+│   └── tailwind.config.ts        # Tailwind CSS customization
+├── marketing/                     # Next.js 15 static export (getinsourced.ai)
 │   ├── src/
 │   │   ├── app/
-│   │   │   ├── layout.tsx            # Root layout (ClerkProvider, fonts)
-│   │   │   ├── globals.css           # Tailwind globals, dark theme
-│   │   │   ├── icon.svg, apple-icon.svg
-│   │   │   ├── sign-in/[[...sign-in]]/page.tsx       # Clerk sign-in page
-│   │   │   ├── sign-up/[[...sign-up]]/page.tsx       # Clerk sign-up page
-│   │   │   ├── (marketing)/          # Public pages, no auth required
-│   │   │   │   ├── layout.tsx        # Marketing wrapper
-│   │   │   │   ├── page.tsx          # Home page (hero, features)
-│   │   │   │   ├── pricing/page.tsx  # Pricing tiers
-│   │   │   │   ├── about/page.tsx    # About page
-│   │   │   │   ├── contact/page.tsx  # Contact form
-│   │   │   │   ├── privacy/page.tsx  # Privacy policy
-│   │   │   │   ├── terms/page.tsx    # Terms of service
-│   │   │   │   └── signin/page.tsx   # Sign-in page
-│   │   │   ├── (dashboard)/          # Protected dashboard routes
-│   │   │   │   ├── layout.tsx        # Dashboard wrapper (BrandNav)
-│   │   │   │   ├── chat/page.tsx     # Chat interface (ChatWindow)
-│   │   │   │   ├── projects/page.tsx # Project list/create
-│   │   │   │   ├── dashboard/page.tsx # Overview dashboard
-│   │   │   │   ├── architecture/page.tsx # Architecture viewer
-│   │   │   │   └── billing/page.tsx  # Billing & subscription
-│   │   │   └── (admin)/              # Admin-only routes
-│   │   │       └── admin/
-│   │   │           ├── plans/page.tsx        # Manage plan tiers
-│   │   │           ├── users/page.tsx       # User list & management
-│   │   │           └── usage/page.tsx       # Usage metrics dashboard
-│   │   ├── components/
-│   │   │   ├── ui/                   # shadcn/ui + custom UI primitives
-│   │   │   │   ├── brand-nav.tsx     # Top navigation bar
-│   │   │   │   ├── button.tsx
-│   │   │   │   ├── card.tsx
-│   │   │   │   ├── input.tsx
-│   │   │   │   └── ... (other shadcn/ui components)
-│   │   │   ├── chat/
-│   │   │   │   ├── ChatWindow.tsx    # Main chat interface
-│   │   │   │   ├── MessageList.tsx
-│   │   │   │   ├── InputBox.tsx
-│   │   │   │   └── ... (chat-specific components)
-│   │   │   ├── graph/
-│   │   │   │   ├── GraphViewer.tsx   # LangGraph state visualization
-│   │   │   │   └── ... (graph components)
-│   │   │   ├── admin/
-│   │   │   │   ├── UserTable.tsx
-│   │   │   │   ├── UsageChart.tsx
-│   │   │   │   └── ... (admin components)
-│   │   │   └── marketing/
-│   │   │       ├── navbar.tsx
-│   │   │       ├── home-content.tsx
-│   │   │       ├── insourced-home-content.tsx
-│   │   │       ├── pricing-content.tsx
-│   │   │       ├── footer.tsx
-│   │   │       └── ... (marketing components)
-│   │   ├── hooks/
-│   │   │   ├── useAgentStream.ts     # Custom hook for agent streaming
-│   │   │   ├── useDemoSequence.ts    # Demo mode automation
-│   │   │   └── ... (other custom hooks)
-│   │   ├── lib/
-│   │   │   ├── api.ts                # apiFetch() with Clerk token injection
-│   │   │   ├── admin-api.ts          # Admin-specific API calls
-│   │   │   └── utils.ts              # Utility functions
-│   │   └── middleware.ts             # Clerk middleware, route protection
-│   ├── public/                       # Static assets
-│   ├── package.json                  # npm dependencies
-│   ├── tsconfig.json                 # TypeScript config
-│   ├── next.config.ts                # Next.js configuration
-│   ├── tailwind.config.ts            # Tailwind CSS config
-│   ├── eslint.config.mjs             # ESLint configuration
-│   ├── components.json               # shadcn/ui config
-│   └── postcss.config.mjs            # PostCSS configuration
-│
-├── infra/                            # AWS CDK infrastructure as code
+│   │   │   ├── layout.tsx        # Root layout (CSS, fonts, SEO)
+│   │   │   ├── (marketing)/      # Public pages
+│   │   │   │   ├── page.tsx      # Home page
+│   │   │   │   ├── pricing/      # /pricing
+│   │   │   │   ├── about/        # /about
+│   │   │   │   └── blog/         # /blog (TBD)
+│   │   │   └── globals.css
+│   │   └── components/           # Marketing components (reusable)
+│   ├── next.config.ts            # Static export config
+│   ├── package.json              # Dependencies
+│   └── out/                       # Static export output (built)
+├── infra/                         # AWS CDK infrastructure-as-code
 │   ├── bin/
-│   │   └── app.ts                    # CDK app entry point (stack composition)
+│   │   └── app.ts                # CDK App entry point, stack instantiation
 │   ├── lib/
-│   │   ├── network-stack.ts          # VPC, subnets, security groups
-│   │   ├── dns-stack.ts              # Route53, ACM certificate
-│   │   ├── database-stack.ts         # RDS PostgreSQL, ElastiCache Redis
-│   │   └── compute-stack.ts          # ECS Fargate (frontend + backend)
-│   ├── cdk.json                      # CDK configuration
-│   ├── cdk.context.json              # CDK context values
-│   ├── package.json                  # CDK dependencies
-│   └── tsconfig.json                 # TypeScript config
-│
-├── docker/
-│   ├── backend.dockerfile            # Docker image for backend
-│   ├── frontend.dockerfile           # Docker image for frontend
-│   └── docker-compose.yml            # Local dev environment
-│
-├── scripts/
-│   ├── deploy.sh                     # Deployment automation
-│   ├── dev.sh                        # Local dev runner
-│   └── test.sh                       # Test runner
-│
+│   │   ├── network-stack.ts      # VPC, subnets, security groups
+│   │   ├── dns-stack.ts          # Route53, ACM certificate
+│   │   ├── database-stack.ts     # RDS (PostgreSQL), ElastiCache (Redis)
+│   │   ├── compute-stack.ts      # ECS Fargate, ALB, CloudWatch logs
+│   │   ├── observability-stack.ts # CloudWatch alarms, SNS alerts
+│   │   ├── github-deploy-stack.ts # OIDC role for GitHub Actions
+│   │   └── marketing-stack.ts    # CloudFront + S3 for marketing site
+│   ├── cdk.json                  # CDK context (region, cached values)
+│   ├── tsconfig.json
+│   └── package.json              # CDK dependencies
+├── docker/                        # Docker build context
+│   ├── Dockerfile.backend        # FastAPI container image
+│   ├── Dockerfile.frontend       # Next.js development container
+│   └── (docker-compose may exist for local dev)
+├── scripts/                       # Automation scripts
+│   ├── deploy.sh                 # Deployment orchestration
+│   └── fix_stale_sessions.py    # Database maintenance
 ├── .github/
-│   └── workflows/                    # GitHub Actions CI/CD
-│
-├── .claude/                          # Claude-specific project config
-├── .planning/                        # GSD planning documents
-│   └── codebase/                     # Architecture/tech docs (this file)
-├── .gitignore
-├── CLAUDE.md                         # AI co-founder guidelines
-├── DEPLOYMENT.md                     # Deployment guide & gotchas
-├── DOCUMENTATION.md                  # Full project documentation
-├── PLAN.md                           # High-level project plan
-└── README.md                         # Project overview
+│   └── workflows/                # GitHub Actions
+│       └── deploy-marketing.yml  # Marketing site CI/CD (path-filtered)
+├── .planning/                    # Planning documents
+│   ├── codebase/                # Architecture analysis (THIS DOCUMENT)
+│   ├── phases/                  # Phase execution plans
+│   └── milestones/              # Milestone tracking
+├── CLAUDE.md                     # Project instructions for Claude
+├── DEPLOYMENT.md                # Deployment guide
+├── deployment-gotchas.md        # Known issues + fixes
+├── package-lock.json            # Root monorepo lock (if applicable)
+└── README.md                    # Project overview
 ```
 
 ## Directory Purposes
 
-**backend/**
-- Purpose: FastAPI application with autonomous agent orchestration
-- Contains: Python source code, tests, dependencies
-- Key files: `app/main.py` (entry), `app/agent/` (core logic), `app/api/routes/` (endpoints)
+**backend/app/:**
+- Purpose: FastAPI application core; houses all server logic
+- Contains: API routes, LangGraph agent, database models, services, middleware, configuration
+- Key files: `main.py` (entry point), `agent/graph.py` (state machine), `db/models/` (domain entities)
 
-**frontend/**
-- Purpose: Next.js SPA for user interactions and content
-- Contains: React components, TypeScript source, styling
-- Key files: `src/app/layout.tsx` (root), `src/components/` (UI), `src/lib/api.ts` (API client)
+**backend/app/agent/:**
+- Purpose: Autonomous code generation pipeline orchestration
+- Contains: LangGraph state machine builder, six specialized LLM nodes, state schema, execution runners
+- Key files: `graph.py` (builder), `state.py` (state schema), `nodes/*.py` (node implementations)
 
-**infra/**
-- Purpose: AWS infrastructure definition via CDK
-- Contains: TypeScript CDK constructs
-- Key files: `bin/app.ts` (stack composition), `lib/*-stack.ts` (individual stacks)
+**backend/app/api/routes/:**
+- Purpose: REST endpoint definitions for frontend and external clients
+- Contains: Route handlers with Pydantic validation, error handling, Clerk auth checks
+- Key files: `agent.py` (job submission), `projects.py` (CRUD), `jobs.py` (status polling)
 
-**docker/**
-- Purpose: Container definitions for deployment
-- Contains: Dockerfiles for backend and frontend
-- Key files: `backend.dockerfile`, `frontend.dockerfile`
+**backend/app/db/models/:**
+- Purpose: SQLAlchemy ORM entity definitions; single source of truth for data schema
+- Contains: 12 domain models with column definitions, relationships, timestamps
+- Key files: `project.py`, `job.py`, `onboarding_session.py`, `understanding_session.py`
 
-**scripts/**
-- Purpose: Automation and helper scripts
-- Contains: Bash scripts for deployment, development
-- Key files: `deploy.sh` (production deploy), `dev.sh` (local dev)
+**backend/app/core/:**
+- Purpose: Cross-cutting infrastructure and configuration
+- Contains: Settings (env var loading), Clerk auth middleware, structlog setup, exception handling
+- Key files: `config.py` (Settings class), `auth.py` (JWT verification), `logging.py` (structlog)
 
-**.planning/codebase/**
-- Purpose: Generated architecture documentation for GSD orchestrator
-- Contains: ARCHITECTURE.md, STRUCTURE.md, STACK.md, INTEGRATIONS.md, CONVENTIONS.md, TESTING.md, CONCERNS.md
+**frontend/src/app/:**
+- Purpose: Next.js App Router pages; public-facing routes
+- Contains: Page components, layout definitions, CSS, authentication routes
+- Key files: `layout.tsx` (root wrapper), `(dashboard)/dashboard/page.tsx` (main workspace)
+
+**frontend/src/components/:**
+- Purpose: Reusable React components organized by feature domain
+- Contains: shadcn/ui base components, feature-specific components (chat, timeline, dashboard)
+- Key files: `ui/` (primitive components), `chat/` (chat UI), `dashboard/` (workspace widgets)
+
+**frontend/src/hooks/:**
+- Purpose: React custom hooks for API interaction and state management
+- Contains: Hooks for fetching data, managing local state, polling server
+- Key files: `useAgentStream.ts` (real-time agent updates), `useDashboard.ts` (project list)
+
+**frontend/src/lib/:**
+- Purpose: Utility functions and API client
+- Contains: HTTP client wrapper (`apiFetch`), classname utilities, admin-specific API
+- Key files: `api.ts` (apiFetch with Clerk auth), `utils.ts` (cn helper)
+
+**infra/lib/:**
+- Purpose: AWS CDK stack definitions; infrastructure-as-code
+- Contains: 7 stacks (Network, DNS, Database, Compute, Observability, GitHub Deploy, Marketing)
+- Key files: `compute-stack.ts` (ECS + ALB), `database-stack.ts` (RDS + Redis)
+
+**marketing/src/app/:**
+- Purpose: Public marketing site pages (getinsourced.ai); statically exported
+- Contains: Landing page, pricing, about, blog template
+- Key files: `layout.tsx`, `(marketing)/page.tsx`
 
 ## Key File Locations
 
 **Entry Points:**
-- Backend: `backend/app/main.py` — FastAPI app creation, middleware setup, route registration
-- Frontend: `frontend/src/app/layout.tsx` — Root React layout, ClerkProvider wrapper
-- Infra: `infra/bin/app.ts` — CDK app composition with 4 stacks
+- `backend/app/main.py`: FastAPI app factory, CORS, exception handlers, lifespan
+- `backend/infra/bin/app.ts`: CDK App with stack instantiation
+- `frontend/src/app/layout.tsx`: Root Next.js layout, Clerk provider
+- `frontend/middleware.ts`: Clerk auth middleware (redirects unauthenticated to /sign-in)
 
 **Configuration:**
-- Backend: `backend/app/core/config.py` — Pydantic Settings from .env
-- Frontend: `frontend/tsconfig.json`, `frontend/next.config.ts` — Next.js config
-- Infra: `infra/cdk.json` — CDK configuration, context values
+- `backend/app/core/config.py`: Settings class with env var loading (Anthropic, Clerk, Stripe, etc.)
+- `infra/cdk.json`: CDK context variables (region, domain name, cached values)
+- `frontend/tsconfig.json`: TypeScript config with path aliases (`@` = `src/`)
 
 **Core Logic:**
-- Agent Orchestration: `backend/app/agent/graph.py` — StateGraph definition
-- Agent Nodes: `backend/app/agent/nodes/*.py` — Six specialist nodes (architect, coder, executor, debugger, reviewer, git_manager)
-- API Routes: `backend/app/api/routes/*.py` — HTTP endpoints
-- Frontend Chat: `frontend/src/components/chat/ChatWindow.tsx` — Main UI for agent interaction
-
-**Testing:**
-- Backend tests: `backend/tests/` — Pytest files
-- Frontend: No dedicated test files visible; assume jest/vitest in package.json
+- `backend/app/agent/graph.py`: LangGraph builder with 6 nodes and conditional routing
+- `backend/app/agent/state.py`: CoFounderState schema; persisted state across graph
+- `backend/app/agent/nodes/executor.py`: Largest node; E2B sandbox execution logic
 
 **Database:**
-- Models: `backend/app/db/models/*.py` — SQLAlchemy ORM
-- Initialization: `backend/app/db/base.py` — Async engine factory
+- `backend/app/db/__init__.py`: Connection pool initialization, async engine setup
+- `backend/app/db/models/__init__.py`: All models imported and re-exported
+- `backend/app/db/seed.py`: Startup seeding (plan tiers)
+
+**Testing:**
+- `backend/tests/`: Pytest suite (location TBD, not in exploration)
+- Test runners: See CI/CD workflows in `.github/workflows/`
+
+**Deployment:**
+- `scripts/deploy.sh`: Main deployment script (orchestrates backend + frontend + infra)
+- `DEPLOYMENT.md`: Deployment guide with manual + automated steps
 
 ## Naming Conventions
 
 **Files:**
-- Python source: `snake_case.py` (e.g., `user_settings.py`)
-- React components: `PascalCase.tsx` (e.g., `ChatWindow.tsx`, `BrandNav.tsx`)
-- Hooks: `use*` convention (e.g., `useAgentStream.ts`)
-- Pages: `page.tsx` for route handlers, `layout.tsx` for layout wrappers
-- TypeScript utilities: `camelCase.ts` (e.g., `api.ts`, `utils.ts`)
+- Python: `snake_case.py` (e.g., `architect.py`, `execution_plans.py`)
+- TypeScript/JavaScript: `camelCase.ts` or `PascalCase.tsx` for components (e.g., `ChatWindow.tsx`, `useAgentStream.ts`)
+- Config: Specific names (e.g., `next.config.ts`, `tsconfig.json`, `cdk.json`)
 
 **Directories:**
-- Feature grouping: Grouped by domain (`agent/`, `api/`, `db/`, `sandbox/`)
-- Route grouping: Route groups in parentheses (`(dashboard)`, `(marketing)`, `(admin)`)
-- Component organization: `components/{domain}/{ComponentName}.tsx`
+- Feature domains: `kebab-case` (e.g., `decision-gates/`, `execution-plans/`, `strategy-graph/`)
+- Layer directories: `snake_case` (e.g., `api/`, `db/`, `agent/`)
+- Infrastructure: `PascalCase` stacks in CDK (e.g., `NetworkStack`, `DatabaseStack`)
 
-**Variables & Functions:**
-- Python: `snake_case` for functions/variables, `PascalCase` for classes, `UPPER_CASE` for constants
-- TypeScript: `camelCase` for functions/variables, `PascalCase` for classes/types, `UPPER_CASE` for constants
-- Environment variables: `SCREAMING_SNAKE_CASE` (e.g., `DATABASE_URL`, `ANTHROPIC_API_KEY`)
+**Functions:**
+- Async functions: `async def function_name(...)` (Python) or `async function functionName(...)` (TypeScript)
+- Node functions: `async def {node_name}_node(state: CoFounderState) -> dict` (e.g., `architect_node`)
+- Custom hooks: `use{FeatureName}(...)` (e.g., `useAgentStream`, `useDashboard`)
+
+**Classes:**
+- Python models: `PascalCase` (e.g., `Project`, `Job`, `UnderstandingSession`)
+- React components: `PascalCase` (e.g., `ChatWindow`, `ProjectCard`)
+- CDK stacks: `{Feature}Stack` (e.g., `NetworkStack`, `ComputeStack`)
 
 **Types:**
-- TypeScript: Exported types use `PascalCase` (e.g., `ClerkUser`, `ChatRequest`)
-- Pydantic models (Python): `PascalCase` (e.g., `UserSettings`, `ProjectListResponse`)
+- TypeScript interfaces: `I{Name}` or `{Name}Props` (e.g., `IHostedZone`, `ChatWindowProps`)
+- Python TypedDict: `{Name}` (e.g., `CoFounderState`, `PlanStep`)
 
 ## Where to Add New Code
 
-**New Backend Feature:**
-- API endpoint: Create route in `backend/app/api/routes/feature.py`
-- Request/response: Add Pydantic model to `backend/app/api/schemas/`
-- Database model: Add SQLAlchemy model to `backend/app/db/models/feature.py`
-- Tests: Create `backend/tests/test_feature.py`
-- Import route in `backend/app/api/routes/__init__.py` and include in main router
+**New Feature (End-to-End):**
+- Primary code: Backend route in `backend/app/api/routes/{feature}.py`, service in `backend/app/services/{feature}_service.py`
+- Schema: Request/response in `backend/app/schemas/{feature}.py`
+- Database: Model in `backend/app/db/models/{feature}.py` if needed
+- Frontend: Component in `frontend/src/components/{feature}/`, hook in `frontend/src/hooks/use{Feature}.ts`
+- Page: Route in `frontend/src/app/(dashboard)/{feature}/page.tsx` if new page needed
+- Tests: `backend/tests/test_{feature}.py` (if test structure exists)
 
-**New Agent Node:**
-- Implementation: Create `backend/app/agent/nodes/new_node.py`
-- Export: Add to `backend/app/agent/nodes/__init__.py`
-- Integration: Add node to graph in `backend/app/agent/graph.py`
-- Conditional edges: Update routing logic based on state flags
+**New LangGraph Node:**
+- Implementation: `backend/app/agent/nodes/{node_name}.py` with `async def {node_name}_node(state: CoFounderState) -> dict`
+- Registration: Add import and `builder.add_node("{node_name}", {node_name}_node)` in `backend/app/agent/graph.py`
+- Routing: Add conditional edge if branching, or simple edge if linear
 
-**New Frontend Page:**
-- Create directory in `frontend/src/app/` matching route (e.g., `(dashboard)/newpage/`)
-- Create `page.tsx` in that directory
-- Optional: Create `layout.tsx` for page-specific wrapper
-- Add navigation link in `BrandNav` or menu component
+**New Component/Module (Reusable):**
+- React component: `frontend/src/components/{category}/{ComponentName}.tsx` with props interface
+- Custom hook: `frontend/src/hooks/use{Name}.ts` with `useEffect`, state management, error handling
+- Utility function: `frontend/src/lib/{filename}.ts`
+- API wrapper: Method in `frontend/src/lib/api.ts` or `frontend/src/lib/admin-api.ts`
 
-**New Frontend Component:**
-- Basic components: `frontend/src/components/ui/ComponentName.tsx`
-- Feature-specific: `frontend/src/components/{feature}/ComponentName.tsx`
-- Custom hooks: `frontend/src/hooks/useFeatureName.ts`
-- Export from index if needed for discoverability
+**Utilities:**
+- Backend: `backend/app/core/` for cross-app, `backend/app/agent/llm_helpers.py` for LLM-specific
+- Frontend: `frontend/src/lib/utils.ts` for general, `frontend/src/lib/api.ts` for API client
 
-**New Database Model:**
-- File: `backend/app/db/models/model_name.py`
-- Class: Inherit from `Base` imported from `backend/app/db/base.py`
-- Relationships: Use SQLAlchemy ForeignKey to plan_tiers, user_settings, projects
-- Initialization: Import in `backend/app/db/base.py` before `create_all()` is called
+**Database Migration:**
+- SQLAlchemy models: Add/modify in `backend/app/db/models/{entity}.py`
+- Migration tool: (Not currently using Alembic; manual schema management or manual SQL)
+- Seed data: Update `backend/app/db/seed.py`
 
-**Utilities & Helpers:**
-- Shared Python: `backend/app/core/` for cross-layer concerns
-- Frontend utilities: `frontend/src/lib/` for shared functions, API wrappers
-- Frontend hooks: `frontend/src/hooks/` for custom React hooks
-
-**Configuration:**
-- Backend environment: Add to `backend/app/core/config.py` Settings class, update `.env.example`
-- Frontend environment: Add `NEXT_PUBLIC_*` prefix, update `frontend/.env.local.example`
-- Infra constants: Add to `infra/bin/app.ts` config object
+**Infrastructure (CDK):**
+- New stack: `infra/lib/{feature}-stack.ts` with class extending `cdk.Stack`
+- Integration: Add import and instantiation in `infra/bin/app.ts`
+- Dependencies: Use `stack.addDependency()` to enforce ordering
 
 ## Special Directories
 
-**backend/app/agent/nodes/:**
-- Purpose: Specialist agent nodes in the TDD execution cycle
-- Generated: No (handwritten)
+**backend/app/sandbox/:**
+- Purpose: E2B Cloud sandbox integration (code execution in isolated containers)
+- Generated: No (source code)
 - Committed: Yes
-- Pattern: Each node is an async function taking CoFounderState and returning dict
-- Example nodes: architect_node creates execution plan, coder_node generates code via LLM
+- Note: Currently stubbed; wrapper around E2B API not yet implemented
 
-**frontend/src/app/(marketing)/:**
-- Purpose: Public marketing pages (no authentication required)
+**backend/app/memory/:**
+- Purpose: Semantic memory and knowledge graph for agent reasoning
 - Generated: No
 - Committed: Yes
-- Route group: Parentheses indicate group doesn't affect URL structure
-- Pages: `/`, `/pricing`, `/about`, `/contact`, `/privacy`, `/terms`
+- Note: Integrates with external Mem0 service; Neo4j for strategy graphs
 
-**frontend/src/app/(dashboard)/:**
-- Purpose: Protected user dashboard and core features
-- Generated: No
+**frontend/.next/:**
+- Purpose: Next.js build output (compiled routes, cached data, optimized bundles)
+- Generated: Yes (by `npm run build`)
+- Committed: No (in .gitignore)
+
+**marketing/out/:**
+- Purpose: Static HTML export output (final deliverable for S3 deployment)
+- Generated: Yes (by `npm run build`)
+- Committed: No (in .gitignore)
+- Deployed: Via S3 sync + CloudFront invalidation in GitHub Actions
+
+**infra/node_modules/:**
+- Purpose: AWS CDK and dependencies (large; includes TypeScript definitions)
+- Generated: Yes (by `npm install`)
+- Committed: No (in .gitignore)
+
+**backend/.venv/**
+- Purpose: Python virtual environment (isolated dependencies)
+- Generated: Yes (by `python -m venv .venv`)
+- Committed: No (in .gitignore)
+
+**.planning/codebase/**
+- Purpose: Architecture and structure analysis documents (THIS DIRECTORY)
+- Generated: No (manually maintained, written by Claude)
 - Committed: Yes
-- Route group: Doesn't affect URL structure
-- Auth: Enforced by Clerk middleware and `layout.tsx`
-- Pages: `/chat`, `/projects`, `/dashboard`, `/architecture`, `/billing`
+- Note: Consumed by `/gsd:plan-phase` and `/gsd:execute-phase` commands
 
-**frontend/src/app/(admin)/:**
-- Purpose: Admin-only management interfaces
-- Generated: No
+**.planning/phases/**
+- Purpose: Phase execution plans (structured task breakdowns)
+- Generated: Partially (generated by `/gsd:plan-phase`, refined manually)
 - Committed: Yes
-- Auth: Admin check in middleware or require_admin dependency
-- Pages: `/admin/plans`, `/admin/users`, `/admin/usage`
 
-**backend/tests/:**
-- Purpose: Pytest test suite
-- Generated: No
+**.planning/milestones/**
+- Purpose: Milestone groupings and phase organization
+- Generated: No (manually defined)
 - Committed: Yes
-- Pattern: `test_*.py` files with pytest fixtures and assertions
-- Execution: `pytest` from backend directory
 
-**infra/lib/ & infra/bin/:**
-- Purpose: AWS CDK infrastructure definitions
-- Generated: Yes (dist/ folder is compiled output)
-- Committed: Yes (TypeScript source)
-- Stacks: NetworkStack, DnsStack, DatabaseStack, ComputeStack
-- Synth: `cdk synth` generates CloudFormation, `cdk deploy` applies
+---
 
-**.planning/codebase/:**
-- Purpose: Generated GSD planning documentation
-- Generated: Yes (by /gsd:map-codebase)
-- Committed: Yes
-- Files: ARCHITECTURE.md, STRUCTURE.md, STACK.md, INTEGRATIONS.md, CONVENTIONS.md, TESTING.md, CONCERNS.md
-- Consumer: GSD /gsd:plan-phase and /gsd:execute-phase reference these
-
-**frontend/src/components/ui/:**
-- Purpose: shadcn/ui component library
-- Generated: Yes (scaffolded by shadcn CLI)
-- Committed: Yes
-- Pattern: Copy-pasteable unstyled components from shadcn/ui registry
-- Customization: Tailwind classes for theming
-
-## Path Aliases
-
-**Backend:**
-- `app.*` — All imports use absolute path from project root (no @/ aliases in Python)
-
-**Frontend:**
-- `@/*` — Aliased to `frontend/src/` for clean imports
-  - `@/app` → `frontend/src/app`
-  - `@/components` → `frontend/src/components`
-  - `@/lib` → `frontend/src/lib`
-  - `@/hooks` → `frontend/src/hooks`
-- Configured in `tsconfig.json` under `compilerOptions.paths`
-
+*Structure analysis: 2026-02-20*

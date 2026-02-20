@@ -1,246 +1,262 @@
 # Architecture
 
-**Analysis Date:** 2026-02-16
+**Analysis Date:** 2026-02-20
 
 ## Pattern Overview
 
-**Overall:** Three-tier distributed system with AI-driven agentic orchestration
+**Overall:** Microservice-oriented monorepo with a LangGraph-based agentic backend, Next.js frontend, and AWS CDK infrastructure-as-code. The system implements a Test-Driven Development (TDD) cycle as a state machine with human-in-the-loop safety gates.
 
 **Key Characteristics:**
-- **Backend:** FastAPI with LangGraph-based multi-agent system (TDD cycle)
-- **Frontend:** Next.js 14 with Clerk authentication, shadcn/ui components
-- **Infrastructure:** AWS CDK with ECS Fargate, RDS PostgreSQL, ElastiCache Redis
-- **AI Layer:** Anthropic Claude (Opus for planning, Sonnet for execution) with usage tracking
-- **Sandbox:** E2B cloud-based isolated code execution environment
+- FastAPI backend with LangGraph orchestrating a multi-agent system (Architect → Coder → Executor → Debugger → Reviewer → GitManager)
+- Next.js 14+ frontend with Clerk authentication and shadcn/ui components
+- PostgreSQL + Redis + Neo4j polyglot persistence
+- E2B Cloud sandbox for isolated code execution
+- AWS ECS Fargate for app deployment, CloudFront + S3 for marketing site (static export)
+- Stripe billing integration with plan tiers (Bootstrapper, Partner, CTO Scale)
 
 ## Layers
 
-**Presentation Layer:**
-- Purpose: User interfaces and public marketing surfaces
-- Location: `frontend/src/app/`, `frontend/src/components/`
-- Contains: Next.js pages (marketing, dashboard, admin), React components (chat, graph, admin), Clerk auth integrations
-- Depends on: Backend API via `frontend/src/lib/api.ts`, Stripe webhooks, Clerk for auth
-- Used by: Web browsers, unauthenticated and authenticated users
-
 **API Layer:**
-- Purpose: HTTP endpoints for frontend consumption and external webhooks
+- Purpose: RESTful HTTP endpoints for frontend and external integrations
 - Location: `backend/app/api/routes/`
-- Contains:
-  - `agent.py` — Chat/streaming endpoints for graph execution, session management
-  - `projects.py` — CRUD operations for user projects (plan-limited)
-  - `admin.py` — Plan tiers, user settings, usage metrics (admin-only)
-  - `billing.py` — Stripe webhook integration
-  - `health.py` — Health checks and readiness probes
-- Depends on: Core authentication, agent graph execution, database models, LLM config
-- Used by: Frontend, external Stripe webhooks
+- Contains: Endpoint definitions, request validation (Pydantic schemas), response serialization
+- Depends on: Core services, database models, authentication
+- Used by: Frontend, external clients
 
-**Agent Orchestration Layer:**
-- Purpose: Autonomous multi-step software engineering via LangGraph
+**Agent Layer (LangGraph State Machine):**
+- Purpose: Autonomous code generation pipeline orchestrating specialized LLMs
 - Location: `backend/app/agent/`
-- Contains:
-  - `graph.py` — StateGraph definition, conditional routing between nodes
-  - `state.py` — CoFounderState schema (messages, plan, execution tracking)
-  - `nodes/` — Six specialist nodes: architect, coder, executor, debugger, reviewer, git_manager
-- Depends on: LLM config, memory systems, sandbox execution, database persistence
-- Used by: Agent API routes during chat sessions
+- Contains: Graph definition (`graph.py`), state schema (`state.py`), six specialized nodes
+- Depends on: LLM clients, file system tools, Git CLI, E2B sandbox API
+- Used by: Agent runner endpoints, job processing service
 
-**Core Services Layer:**
-- Purpose: Cross-cutting concerns and shared utilities
-- Location: `backend/app/core/`
-- Contains:
-  - `auth.py` — Clerk JWT verification, admin/subscription dependency checks
-  - `config.py` — Pydantic settings from environment
-  - `llm_config.py` — Per-user model resolution (plan tier defaults + admin overrides), usage tracking
-  - `exceptions.py` — Custom exception hierarchy
-  - `locking.py` — Redis-backed distributed file locks
-- Depends on: Database models, Redis, Clerk
-- Used by: All route handlers, agent nodes, memory systems
+**Service Layer:**
+- Purpose: Business logic and domain operations
+- Location: `backend/app/services/`
+- Contains: Onboarding, understanding interview, execution plans, billing logic
+- Depends on: Database models, external APIs, agent graph
+- Used by: API routes, scheduled jobs
 
 **Database Layer:**
-- Purpose: Persistent storage for users, projects, usage, and subscription state
-- Location: `backend/app/db/`
-- Contains:
-  - `base.py` — SQLAlchemy async engine, session factory, Base declarative class
-  - `redis.py` — Redis connection pool, session storage, usage counters
-  - `models/` — SQLAlchemy ORM models (PlanTier, UserSettings, Project, UsageLog)
-  - `seed.py` — Idempotent plan tier initialization (bootstrapper, partner, cto_scale)
-- Depends on: PostgreSQL async driver (asyncpg), Redis
-- Used by: All application layers via dependency injection
+- Purpose: Data persistence and retrieval
+- Location: `backend/app/db/models/` (SQLAlchemy ORM), `backend/app/db/graph/` (Neo4j), `backend/app/db/redis.py`
+- Contains: 12 domain models (Project, Job, UnderstandingSession, DecisionGate, Artifact, etc.), Neo4j strategy graphs, Redis session cache
+- Depends on: SQLAlchemy, asyncpg, Neo4j driver, aioredis
+- Used by: Services, API routes
 
-**Memory Layer:**
-- Purpose: Stateful context management across agent execution
+**Memory & Knowledge:**
+- Purpose: Semantic memory and knowledge graph for agent reasoning
 - Location: `backend/app/memory/`
-- Contains:
-  - `episodic.py` — Task history (goals, steps, errors) in SQLAlchemy
-  - `mem0_client.py` — Semantic memory via Mem0 AI for long-term context
-- Depends on: Database, LLM for embedding/retrieval
-- Used by: Agent nodes during planning and debugging
+- Contains: Mem0 client integration, episodic memory, knowledge graph management
+- Depends on: Database, external memory service APIs
+- Used by: Agent nodes for context augmentation
 
-**Sandbox & Integration Layer:**
-- Purpose: Isolated code execution and external service integrations
-- Location: `backend/app/sandbox/`, `backend/app/integrations/`
-- Contains:
-  - `sandbox/e2b_runtime.py` — E2B cloud sandbox management, command execution
-  - `integrations/github.py` — GitHub App REST API client for PR/commit operations
-- Depends on: E2B API, GitHub App credentials
-- Used by: Executor and git_manager nodes
+**Core Infrastructure:**
+- Purpose: Cross-cutting concerns
+- Location: `backend/app/core/`
+- Contains: Config (settings), Auth (Clerk JWT verification), Logging (structlog), LLM configuration, Exception handling, Feature flags
+- Depends on: External services (Clerk, Anthropic, etc.)
+- Used by: All application layers
+
+**Frontend Layer:**
+- Purpose: User interface and client-side logic
+- Location: `frontend/src/app/`, `frontend/src/components/`
+- Contains: Next.js App Router pages (dashboard, admin, auth), React components organized by domain
+- Depends on: Clerk auth, API client library, shadcn/ui
+- Used by: End users via browser
+
+**Infrastructure Layer:**
+- Purpose: AWS cloud resources and deployment automation
+- Location: `infra/lib/`
+- Contains: CDK stacks for networking, DNS, database, compute, observability, GitHub Actions OIDC, marketing site
+- Depends on: AWS CDK, TypeScript
+- Used by: Cloud Deployments via `cdk deploy`
+
+**Marketing Site:**
+- Purpose: Public-facing landing page (getinsourced.ai)
+- Location: `marketing/src/`
+- Contains: Next.js 15 static export pages and components
+- Depends on: Next.js, Tailwind CSS
+- Used by: CDN (CloudFront + S3)
 
 ## Data Flow
 
-**Chat Request → Graph Execution:**
+**Job Execution Flow:**
 
-1. Frontend: User sends goal via `POST /api/agent/chat` (authenticated with Clerk JWT)
-2. API Route (`agent.py`):
-   - Validates subscription status via `require_subscription`
-   - Checks daily session limit
-   - Creates or retrieves session from Redis
-3. Agent Orchestration:
-   - Creates `CoFounderState` with user context, project path, goal
-   - Invokes LangGraph with state
-4. Node Execution (Architect → Coder → Executor → Debugger → Reviewer → GitManager):
-   - **Architect:** Analyzes goal via Claude Opus, creates execution plan
-   - **Coder:** Generates code changes (PlanSteps → FileChanges) via Claude Sonnet
-   - **Executor:** Runs code in E2B sandbox, captures output/errors
-   - **Debugger:** On test failure, analyzes error via Claude Sonnet, proposes fixes
-   - **Reviewer:** Validates completeness and safety
-   - **GitManager:** Commits changes via GitHub API
-5. Memory Systems:
-   - Episodic memory stores step-by-step execution history
-   - Semantic memory retrieves past similar tasks
-6. Usage Tracking:
-   - Each node operation logs token usage to `usage_logs` table
-   - Daily counters in Redis enforce plan tier limits
-7. Response: Streamed back to frontend as SSE or polling
+1. **User initiates goal** (Dashboard → API `/api/agent/chat` endpoint)
+2. **API endpoint enqueues Job** (`Job.status = "queued"`, stored in PostgreSQL)
+3. **Job worker polls queue**, calls `/api/agent/run` with `project_id`, `goal`
+4. **Agent runner creates `CoFounderState`** from project context and goal
+5. **LangGraph executes state machine:**
+   - Architect: Analyzes goal, creates detailed execution plan (PlanStep array)
+   - Coder: Generates code changes, writes to working files in state
+   - Executor: Runs code in E2B sandbox (isolated container), captures output
+   - Debugger/Reviewer: Analyzes failures, proposes fixes, cycles back to Coder (max 5 retries)
+   - GitManager: (Paused by interrupt gate) — User must approve before commit
+6. **Each state transition persists** via PostgreSQL LangGraph checkpointer (AsyncPostgresSaver)
+7. **Frontend subscribes to WebSocket** or polls `/api/jobs/{id}` for real-time updates
+8. **Final output:** Git commit + deploy, or human review gate
 
-**State Persistence:**
-- CoFounderState lives in memory during graph execution (no checkpointing currently)
-- Session metadata stored in Redis with 1-hour TTL at `cofounder:session:{session_id}`
-- Full execution history persisted to database via episodic memory
+**State Mutation Flow:**
+
+- State is immutable within nodes; mutations return dicts that merge into state via `operator.add`
+- Messages field appends via `Annotated[list, operator.add]` (conversation history)
+- Error tracking accumulates in `active_errors` list
+- File changes staged in `working_files` dict until GitManager commit
+
+**Database Relationships:**
+
+```
+User (implicit via clerk_user_id)
+  ├── Project (one user → many projects)
+  │   └── Job (one project → many jobs)
+  │       └── DecisionGate (one job → many gates)
+  │   └── OnboardingSession (capture initial idea)
+  │   └── UnderstandingSession (interview loop)
+  │   └── Artifact (generated documentation)
+  │   └── StageEvent (progress tracking)
+  └── PlanTier (subscription level)
+
+Graph Database (Neo4j):
+  └── StrategyGraph (one per project: nodes=tasks/goals, edges=dependencies)
+```
+
+**Real-time Signaling:**
+
+- Frontend WebSocket subscriptions (planned) or short-poll `/api/jobs/{id}` for status
+- Server-Sent Events (SSE) for streaming agent updates (not yet implemented)
+- Redis pub/sub for inter-service messaging (agents → API, webhooks)
 
 ## Key Abstractions
 
-**CoFounderState:**
-- Purpose: Single source of truth for agent execution context
+**CoFounderState (LangGraph State Schema):**
+- Purpose: Central state object persisting across entire agent graph execution
 - Examples: `backend/app/agent/state.py`
-- Pattern: TypedDict with append-only messages, mutable plan/errors, control flags
-- Fields track: conversation history, execution plan, file changes, errors, git context, node status
-- Enables: Long-running task checkpointing, human-in-the-loop interrupts, state replay
+- Pattern: TypedDict with Annotated fields for reducer functions (append, etc.)
+- Persisted to PostgreSQL checkpointer; enables resumption across service restarts
 
-**ClerkUser:**
-- Purpose: Authenticated user identity extracted from JWT
-- Examples: `backend/app/core/auth.py`
-- Pattern: Frozen dataclass wrapping `user_id` and JWT claims
-- Used by: Dependency injection in all protected endpoints
-- Integrations: Clerk public metadata for admin flag, subscription status
+**Node Functions (LangGraph Nodes):**
+- Purpose: Autonomous agent that takes state, produces new state
+- Examples: `backend/app/agent/nodes/{architect,coder,executor,debugger,reviewer,git_manager}.py`
+- Pattern: `async def node(state: CoFounderState) -> dict` returns mutations
+- Each node uses different LLM (Opus for Architect/Reviewer, Sonnet for Coder/Debugger)
 
-**PlanTier & UserSettings:**
-- Purpose: Multi-tenant usage limits and model overrides
-- Examples: `backend/app/db/models/plan_tier.py`, `user_settings.py`
-- Pattern: SQLAlchemy models with foreign key relationships
-- Resolution: Plan tier defaults override by UserSettings per-user, then used for rate limiting
-- Tiers: bootstrapper (1 project, 10 sessions/day, 500K tokens/day), partner (3, 50, 2M), cto_scale (unlimited)
+**Service Classes:**
+- Purpose: Encapsulate domain logic (onboarding, billing, understanding interview)
+- Examples: `backend/app/services/onboarding_service.py`, `billing_service.py`
+- Pattern: Dependency injection of database session, external clients
+- Used by: API routes via POST body validation
 
-**APIResponse Envelopes:**
-- Purpose: Consistent error and success response structure
-- Pattern: Pydantic BaseModels for ChatResponse, ProjectListResponse, etc.
-- Location: `backend/app/api/schemas/`
-- Validation: Automatic via FastAPI request/response serialization
+**Database Models (SQLAlchemy ORM):**
+- Purpose: Domain entities with persistence
+- Examples: `backend/app/db/models/{project,job,artifact,decision_gate}.py`
+- Pattern: Inherit from `Base`, define table name and columns
+- Relationships: Foreign keys to Project/User for querying
 
-**E2B Sandbox Runtime:**
-- Purpose: Isolated code execution environment
-- Examples: `backend/app/sandbox/e2b_runtime.py`
-- Pattern: Wrapper around E2B API with session lifecycle management
-- Operations: File I/O, shell execution, environment setup
-- Security: E2B provides container isolation; we enforce repo paths to prevent escapes
+**API Routes (FastAPI Routers):**
+- Purpose: HTTP endpoint definitions with Pydantic validation
+- Examples: `backend/app/api/routes/{agent,projects,onboarding,jobs}.py`
+- Pattern: `@router.post()`, `@router.get()` decorators, path parameters, request body schemas
+- Auth: Clerk JWT verification via middleware (sets `request.state.user_id`)
+
+**Frontend Hooks (React Custom Hooks):**
+- Purpose: Encapsulate API client logic and state management
+- Examples: `frontend/src/hooks/{useAgentStream,useDashboard,useExecutionPlans}.ts`
+- Pattern: `useEffect` to fetch data, `useState` for local state, error/loading states
+- Reusability: Shared across multiple pages/components
 
 ## Entry Points
 
-**Backend Entry Point:**
-- Location: `backend/app/main.py`
-- Triggers: Application startup (uvicorn or ECS)
-- Responsibilities:
-  - Create FastAPI app with CORS middleware
-  - Register API routes
-  - Initialize database (create tables), Redis connection
-  - Seed plan tiers idempotently
-  - Cleanup on shutdown
+**Backend HTTP Entry Point:**
+- Location: `backend/app/main.py` → `create_app()` → FastAPI instance on port 8000
+- Triggers: Incoming HTTP requests
+- Responsibilities: CORS setup, exception handling, middleware chain (correlation ID, Clerk auth), route registration
+- Health check: GET `/api/health` returns 503 during graceful shutdown (SIGTERM handler)
 
-**Frontend Entry Point:**
-- Location: `frontend/src/app/layout.tsx` (root)
-- Triggers: Browser navigation
-- Responsibilities:
-  - Wrap with ClerkProvider for authentication
-  - Set global fonts (Geist Sans/Mono, Space Grotesk)
-  - Apply dark theme
-  - Set OpenGraph/Twitter metadata
+**Agent Execution Entry Point:**
+- Location: `backend/app/api/routes/agent.py` → `POST /api/agent/run`
+- Triggers: Frontend job submission or background worker
+- Responsibilities: Validates job, creates LangGraph from app.state.checkpointer, invokes graph with initial state
+- Streaming: Polls or returns final state; real-time updates via WebSocket (TBD)
 
-**Dashboard Layout:**
-- Location: `frontend/src/app/(dashboard)/layout.tsx`
-- Triggers: Any route under `/dashboard/*`, `/chat/*`, etc.
-- Responsibilities:
-  - Render BrandNav (top navigation)
-  - Provide container structure for dashboard pages
-  - Enforce force-dynamic for real-time data
+**Frontend App Entry Point:**
+- Location: `frontend/src/app/layout.tsx` → Root layout with ClerkProvider
+- Triggers: Browser navigation to cofounder.getinsourced.ai
+- Responsibilities: Clerk session initialization, theme setup (dark mode), global CSS
+- Auth flow: Clerk middleware redirects unauthenticated users to `/sign-in`
 
-**Chat Page (User Entry):**
-- Location: `frontend/src/app/(dashboard)/chat/page.tsx`
-- Triggers: User navigates to `/chat` after authentication
-- Responsibilities: Render ChatWindow component with optional demo mode
+**Marketing Site Entry Point:**
+- Location: `marketing/src/app/layout.tsx` → Static export root layout
+- Triggers: Browser navigation to getinsourced.ai (public, no auth)
+- Responsibilities: SEO metadata, CSS, link navigation to app
+- Build: `npm run build` outputs static HTML to `/out`, deployed to S3 + CloudFront
 
-**Marketing Pages:**
-- Location: `frontend/src/app/(marketing)/page.tsx`, `pricing/`, `about/`, etc.
-- Triggers: Unauthenticated users
-- Responsibilities: SEO-optimized content for acquisition
+**Infrastructure Deployment Entry Point:**
+- Location: `infra/bin/app.ts` → CDK App with stack instantiation
+- Triggers: `cdk deploy` or GitHub Actions workflow
+- Responsibilities: Provisions VPC, databases, ECS cluster, DNS, CloudFront
+- Order: NetworkStack → DnsStack → DatabaseStack → ComputeStack → ObservabilityStack
 
 ## Error Handling
 
-**Strategy:** Layered exception propagation with user-friendly HTTP responses
+**Strategy:** Layered approach with structured logging and debug IDs for traceability.
 
-**Backend Patterns:**
-- Custom exceptions in `backend/app/core/exceptions.py` (not yet visible but inferred)
-- HTTPException for client errors (400, 401, 403, 404)
-- Graceful fallback for missing dependencies (DB not initialized, auth bypass)
-- Agent nodes capture and track errors in state; debugger analyzes
+**Patterns:**
 
-**Frontend Patterns:**
-- Try-catch around API calls in components
-- Error boundaries at page/layout level
-- Fallback UI for network failures
+**API Layer (HTTPException):**
+- Raised from route handlers, caught by global `http_exception_handler` in main.py
+- Returns sanitized JSON with `debug_id` (UUID) and `correlation_id` (request-scoped)
+- No stack traces leaked to client; full details logged server-side
+- Status codes: 400 (validation), 401 (auth), 404 (not found), 500 (server error)
 
-**Execution Errors:**
-- Executor captures exit codes and stderr
-- On failure (exit_code ≠ 0), state.active_errors populated
-- Debugger node receives error context, proposes fix via Claude
-- Retry loop with max_retries=5 before human review
+**Agent Layer (Retry Logic):**
+- Debugger node catches execution failures (non-zero exit code or test failures)
+- Attempts automatic fix via code review + regeneration (up to `max_retries=5`)
+- If retries exhausted, sets `needs_human_review=True`, pauses at GitManager gate
+- Error info stored in `active_errors` list (step_index, error_type, message, stderr)
+
+**Database Layer (AsyncContextManager):**
+- Connection pooling via SQLAlchemy async engine
+- Graceful close on shutdown (lifespan context manager)
+- Transaction rollback on exception; no partial commits
+
+**Async Exception Handling:**
+- Try-except in lifespan for initialization (Neo4j schema, checkpointer setup)
+- Non-fatal errors logged as warnings; fallbacks applied (e.g., MemorySaver if Postgres fails)
 
 ## Cross-Cutting Concerns
 
 **Logging:**
-- Backend: uvicorn/FastAPI logs to stdout (captured by ECS)
-- Frontend: console.log in development, silent in production
-- No centralized logging service currently configured
+- Framework: structlog with JSON output in production, human-readable in dev
+- Configured: `backend/app/core/logging.py` → `configure_structlog()` at startup (before all imports)
+- Pattern: `logger = structlog.get_logger(__name__)` then `.info()`, `.warning()`, `.error()` with key-value context
+- Correlation ID: Injected via middleware, included in all log lines for request tracing
 
 **Validation:**
-- Pydantic models enforce type safety and required fields
-- Clerk JWT claims validated server-side
-- Plan tier limits enforced via Redis counters
-- File paths validated to prevent sandbox escapes
+- Request bodies: Pydantic `BaseModel` schemas in `backend/app/schemas/` and `backend/app/api/schemas/`
+- Automatic: FastAPI raises 422 validation error if request doesn't match schema
+- Custom: `@validator` decorators for complex rules (e.g., enum matching, dependency checks)
 
 **Authentication:**
-- Clerk JWT bearer token required for all protected endpoints
-- Token verified against Clerk JWKS endpoint
-- Subscription status checked on sensitive endpoints
-- Admin flag checked for administrative operations
+- Provider: Clerk (JWT tokens)
+- Implementation: `backend/app/core/auth.py` → `verify_clerk_token()` middleware
+- Token verification: Extracts `clerk_user_id` from JWT header, sets `request.state.user_id`
+- Public routes: Exempted (e.g., `/api/health`, `/api/plans`)
+
+**Feature Flags:**
+- Storage: `user_settings.feature_flags` (PostgreSQL JSONB column per user)
+- Evaluation: Checked at service/route level, e.g., `if feature_flags.get("strategy_graph"): ...`
+- Defaults: Defined in `backend/app/core/config.py` → `Settings.default_feature_flags`
 
 **Rate Limiting:**
-- Daily session count in Redis per user per date
-- Daily token usage enforced via `cofounder:usage:{user_id}:{date}`
-- 403 returned when limits exceeded
-- Resets at midnight UTC
+- Not enforced in code; relies on ALB/API Gateway in production (AWS managed)
+- Per-user quota tracking via `UsageLog` model (iterations_used per job)
 
-**State Machine:**
-- LangGraph provides conditional routing based on state
-- Entry point: architect node
-- Conditional edges: architect→coder, coder→executor, executor→debugger|reviewer
-- Exit nodes: end (on fatal error or retry exceeded), git_manager (on completion)
+**Billing:**
+- Webhook handler: `POST /api/billing/webhook` listens to Stripe `customer.subscription.updated`
+- Plan tiers stored in `PlanTier` table; job operations check tier capacity
+- Stripe price IDs validated at startup; missing IDs fail fast
 
+---
+
+*Architecture analysis: 2026-02-20*

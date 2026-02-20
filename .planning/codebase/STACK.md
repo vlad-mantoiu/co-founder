@@ -1,157 +1,158 @@
 # Technology Stack
 
-**Analysis Date:** 2026-02-16
+**Analysis Date:** 2026-02-20
 
 ## Languages
 
 **Primary:**
-- Python 3.12 - Backend (FastAPI, LangGraph, agent nodes)
-- TypeScript 5.3+ - Infrastructure (AWS CDK) and Frontend (Next.js)
-- React 19 - Frontend UI components
+- **TypeScript** 5.x - Frontend (`frontend/`, `marketing/`, `infra/`) and configuration
+- **Python** 3.12.4 - Backend API (`backend/`) and infrastructure automation
+- **JavaScript/Node.js** 20.x - Build tooling and CLI utilities (package manifests)
 
 **Secondary:**
-- SQL - PostgreSQL database queries via SQLAlchemy
+- **YAML** - GitHub Actions workflows and Docker Compose
+- **SQL** - PostgreSQL schema and migrations (Alembic)
 
 ## Runtime
 
 **Environment:**
-- Node.js 20+ (Frontend dev/build, CDK infrastructure)
-- Python 3.12 (Backend, enforced in pyproject.toml)
-- Docker - Containerized deployment (linux/amd64 architecture required for ECS Fargate)
+- **Python** 3.12.4 (specified in `.python-version`)
+- **Node.js** 20.x (hardcoded in `deploy-marketing.yml`, inferred from frontend build)
+- **Docker** - Container runtime for local dev and production deployment
 
 **Package Manager:**
-- npm - Frontend (`/Users/vladcortex/co-founder/frontend/package.json`)
-- pip/Poetry - Backend (via pyproject.toml at `/Users/vladcortex/co-founder/backend/pyproject.toml`)
-- npm - Infrastructure (`/Users/vladcortex/co-founder/infra/package.json`)
+- **npm** (Node.js) - Frontend, marketing, and infra dependencies
+- **pip/hatch** (Python) - Backend dependencies managed via `pyproject.toml`
+- Lockfiles: `package-lock.json` present (frontend/marketing/infra), no Python lockfile (uses hatch)
 
 ## Frameworks
 
-**Core Backend:**
-- FastAPI 0.115.0+ - HTTP API server, CORS, lifespan management, authentication
-- LangGraph 0.2.0+ - Agentic state machine for TDD cycle (Architect→Coder→Executor→Debugger→Reviewer→GitManager)
-- LangChain (langchain-anthropic 0.3.0+, langchain-core 0.3.0+) - LLM integrations and model abstraction
+**Core:**
+- **FastAPI** 0.115+ - Backend REST API server
+- **Next.js** 15.0.0 - Frontend dashboard at `https://cofounder.getinsourced.ai` (App Router, React 19)
+- **Next.js** 15.0.0 - Marketing site at `https://getinsourced.ai` (static export, no auth)
+- **AWS CDK** 2.170.0 - Infrastructure as Code (TypeScript)
 
-**Frontend:**
-- Next.js 15.0.0 - React framework with App Router
-- Tailwind CSS 4.0.0 - Utility-first CSS with PostCSS 4.0.0
-- shadcn/ui (implicit via Tailwind) - Component library (via lucide-react 0.400.0 for icons)
-- Clerk 6.0.0+ (@clerk/nextjs) - Authentication and user management
+**Authentication & Authorization:**
+- **Clerk** 6.0.0 - User authentication and JWT tokens (frontend and backend)
+- **PyJWT** 2.8+ - JWT verification and token handling (backend)
 
-**Database & Persistence:**
-- SQLAlchemy 2.0.0+ - Async ORM for PostgreSQL (asyncpg driver 0.30.0+)
-- Alembic 1.13.0+ - Database migrations
-- psycopg[binary] 3.2.0+ - PostgreSQL adapter
-- Pydantic 2.10.0+ - Data validation and settings
+**LLM & AI:**
+- **LangChain** (langchain-anthropic, langchain-core) - LLM orchestration
+- **LangGraph** 0.2.0+ - Agent graph state machine for AI Co-Founder workflow
+- **Anthropic SDK** 0.40+ - Direct Claude API access for cost optimization
 
-**Infrastructure:**
-- AWS CDK 2.170.0+ (TypeScript) - IaC for ECS, RDS, ElastiCache, Route53, ACM, VPC
-- Constructs 10.3.0+ - CDK construct library
+**Sandboxing & Execution:**
+- **E2B Code Interpreter** 1.0.0+ - Secure code execution environment for generated code
 
-**Testing:**
-- pytest 8.3.0+ - Test runner with asyncio support (pytest-asyncio 0.24.0+)
-- pytest-cov 6.0.0+ - Coverage reporting
-- Ruff 0.8.0+ - Fast Python linter
-- mypy 1.13.0+ - Static type checking (strict mode)
+**UI & Styling:**
+- **React** 19.0.0 - Component framework
+- **Tailwind CSS** 4.0.0 - Utility-first CSS framework (both frontend and marketing)
+- **shadcn/ui** - Headless component library (frontend only)
+- **Framer Motion** 12.34.0 - Animation library
+- **Lucide React** 0.400.0 - Icon library
+- **Sonner** 2.0.7 - Toast notifications (frontend)
 
-**Code Generation & Build:**
-- TypeScript Compiler (tsc) - CDK compilation
-- ts-node 10.9.2 - TypeScript execution
-- ESLint 9.0.0+ - Frontend linting with Next.js config
+**Database:**
+- **SQLAlchemy** 2.0.0 - Python ORM for PostgreSQL
+- **Alembic** 1.13.0 - Schema migration tool
+- **asyncpg** 0.30.0 - Async PostgreSQL driver
+- **psycopg** 3.2+ - Sync PostgreSQL adapter
+- **Redis** 5.2+ - Cache client (redis-py)
+- **neo4j** 5.0.0+ - Graph database client
 
-## Key Dependencies
+**Testing & Quality:**
+- **pytest** 8.3.0+ - Test runner
+- **pytest-asyncio** 0.24.0+ - Async test support
+- **pytest-cov** 6.0.0+ - Coverage reporting
+- **ruff** 0.8.0+ - Fast Python linter and formatter
+- **mypy** 1.13.0+ - Type checker
+- **ESLint** 9.0.0 - JavaScript/TypeScript linter (frontend)
+- **TypeScript** 5.0+ - Type checking for all TS projects
 
-**Critical Backend:**
-- anthropic 0.40.0+ - Anthropic Claude API SDK (core to agent reasoning)
-- langgraph-checkpoint-postgres 2.0.0+ - State persistence for long-running workflows
-- redis 5.2.0+ - Cache and session storage (async)
-- e2b-code-interpreter 1.0.0+ - Sandboxed code execution environment
-- stripe 11.0.0+ - Billing and subscription management
-- PyJWT 2.8.0+ - JWT token verification for Clerk auth
-- cryptography 42.0.0+ - Cryptographic operations
-- neo4j 5.0.0+ - Knowledge graph for codebase analysis
-- mem0ai 0.1.0+ - Semantic memory for user personalization
-- httpx 0.28.0+ - Async HTTP client for GitHub API integration
+**Build & Dev:**
+- **ts-node** 10.9.2 - TypeScript REPL for CDK
+- **tsx** (implied) - TypeScript execution
+- **Hatchling** - Python package builder
 
-**Frontend:**
-- framer-motion 12.34.0 - Animation library for transitions
-- geist 1.3.0 - Vercel's design system (fonts)
-- lucide-react 0.400.0 - Icon library
-- clsx 2.1.0 - Utility for conditional CSS classes
-- tailwind-merge 2.3.0 - Merge Tailwind classes without conflicts
+**Payments & Billing:**
+- **Stripe** 11.0.0+ - Payment processing and subscription management
 
-**Infrastructure:**
-- aws-cdk-lib 2.170.0+ - CDK resource constructs
+**Utilities & Infrastructure:**
+- **httpx** 0.28.0+ - Async HTTP client (Python)
+- **Pydantic** 2.10+ - Data validation and settings management
+- **boto3** 1.35.0+ - AWS SDK for CloudWatch metrics and S3
+- **Jinja2** 3.1.0+ - Template engine for code generation
+- **WeasyPrint** 68.1+ - HTML to PDF conversion
+- **structlog** 25.0.0+ - Structured JSON logging
+- **asgi-correlation-id** 4.3.0+ - Request correlation tracking
+- **python-multipart** 0.0.17+ - Multipart form parsing
 
 ## Configuration
 
 **Environment:**
-- `.env` (Backend) - Loads via Pydantic BaseSettings from `app.core.config.Settings`
-- AWS Secrets Manager `cofounder/app` - Runtime secrets in production (auto-loaded by ECS task role)
-- AWS Secrets Manager `cofounder/database` - RDS credentials
-- Environment variables injected by CDK at task definition time (see `compute-stack.ts`)
+- Root `.env` file (git-ignored) - Contains all secrets and service configs
+- `.env.example` - Template with required vars (no values, committed)
+- `backend/.env` - Backend-specific overrides
+- `frontend/.env.local` - Frontend-specific overrides (git-ignored)
+- `frontend/.env.local.example` - Frontend template (committed)
 
-**Key Configs Required:**
-- `ANTHROPIC_API_KEY` - Anthropic Claude API key
-- `CLERK_SECRET_KEY` - Clerk backend secret
-- `CLERK_PUBLISHABLE_KEY` - Clerk frontend key
-- `E2B_API_KEY` - E2B sandbox API key
-- `DATABASE_URL` - PostgreSQL async connection string
-- `REDIS_URL` - Redis connection URL
-- `GITHUB_APP_ID`, `GITHUB_PRIVATE_KEY` - GitHub App for repo management
-- `NEO4J_URI`, `NEO4J_PASSWORD` - Neo4j Aura instance credentials
-- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` - Stripe billing
-- `STRIPE_PRICE_*` - Stripe price IDs for billing tiers
+**Key Variables Required:**
+- `ANTHROPIC_API_KEY` - Claude API access
+- `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` - Auth provider
+- `DATABASE_URL` - PostgreSQL connection
+- `REDIS_URL` - Redis connection
+- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` - Payment processor
+- `E2B_API_KEY` - Code sandbox
+- `GITHUB_APP_ID`, `GITHUB_PRIVATE_KEY` - GitHub integration
+- `NEO4J_URI`, `NEO4J_PASSWORD` - Graph database (optional)
 
-**Build:**
-- `tsconfig.json` - TypeScript configuration (Frontend, Infrastructure)
-- `pyproject.toml` - Python project metadata and build config
-- `.eslintrc` - Frontend linting rules
-- `tailwind.config.js` (implicit) - Tailwind CSS configuration
-
-## Database
-
-**Primary:** PostgreSQL 16.4 on RDS
-- Async engine: `create_async_engine()` with asyncpg driver at `/Users/vladcortex/co-founder/backend/app/db/base.py`
-- ORM: SQLAlchemy 2.0+ with async sessions
-- Models: `/Users/vladcortex/co-founder/backend/app/db/models/` (user_settings, usage_log, plan_tier, project)
-- Migrations: Alembic managed
-
-**Cache:** Redis on ElastiCache
-- Client: redis.asyncio at `/Users/vladcortex/co-founder/backend/app/db/redis.py`
-- Purpose: Session storage, rate limiting, background job queues
-
-**Graph Database:** Neo4j (Aura)
-- Client: neo4j async driver at `/Users/vladcortex/co-founder/backend/app/memory/knowledge_graph.py`
-- Purpose: Code structure analysis, dependency graphs, impact analysis
-
-## LLM Models
-
-**Production Models:**
-- Architect role: `claude-opus-4-20250514` (complex reasoning)
-- Reviewer role: `claude-opus-4-20250514` (code review)
-- Coder role: `claude-sonnet-4-20250514` (code generation)
-- Debugger role: `claude-sonnet-4-20250514` (error analysis)
-
-Configured at `backend/app/core/config.py` with plan-tier overrides possible in database via `UserSettings.override_models`.
+**Build Configuration:**
+- `backend/pyproject.toml` - Python project metadata and dependencies
+- `frontend/tsconfig.json` - TypeScript compiler options with `@/*` path alias
+- `marketing/tsconfig.json` - Marketing site TS config
+- `frontend/next.config.ts` - Next.js config (standalone output, redirects)
+- `marketing/next.config.ts` - Marketing config (static export with no image optimization)
+- `infra/tsconfig.json` - CDK infrastructure code config
+- `frontend/eslint.config.mjs` - ESLint Flat config with Next.js rules
 
 ## Platform Requirements
 
 **Development:**
-- macOS/Linux with Docker installed (Apple Silicon users: must use `docker buildx --platform linux/amd64`)
-- Node.js 20+, npm 10+
-- Python 3.12.x
-- PostgreSQL 16+ (local dev) or via Docker
-- Redis (local dev) or via Docker
+- **macOS/Linux/Windows** with Docker
+- **Python** 3.12.4
+- **Node.js** 20.x
+- **npm** 10.x (LTS)
+- **Docker** and **Docker Compose** for local PostgreSQL, Redis, Neo4j
 
 **Production:**
-- AWS Account (837175765586, us-east-1)
-- ECS Fargate (linux/amd64) - Backend and Frontend
-- RDS PostgreSQL 16.4
-- ElastiCache Redis
-- Route53 hosted zone for cofounder.getinsourced.ai
-- ACM SSL certificate
-- ECR repositories (cofounder-backend, cofounder-frontend)
+- **AWS Fargate** (ECS) - Container orchestration for backend
+- **AWS RDS PostgreSQL** - Managed database
+- **AWS ElastiCache Redis** - Managed cache
+- **AWS CloudWatch** - Monitoring and metrics
+- **AWS Route53** - DNS (domain management)
+- **AWS S3 + CloudFront** - Static asset delivery for marketing site
+- **AWS ALB** - Application Load Balancer (ECS routing)
+
+**Deployment Infrastructure:**
+- **AWS CDK** stacks in `infra/lib/`:
+  - `dns-stack.ts` - Route53 domains and records
+  - `network-stack.ts` - VPC, subnets, security groups
+  - `database-stack.ts` - RDS PostgreSQL, ElastiCache Redis
+  - `compute-stack.ts` - ECS Fargate cluster, ALB, task definitions
+  - `marketing-stack.ts` - S3 bucket, CloudFront distribution (NEW v0.3)
+  - `observability-stack.ts` - CloudWatch dashboards
+  - `github-deploy-stack.ts` - GitHub OIDC integration for CI/CD
+
+**CI/CD:**
+- **GitHub Actions** - Automated deployment workflows
+- **AWS OIDC** - Keyless authentication for production deployments
+- Workflows:
+  - `.github/workflows/test.yml` - Backend and frontend tests on PR
+  - `.github/workflows/integration-tests.yml` - End-to-end tests
+  - `.github/workflows/deploy.yml` - Backend and frontend deployment to AWS
+  - `.github/workflows/deploy-marketing.yml` - Marketing site deployment to S3 + CloudFront (path-filtered)
 
 ---
 
-*Stack analysis: 2026-02-16*
+*Stack analysis: 2026-02-20*
