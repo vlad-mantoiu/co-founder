@@ -78,10 +78,11 @@
   2. CloudFront response headers policy is defined in CDK source code (not the AWS managed SECURITY_HEADERS preset)
   3. Lighthouse LCP, CLS, INP, and Performance scores are recorded and available as the v0.4 baseline
   4. Google Rich Results Test and social preview debugger tools load without CSP blocks
-**Plans**: 2 plans
+**Plans**: 3 plans
 Plans:
-- [ ] 22-01-PLAN.md — Lighthouse baseline audit (all 8 pages, mobile + desktop)
-- [ ] 22-02-PLAN.md — Custom ResponseHeadersPolicy replacing managed SECURITY_HEADERS
+- [x] 22-01-PLAN.md — Lighthouse baseline audit (all 8 pages, mobile + desktop)
+- [x] 22-02-PLAN.md — Custom ResponseHeadersPolicy replacing managed SECURITY_HEADERS
+- [ ] 22-03-PLAN.md — Gap closure: Organization + WebSite JSON-LD so Rich Results Test finds structured data
 
 ### Phase 23: Performance Baseline
 **Goal**: Above-fold content renders at full opacity without animation delay; fonts load without flash; images do not shift layout; reduced-motion users see no animations
@@ -168,7 +169,7 @@ Plans:
 | 19. CloudFront + S3 Infrastructure | v0.3 | 2/2 | Complete | 2026-02-20 |
 | 20. App Cleanup | v0.3 | 2/2 | Complete | 2026-02-20 |
 | 21. Marketing CI/CD | v0.3 | 1/1 | Complete | 2026-02-20 |
-| 22. Security Headers + Baseline Audit | 2/2 | Complete   | 2026-02-20 | - |
+| 22. Security Headers + Baseline Audit | v0.4 | 2/3 | Gap closure in progress | 2026-02-20 |
 | 23. Performance Baseline | v0.4 | 0/TBD | Not started | - |
 | 24. SEO Infrastructure | v0.4 | 0/TBD | Not started | - |
 | 25. Loading UX | v0.4 | 0/TBD | Not started | - |
