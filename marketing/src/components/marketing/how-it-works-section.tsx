@@ -14,28 +14,28 @@ const steps = [
     step: "01",
     title: "Describe",
     description:
-      "Tell your co-founder what you want to build. Describe features, user stories, and goals in plain English.",
+      "Start with the outcome you want. Co-Founder.ai turns your requirements into an executable technical plan.",
   },
   {
     icon: Code2,
     step: "02",
     title: "Architect & Build",
     description:
-      "AI designs the system architecture, writes production-grade code, and creates comprehensive test coverage.",
+      "Get production-ready architecture and code aligned to your stack, conventions, and product priorities.",
   },
   {
     icon: TestTube,
     step: "03",
     title: "Review & Correct",
     description:
-      "Automated testing catches issues before they ship. You review changes and provide feedback in real time.",
+      "Review tested changes, request revisions, and approve what ships with full visibility into each update.",
   },
   {
     icon: Rocket,
     step: "04",
     title: "Ship",
     description:
-      "Deploy to your infrastructure with a single click. Your app goes live on your domain, under your control.",
+      "Deploy approved changes to your infrastructure and release under your own accounts, domain, and control.",
   },
 ];
 
@@ -51,11 +51,11 @@ export default function HowItWorksSection() {
             Process
           </p>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">
-            From Idea to Deployed Product
+            How does Co-Founder.ai take you from idea to deployment?
           </h2>
           <p className="mt-4 text-lg text-white/40 max-w-2xl mx-auto">
-            A continuous loop of building, testing, and shipping. Your
-            co-founder handles the entire development lifecycle.
+            You define the goal, Co-Founder.ai executes the development loop,
+            and you approve each production-ready release.
           </p>
         </FadeIn>
 

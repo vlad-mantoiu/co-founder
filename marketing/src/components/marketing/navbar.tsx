@@ -110,7 +110,7 @@ export function Navbar() {
             href="https://cofounder.getinsourced.ai/onboarding"
             className="px-5 py-2.5 bg-brand text-white text-sm font-semibold rounded-xl hover:bg-brand-dark transition-all duration-200 shadow-glow hover:shadow-glow-lg"
           >
-            Start Building
+            Start with Co-Founder.ai
           </a>
         </div>
 
@@ -158,7 +158,7 @@ export function Navbar() {
                 href="https://cofounder.getinsourced.ai/onboarding"
                 className="mt-2 text-center px-5 py-3 bg-brand text-white text-sm font-semibold rounded-xl hover:bg-brand-dark transition-colors"
               >
-                Start Building
+                Start with Co-Founder.ai
               </a>
             </div>
           </motion.div>

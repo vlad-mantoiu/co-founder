@@ -13,7 +13,8 @@ const plans = [
     icon: Zap,
     monthlyPrice: 99,
     annualPrice: 79,
-    description: "Perfect for solo founders validating their first product.",
+    description:
+      "For solo founders shipping and validating an early-stage product.",
     popular: false,
     features: [
       "Standard build speed",
@@ -31,7 +32,7 @@ const plans = [
     monthlyPrice: 299,
     annualPrice: 239,
     description:
-      "For founders ready to ship fast with a full autonomous dev loop.",
+      "For founders who need faster execution with a full autonomous build loop.",
     popular: true,
     features: [
       "Priority build speed",
@@ -51,7 +52,7 @@ const plans = [
     monthlyPrice: 999,
     annualPrice: 799,
     description:
-      "For teams that need multi-agent workflows and enterprise controls.",
+      "For teams running multi-agent workflows with advanced control needs.",
     popular: false,
     features: [
       "Maximum build speed",
@@ -69,20 +70,20 @@ const plans = [
 
 const faqs = [
   {
-    q: "Who owns the code?",
-    a: "You do. 100%. Everything built by Co-Founder.ai belongs entirely to you. We never claim ownership of any code, assets, or intellectual property generated for your projects.",
+    q: "Who owns the code and project IP?",
+    a: "You do. Everything built by Co-Founder.ai belongs to you. We never claim ownership of your code, assets, or intellectual property.",
   },
   {
-    q: "Can I cancel anytime?",
-    a: "Yes. There are no long-term contracts. Cancel your subscription at any time and keep full access to all code and data generated during your subscription. You can export everything before you leave.",
+    q: "Can I cancel without a long-term contract?",
+    a: "Yes. There are no long-term contracts. Cancel any time and keep access through your current billing period. You can export code and data before you leave.",
   },
   {
-    q: "Does it work with my existing codebase?",
-    a: "Absolutely. Co-Founder.ai connects to your GitHub repository and understands your existing code, conventions, and architecture. It builds on top of what you already have rather than starting from scratch.",
+    q: "Can Co-Founder.ai work with my existing codebase?",
+    a: "Yes. Co-Founder.ai connects to your GitHub repository and works with your existing architecture, code conventions, and workflows.",
   },
   {
-    q: "How secure is my data?",
-    a: "All data is encrypted in transit (TLS 1.3) and at rest (AES-256). Your code is never used to train models. We run on SOC2-compliant infrastructure with full audit logging and support VPC deployment for enterprise plans.",
+    q: "How do you protect my code and data?",
+    a: "Data is encrypted in transit (TLS 1.3) and at rest (AES-256). Your code is never used to train models. We run on SOC2-compliant infrastructure with audit logging and VPC deployment options on higher plans.",
   },
 ];
 
@@ -106,15 +107,20 @@ export default function PricingContent() {
             transition={{ duration: 0.6 }}
           >
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight">
-              Hire a Senior Engineer
+              Pricing for Your AI Technical Co-Founder
               <br />
               <span className="text-white/40">
-                for the price of your coffee habit
+                Clear plans for founders at every stage
               </span>
             </h1>
             <p className="mt-6 text-lg text-white/50 max-w-2xl mx-auto">
-              Simple, transparent pricing. No hidden fees, no surprise invoices,
-              no equity negotiations. Start building today.
+              Choose the execution depth you need today, from first-product
+              validation to multi-agent delivery. No hidden fees or equity
+              tradeoffs.
+            </p>
+            <p className="mt-4 text-sm sm:text-base text-white/40 max-w-2xl mx-auto">
+              Quick answer: every plan includes an AI technical co-founder that
+              helps you build, test, and ship code you own.
             </p>
           </motion.div>
         </div>
@@ -242,7 +248,7 @@ export default function PricingContent() {
                         : "glass hover:bg-white/5 text-white"
                     )}
                   >
-                    Get Started
+                    Choose {plan.name}
                   </a>
                 </div>
               </StaggerItem>

@@ -49,8 +49,8 @@ export function Footer() {
     <>Co-Founder<span className="text-brand">.ai</span></>
   );
   const tagline = isInsourced
-    ? "A suite of autonomous AI agents replacing the roles startups can\u2019t afford to fill."
-    : "The autonomous dev system that turns your ideas into shipped products. No equity required.";
+    ? "Insourced AI builds autonomous agents that help founders replace outsourced execution and ship faster."
+    : "Co-Founder.ai is your AI technical co-founder for planning, building, testing, and shipping software.";
   const copyright = isInsourced ? "Insourced AI Inc." : "Co-Founder.ai";
   const logoHref = isInsourced ? "/" : "/cofounder";
 

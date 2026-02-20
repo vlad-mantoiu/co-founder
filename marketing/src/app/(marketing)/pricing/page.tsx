@@ -4,7 +4,7 @@ import PricingContent from "@/components/marketing/pricing-content";
 export const metadata: Metadata = {
   title: "Pricing",
   description:
-    "Simple, transparent pricing for Co-Founder.ai. From $99/month for solo founders to enterprise plans for scaling teams. No hidden fees, no equity required.",
+    "Transparent pricing for Co-Founder.ai, your AI technical co-founder. Choose a plan for early validation, faster autonomous execution, or multi-agent delivery.",
 };
 
 export default function PricingPage() {

@@ -12,23 +12,26 @@ const spaceGrotesk = Space_Grotesk({
 
 export const metadata: Metadata = {
   title: {
-    default: "Insourced AI | Autonomous AI Agents for Non-Technical Founders",
+    default:
+      "Insourced AI | AI Technical Co-Founder and Autonomous Agents for Founders",
     template: "%s | Insourced AI",
   },
   description:
-    "Stop outsourcing your vision. Scale with a suite of autonomous AI agents that architect, code, hire, and manage — so you keep 100% of your equity.",
+    "Insourced AI helps non-technical founders ship software faster. Start with Co-Founder.ai to plan, build, test, and deploy with an AI technical co-founder.",
   openGraph: {
-    title: "Insourced AI | Autonomous AI Agents for Non-Technical Founders",
+    title:
+      "Insourced AI | AI Technical Co-Founder and Autonomous Agents for Founders",
     description:
-      "A suite of autonomous AI agents replacing the roles startups can't afford to fill.",
+      "Autonomous AI agents for founders who want faster product execution without outsourced teams.",
     siteName: "Insourced AI",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Insourced AI | Autonomous AI Agents for Non-Technical Founders",
+    title:
+      "Insourced AI | AI Technical Co-Founder and Autonomous Agents for Founders",
     description:
-      "A suite of autonomous AI agents replacing the roles startups can't afford to fill.",
+      "Autonomous AI agents for founders who want faster product execution without outsourced teams.",
   },
   robots: { index: true, follow: true },
 };

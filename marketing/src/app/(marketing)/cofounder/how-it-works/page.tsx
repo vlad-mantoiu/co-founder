@@ -4,7 +4,7 @@ import HowItWorksSection from "@/components/marketing/how-it-works-section";
 export const metadata: Metadata = {
   title: "How It Works | Co-Founder.ai",
   description:
-    "From idea to deployed product in four steps. Describe, architect, review, and ship with your AI technical co-founder.",
+    "Learn how Co-Founder.ai takes you from idea to deployment: define goals, generate architecture and code, review tested changes, and ship.",
 };
 
 export default function HowItWorksPage() {

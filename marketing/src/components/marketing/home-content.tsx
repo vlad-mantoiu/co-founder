@@ -68,17 +68,20 @@ function HeroSection() {
             </div>
 
             <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight leading-[1.08]">
-              Stop Giving Away{" "}
+              Ship Faster Without Giving Away{" "}
               <span className="bg-gradient-to-r from-brand to-brand-light bg-clip-text text-transparent">
-                50% Equity
-              </span>{" "}
-              to a Technical Co-Founder
+                Founder Equity
+              </span>
             </h1>
 
             <p className="mt-6 text-lg sm:text-xl text-white/50 leading-relaxed max-w-xl">
-              Your AI technical co-founder architects, codes, tests, and deploys
-              your product. 24/7 autonomous development for a fraction of what
-              you would pay a dev shop.
+              Co-Founder.ai is your AI technical co-founder. It turns product
+              requirements into architecture, production code, tested pull
+              requests, and deployment-ready changes you approve.
+            </p>
+            <p className="mt-4 text-sm sm:text-base text-white/40 leading-relaxed max-w-xl">
+              Quick answer: you get senior-level technical execution without
+              giving up equity or managing an outsourced dev shop.
             </p>
 
             <div className="mt-10 flex flex-col sm:flex-row gap-4">
@@ -86,7 +89,7 @@ function HeroSection() {
                 href="https://cofounder.getinsourced.ai/onboarding"
                 className="inline-flex items-center justify-center px-8 py-4 bg-brand text-white font-semibold rounded-xl hover:bg-brand-dark transition-all duration-200 shadow-glow hover:shadow-glow-lg text-lg"
               >
-                Start Building
+                Start Building with Co-Founder.ai
               </a>
               <Link
                 href="/cofounder/how-it-works"
@@ -218,12 +221,12 @@ function LogoTicker() {
 
 const comparisonData = {
   rows: [
-    { label: "Monthly Cost", agency: "$15k - $40k", self: "Your time", ai: "$299" },
-    { label: "Time to Ship", agency: "6-12 weeks", self: "6-18 months", ai: "Days" },
-    { label: "Availability", agency: "Business hours", self: "Your schedule", ai: "24/7" },
+    { label: "Typical Monthly Cost", agency: "$15k - $40k", self: "Your time", ai: "$299" },
+    { label: "Typical Time to Ship", agency: "6-12 weeks", self: "6-18 months", ai: "Days" },
+    { label: "Team Availability", agency: "Business hours", self: "Your schedule", ai: "24/7" },
     { label: "Code Ownership", agency: "Depends", self: "Yours", ai: "100% yours" },
-    { label: "Expertise Level", agency: "Variable", self: "Beginner", ai: "Senior-level" },
-    { label: "Scales With You", agency: "Re-negotiate", self: "Bottleneck", ai: "Instantly" },
+    { label: "Execution Level", agency: "Variable", self: "Beginner", ai: "Senior-level" },
+    { label: "Scaling Effort", agency: "Re-negotiate", self: "Bottleneck", ai: "Instantly" },
   ],
 };
 
@@ -233,10 +236,12 @@ function ComparisonSection() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <FadeIn className="text-center mb-16">
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">
-            Three paths to building your startup.
-            <br />
-            <span className="text-white/40">Only one makes sense.</span>
+            Which path gets your product live with the least risk?
           </h2>
+          <p className="mt-4 text-lg text-white/40 max-w-2xl mx-auto">
+            Quick answer: Co-Founder.ai combines founder control with autonomous
+            execution, without agency retainers or equity negotiations.
+          </p>
         </FadeIn>
 
         <FadeIn delay={0.15}>
@@ -352,8 +357,12 @@ function FeatureGrid() {
             Capabilities
           </p>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">
-            Built for Founders Who Ship
+            What do you get from an AI technical co-founder?
           </h2>
+          <p className="mt-4 text-lg text-white/40 max-w-2xl mx-auto">
+            You get persistent product context, controlled code execution, and
+            faster shipping without hiring a full dev team.
+          </p>
         </FadeIn>
 
         <StaggerContainer
@@ -418,8 +427,12 @@ function TestimonialSection() {
             Testimonials
           </p>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">
-            Founders Are Shipping Faster
+            What changes after founders switch to Co-Founder.ai?
           </h2>
+          <p className="mt-4 text-lg text-white/40 max-w-2xl mx-auto">
+            They spend less time coordinating engineering work and more time on
+            customer validation and growth.
+          </p>
         </FadeIn>
 
         <StaggerContainer
@@ -486,9 +499,12 @@ function SecuritySection() {
             Security
           </p>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">
-            Your Code. Your IP.{" "}
-            <span className="text-white/40">Zero Compromises.</span>
+            How does Co-Founder.ai protect your code and IP?
           </h2>
+          <p className="mt-4 text-lg text-white/40 max-w-2xl mx-auto">
+            Security is built into delivery with encrypted data paths, isolated
+            execution, and exportable ownership by default.
+          </p>
         </FadeIn>
 
         <StaggerContainer
@@ -528,24 +544,24 @@ function CTASection() {
 
             <div className="relative">
               <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">
-                Ready to Ship Your Product?
+                Ready to turn requirements into shipped code?
               </h2>
               <p className="mt-4 text-lg text-white/45 max-w-xl mx-auto">
-                Join 2,000+ founders who stopped waiting for a technical
-                co-founder and started building.
+                Work with Co-Founder.ai to generate, review, and deploy
+                production-ready changes faster.
               </p>
               <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
                 <a
                   href="https://cofounder.getinsourced.ai/onboarding"
                   className="inline-flex items-center justify-center px-8 py-4 bg-brand text-white font-semibold rounded-xl hover:bg-brand-dark transition-all duration-200 shadow-glow hover:shadow-glow-lg text-lg"
                 >
-                  Start Building Free
+                  Start Building with Co-Founder.ai
                 </a>
                 <Link
                   href="/pricing"
                   className="inline-flex items-center justify-center gap-2 px-8 py-4 glass text-white font-medium rounded-xl hover:bg-white/5 transition-all duration-200 text-lg"
                 >
-                  View Pricing
+                  Compare Plans
                   <ArrowRight className="h-5 w-5" />
                 </Link>
               </div>

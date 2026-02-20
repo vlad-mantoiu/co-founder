@@ -49,16 +49,19 @@ function InsourcedHero() {
           </div>
 
           <h1 className="text-5xl sm:text-6xl lg:text-7xl xl:text-8xl font-bold tracking-tight leading-[1.05]">
-            The Future of Building
+            Insourced AI for Founders
             <br />
-            is{" "}
-            <span className="glow-text">Insourced.</span>
+            Who Need to <span className="glow-text">Ship Faster.</span>
           </h1>
 
           <p className="mt-8 text-lg sm:text-xl lg:text-2xl text-white/50 leading-relaxed max-w-3xl mx-auto">
-            Stop outsourcing your vision. Scale with a suite of autonomous AI
-            agents that architect, code, hire, and manage — so you keep
-            100% of your equity.
+            Start with Co-Founder.ai, your AI technical co-founder. It plans
+            architecture, writes code, runs tests, and prepares deployments so
+            you can focus on customers and growth.
+          </p>
+          <p className="mt-4 text-sm sm:text-base text-white/40 leading-relaxed max-w-2xl mx-auto">
+            Quick answer: Insourced AI gives founders autonomous agents that
+            replace outsourced execution and keep product decisions in-house.
           </p>
 
           <div className="mt-12 flex flex-col sm:flex-row gap-4 justify-center">
@@ -66,13 +69,13 @@ function InsourcedHero() {
               href="https://cofounder.getinsourced.ai/onboarding"
               className="inline-flex items-center justify-center px-10 py-4.5 bg-brand text-white font-semibold rounded-xl hover:bg-brand-dark transition-all duration-200 shadow-glow hover:shadow-glow-lg text-lg"
             >
-              Hire Your Co-Founder
+              Start with Co-Founder.ai
             </a>
             <a
               href="#suite"
               className="inline-flex items-center justify-center gap-2 px-10 py-4.5 glass text-white font-medium rounded-xl hover:bg-white/5 transition-all duration-200 text-lg"
             >
-              View The Roadmap
+              See the Agent Roadmap
               <ArrowRight className="h-5 w-5" />
             </a>
           </div>
@@ -125,9 +128,9 @@ function FlagshipProduct() {
                 </h2>
 
                 <p className="text-lg text-white/50 leading-relaxed mb-8">
-                  Your autonomous AI technical co-founder. It architects, codes,
-                  tests, and deploys your product — 24/7 — for a fraction of
-                  what you would pay a dev shop. No equity required.
+                  For non-technical founders, Co-Founder.ai is an AI technical
+                  co-founder that architects, codes, tests, and prepares
+                  deployment-ready changes in your workflow.
                 </p>
 
                 {/* Badge chips */}
@@ -157,7 +160,7 @@ function FlagshipProduct() {
                     href="https://cofounder.getinsourced.ai/onboarding"
                     className="inline-flex items-center gap-2 px-8 py-4 bg-brand text-white font-semibold rounded-xl hover:bg-brand-dark transition-all duration-200 shadow-glow hover:shadow-glow-lg text-lg"
                   >
-                    Start Building
+                    Start Building with Co-Founder.ai
                     <ArrowRight className="h-5 w-5" />
                   </a>
                   <Link href="/cofounder" className="text-sm text-brand hover:text-brand-light transition-colors">
@@ -230,7 +233,7 @@ const suiteProducts = [
     name: "Interview",
     tagline: "Talent Acquisition",
     description:
-      "AI-powered interviewing and candidate evaluation. Screen thousands of applicants in hours, not weeks.",
+      "AI-driven candidate interviews and evaluations to help founders hire faster with less manual screening.",
     status: "Coming Q3",
     statusColor: "text-white/40",
     icon: Users,
@@ -241,7 +244,7 @@ const suiteProducts = [
     name: "Swarm",
     tagline: "Agentic Engineering",
     description:
-      "Multi-agent development squads that tackle complex codebases in parallel. Your engineering team, multiplied.",
+      "Multi-agent development squads that handle complex codebases in parallel so product work keeps moving.",
     status: "In Beta",
     statusColor: "text-neon-green",
     icon: Bot,
@@ -253,7 +256,7 @@ const suiteProducts = [
     name: "Fund",
     tagline: "Financial Ops",
     description:
-      "Autonomous financial modeling, investor reporting, and runway management. Your AI CFO.",
+      "Autonomous financial modeling and investor reporting to keep runway decisions current and clear.",
     status: "Coming Q4",
     statusColor: "text-white/40",
     icon: TrendingUp,
@@ -271,11 +274,11 @@ function ProductSuiteRoadmap() {
             The Insourced Suite
           </p>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">
-            One Platform. Every Role.
+            Which startup roles can Insourced AI replace first?
           </h2>
           <p className="mt-4 text-lg text-white/40 max-w-2xl mx-auto">
-            A growing suite of autonomous agents replacing the roles
-            startups can&apos;t afford to fill.
+            Start with engineering execution, then extend into hiring and
+            finance workflows as each agent delivers production outcomes.
           </p>
         </FadeIn>
 
@@ -324,7 +327,7 @@ function ProductSuiteRoadmap() {
   );
 }
 
-/* ─── Bottom CTA — Reclaim Your Equity ─── */
+/* ─── Bottom CTA ─── */
 
 function BottomCTA() {
   return (
@@ -337,17 +340,18 @@ function BottomCTA() {
             <div className="absolute inset-0 bg-grid opacity-20" />
             <div className="relative">
               <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">
-                Reclaim Your <span className="glow-text">Equity.</span>
+                Need an AI technical co-founder that ships?
               </h2>
               <p className="mt-4 text-lg text-white/45 max-w-xl mx-auto">
-                Start building with your AI technical co-founder today.
+                Start with Co-Founder.ai to move from product requirements to
+                reviewed, deployable code.
               </p>
               <div className="mt-10">
                 <a
                   href="https://cofounder.getinsourced.ai/onboarding"
                   className="inline-flex items-center justify-center px-10 py-4 bg-brand text-white font-semibold rounded-xl hover:bg-brand-dark transition-all duration-200 shadow-glow hover:shadow-glow-lg text-lg"
                 >
-                  Start Building Free
+                  Build with Co-Founder.ai
                 </a>
               </div>
             </div>
