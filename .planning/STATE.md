@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 ## Current Position
 
 Phase: 22 of 27 (Security Headers + Baseline Audit)
-Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-02-20 — v0.4 roadmap created (phases 22-27, 29 requirements)
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-02-20 — 22-01 complete (Lighthouse baseline audit)
 
 Progress: [████████████████░░░░░░░░░░░░░░] 78% (v0.1 + v0.2 + v0.3 shipped; 6 phases remaining)
 
@@ -43,6 +43,9 @@ Recent decisions affecting current work:
 - [v0.4 research]: Fix hero LCP (Framer Motion opacity:0) BEFORE adding splash screen — prevents masking regression
 - [v0.4 research]: CSS-first splash overlay — use useState(true) not useState(false) to avoid hydration mismatch
 - [v0.4 research]: never use loading.tsx for skeleton screens — silently ignored in static export
+- [22-01]: INP = null on all static marketing pages — expected; static site with no JS interactions during lab window
+- [22-01]: CLS = 0 across all 8 pages — Framer Motion opacity:0 initial state does not cause layout shift
+- [22-01]: Best Practices = 96 across all pages before CSP — will improve after Plan 02 adds CSP header
 
 ### Pending Todos
 
@@ -58,8 +61,8 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-20
-Stopped at: Phase 22 context gathered
-Resume file: .planning/phases/22-security-headers-baseline-audit/22-CONTEXT.md
+Stopped at: Completed 22-01-PLAN.md (Lighthouse baseline audit)
+Resume file: .planning/phases/22-security-headers-baseline-audit/22-01-SUMMARY.md
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*

@@ -168,7 +168,7 @@ Plans:
 | 19. CloudFront + S3 Infrastructure | v0.3 | 2/2 | Complete | 2026-02-20 |
 | 20. App Cleanup | v0.3 | 2/2 | Complete | 2026-02-20 |
 | 21. Marketing CI/CD | v0.3 | 1/1 | Complete | 2026-02-20 |
-| 22. Security Headers + Baseline Audit | v0.4 | 0/2 | Planned | - |
+| 22. Security Headers + Baseline Audit | 1/2 | In Progress|  | - |
 | 23. Performance Baseline | v0.4 | 0/TBD | Not started | - |
 | 24. SEO Infrastructure | v0.4 | 0/TBD | Not started | - |
 | 25. Loading UX | v0.4 | 0/TBD | Not started | - |

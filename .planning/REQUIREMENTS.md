@@ -10,7 +10,7 @@ Requirements for Marketing Speed & SEO milestone. Each maps to roadmap phases.
 ### Infrastructure
 
 - [ ] **INFRA-01**: CloudFront distribution uses custom response headers policy with appropriate CSP instead of managed SECURITY_HEADERS
-- [ ] **INFRA-02**: Lighthouse baseline audit run and scores recorded before any changes
+- [x] **INFRA-02**: Lighthouse baseline audit run and scores recorded before any changes
 
 ### Performance
 
@@ -82,7 +82,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | INFRA-01 | Phase 22 | Pending |
-| INFRA-02 | Phase 22 | Pending |
+| INFRA-02 | Phase 22 | Complete |
 | PERF-01 | Phase 23 | Pending |
 | PERF-02 | Phase 23 | Pending |
 | PERF-03 | Phase 23 | Pending |
