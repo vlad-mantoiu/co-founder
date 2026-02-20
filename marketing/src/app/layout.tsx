@@ -43,6 +43,35 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              name: "Insourced AI",
+              url: "https://getinsourced.ai",
+              description:
+                "Insourced AI helps non-technical founders ship software faster with AI agents and an AI technical co-founder.",
+              sameAs: [],
+            }),
+          }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              name: "Insourced AI",
+              url: "https://getinsourced.ai",
+              description:
+                "AI Technical Co-Founder and Autonomous Agents for Founders",
+            }),
+          }}
+        />
+      </head>
       <body
         className={`${GeistSans.variable} ${GeistMono.variable} ${spaceGrotesk.variable} antialiased`}
       >
