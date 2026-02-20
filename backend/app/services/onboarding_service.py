@@ -10,6 +10,7 @@ Responsibilities:
 
 from datetime import UTC, datetime
 from typing import Any
+from uuid import UUID
 
 from fastapi import HTTPException
 from sqlalchemy import func, select
@@ -17,9 +18,15 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.agent.runner import Runner
+from app.db.models.artifact import Artifact
+from app.db.models.decision_gate import DecisionGate
+from app.db.models.job import Job
 from app.db.models.onboarding_session import OnboardingSession
 from app.db.models.plan_tier import PlanTier
 from app.db.models.project import Project
+from app.db.models.stage_config import StageConfig
+from app.db.models.stage_event import StageEvent
+from app.db.models.understanding_session import UnderstandingSession
 from app.db.models.user_settings import UserSettings
 
 # Tier session limits (concurrent active sessions)
@@ -28,6 +35,8 @@ TIER_SESSION_LIMITS = {
     "partner": 3,
     "cto_scale": -1,  # unlimited
 }
+
+LEGACY_STARTER_PROJECT_NAME = "My First Project"
 
 
 class OnboardingService:
@@ -383,6 +392,11 @@ class OnboardingService:
                 else plan_tier.max_projects
             )
 
+            # Compatibility cleanup: old accounts may still have a legacy auto-created starter
+            # project that blocks first onboarding conversion.
+            if not user_settings.onboarding_completed:
+                await self._archive_legacy_starter_projects(session=session, user_id=user_id)
+
             if max_projects != -1:
                 # Fetch active projects so we can return actionable context on limit errors.
                 result = await session.execute(
@@ -458,6 +472,46 @@ class OnboardingService:
     # =========================================================================
     # PRIVATE HELPERS
     # =========================================================================
+
+    async def _archive_legacy_starter_projects(self, session: AsyncSession, user_id: str) -> None:
+        """Archive inactive legacy starter projects from old auto-provisioning behavior."""
+        result = await session.execute(
+            select(Project).where(
+                Project.clerk_user_id == user_id,
+                Project.status == "active",
+                Project.name == LEGACY_STARTER_PROJECT_NAME,
+            )
+        )
+        legacy_projects = list(result.scalars().all())
+        if not legacy_projects:
+            return
+
+        archived_any = False
+        for project in legacy_projects:
+            if await self._project_has_activity(session=session, project_id=project.id):
+                continue
+            project.status = "deleted"
+            archived_any = True
+
+        if archived_any:
+            await session.flush()
+
+    async def _project_has_activity(self, session: AsyncSession, project_id: UUID) -> bool:
+        """Return True if project has generated/linked records and should not be auto-archived."""
+        checks = (
+            select(Artifact.id).where(Artifact.project_id == project_id).limit(1),
+            select(DecisionGate.id).where(DecisionGate.project_id == project_id).limit(1),
+            select(Job.id).where(Job.project_id == project_id).limit(1),
+            select(StageConfig.id).where(StageConfig.project_id == project_id).limit(1),
+            select(StageEvent.id).where(StageEvent.project_id == project_id).limit(1),
+            select(UnderstandingSession.id).where(UnderstandingSession.project_id == project_id).limit(1),
+            select(OnboardingSession.id).where(OnboardingSession.project_id == project_id).limit(1),
+        )
+
+        for check in checks:
+            if (await session.execute(check)).scalar_one_or_none() is not None:
+                return True
+        return False
 
     def _filter_thesis_by_tier(self, brief_data: dict[str, Any], tier_slug: str) -> dict[str, Any]:
         """Filter ThesisSnapshot fields by tier.

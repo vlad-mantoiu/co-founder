@@ -206,6 +206,43 @@ def test_create_project_respects_tier_limit(api_client: TestClient, mock_runner,
     app.dependency_overrides.clear()
 
 
+def test_create_project_archives_legacy_starter_to_unblock_onboarding(api_client: TestClient, mock_runner, user_a):
+    """Legacy auto-created starter project should be archived when it is the only onboarding blocker."""
+    app: FastAPI = api_client.app
+    app.dependency_overrides[require_auth] = override_auth(user_a)
+    app.dependency_overrides[require_subscription] = override_auth(user_a)
+
+    legacy_project_response = api_client.post(
+        "/api/projects",
+        json={"name": "My First Project", "description": "Legacy starter"},
+    )
+    assert legacy_project_response.status_code == 200
+    legacy_project_id = legacy_project_response.json()["id"]
+
+    second_project_response = api_client.post(
+        "/api/projects",
+        json={"name": "Existing project 2", "description": "Real active project"},
+    )
+    assert second_project_response.status_code == 200
+    second_project_id = second_project_response.json()["id"]
+
+    session_id = complete_onboarding_flow(api_client, user_a, "Third project idea", mock_runner)
+    create_response = api_client.post(f"/api/onboarding/{session_id}/create-project")
+
+    assert create_response.status_code == 200
+    new_project_id = create_response.json()["project_id"]
+
+    projects_response = api_client.get("/api/projects")
+    assert projects_response.status_code == 200
+    projects = {project["id"]: project for project in projects_response.json()}
+
+    assert projects[legacy_project_id]["status"] == "deleted"
+    assert projects[second_project_id]["status"] == "active"
+    assert projects[new_project_id]["status"] == "active"
+
+    app.dependency_overrides.clear()
+
+
 def test_create_project_from_other_users_session_returns_404(api_client: TestClient, mock_runner, user_a, user_b):
     """Test that User B cannot create project from User A's session (PROJ-04)."""
     # User A completes onboarding
