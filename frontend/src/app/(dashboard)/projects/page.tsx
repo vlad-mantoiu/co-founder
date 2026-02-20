@@ -28,11 +28,23 @@ interface ProjectState {
   action: string;
   route: string;
   stageIndex: number; // 0=understanding, 1=strategy, 2=build, 3=deploy
+  actionable: boolean;
 }
 
 const stageLabels = ["Understanding", "Strategy", "Build", "Deploy"];
 
 function getProjectState(project: Project): ProjectState {
+  if (project.status === "deleted") {
+    return {
+      label: "Archived",
+      color: "bg-zinc-500/20 text-zinc-300",
+      action: "Archived",
+      route: `/projects/${project.id}`,
+      stageIndex: 0,
+      actionable: false,
+    };
+  }
+
   if (project.status === "parked") {
     return {
       label: "Parked",
@@ -40,6 +52,7 @@ function getProjectState(project: Project): ProjectState {
       action: "Resume Project",
       route: `/projects/${project.id}`,
       stageIndex: 0,
+      actionable: true,
     };
   }
 
@@ -50,6 +63,7 @@ function getProjectState(project: Project): ProjectState {
       action: "Continue to Build",
       route: `/projects/${project.id}/build`,
       stageIndex: 2,
+      actionable: true,
     };
   }
 
@@ -60,6 +74,7 @@ function getProjectState(project: Project): ProjectState {
       action: "Make Decision",
       route: `/projects/${project.id}/understanding`,
       stageIndex: 1,
+      actionable: true,
     };
   }
 
@@ -70,6 +85,7 @@ function getProjectState(project: Project): ProjectState {
       action: "Review & Decide",
       route: `/projects/${project.id}/understanding`,
       stageIndex: 1,
+      actionable: true,
     };
   }
 
@@ -80,6 +96,7 @@ function getProjectState(project: Project): ProjectState {
       action: "Continue Interview",
       route: `/projects/${project.id}/understanding`,
       stageIndex: 0,
+      actionable: true,
     };
   }
 
@@ -89,7 +106,13 @@ function getProjectState(project: Project): ProjectState {
     action: "Start Interview",
     route: `/projects/${project.id}/understanding`,
     stageIndex: 0,
+    actionable: true,
   };
+}
+
+function formatStatus(status: string): string {
+  if (!status) return "Unknown";
+  return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
 export default function ProjectsPage() {
@@ -129,8 +152,11 @@ export default function ProjectsPage() {
       });
       if (!response.ok) return;
 
-      setProjects((prev) => prev.filter((project) => project.id !== projectId));
-      router.push("/onboarding");
+      setProjects((prev) =>
+        prev.map((project) =>
+          project.id === projectId ? { ...project, status: "deleted" } : project,
+        ),
+      );
     } finally {
       setDeletingProjectId(null);
     }
@@ -222,6 +248,12 @@ export default function ProjectsPage() {
                   </p>
                 )}
 
+                {/* Lifecycle status */}
+                <p className="text-xs text-muted-foreground mt-2">
+                  Status:{" "}
+                  <span className="text-white/80">{formatStatus(project.status)}</span>
+                </p>
+
                 {/* Stage progress dots */}
                 <div className="mt-4 flex items-center gap-1.5">
                   {stageLabels.map((label, i) => (
@@ -259,20 +291,26 @@ export default function ProjectsPage() {
                     {new Date(project.created_at).toLocaleDateString()}
                   </span>
                   <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleAbandonProject(project.id)}
-                      disabled={deletingProjectId === project.id}
-                      className="inline-flex items-center gap-1 text-xs font-medium text-amber-400 hover:text-amber-300 transition-colors disabled:opacity-60"
-                    >
-                      {deletingProjectId === project.id ? "Abandoning..." : "Abandon"}
-                    </button>
-                    <Link
-                      href={state.route}
-                      className="inline-flex items-center gap-1 text-xs font-medium text-brand hover:underline"
-                    >
-                      {state.action}
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </Link>
+                    {project.status !== "deleted" && (
+                      <button
+                        onClick={() => handleAbandonProject(project.id)}
+                        disabled={deletingProjectId === project.id}
+                        className="inline-flex items-center gap-1 text-xs font-medium text-amber-400 hover:text-amber-300 transition-colors disabled:opacity-60"
+                      >
+                        {deletingProjectId === project.id ? "Abandoning..." : "Abandon"}
+                      </button>
+                    )}
+                    {state.actionable ? (
+                      <Link
+                        href={state.route}
+                        className="inline-flex items-center gap-1 text-xs font-medium text-brand hover:underline"
+                      >
+                        {state.action}
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </Link>
+                    ) : (
+                      <span className="text-xs text-zinc-400">{state.action}</span>
+                    )}
                   </div>
                 </div>
               </GlassCard>
