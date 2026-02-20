@@ -324,9 +324,7 @@ class OnboardingService:
 
             return onboarding_session
 
-    async def create_project_from_session(
-        self, user_id: str, session_id: str
-    ) -> tuple[OnboardingSession, Project]:
+    async def create_project_from_session(self, user_id: str, session_id: str) -> tuple[OnboardingSession, Project]:
         """Create a Project from a completed onboarding session.
 
         Args:
@@ -388,7 +386,8 @@ class OnboardingService:
             if max_projects != -1:
                 # Fetch active projects so we can return actionable context on limit errors.
                 result = await session.execute(
-                    select(Project).where(
+                    select(Project)
+                    .where(
                         Project.clerk_user_id == user_id,
                         Project.status == "active",
                     )

@@ -193,9 +193,7 @@ async def get_onboarding_status(
     """Get whether the user has completed onboarding at least once."""
     factory = get_session_factory()
     async with factory() as session:
-        settings_result = await session.execute(
-            select(UserSettings).where(UserSettings.clerk_user_id == user.user_id)
-        )
+        settings_result = await session.execute(select(UserSettings).where(UserSettings.clerk_user_id == user.user_id))
         user_settings = settings_result.scalar_one_or_none()
 
         completed_result = await session.execute(

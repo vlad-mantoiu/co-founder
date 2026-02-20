@@ -342,8 +342,8 @@ def test_deploy_readiness_user_isolation(api_client, user_a, user_b):
     with patch.object(DeployReadinessService, "assess", _raise_404):
         response = api_client.get(f"/api/deploy-readiness/{project_id}")
 
-    assert response.status_code == 404, (
-        f"Expected 404 for cross-user access, got {response.status_code}: {response.json()}"
-    )
+    assert (
+        response.status_code == 404
+    ), f"Expected 404 for cross-user access, got {response.status_code}: {response.json()}"
 
     app.dependency_overrides.clear()

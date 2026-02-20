@@ -342,9 +342,9 @@ def test_full_founder_flow(api_client: TestClient):
 
             # ── Step 7: Poll for READY ──────────────────────────────────────
             status_data = _step_poll_status(api_client, job_id)
-            assert status_data["status"] == "ready", (
-                f"Expected ready, got {status_data['status']}. Error: {status_data.get('error_message')}"
-            )  # GENR-02
+            assert (
+                status_data["status"] == "ready"
+            ), f"Expected ready, got {status_data['status']}. Error: {status_data.get('error_message')}"  # GENR-02
 
             # ── Step 8: Dashboard verification ─────────────────────────────
             resp = api_client.get(f"/api/dashboard/{project_id}")
