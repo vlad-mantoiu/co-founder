@@ -58,8 +58,8 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-20
-Stopped at: v0.4 roadmap created (phases 22-27) — ready to plan Phase 22
-Resume file: None
+Stopped at: Phase 22 context gathered
+Resume file: .planning/phases/22-security-headers-baseline-audit/22-CONTEXT.md
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
