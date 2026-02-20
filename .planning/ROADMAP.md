@@ -82,7 +82,7 @@
 Plans:
 - [x] 22-01-PLAN.md — Lighthouse baseline audit (all 8 pages, mobile + desktop)
 - [x] 22-02-PLAN.md — Custom ResponseHeadersPolicy replacing managed SECURITY_HEADERS
-- [ ] 22-03-PLAN.md — Gap closure: Organization + WebSite JSON-LD so Rich Results Test finds structured data
+- [x] 22-03-PLAN.md — Gap closure: Organization + WebSite + SoftwareApplication JSON-LD so Rich Results Test finds structured data
 
 ### Phase 23: Performance Baseline
 **Goal**: Above-fold content renders at full opacity without animation delay; fonts load without flash; images do not shift layout; reduced-motion users see no animations
