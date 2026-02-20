@@ -279,17 +279,31 @@ class UnderstandingService:
             # Inject _tier into brief content for downstream tier-differentiation
             brief_content["_tier"] = tier_slug
 
-            # Store as Artifact
-            artifact = Artifact(
-                project_id=understanding.project_id,
-                artifact_type=ArtifactType.IDEA_BRIEF,
-                current_content=brief_content,
-                previous_content=None,
-                version_number=1,
-                schema_version=1,
-                generation_status="idle",
+            # Store as Artifact (upsert — handle re-finalize idempotently)
+            existing_brief = await session.execute(
+                select(Artifact).where(
+                    Artifact.project_id == understanding.project_id,
+                    Artifact.artifact_type == ArtifactType.IDEA_BRIEF,
+                )
             )
-            session.add(artifact)
+            artifact = existing_brief.scalar_one_or_none()
+            if artifact:
+                artifact.previous_content = artifact.current_content
+                artifact.current_content = brief_content
+                artifact.version_number += 1
+                artifact.generation_status = "idle"
+                flag_modified(artifact, "current_content")
+            else:
+                artifact = Artifact(
+                    project_id=understanding.project_id,
+                    artifact_type=ArtifactType.IDEA_BRIEF,
+                    current_content=brief_content,
+                    previous_content=None,
+                    version_number=1,
+                    schema_version=1,
+                    generation_status="idle",
+                )
+                session.add(artifact)
 
             # Mark session as completed
             understanding.status = "completed"

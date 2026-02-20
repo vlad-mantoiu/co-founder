@@ -320,19 +320,30 @@ async def finalize_interview(
         brief = RationalisedIdeaBrief(**result["brief"])
 
         # Pre-create 3 E2E artifact rows with generation_status="generating"
-        # BEFORE launching the background task to avoid polling race condition
+        # BEFORE launching the background task to avoid polling race condition.
+        # Use upsert logic to handle re-finalize (idempotent).
         project_id = UUID(result["project_id"])
         async with session_factory() as db_session:
             for at in [ArtifactType.STRATEGY_GRAPH, ArtifactType.MVP_TIMELINE, ArtifactType.APP_ARCHITECTURE]:
-                artifact = Artifact(
-                    project_id=project_id,
-                    artifact_type=at.value,
-                    current_content=None,
-                    version_number=1,
-                    schema_version=1,
-                    generation_status="generating",
+                existing = await db_session.execute(
+                    select(Artifact).where(
+                        Artifact.project_id == project_id,
+                        Artifact.artifact_type == at.value,
+                    )
                 )
-                db_session.add(artifact)
+                row = existing.scalar_one_or_none()
+                if row:
+                    row.generation_status = "generating"
+                    row.current_content = None
+                else:
+                    db_session.add(Artifact(
+                        project_id=project_id,
+                        artifact_type=at.value,
+                        current_content=None,
+                        version_number=1,
+                        schema_version=1,
+                        generation_status="generating",
+                    ))
             await db_session.commit()
 
         # Launch background generation task
