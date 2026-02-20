@@ -658,6 +658,308 @@ Return ONLY a JSON object:
         )
         return result
 
+    async def generate_strategy_graph(self, idea: str, brief: dict, onboarding_answers: dict) -> dict:
+        """Generate a strategy graph with anchor nodes from verbatim user phrases.
+
+        Args:
+            idea: Original idea text
+            brief: Rationalised Idea Brief content dict
+            onboarding_answers: Raw onboarding answers dict
+
+        Returns:
+            Dict with keys: nodes, edges, anchor_phrases
+            - nodes: list of {id, type ("anchor"|"strategy"), label, description, status}
+            - edges: list of {source, target, relation}
+            - anchor_phrases: list of verbatim phrases extracted from founder's answers
+
+        Raises:
+            RuntimeError: If LLM call fails after retries
+        """
+        log = logger.bind(method="generate_strategy_graph")
+        user_id = brief.get("_user_id", "system")
+        session_id = brief.get("_session_id", "default")
+
+        # Clean brief for prompt (remove internal keys)
+        clean_brief = {k: v for k, v in brief.items() if not k.startswith("_")}
+        # Clean answers for prompt
+        clean_answers = {k: v for k, v in onboarding_answers.items() if not k.startswith("_")}
+
+        llm = await create_tracked_llm(user_id=user_id, role="architect", session_id=session_id)
+
+        task_instructions = """Generate a strategy graph that visualizes the founder's go-to-market strategy.
+
+CRITICAL: Extract 5-8 key phrases VERBATIM from the founder's answers — these become anchor nodes. The user must recognize their exact words.
+
+Then create 8-12 strategy nodes connecting the anchors: go-to-market steps, business model components, competitive moat elements, validation milestones.
+
+Create edges showing relationships between anchors and strategy nodes.
+
+Return ONLY a JSON object:
+{
+  "nodes": [
+    {
+      "id": "anchor_1",
+      "type": "anchor",
+      "label": "exact phrase from founder",
+      "description": "why this phrase anchors the strategy",
+      "status": "validated"
+    },
+    {
+      "id": "strategy_1",
+      "type": "strategy",
+      "label": "go-to-market step name",
+      "description": "what this strategy node means for us",
+      "status": "planned"
+    }
+  ],
+  "edges": [
+    {
+      "source": "anchor_1",
+      "target": "strategy_1",
+      "relation": "enables"
+    }
+  ],
+  "anchor_phrases": ["exact phrase 1", "exact phrase 2"]
+}
+
+Node status rules:
+- anchor nodes: "validated" (these are real words from the founder)
+- strategy nodes: "validated" if already proven, "planned" if next steps
+
+Use "we" voice in descriptions."""
+
+        system_msg = SystemMessage(content=COFOUNDER_SYSTEM.format(task_instructions=task_instructions))
+        human_msg = HumanMessage(
+            content=(
+                f"Idea: {idea}\n\n"
+                f"Idea Brief:\n{json.dumps(clean_brief, indent=2)}\n\n"
+                f"Founder's Answers:\n{json.dumps(clean_answers, indent=2)}"
+            )
+        )
+
+        t0 = time.perf_counter()
+        try:
+            response = await _invoke_with_retry(llm, [system_msg, human_msg])
+            result = _parse_json_response(response.content)
+        except json.JSONDecodeError:
+            log.warning("json_parse_failed_retrying", user_id=user_id, session_id=session_id)
+            strict_system = SystemMessage(
+                content="IMPORTANT: Your response MUST be valid JSON only. "
+                "Do not include any explanation, markdown, or code fences. "
+                "Start your response with { .\n\n" + system_msg.content
+            )
+            response = await _invoke_with_retry(llm, [strict_system, human_msg])
+            result = _parse_json_response(response.content)
+        await emit_llm_latency(
+            method_name="generate_strategy_graph",
+            duration_ms=(time.perf_counter() - t0) * 1000,
+            model=llm.model,
+        )
+        return result
+
+    async def generate_mvp_timeline(self, idea: str, brief: dict, tier: str) -> dict:
+        """Generate a tier-adapted MVP timeline with relative-week milestones.
+
+        Args:
+            idea: Original idea text
+            brief: Rationalised Idea Brief content dict
+            tier: User's plan tier ("bootstrapper", "partner", "cto_scale")
+
+        Returns:
+            Dict with keys: milestones, long_term_roadmap, total_mvp_weeks, adapted_for
+            - milestones: list of {week, title, deliverables: list[str], duration_weeks, description}
+            - long_term_roadmap: list of {phase, title, description, estimated_weeks}
+            - total_mvp_weeks: int
+            - adapted_for: tier string
+
+        Raises:
+            RuntimeError: If LLM call fails after retries
+        """
+        log = logger.bind(method="generate_mvp_timeline")
+        user_id = brief.get("_user_id", "system")
+        session_id = brief.get("_session_id", "default")
+
+        # Tier-based MVP scope adaptation
+        tier_guidance = {
+            "bootstrapper": "smaller MVP scope + longer phases (8-12 weeks total). Start with a no-code validation sprint in Week 1-2. Favor managed services over custom code. Each milestone should be achievable by a solo non-technical founder.",
+            "partner": "moderate MVP scope + moderate timeline (6-8 weeks total). Balance speed and quality. Include technical milestones but keep scope focused.",
+            "cto_scale": "aggressive MVP scope + compressed timeline (4-6 weeks total). Assume technical team available. Include architecture decisions and team coordination milestones.",
+        }
+        scope_note = tier_guidance.get(tier, tier_guidance["bootstrapper"])
+
+        # Clean brief for prompt (remove internal keys)
+        clean_brief = {k: v for k, v in brief.items() if not k.startswith("_")}
+
+        llm = await create_tracked_llm(user_id=user_id, role="architect", session_id=session_id)
+
+        task_instructions = f"""Generate a personalized MVP timeline adapted for the {tier} tier.
+
+Tier adaptation: {scope_note}
+
+RULES:
+- Use RELATIVE WEEKS only (Week 1, Week 3) — never calendar dates. The founder decides when to start.
+- Each milestone must list 2-3 CONCRETE deliverables (e.g., "landing page live", "50 signups", "5 user interviews completed")
+- Adapt both scope AND duration to the {tier} tier
+- Use "we" voice in descriptions ("We'll validate...", "Our goal here is...")
+- Each milestone must have a clear "done" state the founder can recognize
+
+Return ONLY a JSON object:
+{{
+  "milestones": [
+    {{
+      "week": 1,
+      "title": "Milestone name",
+      "description": "What we're doing and why this matters",
+      "deliverables": ["concrete thing 1", "concrete thing 2"],
+      "duration_weeks": 2
+    }}
+  ],
+  "long_term_roadmap": [
+    {{
+      "phase": "Phase 2",
+      "title": "Post-MVP Growth",
+      "description": "What comes after MVP launch",
+      "estimated_weeks": 8
+    }}
+  ],
+  "total_mvp_weeks": 10,
+  "adapted_for": "{tier}"
+}}"""
+
+        system_msg = SystemMessage(content=COFOUNDER_SYSTEM.format(task_instructions=task_instructions))
+        human_msg = HumanMessage(
+            content=(
+                f"Idea: {idea}\n\n"
+                f"Idea Brief:\n{json.dumps(clean_brief, indent=2)}\n\n"
+                f"Tier: {tier}"
+            )
+        )
+
+        t0 = time.perf_counter()
+        try:
+            response = await _invoke_with_retry(llm, [system_msg, human_msg])
+            result = _parse_json_response(response.content)
+        except json.JSONDecodeError:
+            log.warning("json_parse_failed_retrying", user_id=user_id, session_id=session_id, tier=tier)
+            strict_system = SystemMessage(
+                content="IMPORTANT: Your response MUST be valid JSON only. "
+                "Do not include any explanation, markdown, or code fences. "
+                "Start your response with { .\n\n" + system_msg.content
+            )
+            response = await _invoke_with_retry(llm, [strict_system, human_msg])
+            result = _parse_json_response(response.content)
+        await emit_llm_latency(
+            method_name="generate_mvp_timeline",
+            duration_ms=(time.perf_counter() - t0) * 1000,
+            model=llm.model,
+        )
+        return result
+
+    async def generate_app_architecture(self, idea: str, brief: dict, tier: str) -> dict:
+        """Generate an app architecture diagram with cost estimates.
+
+        Args:
+            idea: Original idea text
+            brief: Rationalised Idea Brief content dict
+            tier: User's plan tier ("bootstrapper", "partner", "cto_scale")
+
+        Returns:
+            Dict with keys: components, connections, cost_estimate, integration_recommendations
+            - components: list of {name, type, description, tech_recommendation, alternatives, detail_level}
+            - connections: list of {from_component, to_component, protocol, description}
+            - cost_estimate: {startup_monthly, scale_monthly, breakdown: [{component, cost, note}]}
+            - integration_recommendations: list of strings
+
+        Raises:
+            RuntimeError: If LLM call fails after retries
+        """
+        log = logger.bind(method="generate_app_architecture")
+        user_id = brief.get("_user_id", "system")
+        session_id = brief.get("_session_id", "default")
+
+        # Clean brief for prompt (remove internal keys)
+        clean_brief = {k: v for k, v in brief.items() if not k.startswith("_")}
+
+        llm = await create_tracked_llm(user_id=user_id, role="architect", session_id=session_id)
+
+        task_instructions = f"""Generate a simplified app architecture diagram for a non-technical founder.
+
+RULES:
+- Simplified by default for non-technical founders. Use plain English component names.
+- No jargon. The founder should understand what each component does without Googling.
+- Include rough cost estimates: startup monthly (~$50/mo) and scale monthly (~$200/mo at 1k users)
+- For each component, recommend a specific technology and list 1-2 alternatives
+- Favor managed services (e.g., Vercel, Render, Supabase, Clerk, Resend) for the {tier} tier
+
+Component types: "frontend" | "backend" | "database" | "auth" | "storage" | "other"
+Detail levels: "simplified" (plain English) | "expanded" (includes technical terms)
+
+Return ONLY a JSON object:
+{{
+  "components": [
+    {{
+      "name": "Your Website (Frontend)",
+      "type": "frontend",
+      "description": "What users see and click on — your app's interface",
+      "tech_recommendation": "Next.js on Vercel",
+      "alternatives": ["React on Netlify", "Webflow"],
+      "detail_level": "simplified"
+    }}
+  ],
+  "connections": [
+    {{
+      "from_component": "Your Website (Frontend)",
+      "to_component": "Your API (Backend)",
+      "protocol": "HTTPS",
+      "description": "Users' actions are sent here for processing"
+    }}
+  ],
+  "cost_estimate": {{
+    "startup_monthly": 45,
+    "scale_monthly": 180,
+    "breakdown": [
+      {{
+        "component": "Hosting (Vercel)",
+        "cost": 20,
+        "note": "Includes frontend + serverless functions"
+      }}
+    ]
+  }},
+  "integration_recommendations": [
+    "Start with Stripe for payments — easiest to set up",
+    "Use Clerk for auth to avoid building login from scratch"
+  ]
+}}"""
+
+        system_msg = SystemMessage(content=COFOUNDER_SYSTEM.format(task_instructions=task_instructions))
+        human_msg = HumanMessage(
+            content=(
+                f"Idea: {idea}\n\n"
+                f"Idea Brief:\n{json.dumps(clean_brief, indent=2)}\n\n"
+                f"Tier: {tier}"
+            )
+        )
+
+        t0 = time.perf_counter()
+        try:
+            response = await _invoke_with_retry(llm, [system_msg, human_msg])
+            result = _parse_json_response(response.content)
+        except json.JSONDecodeError:
+            log.warning("json_parse_failed_retrying", user_id=user_id, session_id=session_id, tier=tier)
+            strict_system = SystemMessage(
+                content="IMPORTANT: Your response MUST be valid JSON only. "
+                "Do not include any explanation, markdown, or code fences. "
+                "Start your response with { .\n\n" + system_msg.content
+            )
+            response = await _invoke_with_retry(llm, [strict_system, human_msg])
+            result = _parse_json_response(response.content)
+        await emit_llm_latency(
+            method_name="generate_app_architecture",
+            duration_ms=(time.perf_counter() - t0) * 1000,
+            model=llm.model,
+        )
+        return result
+
     async def generate_artifacts(self, brief: dict) -> dict:
         """Generate documentation artifacts from the product brief.
 
