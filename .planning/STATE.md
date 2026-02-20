@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** Phase 23 — Performance Baseline
+**Current focus:** Phase 22.1 — End-to-End Flow (URGENT INSERTION)
 
 ## Current Position
 
-Phase: 23 of 27 (Performance Baseline)
+Phase: 22.1 (End-to-End Flow — Strategy Graph, Timeline & Architecture from Real Data)
 Plan: 0 of TBD in current phase
-Status: Phase 22 complete — ready for Phase 23 planning
-Last activity: 2026-02-21 — Phase 22 verified and complete (5/5 must-haves, human approved)
+Status: Phase 22.1 inserted — ready for planning
+Last activity: 2026-02-21 — Phase 22.1 inserted after Phase 22 (urgent: E2E flow broken)
 
 Progress: [█████████████████░░░░░░░░░░░░░] 81% (v0.1 + v0.2 + v0.3 shipped; Phase 22 complete; 5 phases remaining)
 
@@ -60,6 +60,10 @@ Recent decisions affecting current work:
 - [ ] Verify workflow_run gate: push a commit with a failing test and confirm deploy.yml does NOT trigger
 - [ ] Verify path filtering: push a backend-only change and confirm deploy-frontend job is skipped
 
+### Roadmap Evolution
+
+- Phase 22.1 inserted after Phase 22: End-to-End Flow — Strategy Graph, Timeline & Architecture from Real Data (URGENT)
+
 ### Blockers/Concerns
 
 - ~~[Phase 22]: CloudFront SECURITY_HEADERS managed policy silently blocks third-party verification tools — RESOLVED in 22-02~~
@@ -69,8 +73,8 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Phase 22 complete and verified — Phase 23 ready for planning
-Resume file: .planning/phases/22-security-headers-baseline-audit/22-VERIFICATION.md
+Stopped at: Phase 22.1 context gathered — ready for planning
+Resume file: .planning/phases/22.1-end-to-end-flow-strategy-graph-timeline-architecture-from-real-data/22.1-CONTEXT.md
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
