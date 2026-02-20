@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 ## Current Position
 
 Phase: 22.1 (End-to-End Flow — Strategy Graph, Timeline & Architecture from Real Data)
-Plan: 4 of 6 in current phase (4 waves)
-Status: Phase 22.1 in progress — Plans 01, 02, 04 complete
-Last activity: 2026-02-21 — Plan 22.1-02 complete: RunnerReal LLM generation for strategy_graph/mvp_timeline/app_architecture; finalize auto-triggers background generation with 3 retries; GET /api/artifacts/project/{id}/generation-status polling endpoint
+Plan: 5 of 6 in current phase (4 waves)
+Status: Phase 22.1 in progress — Plans 01, 02, 03, 04, 05 complete
+Last activity: 2026-02-21 — Plan 22.1-05 complete: GenerationOverlay (3-step animated progress), GuidedWalkthrough (step-through artifact reveal), useGenerationStatus polling hook; Understanding page wired for full E2E flow
 
 Progress: [█████████████████░░░░░░░░░░░░░] 81% (v0.1 + v0.2 + v0.3 shipped; Phase 22 complete; 5 phases remaining)
 
@@ -32,6 +32,7 @@ Progress: [█████████████████░░░░░░
 | v0.4 Security + SEO | 6 | 3 of TBD | In progress (2026-02-20 to present) |
 
 *Updated after each plan completion*
+| Phase 22.1 P05 | 4 | 2 tasks | 4 files |
 | Phase 22.1 P04 | 2 | 2 tasks | 2 files |
 | Phase 22.1 P03 | 2 | 2 tasks | 5 files |
 | Phase 22.1 P02 | 15 | 2 tasks | 4 files |
@@ -67,6 +68,9 @@ Recent decisions affecting current work:
 - [Phase 22.1]: Dual-mode architecture page: fetch artifact on mount always, session mode takes priority when ?session= param present, empty state links to Understanding Interview
 - [Phase 22.1]: Dual-mode page pattern: fetch artifact first, fallback to system data (Neo4j/Kanban) — no tab switching UI needed
 - [Phase 22.1]: Anchor nodes rendered 1.5x larger in force graph; anchor_phrases shown as amber pill tags above graph for 'this AI gets my idea' signal
+- [22.1-05]: onProceedToDecision in viewing_brief now goes to generating phase (bypasses decision gate for E2E flow)
+- [22.1-05]: GenerationOverlay onFailed also transitions to walkthrough — user always sees what succeeded, never hard-blocked
+- [22.1-05]: WalkthroughStep interface exported from GuidedWalkthrough.tsx for type safety in understanding page
 
 ### Pending Todos
 
@@ -86,8 +90,8 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Completed 22.1-02-PLAN.md — ready for Plan 03 (frontend display)
-Resume file: .planning/phases/22.1-end-to-end-flow-strategy-graph-timeline-architecture-from-real-data/22.1-03-PLAN.md
+Stopped at: Completed 22.1-05-PLAN.md — ready for Plan 06 (final E2E integration)
+Resume file: .planning/phases/22.1-end-to-end-flow-strategy-graph-timeline-architecture-from-real-data/22.1-06-PLAN.md
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
