@@ -45,6 +45,8 @@ class Settings(BaseSettings):
         "https://getinsourced.ai",
         "https://www.getinsourced.ai",
     ]
+    # Optional strict audience validation for Clerk JWTs (empty = disabled)
+    clerk_allowed_audiences: list[str] = []
 
     # Stripe
     stripe_secret_key: str = ""

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
-import { Plus, Github, ExternalLink, FolderOpen, X } from "lucide-react";
+import { FolderOpen, ArrowRight, Plus } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { GlassCard } from "@/components/ui/glass-card";
 
@@ -14,13 +14,87 @@ interface Project {
   github_repo: string | null;
   status: string;
   created_at: string;
+  stage_number: number | null;
+  has_pending_gate: boolean;
+  has_understanding_session: boolean;
+  has_brief: boolean;
+  has_execution_plan: boolean;
+}
+
+interface ProjectState {
+  label: string;
+  color: string;
+  action: string;
+  route: string;
+  stageIndex: number; // 0=understanding, 1=strategy, 2=build, 3=deploy
+}
+
+const stageLabels = ["Understanding", "Strategy", "Build", "Deploy"];
+
+function getProjectState(project: Project): ProjectState {
+  if (project.status === "parked") {
+    return {
+      label: "Parked",
+      color: "bg-yellow-500/10 text-yellow-400",
+      action: "Resume Project",
+      route: `/projects/${project.id}`,
+      stageIndex: 0,
+    };
+  }
+
+  if (project.has_execution_plan) {
+    return {
+      label: "Plan Selected",
+      color: "bg-neon-green/10 text-neon-green",
+      action: "Continue to Build",
+      route: `/projects/${project.id}/build`,
+      stageIndex: 2,
+    };
+  }
+
+  if (project.has_pending_gate) {
+    return {
+      label: "Decision Pending",
+      color: "bg-brand/10 text-brand",
+      action: "Make Decision",
+      route: `/projects/${project.id}/understanding`,
+      stageIndex: 1,
+    };
+  }
+
+  if (project.has_brief) {
+    return {
+      label: "Brief Ready",
+      color: "bg-purple-500/10 text-purple-400",
+      action: "Review & Decide",
+      route: `/projects/${project.id}/understanding`,
+      stageIndex: 1,
+    };
+  }
+
+  if (project.has_understanding_session) {
+    return {
+      label: "Interview In Progress",
+      color: "bg-white/10 text-white",
+      action: "Continue Interview",
+      route: `/projects/${project.id}/understanding`,
+      stageIndex: 0,
+    };
+  }
+
+  return {
+    label: "Onboarding Complete",
+    color: "bg-blue-500/10 text-blue-400",
+    action: "Start Interview",
+    route: `/projects/${project.id}/understanding`,
+    stageIndex: 0,
+  };
 }
 
 export default function ProjectsPage() {
   const { getToken } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
-  const [isCreating, setIsCreating] = useState(false);
-  const [newProject, setNewProject] = useState({ name: "", description: "" });
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     async function fetchProjects() {
@@ -32,31 +106,20 @@ export default function ProjectsPage() {
         }
       } catch {
         // API may not be running
+      } finally {
+        setLoaded(true);
       }
     }
     fetchProjects();
   }, [getToken]);
 
-  const handleCreateProject = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newProject.name.trim()) return;
-
-    try {
-      const response = await apiFetch("/api/projects", getToken, {
-        method: "POST",
-        body: JSON.stringify(newProject),
-      });
-
-      if (response.ok) {
-        const project = await response.json();
-        setProjects((prev) => [...prev, project]);
-        setNewProject({ name: "", description: "" });
-        setIsCreating(false);
-      }
-    } catch (error) {
-      console.error("Failed to create project:", error);
-    }
-  };
+  if (!loaded) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="w-8 h-8 border-2 border-brand border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -67,82 +130,17 @@ export default function ProjectsPage() {
             Your Projects
           </h1>
           <p className="text-muted-foreground mt-1">
-            Manage your repositories and project settings
+            Track progress and pick up where you left off
           </p>
         </div>
-        <button
-          onClick={() => setIsCreating(true)}
+        <Link
+          href="/onboarding"
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand text-white text-sm font-medium hover:bg-brand-dark transition-colors shadow-glow self-start"
         >
           <Plus className="w-4 h-4" />
           New Project
-        </button>
+        </Link>
       </div>
-
-      {/* Create project form */}
-      {isCreating && (
-        <GlassCard variant="strong" className="relative">
-          <button
-            onClick={() => setIsCreating(false)}
-            className="absolute top-4 right-4 p-1.5 rounded-lg text-muted-foreground hover:text-white hover:bg-white/5 transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-
-          <h2 className="font-display font-semibold text-lg text-white mb-5">
-            Create New Project
-          </h2>
-
-          <form onSubmit={handleCreateProject} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-1.5">
-                Project Name
-              </label>
-              <input
-                type="text"
-                value={newProject.name}
-                onChange={(e) =>
-                  setNewProject((prev) => ({ ...prev, name: e.target.value }))
-                }
-                placeholder="my-awesome-project"
-                className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand/50 focus:border-transparent transition-all"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-1.5">
-                Description
-              </label>
-              <textarea
-                value={newProject.description}
-                onChange={(e) =>
-                  setNewProject((prev) => ({
-                    ...prev,
-                    description: e.target.value,
-                  }))
-                }
-                placeholder="What are you building?"
-                rows={2}
-                className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand/50 focus:border-transparent transition-all resize-none"
-              />
-            </div>
-            <div className="flex gap-3 pt-1">
-              <button
-                type="submit"
-                className="px-5 py-2.5 rounded-xl bg-brand text-white text-sm font-medium hover:bg-brand-dark transition-colors shadow-glow"
-              >
-                Create Project
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsCreating(false)}
-                className="px-5 py-2.5 rounded-xl border border-white/10 text-muted-foreground text-sm font-medium hover:text-white hover:bg-white/5 transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        </GlassCard>
-      )}
 
       {/* Projects list */}
       {projects.length === 0 ? (
@@ -154,62 +152,90 @@ export default function ProjectsPage() {
             No projects yet
           </h3>
           <p className="text-muted-foreground mb-6 max-w-sm">
-            Create your first project and your AI co-founder will be ready to start building.
+            Start your first project and your AI co-founder will guide you through the process.
           </p>
-          {!isCreating && (
-            <button
-              onClick={() => setIsCreating(true)}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-brand text-white font-medium hover:bg-brand-dark transition-colors shadow-glow"
-            >
-              <Plus className="w-5 h-5" />
-              Create Your First Project
-            </button>
-          )}
+          <Link
+            href="/onboarding"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-brand text-white font-medium hover:bg-brand-dark transition-colors shadow-glow"
+          >
+            <Plus className="w-5 h-5" />
+            Start Your First Project
+          </Link>
         </div>
       ) : (
         <div className="grid sm:grid-cols-2 gap-4">
-          {projects.map((project) => (
-            <Link key={project.id} href={`/projects/${project.id}`}>
-              <GlassCard
-                variant="strong"
-                className="group hover:ring-1 hover:ring-brand/30 transition-all cursor-pointer"
-              >
-                <div className="flex items-start justify-between">
-                  <div>
+          {projects.map((project) => {
+            const state = getProjectState(project);
+            return (
+              <Link key={project.id} href={state.route}>
+                <GlassCard
+                  variant="strong"
+                  className="group hover:ring-1 hover:ring-brand/30 transition-all cursor-pointer h-full"
+                >
+                  {/* Name + state badge */}
+                  <div className="flex items-start justify-between gap-3">
                     <h3 className="font-display font-semibold text-white group-hover:text-brand transition-colors">
                       {project.name}
                     </h3>
-                    {project.description && (
-                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                        {project.description}
-                      </p>
-                    )}
-                  </div>
-                  <span
-                    className={`flex-shrink-0 px-2.5 py-1 text-xs rounded-full font-medium ${
-                      project.status === "active"
-                        ? "bg-neon-green/10 text-neon-green"
-                        : "bg-white/5 text-muted-foreground"
-                    }`}
-                  >
-                    {project.status}
-                  </span>
-                </div>
-                <div className="mt-4 flex items-center gap-3 text-xs text-muted-foreground">
-                  {project.github_repo && (
-                    <span className="flex items-center gap-1">
-                      <Github className="w-3.5 h-3.5" />
-                      {project.github_repo}
-                      <ExternalLink className="w-3 h-3" />
+                    <span
+                      className={`flex-shrink-0 px-2.5 py-1 text-xs rounded-full font-medium ${state.color}`}
+                    >
+                      {state.label}
                     </span>
+                  </div>
+
+                  {/* Description */}
+                  {project.description && (
+                    <p className="text-sm text-muted-foreground mt-1.5 line-clamp-2">
+                      {project.description}
+                    </p>
                   )}
-                  <span>
-                    Created {new Date(project.created_at).toLocaleDateString()}
-                  </span>
-                </div>
-              </GlassCard>
-            </Link>
-          ))}
+
+                  {/* Stage progress dots */}
+                  <div className="mt-4 flex items-center gap-1.5">
+                    {stageLabels.map((label, i) => (
+                      <div key={label} className="flex items-center gap-1.5">
+                        <div
+                          className={`w-2.5 h-2.5 rounded-full transition-colors ${
+                            i < state.stageIndex
+                              ? "bg-neon-green"
+                              : i === state.stageIndex
+                                ? "bg-brand"
+                                : "bg-white/10"
+                          }`}
+                          title={label}
+                        />
+                        {i < stageLabels.length - 1 && (
+                          <div
+                            className={`w-6 h-0.5 ${
+                              i < state.stageIndex
+                                ? "bg-neon-green/40"
+                                : "bg-white/5"
+                            }`}
+                          />
+                        )}
+                      </div>
+                    ))}
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      {stageLabels[state.stageIndex]}
+                    </span>
+                  </div>
+
+                  {/* Footer: date + next action */}
+                  <div className="mt-4 flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">
+                      Created{" "}
+                      {new Date(project.created_at).toLocaleDateString()}
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-brand group-hover:underline">
+                      {state.action}
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </span>
+                  </div>
+                </GlassCard>
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>

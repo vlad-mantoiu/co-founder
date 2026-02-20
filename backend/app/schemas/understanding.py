@@ -7,6 +7,8 @@ Defines schemas for:
 - Brief editing and confidence assessment
 """
 
+from datetime import UTC, datetime
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -32,25 +34,28 @@ class RationalisedIdeaBrief(BaseModel):
 
     schema_version: int = Field(1, alias="_schema_version", description="Schema version for migrations")
 
-    # Core brief sections
-    problem_statement: str = Field(..., description="What problem are we solving?")
-    target_user: str = Field(..., description="Who are we building this for?")
-    value_prop: str = Field(..., description="What value do we deliver?")
-    differentiation: str = Field(..., description="How are we different from alternatives?")
-    monetization_hypothesis: str = Field(..., description="How will we make money?")
-    market_context: str = Field(..., description="Market dynamics and opportunity")
+    # Core brief sections (defaults handle LLM omissions)
+    problem_statement: str = Field(default="", description="What problem are we solving?")
+    target_user: str = Field(default="", description="Who are we building this for?")
+    value_prop: str = Field(default="", description="What value do we deliver?")
+    differentiation: str = Field(default="", description="How are we different from alternatives?")
+    monetization_hypothesis: str = Field(default="", description="How will we make money?")
+    market_context: str = Field(default="", description="Market dynamics and opportunity")
     key_constraints: list[str] = Field(default_factory=list, description="Critical constraints we must address")
     assumptions: list[str] = Field(default_factory=list, description="Assumptions that must hold true")
     risks: list[str] = Field(default_factory=list, description="Identified risks and concerns")
-    smallest_viable_experiment: str = Field(..., description="First experiment to validate the idea")
+    smallest_viable_experiment: str = Field(default="", description="First experiment to validate the idea")
 
     # Confidence assessment (per-section)
     confidence_scores: dict[str, str] = Field(
         default_factory=dict, description="Confidence per section: strong | moderate | needs_depth"
     )
 
-    # Metadata
-    generated_at: str = Field(..., description="ISO 8601 timestamp of generation")
+    # Metadata — auto-generated if LLM omits it
+    generated_at: str = Field(
+        default_factory=lambda: datetime.now(UTC).isoformat(),
+        description="ISO 8601 timestamp of generation",
+    )
 
 
 # ==================== API REQUEST/RESPONSE SCHEMAS ====================

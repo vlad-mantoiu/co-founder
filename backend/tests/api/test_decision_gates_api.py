@@ -361,6 +361,25 @@ def test_user_isolation_returns_404(api_client: TestClient, mock_runner, user_a,
     app.dependency_overrides.clear()
 
 
+def test_check_blocking_user_isolation_returns_404(api_client: TestClient, mock_runner, user_a, user_b):
+    """check-blocking must enforce project ownership."""
+    project_id = _create_test_project(api_client, user_a)
+
+    app: FastAPI = api_client.app
+    app.dependency_overrides[require_auth] = override_auth(user_a)
+    app.dependency_overrides[get_runner] = lambda: mock_runner
+
+    create_response = api_client.post("/api/gates/create", json={"project_id": project_id, "gate_type": "direction"})
+    assert create_response.status_code == 201
+
+    app.dependency_overrides[require_auth] = override_auth(user_b)
+
+    response = api_client.get(f"/api/gates/project/{project_id}/check-blocking")
+    assert response.status_code == 404
+
+    app.dependency_overrides.clear()
+
+
 def test_resolve_narrow_without_action_text_returns_422(api_client: TestClient, mock_runner, user_a):
     """Test that narrow without action_text returns 422."""
     project_id = _create_test_project(api_client, user_a)

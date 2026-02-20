@@ -5,15 +5,39 @@ from typing import Literal
 from pydantic import BaseModel, Field, field_validator
 
 
+_INPUT_TYPE_ALIASES: dict[str, str] = {
+    "select": "multiple_choice",
+    "dropdown": "multiple_choice",
+    "single_select": "multiple_choice",
+    "multi_select": "multiple_choice",
+    "radio": "multiple_choice",
+    "checkbox": "multiple_choice",
+    "short_text": "text",
+    "long_text": "textarea",
+    "paragraph": "textarea",
+}
+
+
 class OnboardingQuestion(BaseModel):
     """A single onboarding question with input type and options."""
 
     id: str
     text: str
-    input_type: Literal["text", "textarea", "multiple_choice"]
+    input_type: str
     required: bool
     options: list[str] | None = None
     follow_up_hint: str | None = None
+
+    @field_validator("input_type")
+    @classmethod
+    def normalize_input_type(cls, v: str) -> str:
+        """Normalize LLM-generated input types to the canonical set."""
+        v = v.strip().lower()
+        v = _INPUT_TYPE_ALIASES.get(v, v)
+        allowed = {"text", "textarea", "multiple_choice"}
+        if v not in allowed:
+            return "textarea"  # safe default for unknown types
+        return v
 
 
 class QuestionSet(BaseModel):
@@ -26,11 +50,11 @@ class QuestionSet(BaseModel):
 class ThesisSnapshot(BaseModel):
     """Tier-dependent thesis snapshot with core, business, and strategic sections."""
 
-    # Core (always present)
-    problem: str
-    target_user: str
-    value_prop: str
-    key_constraint: str
+    # Core (always present — defaults handle LLM omissions)
+    problem: str = ""
+    target_user: str = ""
+    value_prop: str = ""
+    key_constraint: str = ""
 
     # Business (Partner+)
     differentiation: str | None = None

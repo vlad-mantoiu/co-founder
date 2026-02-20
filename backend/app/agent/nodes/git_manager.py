@@ -5,6 +5,7 @@ Uses GitHub App integration for real repository operations.
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from app.agent.path_safety import resolve_safe_project_path
 from app.agent.state import CoFounderState
 from app.core.config import get_settings
 from app.core.llm_config import create_tracked_llm
@@ -247,6 +248,8 @@ async def _local_git_operations(state: CoFounderState) -> dict:
     from pathlib import Path
 
     project_path = Path(state["project_path"])
+    project_root = project_path.resolve()
+    project_root.mkdir(parents=True, exist_ok=True)
 
     # Generate commit message
     llm = await create_tracked_llm(
@@ -268,7 +271,7 @@ async def _local_git_operations(state: CoFounderState) -> dict:
         proc = await asyncio.create_subprocess_exec(
             "git",
             *args,
-            cwd=str(project_path),
+            cwd=str(project_root),
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
@@ -290,10 +293,11 @@ async def _local_git_operations(state: CoFounderState) -> dict:
 
         # Write files and stage
         for path, change in state["working_files"].items():
-            full_path = project_path / path
+            full_path = resolve_safe_project_path(project_root, path)
+            relative_path = str(full_path.relative_to(project_root))
             full_path.parent.mkdir(parents=True, exist_ok=True)
             full_path.write_text(change["new_content"])
-            await run_git(["add", path])
+            await run_git(["add", relative_path])
 
         # Commit
         code, stdout, stderr = await run_git(["commit", "-m", commit_message])

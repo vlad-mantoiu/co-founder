@@ -30,6 +30,9 @@ _public_pem = _public_key.public_bytes(
     format=serialization.PublicFormat.SubjectPublicKeyInfo,
 )
 
+_TEST_CLERK_PK = "pk_test_c3VwZXJiLXRpY2stNDUuY2xlcmsuYWNjb3VudHMuZGV2JA"
+_TEST_ISSUER = "https://superb-tick-45.clerk.accounts.dev"
+
 
 def _sign_jwt(payload: dict, kid: str = "test-kid") -> str:
     """Sign a JWT with the test RSA private key."""
@@ -53,12 +56,14 @@ def _mock_jwks_client():
 def _mock_settings():
     """Return a mock Settings with test-friendly defaults."""
     s = MagicMock()
+    s.clerk_publishable_key = _TEST_CLERK_PK
     s.clerk_allowed_origins = [
         "http://localhost:3000",
         "https://cofounder.getinsourced.ai",
         "https://getinsourced.ai",
         "https://www.getinsourced.ai",
     ]
+    s.clerk_allowed_audiences = []
     return s
 
 
@@ -200,6 +205,7 @@ class TestRequireAuth:
                 "iat": now - 10,
                 "exp": now + 300,
                 "nbf": now - 10,
+                "iss": _TEST_ISSUER,
                 "azp": "http://localhost:3000",
             }
         )
@@ -255,6 +261,7 @@ class TestRequireAuth:
                 "iat": now - 10,
                 "exp": now + 300,
                 "nbf": now - 10,
+                "iss": _TEST_ISSUER,
                 "azp": "https://evil-site.com",
             }
         )
@@ -271,3 +278,60 @@ class TestRequireAuth:
                 await require_auth(request=mock_request, credentials=creds)
             assert exc_info.value.status_code == 401
             assert "origin" in exc_info.value.detail.lower()
+
+    @pytest.mark.asyncio
+    async def test_missing_azp_raises_401(self):
+        from app.core.auth import require_auth
+
+        now = int(time.time())
+        token = _sign_jwt(
+            {
+                "sub": "user_xyz",
+                "iat": now - 10,
+                "exp": now + 300,
+                "nbf": now - 10,
+                "iss": _TEST_ISSUER,
+            }
+        )
+
+        creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
+        mock_request = MagicMock()
+        mock_request.state = MagicMock()
+
+        with (
+            patch("app.core.auth.get_jwks_client", _mock_jwks_client),
+            patch("app.core.auth.get_settings", _mock_settings),
+        ):
+            with pytest.raises(HTTPException) as exc_info:
+                await require_auth(request=mock_request, credentials=creds)
+            assert exc_info.value.status_code == 401
+            assert "azp" in exc_info.value.detail.lower()
+
+    @pytest.mark.asyncio
+    async def test_invalid_issuer_raises_401(self):
+        from app.core.auth import require_auth
+
+        now = int(time.time())
+        token = _sign_jwt(
+            {
+                "sub": "user_xyz",
+                "iat": now - 10,
+                "exp": now + 300,
+                "nbf": now - 10,
+                "iss": "https://evil-issuer.example",
+                "azp": "http://localhost:3000",
+            }
+        )
+
+        creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
+        mock_request = MagicMock()
+        mock_request.state = MagicMock()
+
+        with (
+            patch("app.core.auth.get_jwks_client", _mock_jwks_client),
+            patch("app.core.auth.get_settings", _mock_settings),
+        ):
+            with pytest.raises(HTTPException) as exc_info:
+                await require_auth(request=mock_request, credentials=creds)
+            assert exc_info.value.status_code == 401
+            assert "issuer" in exc_info.value.detail.lower()

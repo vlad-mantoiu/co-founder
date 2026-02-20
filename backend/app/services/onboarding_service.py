@@ -434,11 +434,12 @@ class OnboardingService:
             Filtered dict with tier-appropriate fields
         """
         # Core fields (always present)
+        # LLM prompt uses "problem_statement" but schema expects "problem"
         filtered = {
-            "problem": brief_data.get("problem"),
-            "target_user": brief_data.get("target_user"),
-            "value_prop": brief_data.get("value_prop"),
-            "key_constraint": brief_data.get("key_constraint"),
+            "problem": brief_data.get("problem") or brief_data.get("problem_statement", ""),
+            "target_user": brief_data.get("target_user", ""),
+            "value_prop": brief_data.get("value_prop") or brief_data.get("value_proposition", ""),
+            "key_constraint": brief_data.get("key_constraint") or brief_data.get("key_constraints", ""),
         }
 
         # Business fields (Partner+)

@@ -3,6 +3,7 @@
 Handles file operations and command execution in secure, isolated environments.
 """
 
+from app.agent.path_safety import resolve_safe_project_path
 from app.agent.state import CoFounderState
 from app.core.config import get_settings
 from app.core.exceptions import SandboxError
@@ -224,12 +225,13 @@ async def _execute_locally(state: CoFounderState) -> dict:
     errors = []
 
     project_path = Path(state["project_path"])
-    project_path.mkdir(parents=True, exist_ok=True)
+    project_root = project_path.resolve()
+    project_root.mkdir(parents=True, exist_ok=True)
 
     # Write files locally
     for path, change in state["working_files"].items():
         try:
-            full_path = project_path / path
+            full_path = resolve_safe_project_path(project_root, path)
             full_path.parent.mkdir(parents=True, exist_ok=True)
             full_path.write_text(change["new_content"])
             files_written.append(path)
@@ -260,14 +262,39 @@ async def _execute_locally(state: CoFounderState) -> dict:
 
     # Determine command based on file types
     if any(f.endswith(".py") for f in files):
-        cmd = ["python", "-m", "py_compile"] + [str(project_path / f) for f in files if f.endswith(".py")]
+        py_files = []
+        for file_path in files:
+            if file_path.endswith(".py"):
+                try:
+                    safe_file = resolve_safe_project_path(project_root, file_path)
+                    py_files.append(str(safe_file))
+                except ValueError as e:
+                    errors.append(
+                        {
+                            "step_index": state["current_step_index"],
+                            "error_type": "file_path_validation",
+                            "message": str(e),
+                            "stdout": "",
+                            "stderr": str(e),
+                            "file_path": file_path,
+                        }
+                    )
+        if errors:
+            return {
+                "active_errors": errors,
+                "current_node": "executor",
+                "status_message": "Unsafe file path detected",
+                "last_tool_output": f"Path validation errors: {errors}",
+                "last_command_exit_code": 1,
+            }
+        cmd = ["python", "-m", "py_compile"] + py_files
     else:
         cmd = ["echo", "No validation available"]
 
     try:
         proc = await asyncio.create_subprocess_exec(
             *cmd,
-            cwd=str(project_path),
+            cwd=str(project_root),
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )

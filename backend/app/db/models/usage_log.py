@@ -22,4 +22,4 @@ class UsageLog(Base):
     total_tokens = Column(Integer, nullable=False, default=0)
     cost_microdollars = Column(Integer, nullable=False, default=0)
 
-    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(UTC), index=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC), index=True)

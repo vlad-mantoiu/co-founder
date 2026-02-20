@@ -28,9 +28,11 @@ class ProjectResponse(BaseModel):
     github_repo: str | None
     created_at: str
     status: str
+    stage_number: int | None = None
     has_pending_gate: bool = False
     has_understanding_session: bool = False
     has_brief: bool = False
+    has_execution_plan: bool = False
 
 
 async def _compute_project_flags(session, project_id: str) -> dict:
@@ -59,15 +61,25 @@ async def _compute_project_flags(session, project_id: str) -> dict:
             )
         )
     )
+    execution_plan_q = select(
+        exists().where(
+            and_(
+                Artifact.project_id == project_id,
+                Artifact.artifact_type == "execution_plan",
+            )
+        )
+    )
 
     has_pending_gate = (await session.execute(pending_gate_q)).scalar() or False
     has_understanding_session = (await session.execute(understanding_session_q)).scalar() or False
     has_brief = (await session.execute(brief_q)).scalar() or False
+    has_execution_plan = (await session.execute(execution_plan_q)).scalar() or False
 
     return {
         "has_pending_gate": has_pending_gate,
         "has_understanding_session": has_understanding_session,
         "has_brief": has_brief,
+        "has_execution_plan": has_execution_plan,
     }
 
 
@@ -116,9 +128,11 @@ async def create_project(request: ProjectCreate, user: ClerkUser = Depends(requi
             github_repo=project.github_repo,
             created_at=project.created_at.isoformat(),
             status=project.status,
+            stage_number=None,
             has_pending_gate=False,
             has_understanding_session=False,
             has_brief=False,
+            has_execution_plan=False,
         )
 
 
@@ -142,6 +156,7 @@ async def list_projects(user: ClerkUser = Depends(require_auth)):
                     github_repo=p.github_repo,
                     created_at=p.created_at.isoformat(),
                     status=p.status,
+                    stage_number=p.stage_number,
                     **flags,
                 )
             )
@@ -172,6 +187,7 @@ async def get_project(project_id: str, user: ClerkUser = Depends(require_auth)):
             github_repo=project.github_repo,
             created_at=project.created_at.isoformat(),
             status=project.status,
+            stage_number=project.stage_number,
             **flags,
         )
 

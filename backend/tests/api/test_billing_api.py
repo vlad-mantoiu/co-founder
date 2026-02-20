@@ -74,6 +74,24 @@ def test_user():
 class TestWebhookIdempotency:
     """Webhook events with the same event_id must only be processed once."""
 
+    def test_webhook_returns_503_when_secret_missing(self, api_client: TestClient):
+        """Webhook endpoint must fail closed when STRIPE_WEBHOOK_SECRET is unset."""
+        mock_settings = MagicMock()
+        mock_settings.stripe_webhook_secret = ""
+
+        with patch("app.api.routes.billing.get_settings", return_value=mock_settings):
+            response = api_client.post(
+                "/api/webhooks/stripe",
+                content=b"{}",
+                headers={
+                    "stripe-signature": "t=0,v1=bad",
+                    "Content-Type": "application/json",
+                },
+            )
+
+        assert response.status_code == 503
+        assert "not configured" in response.json()["detail"].lower()
+
     def test_webhook_rejects_missing_signature(self, api_client: TestClient):
         """POST webhook without stripe-signature header returns 400."""
         response = api_client.post(

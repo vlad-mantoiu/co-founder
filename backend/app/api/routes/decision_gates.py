@@ -147,5 +147,5 @@ async def check_gate_blocking(
     """
     session_factory = get_session_factory()
     service = GateService(runner, session_factory)
-    blocking = await service.check_gate_blocking(project_id)
-    return {"blocking": blocking}
+    pending_gate = await service.get_pending_gate(user.user_id, project_id)
+    return {"blocking": pending_gate is not None}

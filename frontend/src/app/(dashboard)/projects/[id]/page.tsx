@@ -26,6 +26,7 @@ interface Project {
   has_pending_gate: boolean;
   has_understanding_session: boolean;
   has_brief: boolean;
+  has_execution_plan: boolean;
 }
 
 const stages = [
@@ -60,7 +61,8 @@ const stages = [
 ];
 
 function getActiveStage(project: Project): string {
-  if (project.has_brief) return "strategy";
+  if (project.has_execution_plan) return "build";
+  if (project.has_brief || project.has_pending_gate) return "strategy";
   return "understanding";
 }
 

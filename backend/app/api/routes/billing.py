@@ -293,6 +293,9 @@ async def get_billing_usage(
 async def stripe_webhook(request: Request):
     """Handle Stripe webhook events with signature verification."""
     settings = get_settings()
+    if not settings.stripe_webhook_secret:
+        logger.error("stripe_webhook_secret_missing")
+        raise HTTPException(status_code=503, detail="Stripe webhook endpoint is not configured")
     _get_stripe()
 
     body = await request.body()

@@ -48,3 +48,28 @@
 
 ---
 
+
+## v0.3 Marketing Separation (Shipped: 2026-02-20)
+
+**Phases completed:** 4 phases (18-21), 9 plans, 23 tasks
+**Timeline:** 2 days (2026-02-19 to 2026-02-20)
+**Marketing site:** ~2,722 LOC TypeScript + 182 LOC CDK infrastructure
+**Requirements:** 16/16 satisfied
+**Commits:** 21
+
+**Key accomplishments:**
+1. Standalone static marketing site at getinsourced.ai — 8 pages, zero Clerk JS, Next.js static export on CloudFront + S3
+2. CDK MarketingStack with OAC, ACM certificate, CloudFront Function for www redirect and clean URLs
+3. App cleanup — marketing routes stripped from cofounder.getinsourced.ai, auth-aware root redirect, Clerk middleware narrowed
+4. Path-filtered GitHub Actions CI/CD — auto-deploys marketing to S3 and invalidates CloudFront on push
+5. Multi-product URL structure (getinsourced.ai/{product}) ready for future products
+
+**Tech debt carried forward:**
+- Neo4j dual-write non-fatal — graph empty when Neo4j not configured (medium, from v0.1)
+- Dashboard layout retains force-dynamic for useSearchParams() — documented deviation (low)
+- 19-VERIFICATION.md references stale .html rewrite pattern — documentation only (low)
+
+**Archive:** `.planning/milestones/v0.3-ROADMAP.md`, `.planning/milestones/v0.3-REQUIREMENTS.md`
+
+---
+

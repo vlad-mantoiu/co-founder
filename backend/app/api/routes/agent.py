@@ -48,6 +48,24 @@ async def _save_session(session_id: str, session: dict) -> None:
     )
 
 
+def _extract_session_owner(session: dict) -> str | None:
+    """Extract session owner user ID from session metadata/state."""
+    owner = session.get("user_id")
+    if owner:
+        return owner
+    state = session.get("state")
+    if isinstance(state, dict):
+        return state.get("user_id")
+    return None
+
+
+def _require_session_owner(session: dict, user_id: str) -> None:
+    """Raise 404 when session is missing ownership metadata or owned by another user."""
+    owner_id = _extract_session_owner(session)
+    if owner_id != user_id:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+
 async def _check_daily_session_limit(user_id: str) -> None:
     """Raise 403 if user has exceeded their daily session limit."""
     user_settings = await get_or_create_user_settings(user_id)
@@ -126,7 +144,7 @@ async def chat(request: ChatRequest, user: ClerkUser = Depends(require_subscript
             session_id=session_id,
         )
         graph = create_production_graph()
-        session = {"state": state}
+        session = {"state": state, "user_id": user_id}
         await _increment_session_count(user_id)
 
         # Start episodic memory tracking
@@ -141,6 +159,8 @@ async def chat(request: ChatRequest, user: ClerkUser = Depends(require_subscript
         except Exception as e:
             logger.warning("episodic_memory_start_failed", error=str(e), error_type=type(e).__name__, user_id=user_id)
     else:
+        _require_session_owner(session, user_id)
+        session.setdefault("user_id", user_id)
         state = session["state"]
         episode_id = session.get("episode_id")
         graph = create_production_graph()
@@ -201,28 +221,37 @@ async def chat(request: ChatRequest, user: ClerkUser = Depends(require_subscript
                 logger.warning(
                     "episodic_memory_complete_failed", error=str(ex), error_type=type(ex).__name__, user_id=user_id
                 )
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception(
+            "agent_chat_failed",
+            user_id=user_id,
+            session_id=session_id,
+            error_type=type(e).__name__,
+        )
+        raise HTTPException(status_code=500, detail="Agent execution failed")
 
 
 @router.post("/chat/stream")
 async def chat_stream(request: ChatRequest, user: ClerkUser = Depends(require_subscription)):
     """Stream agent responses via SSE."""
     session_id = request.session_id or str(uuid.uuid4())
+    user_id = user.user_id
     session = await _get_session(session_id)
 
     if session is None:
-        await _check_daily_session_limit(user.user_id)
+        await _check_daily_session_limit(user_id)
 
         state = create_initial_state(
-            user_id=user.user_id,
+            user_id=user_id,
             project_id=request.project_id,
             project_path=f"/tmp/cofounder/{request.project_id}",
             goal=request.message,
             session_id=session_id,
         )
-        session = {"state": state}
-        await _increment_session_count(user.user_id)
+        session = {"state": state, "user_id": user_id}
+        await _increment_session_count(user_id)
     else:
+        _require_session_owner(session, user_id)
+        session.setdefault("user_id", user_id)
         state = session["state"]
         if request.message:
             state["current_goal"] = request.message
@@ -264,6 +293,8 @@ async def resume_session(session_id: str, action: str = "continue", user: ClerkU
     session = await _get_session(session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
+    _require_session_owner(session, user.user_id)
+    session.setdefault("user_id", user.user_id)
 
     state = session["state"]
 
@@ -293,6 +324,7 @@ async def get_session_state(session_id: str, user: ClerkUser = Depends(require_a
     session = await _get_session(session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
+    _require_session_owner(session, user.user_id)
 
     state = session["state"]
 
@@ -328,8 +360,9 @@ async def get_task_history(
             status=status,
         )
         return {"episodes": episodes}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        logger.exception("agent_history_fetch_failed", user_id=user.user_id, project_id=project_id)
+        raise HTTPException(status_code=500, detail="Failed to load task history")
 
 
 @router.get("/history/errors")
@@ -342,8 +375,9 @@ async def get_error_patterns(project_id: str | None = None, user: ClerkUser = De
             project_id=project_id,
         )
         return {"error_patterns": patterns}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        logger.exception("agent_error_patterns_fetch_failed", user_id=user.user_id, project_id=project_id)
+        raise HTTPException(status_code=500, detail="Failed to load error patterns")
 
 
 @router.get("/memories")
@@ -356,8 +390,9 @@ async def get_user_memories(project_id: str | None = None, user: ClerkUser = Dep
             project_id=project_id,
         )
         return {"memories": memories}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        logger.exception("agent_memories_fetch_failed", user_id=user.user_id, project_id=project_id)
+        raise HTTPException(status_code=500, detail="Failed to load memories")
 
 
 # ---------- Formatters ----------

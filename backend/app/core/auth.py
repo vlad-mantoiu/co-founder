@@ -93,6 +93,22 @@ def decode_clerk_jwt(token: str) -> ClerkUser:
     return ClerkUser(user_id=sub, claims=payload)
 
 
+def _validate_audience_claim(aud_claim: object, allowed_audiences: list[str]) -> None:
+    """Validate aud claim against configured allowed audiences."""
+    if aud_claim is None:
+        raise HTTPException(status_code=401, detail="Missing aud claim")
+
+    if isinstance(aud_claim, str):
+        audiences = {aud_claim}
+    elif isinstance(aud_claim, list) and all(isinstance(v, str) for v in aud_claim):
+        audiences = set(aud_claim)
+    else:
+        raise HTTPException(status_code=401, detail="Invalid aud claim format")
+
+    if not audiences.intersection(allowed_audiences):
+        raise HTTPException(status_code=401, detail="Unauthorized audience (aud mismatch)")
+
+
 def is_admin_user(user: ClerkUser) -> bool:
     """Check if user has admin role via Clerk JWT metadata.
 
@@ -123,12 +139,26 @@ async def require_auth(
 
     user = decode_clerk_jwt(credentials.credentials)
 
+    settings = get_settings()
+
+    # Validate issuer against Clerk domain derived from publishable key
+    try:
+        expected_issuer = f"https://{_extract_frontend_api_domain(settings.clerk_publishable_key)}"
+    except ValueError as exc:
+        raise HTTPException(status_code=500, detail="Authentication is misconfigured") from exc
+    if user.claims.get("iss") != expected_issuer:
+        raise HTTPException(status_code=401, detail="Invalid issuer (iss mismatch)")
+
     # Validate authorized party (azp) against allowed origins
     azp = user.claims.get("azp")
-    if azp:
-        settings = get_settings()
-        if azp not in settings.clerk_allowed_origins:
-            raise HTTPException(status_code=401, detail="Unauthorized origin (azp mismatch)")
+    if not azp:
+        raise HTTPException(status_code=401, detail="Missing azp claim")
+    if azp not in settings.clerk_allowed_origins:
+        raise HTTPException(status_code=401, detail="Unauthorized origin (azp mismatch)")
+
+    # Optional audience validation (only enforced when configured)
+    if settings.clerk_allowed_audiences:
+        _validate_audience_claim(user.claims.get("aud"), settings.clerk_allowed_audiences)
 
     # Auto-provision new users (with in-memory cache to avoid DB query on every request)
     if user.user_id not in _provisioned_cache:
