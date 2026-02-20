@@ -60,7 +60,7 @@
 
 ## Phase Checklist
 
-- [ ] **Phase 22: Security Headers + Baseline Audit** - Replace CloudFront managed policy with custom CSP; record Lighthouse baseline scores
+- [x] **Phase 22: Security Headers + Baseline Audit** - Replace CloudFront managed policy with custom CSP; record Lighthouse baseline scores (completed 2026-02-20)
 - [ ] **Phase 23: Performance Baseline** - Fix hero LCP regression, optimize fonts and images above the fold
 - [ ] **Phase 24: SEO Infrastructure** - Meta tags, OG image, JSON-LD schemas, sitemap, robots.txt, canonical URLs on all pages
 - [ ] **Phase 25: Loading UX** - Branded splash screen, route progress bar, skeleton placeholders
@@ -168,7 +168,7 @@ Plans:
 | 19. CloudFront + S3 Infrastructure | v0.3 | 2/2 | Complete | 2026-02-20 |
 | 20. App Cleanup | v0.3 | 2/2 | Complete | 2026-02-20 |
 | 21. Marketing CI/CD | v0.3 | 1/1 | Complete | 2026-02-20 |
-| 22. Security Headers + Baseline Audit | 1/2 | In Progress|  | - |
+| 22. Security Headers + Baseline Audit | 2/2 | Complete   | 2026-02-20 | - |
 | 23. Performance Baseline | v0.4 | 0/TBD | Not started | - |
 | 24. SEO Infrastructure | v0.4 | 0/TBD | Not started | - |
 | 25. Loading UX | v0.4 | 0/TBD | Not started | - |

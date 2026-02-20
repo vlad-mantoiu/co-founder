@@ -10,17 +10,17 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 ## Current Position
 
 Phase: 22 of 27 (Security Headers + Baseline Audit)
-Plan: 1 of 2 in current phase
-Status: In progress
-Last activity: 2026-02-20 — 22-01 complete (Lighthouse baseline audit)
+Plan: 2 of 2 in current phase — COMPLETE
+Status: Phase 22 complete — ready for Phase 23
+Last activity: 2026-02-20 — 22-02 complete (Custom CSP + security headers deployed to CloudFront)
 
-Progress: [████████████████░░░░░░░░░░░░░░] 78% (v0.1 + v0.2 + v0.3 shipped; 6 phases remaining)
+Progress: [████████████████░░░░░░░░░░░░░░] 80% (v0.1 + v0.2 + v0.3 shipped; Phase 22 complete; 5 phases remaining)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 62 (v0.1: 47, v0.2: 20, v0.3: 9) — v0.4 not yet started
-- Total phases shipped: 21
+- Total plans completed: 64 (v0.1: 47, v0.2: 20, v0.3: 9, v0.4: 2 so far)
+- Total phases shipped: 21 (Phase 22 in progress — both plans complete)
 
 **By Milestone:**
 
@@ -29,6 +29,7 @@ Progress: [████████████████░░░░░░░
 | v0.1 MVP | 12 | 47 | 3 days (2026-02-15 to 2026-02-17) |
 | v0.2 Production Ready | 5 | 20 | 2 days (2026-02-18 to 2026-02-19) |
 | v0.3 Marketing Separation | 4 | 9 | 2 days (2026-02-19 to 2026-02-20) |
+| v0.4 Security + SEO | 6 | 2 of 12 | In progress (2026-02-20) |
 
 *Updated after each plan completion*
 
@@ -46,6 +47,10 @@ Recent decisions affecting current work:
 - [22-01]: INP = null on all static marketing pages — expected; static site with no JS interactions during lab window
 - [22-01]: CLS = 0 across all 8 pages — Framer Motion opacity:0 initial state does not cause layout shift
 - [22-01]: Best Practices = 96 across all pages before CSP — will improve after Plan 02 adds CSP header
+- [22-02]: script-src 'unsafe-inline' accepted — Next.js static export injects 55 unique inline scripts per build; hash-based CSP impractical
+- [22-02]: style-src 'unsafe-inline' accepted — Framer Motion sets inline style= attributes for animations; CSP blocking would freeze animations
+- [22-02]: frame-ancestors 'self' not 'none' — enables Google Rich Results Test iframe rendering
+- [22-02]: HSTS preload: false — near-permanent preload list commitment, deferred until domain is stable
 
 ### Pending Todos
 
@@ -54,15 +59,15 @@ Recent decisions affecting current work:
 
 ### Blockers/Concerns
 
-- [Phase 22]: CloudFront SECURITY_HEADERS managed policy silently blocks third-party verification tools — must fix before any SEO/analytics tooling is tested
+- ~~[Phase 22]: CloudFront SECURITY_HEADERS managed policy silently blocks third-party verification tools — RESOLVED in 22-02~~
 - [Phase 24]: Google Search Console access needed for sitemap submission — confirm access before Phase 24 ships
 - [Phase 25]: All loading UX features must be tested against `next build && npx serve out`, not `npm run dev`
 
 ## Session Continuity
 
 Last session: 2026-02-20
-Stopped at: Completed 22-01-PLAN.md (Lighthouse baseline audit)
-Resume file: .planning/phases/22-security-headers-baseline-audit/22-01-SUMMARY.md
+Stopped at: Completed 22-02-PLAN.md (Custom CSP and security headers deployed to CloudFront, verified zero violations)
+Resume file: .planning/phases/22-security-headers-baseline-audit/22-02-SUMMARY.md
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
