@@ -47,11 +47,11 @@ class QuestionSet(BaseModel):
 class ThesisSnapshot(BaseModel):
     """Tier-dependent thesis snapshot with core, business, and strategic sections."""
 
-    # Core (always present — defaults handle LLM omissions)
-    problem: str = ""
-    target_user: str = ""
-    value_prop: str = ""
-    key_constraint: str = ""
+    # Core (always required)
+    problem: str
+    target_user: str
+    value_prop: str
+    key_constraint: str
 
     # Business (Partner+)
     differentiation: str | None = None
