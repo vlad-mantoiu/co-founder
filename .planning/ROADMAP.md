@@ -84,6 +84,20 @@ Plans:
 - [x] 22-02-PLAN.md — Custom ResponseHeadersPolicy replacing managed SECURITY_HEADERS
 - [x] 22-03-PLAN.md — Gap closure: Organization + WebSite + SoftwareApplication JSON-LD so Rich Results Test finds structured data
 
+### Phase 22.1: End-to-End Flow — Strategy Graph, Timeline & Architecture from Real Data (INSERTED)
+
+**Goal:** After Understanding completes, three personalized artifacts (Strategy Graph, Timeline, Architecture) auto-generate from real user data and display in a guided walkthrough
+**Depends on:** Phase 22
+**Plans:** 6 plans
+
+Plans:
+- [ ] 22.1-01-PLAN.md — Backend types + Runner protocol + RunnerFake for 3 new artifact types
+- [ ] 22.1-02-PLAN.md — RunnerReal LLM generators + auto-trigger from finalize + status API
+- [ ] 22.1-03-PLAN.md — Strategy graph + Timeline artifact display pages
+- [ ] 22.1-04-PLAN.md — Architecture artifact display page with cost estimates
+- [ ] 22.1-05-PLAN.md — Generation progress overlay + guided walkthrough UI
+- [ ] 22.1-06-PLAN.md — E2E verification checkpoint
+
 ### Phase 23: Performance Baseline
 **Goal**: Above-fold content renders at full opacity without animation delay; fonts load without flash; images do not shift layout; reduced-motion users see no animations
 **Depends on**: Phase 22
