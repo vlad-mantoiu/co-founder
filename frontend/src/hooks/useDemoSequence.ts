@@ -237,7 +237,7 @@ export function useDemoSequence() {
           ...s,
           phase: "complete",
           progress: 100,
-          finalOutput: `Analysis complete for "${idea}". Your project has been fully analyzed across all six stages. The architecture is validated, tests are passing, and a deployment strategy is ready. Click "View Architecture" to see the full system diagram.`,
+          finalOutput: `Analysis complete for "${idea}". Your project has been fully analyzed across all six stages. The architecture is validated, tests are passing, and a deployment strategy is ready.`,
         }));
       }
     }

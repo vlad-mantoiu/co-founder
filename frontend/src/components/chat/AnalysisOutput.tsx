@@ -1,17 +1,15 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { CheckCircle2, Network, Plus } from "lucide-react";
+import { CheckCircle2, Plus } from "lucide-react";
 
 interface AnalysisOutputProps {
   output: string;
-  sessionId: string | null;
   onNewAnalysis: () => void;
 }
 
 export function AnalysisOutput({
   output,
-  sessionId,
   onNewAnalysis,
 }: AnalysisOutputProps) {
   return (
@@ -45,15 +43,6 @@ export function AnalysisOutput({
 
         {/* CTAs */}
         <div className="flex items-center gap-3">
-          {sessionId && (
-            <a
-              href={`/architecture?session=${sessionId}`}
-              className="flex items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-dark transition-colors"
-            >
-              <Network className="h-4 w-4" />
-              View Architecture
-            </a>
-          )}
           <button
             onClick={onNewAnalysis}
             className="flex items-center gap-2 rounded-xl border border-white/10 px-4 py-2.5 text-sm font-medium text-white/70 hover:border-white/20 hover:text-white transition-colors"

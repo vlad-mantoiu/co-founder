@@ -8,6 +8,7 @@ import {
   GitBranch,
   Hammer,
   Rocket,
+  Network,
   Clock,
   ArrowRight,
   CheckCircle2,
@@ -106,6 +107,29 @@ export default function ProjectOverviewPage() {
   }
 
   const activeStage = getActiveStage(project);
+  const projectViews = [
+    {
+      key: "strategy",
+      label: "Strategy",
+      description: "Decision relationships and plan rationale",
+      icon: GitBranch,
+      href: `/projects/${params.id}/strategy`,
+    },
+    {
+      key: "timeline",
+      label: "Timeline",
+      description: "Milestones, decisions, and execution history",
+      icon: Clock,
+      href: `/projects/${params.id}/timeline`,
+    },
+    {
+      key: "architecture",
+      label: "Architecture",
+      description: "Session-backed system graph for this project",
+      icon: Network,
+      href: `/projects/${params.id}/architecture`,
+    },
+  ] as const;
 
   return (
     <div className="space-y-8 max-w-3xl mx-auto">
@@ -178,6 +202,38 @@ export default function ProjectOverviewPage() {
                   {isActive && (
                     <ArrowRight className="w-4 h-4 text-brand flex-shrink-0" />
                   )}
+                </GlassCard>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Project views */}
+      <div className="space-y-3">
+        <h2 className="font-display text-lg font-semibold text-white">
+          Project Views
+        </h2>
+        <div className="grid sm:grid-cols-3 gap-3">
+          {projectViews.map((view) => {
+            const Icon = view.icon;
+            return (
+              <Link key={view.key} href={view.href}>
+                <GlassCard
+                  variant="default"
+                  className="h-full hover:ring-1 hover:ring-brand/30 transition-all"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-brand/10 flex items-center justify-center flex-shrink-0">
+                      <Icon className="w-4 h-4 text-brand" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-medium text-white">{view.label}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {view.description}
+                      </p>
+                    </div>
+                  </div>
                 </GlassCard>
               </Link>
             );

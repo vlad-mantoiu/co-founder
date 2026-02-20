@@ -11,9 +11,6 @@ import { useAdmin } from "@/hooks/useAdmin";
 const navLinks = [
   { href: "/dashboard", label: "Dashboard", secondary: false },
   { href: "/projects", label: "Projects", secondary: false },
-  { href: "/strategy", label: "Strategy", secondary: false },
-  { href: "/timeline", label: "Timeline", secondary: false },
-  { href: "/architecture", label: "Architecture", secondary: false },
   { href: "/billing", label: "Billing", secondary: false },
   { href: "/chat", label: "Chat", secondary: true },
 ] as const;

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { FolderOpen, ArrowRight, Plus } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { GlassCard } from "@/components/ui/glass-card";
@@ -93,6 +94,7 @@ function getProjectState(project: Project): ProjectState {
 
 export default function ProjectsPage() {
   const { getToken } = useAuth();
+  const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -135,6 +137,10 @@ export default function ProjectsPage() {
         </div>
         <Link
           href="/onboarding"
+          onClick={(e) => {
+            e.preventDefault();
+            router.push("/onboarding");
+          }}
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand text-white text-sm font-medium hover:bg-brand-dark transition-colors shadow-glow self-start"
         >
           <Plus className="w-4 h-4" />
@@ -156,6 +162,10 @@ export default function ProjectsPage() {
           </p>
           <Link
             href="/onboarding"
+            onClick={(e) => {
+              e.preventDefault();
+              router.push("/onboarding");
+            }}
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-brand text-white font-medium hover:bg-brand-dark transition-colors shadow-glow"
           >
             <Plus className="w-5 h-5" />

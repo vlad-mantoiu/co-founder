@@ -72,7 +72,6 @@ export function ChatWindow({ demoMode = false }: ChatWindowProps) {
             >
               <AnalysisOutput
                 output={state.finalOutput}
-                sessionId={state.sessionId}
                 onNewAnalysis={reset}
               />
             </motion.div>
