@@ -5,15 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** Planning next milestone
+**Current focus:** v0.4 Marketing Speed & SEO
 
 ## Current Position
 
-Phase: All complete (21 phases across v0.1, v0.2, v0.3)
-Status: Between milestones
-Last activity: 2026-02-20 — v0.3 Marketing Separation milestone archived
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-02-20 — Milestone v0.4 started
 
-Progress: [██████████] 100% (v0.3 complete)
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
@@ -47,8 +48,8 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-20
-Stopped at: v0.3 milestone archived — all 3 milestones complete
-Next action: /gsd:new-milestone to start v0.4
+Stopped at: v0.4 milestone started — defining requirements
+Next action: Complete requirements and roadmap
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*

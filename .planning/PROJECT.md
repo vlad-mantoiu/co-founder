@@ -8,11 +8,18 @@ An AI-powered Technical Co-Founder SaaS that turns a non-technical founder's ide
 
 A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions (not coding decisions) the entire way.
 
-## Current Milestone: Planning Next
+## Current Milestone: v0.4 Marketing Speed & SEO
 
-**Shipped:** v0.3 Marketing Separation (2026-02-20)
+**Goal:** Make getinsourced.ai feel instant with a premium layered loading experience, and make it discoverable by search engines and AI engines.
 
-No active milestone. Use `/gsd:new-milestone` to start the next cycle.
+**Target features:**
+- Branded splash screen (instant HTML/CSS, renders before JS)
+- Slim progress bar during page load
+- Skeleton screens matching page layouts
+- Smooth content reveal transitions
+- Image, font, and bundle performance optimizations
+- SEO foundations (meta tags, Open Graph, structured data, sitemap, robots.txt)
+- GEO optimization (semantic HTML, content structured for AI extraction)
 
 ## Current State
 
@@ -88,9 +95,22 @@ No active milestone. Use `/gsd:new-milestone` to start the next cycle.
 
 ### Active
 
-<!-- Next milestone scope — defined by /gsd:new-milestone -->
+<!-- v0.4 Marketing Speed & SEO -->
 
-(None — next milestone not yet defined)
+- [ ] Branded splash screen renders instantly before JS executes
+- [ ] Slim progress bar indicates page load progress
+- [ ] Skeleton screens match page layouts during content load
+- [ ] Smooth transitions from skeleton to real content
+- [ ] Images optimized (compression, lazy loading, modern formats)
+- [ ] Fonts optimized (preload, display swap, subset)
+- [ ] JS bundle minimized for static pages
+- [ ] Meta tags (title, description) on every page
+- [ ] Open Graph / Twitter Card tags for social sharing
+- [ ] JSON-LD structured data (Organization, Product, FAQ)
+- [ ] XML sitemap generated and submitted
+- [ ] robots.txt configured for crawlability
+- [ ] Semantic HTML for AI engine extraction (GEO)
+- [ ] Canonical URLs on all pages
 
 ### Out of Scope
 
@@ -150,4 +170,4 @@ Non-technical, product-led founders who think in roadmaps, reports, and artifact
 | S3 OAC (not OAI) for bucket access | AWS recommends OAC over deprecated OAI — auto-creates scoped bucket policy | ✓ Good — direct S3 URLs return 403, CloudFront serves content |
 
 ---
-*Last updated: 2026-02-20 after v0.3 milestone shipped*
+*Last updated: 2026-02-20 after v0.4 milestone started*
