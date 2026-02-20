@@ -10,7 +10,17 @@ import { GraphCanvas } from "@/components/graph/GraphCanvas";
 import type { GraphNodeData, GraphNodeStatus } from "@/components/graph/GraphNode";
 import type { LogLine } from "@/components/chat/types";
 import { AppArchitectureView } from "@/components/architecture/AppArchitectureView";
-import type { AppArchitectureViewProps } from "@/components/architecture/AppArchitectureView";
+import type { AppArchitectureViewProps, CostEstimate, ArchitectureComponent, ArchitectureConnection } from "@/components/architecture/AppArchitectureView";
+
+// Raw artifact content uses snake_case; component props use camelCase
+interface RawArchitectureContent {
+  components?: ArchitectureComponent[];
+  connections?: ArchitectureConnection[];
+  cost_estimate?: CostEstimate;
+  costEstimate?: CostEstimate;
+  integration_recommendations?: string[];
+  integrationRecommendations?: string[];
+}
 
 interface PlanStep {
   id: string;
@@ -93,7 +103,7 @@ export default function ProjectArchitecturePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [nodeLogs] = useState<Record<string, LogLine[]>>({});
-  const [architectureData, setArchitectureData] = useState<AppArchitectureViewProps | null>(null);
+  const [architectureData, setArchitectureData] = useState<RawArchitectureContent | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -105,7 +115,7 @@ export default function ProjectArchitecturePage() {
         if (artifactRes.ok) {
           const artifacts = await artifactRes.json();
           const archArtifact = artifacts.find(
-            (a: { artifact_type: string; generation_status: string; current_content: AppArchitectureViewProps | null }) =>
+            (a: { artifact_type: string; generation_status: string; current_content: RawArchitectureContent | null }) =>
               a.artifact_type === "app_architecture" &&
               a.generation_status === "idle" &&
               a.current_content
@@ -220,10 +230,10 @@ export default function ProjectArchitecturePage() {
           </p>
         </div>
         <AppArchitectureView
-          components={architectureData.components}
-          connections={architectureData.connections}
-          costEstimate={architectureData.costEstimate}
-          integrationRecommendations={architectureData.integrationRecommendations}
+          components={architectureData.components ?? []}
+          connections={architectureData.connections ?? []}
+          costEstimate={architectureData.costEstimate ?? architectureData.cost_estimate ?? { startup_monthly: "N/A", scale_monthly: "N/A", breakdown: [] }}
+          integrationRecommendations={architectureData.integrationRecommendations ?? architectureData.integration_recommendations ?? []}
         />
       </div>
     );
