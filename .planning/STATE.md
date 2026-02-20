@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 ## Current Position
 
 Phase: 22.1 (End-to-End Flow — Strategy Graph, Timeline & Architecture from Real Data)
-Plan: 5 of 6 in current phase (4 waves)
-Status: Phase 22.1 in progress — Plans 01, 02, 03, 04, 05 complete
-Last activity: 2026-02-21 — Plan 22.1-05 complete: GenerationOverlay (3-step animated progress), GuidedWalkthrough (step-through artifact reveal), useGenerationStatus polling hook; Understanding page wired for full E2E flow
+Plan: 6 of 6 in current phase (4 waves) — PHASE COMPLETE
+Status: Phase 22.1 complete — All 6 plans shipped
+Last activity: 2026-02-21 — Plan 22.1-06 complete: Human-verified E2E flow from Understanding finalize → GenerationOverlay polling → GuidedWalkthrough → all 3 artifact pages. 2 bugs found and fixed (finalize idempotency, architecture camelCase mismatch).
 
 Progress: [█████████████████░░░░░░░░░░░░░] 81% (v0.1 + v0.2 + v0.3 shipped; Phase 22 complete; 5 phases remaining)
 
@@ -32,6 +32,7 @@ Progress: [█████████████████░░░░░░
 | v0.4 Security + SEO | 6 | 3 of TBD | In progress (2026-02-20 to present) |
 
 *Updated after each plan completion*
+| Phase 22.1 P06 | ~30 | 1 task | 2 files |
 | Phase 22.1 P05 | 4 | 2 tasks | 4 files |
 | Phase 22.1 P04 | 2 | 2 tasks | 2 files |
 | Phase 22.1 P03 | 2 | 2 tasks | 5 files |
@@ -71,6 +72,8 @@ Recent decisions affecting current work:
 - [22.1-05]: onProceedToDecision in viewing_brief now goes to generating phase (bypasses decision gate for E2E flow)
 - [22.1-05]: GenerationOverlay onFailed also transitions to walkthrough — user always sees what succeeded, never hard-blocked
 - [22.1-05]: WalkthroughStep interface exported from GuidedWalkthrough.tsx for type safety in understanding page
+- [22.1-06]: Finalize endpoint made idempotent via upsert — re-finalizing replaces existing artifact rows instead of throwing conflict
+- [22.1-06]: Architecture page camelCase fix — backend returns snake_case keys, frontend now destructures correctly at component render boundary
 
 ### Pending Todos
 
@@ -90,8 +93,8 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Completed 22.1-05-PLAN.md — ready for Plan 06 (final E2E integration)
-Resume file: .planning/phases/22.1-end-to-end-flow-strategy-graph-timeline-architecture-from-real-data/22.1-06-PLAN.md
+Stopped at: Completed 22.1-06-PLAN.md — Phase 22.1 COMPLETE (all 6 plans shipped, E2E flow verified by human)
+Resume file: .planning/ROADMAP.md (next phase after 22.1)
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
