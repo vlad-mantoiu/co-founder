@@ -6,6 +6,11 @@ Defines 5 artifact types with tier-gated sections:
 - MilestonesContent: Core + Business + Strategic
 - RiskLogContent: Core + Business + Strategic
 - HowItWorksContent: Core + Business + Strategic
+
+Plus 3 new artifact types with their own generation pipeline:
+- StrategyGraphContent: Anchor + strategy node graph from onboarding data
+- MvpTimelineContent: Relative-week milestone timeline adapted to tier
+- AppArchitectureContent: Component diagram with cost estimates
 """
 
 from datetime import datetime
@@ -17,7 +22,7 @@ from pydantic import BaseModel, Field
 
 
 class ArtifactType(StrEnum):
-    """Seven artifact types in generation pipeline."""
+    """Ten artifact types in generation pipeline."""
 
     BRIEF = "brief"
     MVP_SCOPE = "mvp_scope"
@@ -26,6 +31,9 @@ class ArtifactType(StrEnum):
     HOW_IT_WORKS = "how_it_works"
     IDEA_BRIEF = "idea_brief"  # Rationalised Idea Brief from understanding interview
     EXECUTION_PLAN = "execution_plan"  # Execution plan options for Decision Gate 2
+    STRATEGY_GRAPH = "strategy_graph"  # Go-to-market strategy graph triggered from finalize
+    MVP_TIMELINE = "mvp_timeline"  # Relative-week milestone timeline triggered from finalize
+    APP_ARCHITECTURE = "app_architecture"  # Component diagram with cost estimates triggered from finalize
 
 
 # Generation order (locked decision: linear chain)

@@ -3,7 +3,7 @@
 This protocol defines the interface that decouples business logic from LangGraph,
 enabling Test-Driven Development throughout the project.
 
-All Runner implementations MUST provide these 10 methods:
+All Runner implementations MUST provide these 13 methods:
 - run: Execute the full 6-node pipeline
 - step: Execute a single named node
 - generate_questions: Create onboarding questions from context
@@ -14,6 +14,9 @@ All Runner implementations MUST provide these 10 methods:
 - check_question_relevance: Check if remaining questions need regeneration after answer edit
 - assess_section_confidence: Assess confidence level for idea brief sections
 - generate_execution_options: Generate 2-3 execution plan options from Idea Brief
+- generate_strategy_graph: Generate Strategy Graph from idea brief and onboarding data
+- generate_mvp_timeline: Generate MVP Timeline with relative-week milestones
+- generate_app_architecture: Generate App Architecture with component diagram and cost estimates
 """
 
 from typing import Protocol, runtime_checkable
@@ -24,6 +27,8 @@ from app.agent.state import CoFounderState
 @runtime_checkable
 class Runner(Protocol):
     """Protocol for all LLM-based operations in the Co-Founder agent.
+
+    All Runner implementations MUST provide these 13 methods (see module docstring).
 
     This abstraction enables:
     1. TDD with deterministic test doubles (RunnerFake)
@@ -155,5 +160,59 @@ class Runner(Protocol):
 
         Returns:
             Dict matching ExecutionPlanOptions schema with 2-3 options
+        """
+        ...
+
+    async def generate_strategy_graph(self, idea: str, brief: dict, onboarding_answers: dict) -> dict:
+        """Generate Strategy Graph artifact from idea brief and onboarding data.
+
+        Produces a graph structure with anchor nodes (user's verbatim words) and
+        strategy nodes (LLM-derived go-to-market + business model connections).
+
+        Args:
+            idea: Original idea text from onboarding
+            brief: Rationalised Idea Brief content (full dict)
+            onboarding_answers: Raw onboarding answers dict
+
+        Returns:
+            Dict with keys: nodes (list of node dicts), edges (list of edge dicts),
+            anchor_phrases (list of str — verbatim user words used as anchors)
+        """
+        ...
+
+    async def generate_mvp_timeline(self, idea: str, brief: dict, tier: str) -> dict:
+        """Generate MVP Timeline artifact with relative-week milestones.
+
+        Adapts scope AND duration to the user's technical level and resources.
+        Each milestone lists 2-3 concrete deliverables.
+
+        Args:
+            idea: Original idea text
+            brief: Rationalised Idea Brief content
+            tier: User's subscription tier (bootstrapper/partner/cto_scale)
+
+        Returns:
+            Dict with keys: milestones (list of milestone dicts with week, title,
+            deliverables, duration_weeks), long_term_roadmap (list of phase dicts),
+            total_mvp_weeks (int), adapted_for (str — description of adaptation)
+        """
+        ...
+
+    async def generate_app_architecture(self, idea: str, brief: dict, tier: str) -> dict:
+        """Generate App Architecture artifact with component diagram and tech stack.
+
+        Simplified by default, with expandable detail for technical users.
+        Includes rough cost estimates.
+
+        Args:
+            idea: Original idea text
+            brief: Rationalised Idea Brief content
+            tier: User's subscription tier
+
+        Returns:
+            Dict with keys: components (list of component dicts with name, type,
+            description, tech_recommendation, alternatives), connections (list of
+            connection dicts), cost_estimate (dict with startup_monthly, scale_monthly,
+            breakdown), integration_recommendations (list of str)
         """
         ...
