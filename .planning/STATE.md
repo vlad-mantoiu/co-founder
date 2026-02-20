@@ -5,22 +5,22 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** v0.4 Marketing Speed & SEO
+**Current focus:** Phase 22 — Security Headers + Baseline Audit
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-02-20 — Milestone v0.4 started
+Phase: 22 of 27 (Security Headers + Baseline Audit)
+Plan: 0 of TBD in current phase
+Status: Ready to plan
+Last activity: 2026-02-20 — v0.4 roadmap created (phases 22-27, 29 requirements)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [████████████████░░░░░░░░░░░░░░] 78% (v0.1 + v0.2 + v0.3 shipped; 6 phases remaining)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 62 (v0.1: 47, v0.2: 20 (est), v0.3: 9)
-- Total phases: 21
+- Total plans completed: 62 (v0.1: 47, v0.2: 20, v0.3: 9) — v0.4 not yet started
+- Total phases shipped: 21
 
 **By Milestone:**
 
@@ -30,26 +30,36 @@ Progress: [░░░░░░░░░░] 0%
 | v0.2 Production Ready | 5 | 20 | 2 days (2026-02-18 to 2026-02-19) |
 | v0.3 Marketing Separation | 4 | 9 | 2 days (2026-02-19 to 2026-02-20) |
 
+*Updated after each plan completion*
+
 ## Accumulated Context
 
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table.
+Recent decisions affecting current work:
+
+- [v0.3]: Static marketing site on CloudFront + S3 — zero Clerk JS, independent deploy cycle
+- [v0.4 research]: Fix hero LCP (Framer Motion opacity:0) BEFORE adding splash screen — prevents masking regression
+- [v0.4 research]: CSS-first splash overlay — use useState(true) not useState(false) to avoid hydration mismatch
+- [v0.4 research]: never use loading.tsx for skeleton screens — silently ignored in static export
 
 ### Pending Todos
 
 - [ ] Verify workflow_run gate: push a commit with a failing test and confirm deploy.yml does NOT trigger
-- [ ] Verify path filtering: push a backend-only change and confirm deploy-frontend job is skipped in Actions UI
+- [ ] Verify path filtering: push a backend-only change and confirm deploy-frontend job is skipped
 
 ### Blockers/Concerns
 
-None.
+- [Phase 22]: CloudFront SECURITY_HEADERS managed policy silently blocks third-party verification tools — must fix before any SEO/analytics tooling is tested
+- [Phase 24]: Google Search Console access needed for sitemap submission — confirm access before Phase 24 ships
+- [Phase 25]: All loading UX features must be tested against `next build && npx serve out`, not `npm run dev`
 
 ## Session Continuity
 
 Last session: 2026-02-20
-Stopped at: v0.4 milestone started — defining requirements
-Next action: Complete requirements and roadmap
+Stopped at: v0.4 roadmap created (phases 22-27) — ready to plan Phase 22
+Resume file: None
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*

@@ -81,41 +81,41 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INFRA-01 | — | Pending |
-| INFRA-02 | — | Pending |
-| PERF-01 | — | Pending |
-| PERF-02 | — | Pending |
-| PERF-03 | — | Pending |
-| PERF-04 | — | Pending |
-| PERF-05 | — | Pending |
-| PERF-06 | — | Pending |
-| PERF-07 | — | Pending |
-| LOAD-01 | — | Pending |
-| LOAD-02 | — | Pending |
-| LOAD-03 | — | Pending |
-| LOAD-04 | — | Pending |
-| LOAD-05 | — | Pending |
-| LOAD-06 | — | Pending |
-| SEO-01 | — | Pending |
-| SEO-02 | — | Pending |
-| SEO-03 | — | Pending |
-| SEO-04 | — | Pending |
-| SEO-05 | — | Pending |
-| SEO-06 | — | Pending |
-| SEO-07 | — | Pending |
-| SEO-08 | — | Pending |
-| SEO-09 | — | Pending |
-| SEO-10 | — | Pending |
-| GEO-01 | — | Pending |
-| GEO-02 | — | Pending |
-| GEO-03 | — | Pending |
-| GEO-04 | — | Pending |
+| INFRA-01 | Phase 22 | Pending |
+| INFRA-02 | Phase 22 | Pending |
+| PERF-01 | Phase 23 | Pending |
+| PERF-02 | Phase 23 | Pending |
+| PERF-03 | Phase 23 | Pending |
+| PERF-04 | Phase 23 | Pending |
+| PERF-05 | Phase 23 | Pending |
+| PERF-06 | Phase 26 | Pending |
+| PERF-07 | Phase 26 | Pending |
+| LOAD-01 | Phase 25 | Pending |
+| LOAD-02 | Phase 25 | Pending |
+| LOAD-03 | Phase 25 | Pending |
+| LOAD-04 | Phase 25 | Pending |
+| LOAD-05 | Phase 25 | Pending |
+| LOAD-06 | Phase 25 | Pending |
+| SEO-01 | Phase 24 | Pending |
+| SEO-02 | Phase 24 | Pending |
+| SEO-03 | Phase 24 | Pending |
+| SEO-04 | Phase 24 | Pending |
+| SEO-05 | Phase 24 | Pending |
+| SEO-06 | Phase 24 | Pending |
+| SEO-07 | Phase 24 | Pending |
+| SEO-08 | Phase 24 | Pending |
+| SEO-09 | Phase 24 | Pending |
+| SEO-10 | Phase 24 | Pending |
+| GEO-01 | Phase 27 | Pending |
+| GEO-02 | Phase 27 | Pending |
+| GEO-03 | Phase 27 | Pending |
+| GEO-04 | Phase 27 | Pending |
 
 **Coverage:**
 - v0.4 requirements: 29 total
-- Mapped to phases: 0
-- Unmapped: 29
+- Mapped to phases: 29
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-20*
-*Last updated: 2026-02-20 after initial definition*
+*Last updated: 2026-02-20 — traceability complete after roadmap creation (phases 22-27)*

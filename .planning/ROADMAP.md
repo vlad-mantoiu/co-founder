@@ -5,6 +5,7 @@
 - ✅ **v0.1 MVP** — Phases 1-12 (shipped 2026-02-17)
 - ✅ **v0.2 Production Ready** — Phases 13-17 (shipped 2026-02-19)
 - ✅ **v0.3 Marketing Separation** — Phases 18-21 (shipped 2026-02-20)
+- 🚧 **v0.4 Marketing Speed & SEO** — Phases 22-27 (in progress)
 
 ## Phases
 
@@ -53,7 +54,93 @@
 
 </details>
 
+### 🚧 v0.4 Marketing Speed & SEO (In Progress)
+
+**Milestone Goal:** Make getinsourced.ai feel instant with a premium loading experience and make it discoverable by search engines and AI engines.
+
+## Phase Checklist
+
+- [ ] **Phase 22: Security Headers + Baseline Audit** - Replace CloudFront managed policy with custom CSP; record Lighthouse baseline scores
+- [ ] **Phase 23: Performance Baseline** - Fix hero LCP regression, optimize fonts and images above the fold
+- [ ] **Phase 24: SEO Infrastructure** - Meta tags, OG image, JSON-LD schemas, sitemap, robots.txt, canonical URLs on all pages
+- [ ] **Phase 25: Loading UX** - Branded splash screen, route progress bar, skeleton placeholders
+- [ ] **Phase 26: Image Pipeline** - Build-time WebP conversion, CloudFront image caching behaviors
+- [ ] **Phase 27: GEO + Content** - FAQPage schema, answer-format content, llms.txt, AI crawler rules
+
+## Phase Details
+
+### Phase 22: Security Headers + Baseline Audit
+**Goal**: The CloudFront CSP is out of source control and verified non-blocking; Lighthouse scores are recorded as the pre-work baseline
+**Depends on**: Phase 21
+**Requirements**: INFRA-01, INFRA-02
+**Success Criteria** (what must be TRUE):
+  1. Browser console shows zero CSP violations when loading getinsourced.ai
+  2. CloudFront response headers policy is defined in CDK source code (not the AWS managed SECURITY_HEADERS preset)
+  3. Lighthouse LCP, CLS, INP, and Performance scores are recorded and available as the v0.4 baseline
+  4. Google Rich Results Test and social preview debugger tools load without CSP blocks
+**Plans**: TBD
+
+### Phase 23: Performance Baseline
+**Goal**: Above-fold content renders at full opacity without animation delay; fonts load without flash; images do not shift layout; reduced-motion users see no animations
+**Depends on**: Phase 22
+**Requirements**: PERF-01, PERF-02, PERF-03, PERF-04, PERF-05
+**Success Criteria** (what must be TRUE):
+  1. Lighthouse LCP score is green (under 2.5s) on the homepage and /cofounder page
+  2. The hero headline and copy are visible immediately on page load without a fade-in delay
+  3. Fonts render on first paint with no visible flash of unstyled text (FOUT)
+  4. Images have explicit dimensions so the page does not shift during load (CLS under 0.1)
+  5. Users who enable "Reduce Motion" in their OS see no animations anywhere on the site
+**Plans**: TBD
+
+### Phase 24: SEO Infrastructure
+**Goal**: Every page is fully indexed with canonical URLs, social sharing shows branded preview cards, and structured data passes Google Rich Results validation
+**Depends on**: Phase 22
+**Requirements**: SEO-01, SEO-02, SEO-03, SEO-04, SEO-05, SEO-06, SEO-07, SEO-08, SEO-09, SEO-10
+**Success Criteria** (what must be TRUE):
+  1. Sharing any getinsourced.ai page on Twitter/LinkedIn shows a branded 1200x630 image preview card with title and description
+  2. sitemap.xml is accessible at https://getinsourced.ai/sitemap.xml and lists all 8 pages
+  3. robots.txt is accessible at https://getinsourced.ai/robots.txt and references the sitemap
+  4. Viewing page source for any page shows a canonical link tag pointing to the correct absolute URL
+  5. Google Rich Results Test passes for Organization, WebSite, and SoftwareApplication structured data
+**Plans**: TBD
+
+### Phase 25: Loading UX
+**Goal**: First-time visitors see a branded splash and all visitors experience smooth page transitions and skeleton placeholders rather than blank content
+**Depends on**: Phase 23
+**Requirements**: LOAD-01, LOAD-02, LOAD-03, LOAD-04, LOAD-05, LOAD-06
+**Success Criteria** (what must be TRUE):
+  1. On first visit, a branded splash overlay is visible before the page content appears, then fades out smoothly
+  2. On subsequent visits within the same browser session, the splash does not appear
+  3. Navigating between pages shows a slim progress bar at the top of the viewport
+  4. Pages show skeleton placeholder shapes matching the page layout while content loads, not blank white areas
+  5. Content fades in smoothly over skeletons rather than appearing abruptly
+**Plans**: TBD
+
+### Phase 26: Image Pipeline
+**Goal**: Images are automatically served as optimized WebP with correct cache headers from CloudFront
+**Depends on**: Phase 23
+**Requirements**: PERF-06, PERF-07
+**Success Criteria** (what must be TRUE):
+  1. The browser receives WebP images (not PNG/JPG) when loading the marketing site on a supporting browser
+  2. Images in the `out/images/` directory have WebP variants generated at build time
+  3. CloudFront serves images with a Cache-Control max-age of one year (immutable)
+  4. `next build` output confirms image optimization ran and no `images: { unoptimized: true }` escape hatch remains
+**Plans**: TBD
+
+### Phase 27: GEO + Content
+**Goal**: The site is structured for AI engine citation: FAQPage schema is valid, answer-format content exists, and AI crawlers have explicit guidance
+**Depends on**: Phase 24
+**Requirements**: GEO-01, GEO-02, GEO-03, GEO-04
+**Success Criteria** (what must be TRUE):
+  1. Google Rich Results Test passes FAQPage structured data on the /cofounder page and the /pricing page
+  2. The /cofounder page contains a visible "What is Co-Founder.ai?" section written in direct answer format
+  3. https://getinsourced.ai/llms.txt is accessible and describes the product in Markdown
+  4. robots.txt explicitly allows GPTBot, ClaudeBot, and PerplexityBot while disabling AI training crawlers
+**Plans**: TBD
+
 ## Progress
+
+**Execution Order:** Phases execute in numeric order: 22 → 23 → 24 → 25 → 26 → 27
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -78,7 +165,13 @@
 | 19. CloudFront + S3 Infrastructure | v0.3 | 2/2 | Complete | 2026-02-20 |
 | 20. App Cleanup | v0.3 | 2/2 | Complete | 2026-02-20 |
 | 21. Marketing CI/CD | v0.3 | 1/1 | Complete | 2026-02-20 |
+| 22. Security Headers + Baseline Audit | v0.4 | 0/TBD | Not started | - |
+| 23. Performance Baseline | v0.4 | 0/TBD | Not started | - |
+| 24. SEO Infrastructure | v0.4 | 0/TBD | Not started | - |
+| 25. Loading UX | v0.4 | 0/TBD | Not started | - |
+| 26. Image Pipeline | v0.4 | 0/TBD | Not started | - |
+| 27. GEO + Content | v0.4 | 0/TBD | Not started | - |
 
 ---
 *Created: 2026-02-16*
-*Updated: 2026-02-20 — v0.3 Marketing Separation shipped*
+*Updated: 2026-02-20 — v0.4 Marketing Speed & SEO roadmap added (phases 22-27)*
