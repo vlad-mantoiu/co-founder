@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { sharedOG, SITE_URL } from '@/lib/seo'
 import HomeContent from "@/components/marketing/home-content";
+import { cofounderFaqs } from "@/lib/faq-data";
 import { PageContentWrapper } from "@/components/marketing/loading/page-content-wrapper";
 import { HeroSkeleton } from "@/components/marketing/loading/skeleton-templates";
 
@@ -42,6 +43,23 @@ export default function CofounderPage() {
               name: 'GetInsourced',
               url: 'https://getinsourced.ai',
             },
+          }),
+        }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'FAQPage',
+            mainEntity: cofounderFaqs.map(faq => ({
+              '@type': 'Question',
+              name: faq.question,
+              acceptedAnswer: {
+                '@type': 'Answer',
+                text: faq.answer,
+              },
+            })),
           }),
         }}
       />
