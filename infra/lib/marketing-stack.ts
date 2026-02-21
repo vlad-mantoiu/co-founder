@@ -165,6 +165,13 @@ export class MarketingStack extends cdk.Stack {
           compress: true,
           allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
         },
+        'images/*': {
+          origin: s3Origin,
+          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          cachePolicy: assetCachePolicy,  // reuse existing 365-day TTL policy
+          compress: true,
+          allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
+        },
       },
       domainNames: ['getinsourced.ai', 'www.getinsourced.ai'],
       certificate,
