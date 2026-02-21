@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** Phase 23 COMPLETE — next: Phase 24 (SEO Infrastructure)
+**Current focus:** Phase 24 (SEO Infrastructure) — Plan 01 COMPLETE
 
 ## Current Position
 
-Phase: 23 (Performance Baseline) -- COMPLETE
-Plan: 3 of 3 in current phase — Plan 03 COMPLETE (Phase 23 fully shipped)
-Status: Phase 23 complete — all 3 plans shipped and human-verified. PERF-01 through PERF-05 satisfied.
-Last activity: 2026-02-21 — Plan 23-03 complete: All 6 verification steps passed human review across 8 marketing pages.
+Phase: 24 (SEO Infrastructure) — IN PROGRESS
+Plan: 1 of 3 in current phase — Plan 01 COMPLETE
+Status: Plan 24-01 complete — SEO metadata foundation shipped: metadataBase, seo.ts constants, 1200x630 OG image, contact page server/client split, JSON-LD cleanup.
+Last activity: 2026-02-21 — Plan 24-01 complete: 3 tasks, next build passes clean, all success criteria met.
 
-Progress: [██████████████████░░░░░░░░░░░░] 83% (v0.1 + v0.2 + v0.3 shipped; Phase 22.1 complete; Phase 23 complete)
+Progress: [███████████████████░░░░░░░░░░░] 84% (v0.1 + v0.2 + v0.3 shipped; Phase 22.1 complete; Phase 23 complete; Phase 24 Plan 01 complete)
 
 ## Performance Metrics
 
@@ -40,6 +40,7 @@ Progress: [██████████████████░░░░░
 | Phase 23-performance-baseline P01 | 2 | 2 tasks | 3 files |
 | Phase 23-performance-baseline P02 | 3 | 4 tasks | 8 files |
 | Phase 23-performance-baseline P03 | 1 | 1 task (checkpoint) | 0 files |
+| Phase 24-seo-infrastructure P01 | ~3 | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -85,6 +86,11 @@ Recent decisions affecting current work:
 - [Phase 23-02]: home-content.tsx terminal animation preserved as Framer Motion — motion.div/motion.span used for typing effect below fold
 - [Phase 23-02]: PERF-04/PERF-05 satisfied by default — zero rendered img/Image tags in marketing site; logo.png only in JSON-LD structured data as string URL
 - [Phase 23-03]: All 6 verification steps passed human review — hero fade, terminal animation, scroll animations, font loading, reduced motion, marquee ticker all confirmed working
+- [24-01]: metadataBase set to SITE_URL constant from seo.ts to keep source of truth centralized
+- [24-01]: SoftwareApplication JSON-LD removed from root layout, will be added to /cofounder/page.tsx in Plan 02
+- [24-01]: OG image generated as raw PNG using Node.js zlib/Buffer — no external image tools required
+- [24-01]: Contact page server/client split: page.tsx is thin server wrapper, contact-content.tsx holds all interactive JSX
+- [Phase 24]: metadataBase set to SITE_URL constant from seo.ts — single source of truth for site URL
 
 ### Pending Todos
 
@@ -104,8 +110,8 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Completed 23-03-PLAN.md — Phase 23 fully shipped and human-verified, PERF-01 through PERF-05 satisfied
-Resume file: Phase 24 (SEO Infrastructure) — ready to plan
+Stopped at: Completed 24-01-PLAN.md — SEO metadata foundation shipped: metadataBase, seo.ts, OG image, contact split, JSON-LD cleanup
+Resume file: Phase 24 Plan 02 (Per-page metadata overhaul)
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
