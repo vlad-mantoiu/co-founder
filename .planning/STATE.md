@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** Phase 25 (Loading UX) — Plan 01 COMPLETE
+**Current focus:** Phase 25 (Loading UX) — COMPLETE (Plans 01 + 02)
 
 ## Current Position
 
-Phase: 25 (Loading UX) — IN PROGRESS
-Plan: 1 of 1 in current phase — Plan 01 COMPLETE
-Status: Phase 25-01 complete — Branded splash screen with SVG draw animation, sessionStorage session guard, pre-hydration inline script, and CSS suppression rule for repeat visits. Build passes clean.
-Last activity: 2026-02-21 — Plan 25-01 complete: 2 tasks, splash-screen.tsx created, root layout.tsx + globals.css updated.
+Phase: 25 (Loading UX) — COMPLETE
+Plan: 2 of 2 in current phase — Plan 02 COMPLETE
+Status: Phase 25 complete — Splash screen (Plan 01) + route progress bar, skeleton templates, and PageContentWrapper crossfade across all 8 pages (Plan 02). Build passes clean.
+Last activity: 2026-02-21 — Plan 25-02 complete: 2 tasks, 3 components created, 9 pages wired.
 
 Progress: [█████████████████████░░░░░░░░░] 89% (v0.1 + v0.2 + v0.3 shipped; Phase 22.1 complete; Phase 23 complete; Phase 24 COMPLETE; Phase 25-01 complete)
 
@@ -44,6 +44,7 @@ Progress: [█████████████████████░░
 | Phase 24-seo-infrastructure P03 | ~2 | 2 tasks | 4 files |
 | Phase 24-seo-infrastructure P02 | ~3 | 2 tasks | 8 files |
 | Phase 25-loading-ux P01 | 2 | 2 tasks | 3 files |
+| Phase 25-loading-ux P02 | 3 | 2 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -105,6 +106,8 @@ Recent decisions affecting current work:
 - [25-01]: useState(false) initial state for SplashScreen — server renders null, client activates on hydration (avoids hydration mismatch)
 - [25-01]: Pre-hydration inline script reads sessionStorage before React boots, sets data-no-splash on <html> — dual-layer suppression for repeat visits
 - [25-01]: framer-motion v12 requires Variants typed explicitly with "spring" as const — type: string incompatible with AnimationGeneratorType
+- [Phase 25-loading-ux]: prevPath.current initialized to null so progress bar never fires on initial page load — only on SPA navigations
+- [Phase 25-loading-ux]: JSON-LD script tags must stay in server component layer for Next.js static export — not inside client component children
 
 ### Pending Todos
 
@@ -124,8 +127,8 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Completed 25-01-PLAN.md — Branded splash screen with SVG draw animation + pre-hydration sessionStorage suppression. Phase 25-01 COMPLETE.
-Resume file: Phase 25-02 (next plan in loading UX phase) or next phase
+Stopped at: Completed 25-02-PLAN.md — Route progress bar + skeleton templates + PageContentWrapper integration across all 8 marketing pages. Phase 25 COMPLETE.
+Resume file: Next phase after Phase 25 (Loading UX is fully complete)
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*

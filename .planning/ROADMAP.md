@@ -63,7 +63,7 @@
 - [x] **Phase 22: Security Headers + Baseline Audit** - Replace CloudFront managed policy with custom CSP; record Lighthouse baseline scores (completed 2026-02-20)
 - [x] **Phase 23: Performance Baseline** - Fix hero LCP regression, optimize fonts and images above the fold (completed 2026-02-21)
 - [x] **Phase 24: SEO Infrastructure** - Meta tags, OG image, JSON-LD schemas, sitemap, robots.txt, canonical URLs on all pages (completed 2026-02-21)
-- [ ] **Phase 25: Loading UX** - Branded splash screen, route progress bar, skeleton placeholders
+- [x] **Phase 25: Loading UX** - Branded splash screen, route progress bar, skeleton placeholders (completed 2026-02-21)
 - [ ] **Phase 26: Image Pipeline** - Build-time WebP conversion, CloudFront image caching behaviors
 - [ ] **Phase 27: GEO + Content** - FAQPage schema, answer-format content, llms.txt, AI crawler rules
 
@@ -197,7 +197,7 @@ Plans:
 | 22. Security Headers + Baseline Audit | v0.4 | 3/3 | Complete | 2026-02-21 |
 | 23. Performance Baseline | v0.4 | 3/3 | Complete | 2026-02-21 |
 | 24. SEO Infrastructure | 3/3 | Complete    | 2026-02-21 | - |
-| 25. Loading UX | 1/2 | In Progress|  | - |
+| 25. Loading UX | 2/2 | Complete   | 2026-02-21 | - |
 | 26. Image Pipeline | v0.4 | 0/TBD | Not started | - |
 | 27. GEO + Content | v0.4 | 0/TBD | Not started | - |
 
