@@ -201,7 +201,7 @@ Plans:
 | 23. Performance Baseline | v0.4 | 3/3 | Complete | 2026-02-21 |
 | 24. SEO Infrastructure | 3/3 | Complete    | 2026-02-21 | - |
 | 25. Loading UX | 2/2 | Complete    | 2026-02-21 | - |
-| 26. Image Pipeline | 2/2 | Complete   | 2026-02-21 | - |
+| 26. Image Pipeline | 2/2 | Complete    | 2026-02-21 | - |
 | 27. GEO + Content | v0.4 | 0/TBD | Not started | - |
 
 ---

@@ -19,7 +19,7 @@ Requirements for Marketing Speed & SEO milestone. Each maps to roadmap phases.
 - [x] **PERF-03**: `prefers-reduced-motion` respected — animations disabled for users who prefer it
 - [x] **PERF-04**: Images served as optimized WebP with responsive srcset via build pipeline
 - [x] **PERF-05**: Images lazy-loaded below the fold, eager-loaded above the fold
-- [ ] **PERF-06**: Bundle analyzed and unused code tree-shaken
+- [x] **PERF-06**: Bundle analyzed and unused code tree-shaken
 - [x] **PERF-07**: CloudFront `images/*` cache behavior with long TTL for optimized images
 
 ### Loading UX
@@ -88,7 +88,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PERF-03 | Phase 23 | Complete |
 | PERF-04 | Phase 23 | Complete |
 | PERF-05 | Phase 23 | Complete |
-| PERF-06 | Phase 26 | Pending |
+| PERF-06 | Phase 26 | Complete |
 | PERF-07 | Phase 26 | Complete |
 | LOAD-01 | Phase 25 | Complete |
 | LOAD-02 | Phase 25 | Complete |
