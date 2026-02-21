@@ -106,6 +106,14 @@ None - no external service configuration required. CDK deploy must be run (or pu
 - CDK `cdk deploy CoFounderMarketing` must be run to activate the `images/*` behavior in the live CloudFront distribution
 - Phase 26 plan 03 (if any) or downstream phases can now rely on long-lived cached image delivery
 
+## Self-Check: PASSED
+
+- `infra/lib/marketing-stack.ts` — FOUND
+- `.github/workflows/deploy-marketing.yml` — FOUND
+- `26-02-SUMMARY.md` — FOUND
+- Commit `cf43148` — FOUND (feat: CloudFront images/* behavior)
+- Commit `8ef56bf` — FOUND (feat: two-pass S3 sync)
+
 ---
 *Phase: 26-image-pipeline*
 *Completed: 2026-02-21*
