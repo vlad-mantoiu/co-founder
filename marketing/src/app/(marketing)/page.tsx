@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import { sharedOG, SITE_URL } from '@/lib/seo'
 import InsourcedHomeContent from "@/components/marketing/insourced-home-content";
+import { PageContentWrapper } from "@/components/marketing/loading/page-content-wrapper";
+import { HeroSkeleton } from "@/components/marketing/loading/skeleton-templates";
 
 export const metadata: Metadata = {
   alternates: { canonical: `${SITE_URL}/` },
@@ -13,5 +15,9 @@ export const metadata: Metadata = {
 }
 
 export default function HomePage() {
-  return <InsourcedHomeContent />;
+  return (
+    <PageContentWrapper skeleton={<HeroSkeleton />}>
+      <InsourcedHomeContent />
+    </PageContentWrapper>
+  );
 }

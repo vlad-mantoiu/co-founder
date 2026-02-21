@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { sharedOG, SITE_URL } from '@/lib/seo'
 import HowItWorksSection from "@/components/marketing/how-it-works-section";
+import { PageContentWrapper } from "@/components/marketing/loading/page-content-wrapper";
+import { HeroSkeleton } from "@/components/marketing/loading/skeleton-templates";
 
 export const metadata: Metadata = {
   title: 'How It Works',
@@ -16,8 +18,10 @@ export const metadata: Metadata = {
 
 export default function HowItWorksPage() {
   return (
-    <div className="pt-20">
-      <HowItWorksSection />
-    </div>
+    <PageContentWrapper skeleton={<HeroSkeleton />}>
+      <div className="pt-20">
+        <HowItWorksSection />
+      </div>
+    </PageContentWrapper>
   );
 }

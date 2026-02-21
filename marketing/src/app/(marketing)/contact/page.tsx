@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import { sharedOG, SITE_URL } from '@/lib/seo'
 import ContactContent from './contact-content'
+import { PageContentWrapper } from "@/components/marketing/loading/page-content-wrapper";
+import { ContentSkeleton } from "@/components/marketing/loading/skeleton-templates";
 
 export const metadata: Metadata = {
   title: 'Contact',
@@ -15,5 +17,9 @@ export const metadata: Metadata = {
 }
 
 export default function ContactPage() {
-  return <ContactContent />
+  return (
+    <PageContentWrapper skeleton={<ContentSkeleton />}>
+      <ContactContent />
+    </PageContentWrapper>
+  )
 }

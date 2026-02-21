@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { sharedOG, SITE_URL } from '@/lib/seo'
 import { FadeIn } from "@/components/marketing/fade-in";
+import { PageContentWrapper } from "@/components/marketing/loading/page-content-wrapper";
+import { ContentSkeleton } from "@/components/marketing/loading/skeleton-templates";
 
 export const metadata: Metadata = {
   title: 'Privacy Policy',
@@ -16,6 +18,7 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
+    <PageContentWrapper skeleton={<ContentSkeleton />}>
     <section className="pt-32 pb-24 lg:pt-40 lg:pb-32">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="hero-fade">
@@ -143,5 +146,6 @@ export default function PrivacyPage() {
         </div>
       </div>
     </section>
+    </PageContentWrapper>
   );
 }

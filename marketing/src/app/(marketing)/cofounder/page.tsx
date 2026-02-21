@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { sharedOG, SITE_URL } from '@/lib/seo'
 import HomeContent from "@/components/marketing/home-content";
+import { PageContentWrapper } from "@/components/marketing/loading/page-content-wrapper";
+import { HeroSkeleton } from "@/components/marketing/loading/skeleton-templates";
 
 export const metadata: Metadata = {
   title: 'Co-Founder.ai',
@@ -17,6 +19,7 @@ export const metadata: Metadata = {
 export default function CofounderPage() {
   return (
     <>
+      {/* JSON-LD must stay in server component layer for static export */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -42,7 +45,9 @@ export default function CofounderPage() {
           }),
         }}
       />
-      <HomeContent />
+      <PageContentWrapper skeleton={<HeroSkeleton />}>
+        <HomeContent />
+      </PageContentWrapper>
     </>
   )
 }

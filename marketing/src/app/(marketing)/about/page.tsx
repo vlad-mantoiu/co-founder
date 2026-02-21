@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { sharedOG, SITE_URL } from '@/lib/seo'
 import { Target, Heart, Rocket, Shield, Users, Code2 } from "lucide-react";
 import { FadeIn, StaggerContainer, StaggerItem } from "@/components/marketing/fade-in";
+import { PageContentWrapper } from "@/components/marketing/loading/page-content-wrapper";
+import { ListSkeleton } from "@/components/marketing/loading/skeleton-templates";
 
 export const metadata: Metadata = {
   title: 'About',
@@ -83,6 +85,7 @@ const milestones = [
 
 export default function AboutPage() {
   return (
+    <PageContentWrapper skeleton={<ListSkeleton />}>
     <>
       {/* Hero */}
       <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-28 overflow-hidden">
@@ -217,5 +220,6 @@ export default function AboutPage() {
         </div>
       </section>
     </>
+    </PageContentWrapper>
   );
 }
