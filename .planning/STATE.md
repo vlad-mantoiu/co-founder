@@ -29,7 +29,7 @@ Progress: [██████████████████░░░░░
 | v0.1 MVP | 12 | 47 | 3 days (2026-02-15 to 2026-02-17) |
 | v0.2 Production Ready | 5 | 20 | 2 days (2026-02-18 to 2026-02-19) |
 | v0.3 Marketing Separation | 4 | 9 | 2 days (2026-02-19 to 2026-02-20) |
-| v0.4 Security + SEO | 6 | 3 of TBD | In progress (2026-02-20 to present) |
+| v0.4 Security + SEO | 6 | 5 of TBD | In progress (2026-02-20 to present) |
 
 *Updated after each plan completion*
 | Phase 22.1 P06 | ~30 | 1 task | 2 files |
