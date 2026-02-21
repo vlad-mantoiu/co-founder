@@ -108,7 +108,11 @@ Plans:
   3. Fonts render on first paint with no visible flash of unstyled text (FOUT)
   4. Images have explicit dimensions so the page does not shift during load (CLS under 0.1)
   5. Users who enable "Reduce Motion" in their OS see no animations anywhere on the site
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 23-01-PLAN.md — CSS hero-fade classes, font-display: block, reduced-motion block, MotionConfig
+- [ ] 23-02-PLAN.md — Replace above-fold motion.div/FadeIn with CSS hero-fade across 5 hero components
+- [ ] 23-03-PLAN.md — Visual verification checkpoint (hero fade, font, reduced-motion, animations)
 
 ### Phase 24: SEO Infrastructure
 **Goal**: Every page is fully indexed with canonical URLs, social sharing shows branded preview cards, and structured data passes Google Rich Results validation
@@ -184,7 +188,7 @@ Plans:
 | 20. App Cleanup | v0.3 | 2/2 | Complete | 2026-02-20 |
 | 21. Marketing CI/CD | v0.3 | 1/1 | Complete | 2026-02-20 |
 | 22. Security Headers + Baseline Audit | v0.4 | 3/3 | Complete | 2026-02-21 |
-| 23. Performance Baseline | v0.4 | 0/TBD | Not started | - |
+| 23. Performance Baseline | v0.4 | 0/3 | Not started | - |
 | 24. SEO Infrastructure | v0.4 | 0/TBD | Not started | - |
 | 25. Loading UX | v0.4 | 0/TBD | Not started | - |
 | 26. Image Pipeline | v0.4 | 0/TBD | Not started | - |
