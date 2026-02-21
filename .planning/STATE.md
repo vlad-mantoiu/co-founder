@@ -46,6 +46,7 @@ Progress: [█████████████████████░░
 | Phase 25-loading-ux P01 | 2 | 2 tasks | 3 files |
 | Phase 25-loading-ux P02 | 3 | 2 tasks | 12 files |
 | Phase 26-image-pipeline P02 | 2 | 2 tasks | 2 files |
+| Phase 26-image-pipeline P01 | 2 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -113,6 +114,8 @@ Recent decisions affecting current work:
 - [26-02]: No functionAssociations on images/* behavior — marketing-url-handler handles HTML only; images served verbatim
 - [26-02]: No responseHeadersPolicy on images/* — CSP/security headers are HTML-context; not meaningful for binary image responses
 - [26-02]: --delete on first S3 sync pass only; second pass (images/) has no --delete — prevents pass 1 from removing images before pass 2 syncs them
+- [Phase 26-01]: Lossless WebP for PNG (logos/icons), lossy q87 for JPG — extension-mapped quality in convert-images.mjs
+- [Phase 26-01]: images: { unoptimized: true } removed from next.config.ts — zero next/image usages confirmed; PERF-06 SC4 satisfied
 
 ### Pending Todos
 

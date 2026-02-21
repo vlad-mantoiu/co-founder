@@ -64,7 +64,7 @@
 - [x] **Phase 23: Performance Baseline** - Fix hero LCP regression, optimize fonts and images above the fold (completed 2026-02-21)
 - [x] **Phase 24: SEO Infrastructure** - Meta tags, OG image, JSON-LD schemas, sitemap, robots.txt, canonical URLs on all pages (completed 2026-02-21)
 - [x] **Phase 25: Loading UX** - Branded splash screen, route progress bar, skeleton placeholders (completed 2026-02-21)
-- [ ] **Phase 26: Image Pipeline** - Build-time WebP conversion, CloudFront image caching behaviors
+- [x] **Phase 26: Image Pipeline** - Build-time WebP conversion, CloudFront image caching behaviors (completed 2026-02-21)
 - [ ] **Phase 27: GEO + Content** - FAQPage schema, answer-format content, llms.txt, AI crawler rules
 
 ## Phase Details
@@ -156,8 +156,8 @@ Plans:
   4. `next build` output confirms image optimization ran and no `images: { unoptimized: true }` escape hatch remains
 **Plans**: 2 plans
 Plans:
-- [ ] 26-01-PLAN.md — Build-time image conversion pipeline (sharp, convert-images.mjs, postbuild wiring, remove escape hatch)
-- [ ] 26-02-PLAN.md — CloudFront images/* cache behavior + deploy pipeline multi-pass S3 sync
+- [x] 26-01-PLAN.md — Build-time image conversion pipeline (sharp, convert-images.mjs, postbuild wiring, remove escape hatch)
+- [x] 26-02-PLAN.md — CloudFront images/* cache behavior + deploy pipeline multi-pass S3 sync
 
 ### Phase 27: GEO + Content
 **Goal**: The site is structured for AI engine citation: FAQPage schema is valid, answer-format content exists, and AI crawlers have explicit guidance
@@ -201,7 +201,7 @@ Plans:
 | 23. Performance Baseline | v0.4 | 3/3 | Complete | 2026-02-21 |
 | 24. SEO Infrastructure | 3/3 | Complete    | 2026-02-21 | - |
 | 25. Loading UX | 2/2 | Complete    | 2026-02-21 | - |
-| 26. Image Pipeline | 1/2 | In Progress|  | - |
+| 26. Image Pipeline | 2/2 | Complete   | 2026-02-21 | - |
 | 27. GEO + Content | v0.4 | 0/TBD | Not started | - |
 
 ---
