@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** Phase 22.1 — End-to-End Flow (URGENT INSERTION)
+**Current focus:** Phase 23 — Performance Baseline (CSS hero-fade, font loading, reduced-motion)
 
 ## Current Position
 
-Phase: 22.1 (End-to-End Flow — Strategy Graph, Timeline & Architecture from Real Data)
-Plan: 6 of 6 in current phase (4 waves) — PHASE COMPLETE
-Status: Phase 22.1 complete — All 6 plans shipped
-Last activity: 2026-02-21 — Plan 22.1-06 complete: Human-verified E2E flow from Understanding finalize → GenerationOverlay polling → GuidedWalkthrough → all 3 artifact pages. 2 bugs found and fixed (finalize idempotency, architecture camelCase mismatch).
+Phase: 23 (Performance Baseline)
+Plan: 1 of 3 in current phase — Plan 01 COMPLETE
+Status: Phase 23 in progress — Plan 01 shipped (globals CSS + layout fixes)
+Last activity: 2026-02-21 — Plan 23-01 complete: Added hero-fade CSS classes with @starting-style, prefers-reduced-motion block, font-display: block on Space Grotesk, MotionConfig reducedMotion="user" wrapping marketing layout.
 
-Progress: [█████████████████░░░░░░░░░░░░░] 81% (v0.1 + v0.2 + v0.3 shipped; Phase 22 complete; 5 phases remaining)
+Progress: [█████████████████░░░░░░░░░░░░░] 82% (v0.1 + v0.2 + v0.3 shipped; Phase 22.1 complete; Phase 23 in progress)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 65 (v0.1: 47, v0.2: 20, v0.3: 9, v0.4: 3)
+- Total plans completed: 66 (v0.1: 47, v0.2: 20, v0.3: 9, v0.4: 4)
 - Total phases shipped: 22 (Phase 22 complete)
 
 **By Milestone:**
@@ -37,6 +37,7 @@ Progress: [█████████████████░░░░░░
 | Phase 22.1 P04 | 2 | 2 tasks | 2 files |
 | Phase 22.1 P03 | 2 | 2 tasks | 5 files |
 | Phase 22.1 P02 | 15 | 2 tasks | 4 files |
+| Phase 23-performance-baseline P01 | 2 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -74,6 +75,10 @@ Recent decisions affecting current work:
 - [22.1-05]: WalkthroughStep interface exported from GuidedWalkthrough.tsx for type safety in understanding page
 - [22.1-06]: Finalize endpoint made idempotent via upsert — re-finalizing replaces existing artifact rows instead of throwing conflict
 - [22.1-06]: Architecture page camelCase fix — backend returns snake_case keys, frontend now destructures correctly at component render boundary
+- [Phase 23-01]: hero-fade classes use @starting-style for CSS-only LCP-safe fade — no JS involved in above-fold paint
+- [Phase 23-01]: Reduced-motion: animation-duration: 0.01ms only (not animation: none) — prevents snap to invisible keyframe state while stopping marquee/float/pulse
+- [Phase 23-01]: transition-duration not set in reduced-motion block — hover effects (button scale, card lift) remain active per locked user decision
+- [Phase 23-01]: MotionConfig reducedMotion=user at layout level — single wrapper covers all current and future marketing Framer Motion components
 
 ### Pending Todos
 
@@ -93,8 +98,8 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Completed 22.1-06-PLAN.md — Phase 22.1 COMPLETE (all 6 plans shipped, E2E flow verified by human)
-Resume file: .planning/ROADMAP.md (next phase after 22.1)
+Stopped at: Completed 23-01-PLAN.md — hero-fade CSS classes, font-display: block, MotionConfig reducedMotion="user"
+Resume file: .planning/phases/23-performance-baseline/23-02-PLAN.md
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
