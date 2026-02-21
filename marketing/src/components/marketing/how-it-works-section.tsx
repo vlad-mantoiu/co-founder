@@ -6,7 +6,7 @@ import {
   TestTube,
   Rocket,
 } from "lucide-react";
-import { FadeIn, StaggerContainer, StaggerItem } from "./fade-in";
+import { StaggerContainer, StaggerItem } from "./fade-in";
 
 const steps = [
   {
@@ -46,18 +46,22 @@ export default function HowItWorksSection() {
       className="py-24 lg:py-32 border-t border-white/5"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <FadeIn className="text-center mb-16">
-          <p className="text-sm uppercase tracking-widest text-brand font-medium mb-4">
-            Process
-          </p>
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">
-            How does Co-Founder.ai take you from idea to deployment?
-          </h2>
-          <p className="mt-4 text-lg text-white/40 max-w-2xl mx-auto">
-            You define the goal, Co-Founder.ai executes the development loop,
-            and you approve each production-ready release.
-          </p>
-        </FadeIn>
+        <div className="text-center mb-16">
+          <div className="hero-fade">
+            <p className="text-sm uppercase tracking-widest text-brand font-medium mb-4">
+              Process
+            </p>
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">
+              How does Co-Founder.ai take you from idea to deployment?
+            </h2>
+          </div>
+          <div className="hero-fade-delayed">
+            <p className="mt-4 text-lg text-white/40 max-w-2xl mx-auto">
+              You define the goal, Co-Founder.ai executes the development loop,
+              and you approve each production-ready release.
+            </p>
+          </div>
+        </div>
 
         <StaggerContainer
           className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6"
