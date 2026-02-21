@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** Phase 25 (Loading UX) — COMPLETE (Plans 01 + 02)
+**Current focus:** Phase 26 (Image Pipeline) — Plan 02 COMPLETE
 
 ## Current Position
 
-Phase: 25 (Loading UX) — COMPLETE
-Plan: 2 of 2 in current phase — Plan 02 COMPLETE
-Status: Phase 25 complete — Splash screen (Plan 01) + route progress bar, skeleton templates, and PageContentWrapper crossfade across all 8 pages (Plan 02). Build passes clean.
-Last activity: 2026-02-21 — Plan 25-02 complete: 2 tasks, 3 components created, 9 pages wired.
+Phase: 26 (Image Pipeline) — Plan 02 COMPLETE
+Plan: 2 of TBD in current phase — Plan 02 COMPLETE
+Status: Plan 26-02 complete — CloudFront images/* behavior (assetCachePolicy reuse) + two-pass S3 sync with immutable cache headers in deploy pipeline. CDK synth passes.
+Last activity: 2026-02-21 — Plan 26-02 complete: 2 tasks, 2 files modified.
 
 Progress: [█████████████████████░░░░░░░░░] 89% (v0.1 + v0.2 + v0.3 shipped; Phase 22.1 complete; Phase 23 complete; Phase 24 COMPLETE; Phase 25-01 complete)
 
@@ -45,6 +45,7 @@ Progress: [█████████████████████░░
 | Phase 24-seo-infrastructure P02 | ~3 | 2 tasks | 8 files |
 | Phase 25-loading-ux P01 | 2 | 2 tasks | 3 files |
 | Phase 25-loading-ux P02 | 3 | 2 tasks | 12 files |
+| Phase 26-image-pipeline P02 | 2 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -108,6 +109,10 @@ Recent decisions affecting current work:
 - [25-01]: framer-motion v12 requires Variants typed explicitly with "spring" as const — type: string incompatible with AnimationGeneratorType
 - [Phase 25-loading-ux]: prevPath.current initialized to null so progress bar never fires on initial page load — only on SPA navigations
 - [Phase 25-loading-ux]: JSON-LD script tags must stay in server component layer for Next.js static export — not inside client component children
+- [26-02]: images/* CloudFront behavior reuses assetCachePolicy (365-day TTL) — no new cache policy needed, same semantics as _next/static/*
+- [26-02]: No functionAssociations on images/* behavior — marketing-url-handler handles HTML only; images served verbatim
+- [26-02]: No responseHeadersPolicy on images/* — CSP/security headers are HTML-context; not meaningful for binary image responses
+- [26-02]: --delete on first S3 sync pass only; second pass (images/) has no --delete — prevents pass 1 from removing images before pass 2 syncs them
 
 ### Pending Todos
 
@@ -127,8 +132,8 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Completed 25-02-PLAN.md — Route progress bar + skeleton templates + PageContentWrapper integration across all 8 marketing pages. Phase 25 COMPLETE.
-Resume file: Next phase after Phase 25 (Loading UX is fully complete)
+Stopped at: Completed 26-02-PLAN.md — CloudFront images/* behavior with 365-day cache + two-pass S3 sync with immutable Cache-Control headers. CDK synth passes.
+Resume file: Next plan in Phase 26 (Image Pipeline) or next phase
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
