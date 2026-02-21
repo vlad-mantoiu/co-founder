@@ -140,7 +140,10 @@ Plans:
   3. Navigating between pages shows a slim progress bar at the top of the viewport
   4. Pages show skeleton placeholder shapes matching the page layout while content loads, not blank white areas
   5. Content fades in smoothly over skeletons rather than appearing abruptly
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 25-01-PLAN.md — Branded splash screen: SVG draw animation, sessionStorage suppression, pre-hydration script
+- [ ] 25-02-PLAN.md — Route progress bar, skeleton placeholders, content crossfade on all 8 pages
 
 ### Phase 26: Image Pipeline
 **Goal**: Images are automatically served as optimized WebP with correct cache headers from CloudFront
