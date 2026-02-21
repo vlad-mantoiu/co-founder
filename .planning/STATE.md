@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** Phase 27 (GEO + Content) — Plan 01 COMPLETE
+**Current focus:** Phase 27 (GEO + Content) — COMPLETE (both plans shipped)
 
 ## Current Position
 
-Phase: 27 (GEO + Content) — Plan 01 COMPLETE
-Plan: 1 of 2 in current phase — Plan 01 COMPLETE
-Status: Plan 27-01 complete — FAQPage JSON-LD + WhatIsSection + CofounderFaqSection on /cofounder page. Build passes. GEO-01 and GEO-02 satisfied.
-Last activity: 2026-02-22 — Plan 27-01 complete: 2 tasks, 4 files modified/created.
+Phase: 27 (GEO + Content) — COMPLETE
+Plan: 2 of 2 in current phase — Plan 02 COMPLETE
+Status: Plan 27-02 complete — pricing FAQPage JSON-LD + pricingFaqs in faq-data.ts + llms.txt + AI crawler robots.txt. Build passes. GEO-01, GEO-02, GEO-03, GEO-04 satisfied.
+Last activity: 2026-02-22 — Plan 27-02 complete: 2 tasks, 5 files modified/created.
 
 Progress: [█████████████████████░░░░░░░░░] 89% (v0.1 + v0.2 + v0.3 shipped; Phase 22.1 complete; Phase 23 complete; Phase 24 COMPLETE; Phase 25-01 complete)
 
@@ -48,6 +48,7 @@ Progress: [█████████████████████░░
 | Phase 26-image-pipeline P02 | 2 | 2 tasks | 2 files |
 | Phase 26-image-pipeline P01 | 2 | 2 tasks | 4 files |
 | Phase 27-geo-content P01 | 4 | 2 tasks | 4 files |
+| Phase 27 P02 | 2 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -120,6 +121,9 @@ Recent decisions affecting current work:
 - [Phase 27-geo-content]: cofounderFaqs moved to src/lib/faq-data.ts — importing from use client component into server component causes prerender failure in Next.js static export
 - [Phase 27-geo-content]: FAQPage JSON-LD placed as second script tag in cofounder/page.tsx server component layer
 - [Phase 27-geo-content]: WhatIsSection placed after LogoTicker before ComparisonSection — definitional content high on page maximizes GEO citation probability
+- [Phase 27]: pricingFaqs added to src/lib/faq-data.ts (plain module) — same pattern as cofounderFaqs, avoids use client import in server component
+- [Phase 27]: All AI crawlers allowed (Allow: /) in robots.txt — explicit user decision to allow training crawlers
+- [Phase 27]: llms.txt placed in marketing/public/ — Next.js static export copies to out/, deploy syncs to S3, served at getinsourced.ai/llms.txt
 
 ### Pending Todos
 
@@ -139,8 +143,8 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed 27-01-PLAN.md — FAQPage JSON-LD + WhatIsSection + CofounderFaqSection on /cofounder page. Build passes.
-Resume file: Next plan in Phase 27 (GEO + Content) — Plan 02: update validate-jsonld.mjs to expect FAQPage on /cofounder
+Stopped at: Completed 27-02-PLAN.md — pricing FAQPage JSON-LD + llms.txt + AI crawler robots.txt. Phase 27 complete. Build passes.
+Resume file: Phase 27 fully complete. No pending plans.
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
