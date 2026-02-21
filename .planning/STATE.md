@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** Phase 24 (SEO Infrastructure) — ALL 3 PLANS COMPLETE — Phase 24 shipped
+**Current focus:** Phase 25 (Loading UX) — Plan 01 COMPLETE
 
 ## Current Position
 
-Phase: 24 (SEO Infrastructure) — COMPLETE
-Plan: 3 of 3 in current phase — ALL COMPLETE (Plans 01, 03, 02 shipped)
-Status: Phase 24 complete — SEO metadata foundation, sitemap/robots.txt/JSON-LD validation, and per-page metadata overhaul all shipped. Phase 24 fully closed.
-Last activity: 2026-02-21 — Plan 24-02 complete: 2 tasks, per-page metadata on all 8 pages, SoftwareApplication JSON-LD on /cofounder, build + postbuild validation passed.
+Phase: 25 (Loading UX) — IN PROGRESS
+Plan: 1 of 1 in current phase — Plan 01 COMPLETE
+Status: Phase 25-01 complete — Branded splash screen with SVG draw animation, sessionStorage session guard, pre-hydration inline script, and CSS suppression rule for repeat visits. Build passes clean.
+Last activity: 2026-02-21 — Plan 25-01 complete: 2 tasks, splash-screen.tsx created, root layout.tsx + globals.css updated.
 
-Progress: [█████████████████████░░░░░░░░░] 88% (v0.1 + v0.2 + v0.3 shipped; Phase 22.1 complete; Phase 23 complete; Phase 24 COMPLETE)
+Progress: [█████████████████████░░░░░░░░░] 89% (v0.1 + v0.2 + v0.3 shipped; Phase 22.1 complete; Phase 23 complete; Phase 24 COMPLETE; Phase 25-01 complete)
 
 ## Performance Metrics
 
@@ -43,6 +43,7 @@ Progress: [█████████████████████░░
 | Phase 24-seo-infrastructure P01 | ~3 | 3 tasks | 6 files |
 | Phase 24-seo-infrastructure P03 | ~2 | 2 tasks | 4 files |
 | Phase 24-seo-infrastructure P02 | ~3 | 2 tasks | 8 files |
+| Phase 25-loading-ux P01 | 2 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -100,6 +101,10 @@ Recent decisions affecting current work:
 - [24-02]: Homepage does not set page-level title/description — root layout title.default applies directly (avoids template "%s | GetInsourced" on homepage)
 - [24-02]: SoftwareApplication JSON-LD placed as dangerouslySetInnerHTML script tag in JSX (not metadata API) — renders into static HTML correctly
 - [24-02]: All canonical URLs use trailing slashes — matches trailingSlash: true in next.config.ts
+- [25-01]: SplashScreen placed in ROOT layout (not marketing layout) — prevents remounting on SPA navigation
+- [25-01]: useState(false) initial state for SplashScreen — server renders null, client activates on hydration (avoids hydration mismatch)
+- [25-01]: Pre-hydration inline script reads sessionStorage before React boots, sets data-no-splash on <html> — dual-layer suppression for repeat visits
+- [25-01]: framer-motion v12 requires Variants typed explicitly with "spring" as const — type: string incompatible with AnimationGeneratorType
 
 ### Pending Todos
 
@@ -119,8 +124,8 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Completed 24-02-PLAN.md — Per-page SEO metadata on all 8 pages + SoftwareApplication JSON-LD on /cofounder. Phase 24 COMPLETE.
-Resume file: Phase 25 (next phase — loading UX or other v0.4 work)
+Stopped at: Completed 25-01-PLAN.md — Branded splash screen with SVG draw animation + pre-hydration sessionStorage suppression. Phase 25-01 COMPLETE.
+Resume file: Phase 25-02 (next plan in loading UX phase) or next phase
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*

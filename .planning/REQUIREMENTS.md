@@ -24,9 +24,9 @@ Requirements for Marketing Speed & SEO milestone. Each maps to roadmap phases.
 
 ### Loading UX
 
-- [ ] **LOAD-01**: Branded CSS splash overlay with logo renders instantly before JS executes
-- [ ] **LOAD-02**: Splash fades smoothly to reveal page content after hydration
-- [ ] **LOAD-03**: Splash suppressed on repeat visits within same session (sessionStorage flag)
+- [x] **LOAD-01**: Branded CSS splash overlay with logo renders instantly before JS executes
+- [x] **LOAD-02**: Splash fades smoothly to reveal page content after hydration
+- [x] **LOAD-03**: Splash suppressed on repeat visits within same session (sessionStorage flag)
 - [ ] **LOAD-04**: Slim progress bar appears during route transitions between pages
 - [ ] **LOAD-05**: Skeleton placeholder shapes match page layout structure during content load
 - [ ] **LOAD-06**: Content paints over skeletons with smooth transition
@@ -90,9 +90,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PERF-05 | Phase 23 | Complete |
 | PERF-06 | Phase 26 | Pending |
 | PERF-07 | Phase 26 | Pending |
-| LOAD-01 | Phase 25 | Pending |
-| LOAD-02 | Phase 25 | Pending |
-| LOAD-03 | Phase 25 | Pending |
+| LOAD-01 | Phase 25 | Complete |
+| LOAD-02 | Phase 25 | Complete |
+| LOAD-03 | Phase 25 | Complete |
 | LOAD-04 | Phase 25 | Pending |
 | LOAD-05 | Phase 25 | Pending |
 | LOAD-06 | Phase 25 | Pending |
