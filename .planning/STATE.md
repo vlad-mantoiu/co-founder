@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** Phase 26 (Image Pipeline) — Plan 02 COMPLETE
+**Current focus:** Phase 27 (GEO + Content) — Plan 01 COMPLETE
 
 ## Current Position
 
-Phase: 26 (Image Pipeline) — Plan 02 COMPLETE
-Plan: 2 of TBD in current phase — Plan 02 COMPLETE
-Status: Plan 26-02 complete — CloudFront images/* behavior (assetCachePolicy reuse) + two-pass S3 sync with immutable cache headers in deploy pipeline. CDK synth passes.
-Last activity: 2026-02-21 — Plan 26-02 complete: 2 tasks, 2 files modified.
+Phase: 27 (GEO + Content) — Plan 01 COMPLETE
+Plan: 1 of 2 in current phase — Plan 01 COMPLETE
+Status: Plan 27-01 complete — FAQPage JSON-LD + WhatIsSection + CofounderFaqSection on /cofounder page. Build passes. GEO-01 and GEO-02 satisfied.
+Last activity: 2026-02-22 — Plan 27-01 complete: 2 tasks, 4 files modified/created.
 
 Progress: [█████████████████████░░░░░░░░░] 89% (v0.1 + v0.2 + v0.3 shipped; Phase 22.1 complete; Phase 23 complete; Phase 24 COMPLETE; Phase 25-01 complete)
 
@@ -47,6 +47,7 @@ Progress: [█████████████████████░░
 | Phase 25-loading-ux P02 | 3 | 2 tasks | 12 files |
 | Phase 26-image-pipeline P02 | 2 | 2 tasks | 2 files |
 | Phase 26-image-pipeline P01 | 2 | 2 tasks | 4 files |
+| Phase 27-geo-content P01 | 4 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -116,6 +117,9 @@ Recent decisions affecting current work:
 - [26-02]: --delete on first S3 sync pass only; second pass (images/) has no --delete — prevents pass 1 from removing images before pass 2 syncs them
 - [Phase 26-01]: Lossless WebP for PNG (logos/icons), lossy q87 for JPG — extension-mapped quality in convert-images.mjs
 - [Phase 26-01]: images: { unoptimized: true } removed from next.config.ts — zero next/image usages confirmed; PERF-06 SC4 satisfied
+- [Phase 27-geo-content]: cofounderFaqs moved to src/lib/faq-data.ts — importing from use client component into server component causes prerender failure in Next.js static export
+- [Phase 27-geo-content]: FAQPage JSON-LD placed as second script tag in cofounder/page.tsx server component layer
+- [Phase 27-geo-content]: WhatIsSection placed after LogoTicker before ComparisonSection — definitional content high on page maximizes GEO citation probability
 
 ### Pending Todos
 
@@ -134,9 +138,9 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-02-21
-Stopped at: Completed 26-02-PLAN.md — CloudFront images/* behavior with 365-day cache + two-pass S3 sync with immutable Cache-Control headers. CDK synth passes.
-Resume file: Next plan in Phase 26 (Image Pipeline) or next phase
+Last session: 2026-02-22
+Stopped at: Completed 27-01-PLAN.md — FAQPage JSON-LD + WhatIsSection + CofounderFaqSection on /cofounder page. Build passes.
+Resume file: Next plan in Phase 27 (GEO + Content) — Plan 02: update validate-jsonld.mjs to expect FAQPage on /cofounder
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*

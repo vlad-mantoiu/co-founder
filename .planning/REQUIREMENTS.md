@@ -46,8 +46,8 @@ Requirements for Marketing Speed & SEO milestone. Each maps to roadmap phases.
 
 ### GEO
 
-- [ ] **GEO-01**: FAQPage JSON-LD schema on pages with FAQ content (pricing, homepage)
-- [ ] **GEO-02**: Answer-formatted content sections ("What is Co-Founder.ai?", "How does it work?")
+- [x] **GEO-01**: FAQPage JSON-LD schema on pages with FAQ content (pricing, homepage)
+- [x] **GEO-02**: Answer-formatted content sections ("What is Co-Founder.ai?", "How does it work?")
 - [ ] **GEO-03**: `llms.txt` file served at site root describing the product for AI crawlers
 - [ ] **GEO-04**: AI training crawler rules configured in robots.txt
 
@@ -106,8 +106,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SEO-08 | Phase 24 | Complete |
 | SEO-09 | Phase 24 | Complete |
 | SEO-10 | Phase 24 | Complete |
-| GEO-01 | Phase 27 | Pending |
-| GEO-02 | Phase 27 | Pending |
+| GEO-01 | Phase 27 | Complete |
+| GEO-02 | Phase 27 | Complete |
 | GEO-03 | Phase 27 | Pending |
 | GEO-04 | Phase 27 | Pending |
 
