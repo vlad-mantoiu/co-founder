@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
 import {
   ArrowRight,
   Check,
@@ -37,11 +36,7 @@ function InsourcedHero() {
       <div className="absolute top-60 right-0 w-[500px] h-[500px] bg-neon-cyan/5 rounded-full blur-[120px] pointer-events-none" />
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-        >
+        <div className="hero-fade">
           {/* Pill badge */}
           <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full glass-card-strong text-sm text-white/80 mb-10">
             <span className="w-2 h-2 rounded-full bg-neon-green animate-pulse" />
@@ -53,7 +48,9 @@ function InsourcedHero() {
             <br />
             Who Need to <span className="glow-text">Ship Faster.</span>
           </h1>
+        </div>
 
+        <div className="hero-fade-delayed">
           <p className="mt-8 text-lg sm:text-xl lg:text-2xl text-white/50 leading-relaxed max-w-3xl mx-auto">
             Start with Co-Founder.ai, your AI technical co-founder. It plans
             architecture, writes code, runs tests, and prepares deployments so
@@ -101,7 +98,7 @@ function InsourcedHero() {
               non-technical founders
             </p>
           </div>
-        </motion.div>
+        </div>
       </div>
     </section>
   );

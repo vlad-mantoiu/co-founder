@@ -57,79 +57,74 @@ function HeroSection() {
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           {/* Left column */}
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-          >
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass text-sm text-white/60 mb-8">
-              <span className="w-2 h-2 rounded-full bg-neon-green animate-pulse" />
-              Now in public beta
-            </div>
-
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight leading-[1.08]">
-              Ship Faster Without Giving Away{" "}
-              <span className="bg-gradient-to-r from-brand to-brand-light bg-clip-text text-transparent">
-                Founder Equity
-              </span>
-            </h1>
-
-            <p className="mt-6 text-lg sm:text-xl text-white/50 leading-relaxed max-w-xl">
-              Co-Founder.ai is your AI technical co-founder. It turns product
-              requirements into architecture, production code, tested pull
-              requests, and deployment-ready changes you approve.
-            </p>
-            <p className="mt-4 text-sm sm:text-base text-white/40 leading-relaxed max-w-xl">
-              Quick answer: you get senior-level technical execution without
-              giving up equity or managing an outsourced dev shop.
-            </p>
-
-            <div className="mt-10 flex flex-col sm:flex-row gap-4">
-              <a
-                href="https://cofounder.getinsourced.ai/onboarding"
-                className="inline-flex items-center justify-center px-8 py-4 bg-brand text-white font-semibold rounded-xl hover:bg-brand-dark transition-all duration-200 shadow-glow hover:shadow-glow-lg text-lg"
-              >
-                Start Building with Co-Founder.ai
-              </a>
-              <Link
-                href="/cofounder/how-it-works"
-                className="inline-flex items-center justify-center gap-2 px-8 py-4 glass text-white font-medium rounded-xl hover:bg-white/5 transition-all duration-200 text-lg"
-              >
-                See How It Works
-                <ArrowRight className="h-5 w-5" />
-              </Link>
-            </div>
-
-            {/* Social proof */}
-            <div className="mt-12 flex items-center gap-4">
-              <div className="flex -space-x-3">
-                {["S", "M", "A", "J", "R"].map((letter, i) => (
-                  <div
-                    key={i}
-                    className="w-9 h-9 rounded-full border-2 border-obsidian flex items-center justify-center text-xs font-bold"
-                    style={{
-                      background: `linear-gradient(135deg, hsl(${239 + i * 20}, 60%, ${55 + i * 5}%), hsl(${239 + i * 20}, 60%, ${35 + i * 5}%))`,
-                    }}
-                  >
-                    {letter}
-                  </div>
-                ))}
+          <div>
+            <div className="hero-fade">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass text-sm text-white/60 mb-8">
+                <span className="w-2 h-2 rounded-full bg-neon-green animate-pulse" />
+                Now in public beta
               </div>
-              <p className="text-sm text-white/40">
-                Trusted by{" "}
-                <span className="text-white/70 font-medium">2,000+</span>{" "}
-                non-technical founders
-              </p>
+
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight leading-[1.08]">
+                Ship Faster Without Giving Away{" "}
+                <span className="bg-gradient-to-r from-brand to-brand-light bg-clip-text text-transparent">
+                  Founder Equity
+                </span>
+              </h1>
             </div>
-          </motion.div>
+
+            <div className="hero-fade-delayed">
+              <p className="mt-6 text-lg sm:text-xl text-white/50 leading-relaxed max-w-xl">
+                Co-Founder.ai is your AI technical co-founder. It turns product
+                requirements into architecture, production code, tested pull
+                requests, and deployment-ready changes you approve.
+              </p>
+              <p className="mt-4 text-sm sm:text-base text-white/40 leading-relaxed max-w-xl">
+                Quick answer: you get senior-level technical execution without
+                giving up equity or managing an outsourced dev shop.
+              </p>
+
+              <div className="mt-10 flex flex-col sm:flex-row gap-4">
+                <a
+                  href="https://cofounder.getinsourced.ai/onboarding"
+                  className="inline-flex items-center justify-center px-8 py-4 bg-brand text-white font-semibold rounded-xl hover:bg-brand-dark transition-all duration-200 shadow-glow hover:shadow-glow-lg text-lg"
+                >
+                  Start Building with Co-Founder.ai
+                </a>
+                <Link
+                  href="/cofounder/how-it-works"
+                  className="inline-flex items-center justify-center gap-2 px-8 py-4 glass text-white font-medium rounded-xl hover:bg-white/5 transition-all duration-200 text-lg"
+                >
+                  See How It Works
+                  <ArrowRight className="h-5 w-5" />
+                </Link>
+              </div>
+
+              {/* Social proof */}
+              <div className="mt-12 flex items-center gap-4">
+                <div className="flex -space-x-3">
+                  {["S", "M", "A", "J", "R"].map((letter, i) => (
+                    <div
+                      key={i}
+                      className="w-9 h-9 rounded-full border-2 border-obsidian flex items-center justify-center text-xs font-bold"
+                      style={{
+                        background: `linear-gradient(135deg, hsl(${239 + i * 20}, 60%, ${55 + i * 5}%), hsl(${239 + i * 20}, 60%, ${35 + i * 5}%))`,
+                      }}
+                    >
+                      {letter}
+                    </div>
+                  ))}
+                </div>
+                <p className="text-sm text-white/40">
+                  Trusted by{" "}
+                  <span className="text-white/70 font-medium">2,000+</span>{" "}
+                  non-technical founders
+                </p>
+              </div>
+            </div>
+          </div>
 
           {/* Right column: terminal mockup */}
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
-            className="relative"
-          >
+          <div className="hero-fade-delayed relative">
             <div className="glass rounded-2xl overflow-hidden shadow-glow-lg">
               {/* Terminal header */}
               <div className="flex items-center gap-2 px-4 py-3 border-b border-white/5">
@@ -167,7 +162,7 @@ function HeroSection() {
             </div>
             {/* Decorative glow behind terminal */}
             <div className="absolute -inset-4 bg-brand/5 rounded-3xl blur-2xl -z-10" />
-          </motion.div>
+          </div>
         </div>
       </div>
     </section>

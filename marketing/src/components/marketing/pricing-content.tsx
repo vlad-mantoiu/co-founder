@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
 import { Check, Zap, Star, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FadeIn, StaggerContainer, StaggerItem } from "./fade-in";
@@ -101,11 +100,7 @@ export default function PricingContent() {
       <section className="relative pt-32 pb-16 lg:pt-40 lg:pb-20 overflow-hidden">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-brand/8 rounded-full blur-[120px] pointer-events-none" />
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-          >
+          <div className="hero-fade">
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight">
               Pricing for Your AI Technical Co-Founder
               <br />
@@ -113,6 +108,8 @@ export default function PricingContent() {
                 Clear plans for founders at every stage
               </span>
             </h1>
+          </div>
+          <div className="hero-fade-delayed">
             <p className="mt-6 text-lg text-white/50 max-w-2xl mx-auto">
               Choose the execution depth you need today, from first-product
               validation to multi-agent delivery. No hidden fees or equity
@@ -122,7 +119,7 @@ export default function PricingContent() {
               Quick answer: every plan includes an AI technical co-founder that
               helps you build, test, and ship code you own.
             </p>
-          </motion.div>
+          </div>
         </div>
       </section>
 
