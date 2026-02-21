@@ -57,24 +57,24 @@ Requirements for v0.5 Sandbox Integration. Each maps to roadmap phases.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SBOX-01 | — | Pending |
-| SBOX-02 | — | Pending |
-| SBOX-03 | — | Pending |
-| SBOX-04 | — | Pending |
-| BUILD-01 | — | Pending |
-| BUILD-02 | — | Pending |
-| BUILD-03 | — | Pending |
-| BUILD-04 | — | Pending |
-| PREV-01 | — | Pending |
-| PREV-02 | — | Pending |
-| PREV-03 | — | Pending |
-| PREV-04 | — | Pending |
+| SBOX-01 | Phase 28 | Pending |
+| SBOX-02 | Phase 28 | Pending |
+| SBOX-03 | Phase 28 | Pending |
+| SBOX-04 | Phase 32 | Pending |
+| BUILD-01 | Phase 29 | Pending |
+| BUILD-02 | Phase 30 | Pending |
+| BUILD-03 | Phase 30 | Pending |
+| BUILD-04 | Phase 30 | Pending |
+| PREV-01 | Phase 31 | Pending |
+| PREV-02 | Phase 31 | Pending |
+| PREV-03 | Phase 31 | Pending |
+| PREV-04 | Phase 31 | Pending |
 
 **Coverage:**
 - v0.5 requirements: 12 total
-- Mapped to phases: 0
-- Unmapped: 12 (pending roadmap creation)
+- Mapped to phases: 12
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-22*
-*Last updated: 2026-02-22 after initial definition*
+*Last updated: 2026-02-22 — traceability mapped to Phases 28-32*
