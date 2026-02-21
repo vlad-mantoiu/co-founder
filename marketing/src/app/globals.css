@@ -326,3 +326,44 @@ body {
 .animate-pulse-border {
   animation: pulse-border 2s ease-in-out infinite;
 }
+
+/* Above-fold hero fade — CSS-only, LCP-safe */
+.hero-fade {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.15s ease-out, transform 0.12s ease-out;
+}
+
+@starting-style {
+  .hero-fade {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* Stagger: subheading + CTA appear 75ms after headline */
+.hero-fade-delayed {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.15s ease-out 0.075s, transform 0.12s ease-out 0.075s;
+}
+
+@starting-style {
+  .hero-fade-delayed {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* Reduced motion: stop CSS keyframe animations (marquee, pulse, float, rotate-gradient)
+   Preserve CSS transitions so hover effects (button scale, card lift, link color) remain active.
+   Do NOT set transition-duration — user decision requires hover effects to stay. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}
