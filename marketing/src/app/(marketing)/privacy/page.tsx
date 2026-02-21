@@ -1,10 +1,18 @@
 import type { Metadata } from "next";
+import { sharedOG, SITE_URL } from '@/lib/seo'
 import { FadeIn } from "@/components/marketing/fade-in";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy",
-  description: "Co-Founder.ai privacy policy. How we collect, use, and protect your personal data.",
-};
+  title: 'Privacy Policy',
+  description: 'Read the GetInsourced privacy policy. How we collect, use, and protect your data — including your source code and project files.',
+  alternates: { canonical: `${SITE_URL}/privacy/` },
+  openGraph: {
+    ...sharedOG,
+    title: 'Privacy Policy | GetInsourced',
+    description: 'Read the GetInsourced privacy policy. How we collect, use, and protect your data — including your source code and project files.',
+    url: `${SITE_URL}/privacy/`,
+  },
+}
 
 export default function PrivacyPage() {
   return (

@@ -1,12 +1,19 @@
 import type { Metadata } from "next";
+import { sharedOG, SITE_URL } from '@/lib/seo'
 import { Target, Heart, Rocket, Shield, Users, Code2 } from "lucide-react";
 import { FadeIn, StaggerContainer, StaggerItem } from "@/components/marketing/fade-in";
 
 export const metadata: Metadata = {
-  title: "About",
-  description:
-    "Co-Founder.ai was built by founders, for founders. Learn about our mission to make technical co-founders accessible to every startup.",
-};
+  title: 'About',
+  description: 'We build AI that gives every non-technical founder access to a world-class technical co-founder. No equity split required.',
+  alternates: { canonical: `${SITE_URL}/about/` },
+  openGraph: {
+    ...sharedOG,
+    title: 'About | GetInsourced',
+    description: 'We build AI that gives every non-technical founder access to a world-class technical co-founder. No equity split required.',
+    url: `${SITE_URL}/about/`,
+  },
+}
 
 const values = [
   {

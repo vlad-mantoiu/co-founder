@@ -1,10 +1,18 @@
 import type { Metadata } from "next";
+import { sharedOG, SITE_URL } from '@/lib/seo'
 import { FadeIn } from "@/components/marketing/fade-in";
 
 export const metadata: Metadata = {
-  title: "Terms of Service",
-  description: "Co-Founder.ai terms of service. The legal agreement governing your use of our platform.",
-};
+  title: 'Terms of Service',
+  description: 'Read the GetInsourced terms of service. Legal agreement governing your use of Co-Founder.ai and the GetInsourced platform.',
+  alternates: { canonical: `${SITE_URL}/terms/` },
+  openGraph: {
+    ...sharedOG,
+    title: 'Terms of Service | GetInsourced',
+    description: 'Read the GetInsourced terms of service. Legal agreement governing your use of Co-Founder.ai and the GetInsourced platform.',
+    url: `${SITE_URL}/terms/`,
+  },
+}
 
 export default function TermsPage() {
   return (
