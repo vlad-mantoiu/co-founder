@@ -154,7 +154,10 @@ Plans:
   2. Images in the `out/images/` directory have WebP variants generated at build time
   3. CloudFront serves images with a Cache-Control max-age of one year (immutable)
   4. `next build` output confirms image optimization ran and no `images: { unoptimized: true }` escape hatch remains
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 26-01-PLAN.md — Build-time image conversion pipeline (sharp, convert-images.mjs, postbuild wiring, remove escape hatch)
+- [ ] 26-02-PLAN.md — CloudFront images/* cache behavior + deploy pipeline multi-pass S3 sync
 
 ### Phase 27: GEO + Content
 **Goal**: The site is structured for AI engine citation: FAQPage schema is valid, answer-format content exists, and AI crawlers have explicit guidance
