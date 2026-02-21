@@ -81,21 +81,25 @@ export default function AboutPage() {
       <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-28 overflow-hidden">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-brand/8 rounded-full blur-[120px] pointer-events-none" />
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <FadeIn className="text-center max-w-3xl mx-auto">
-            <p className="text-sm uppercase tracking-widest text-brand font-medium mb-4">
-              About Us
-            </p>
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight">
-              Every Founder Deserves a{" "}
-              <span className="bg-gradient-to-r from-brand to-brand-light bg-clip-text text-transparent">
-                Technical Co-Founder
-              </span>
-            </h1>
-            <p className="mt-6 text-lg text-white/50 leading-relaxed">
-              We are building the autonomous development system that bridges the
-              gap between vision and execution. No equity split required.
-            </p>
-          </FadeIn>
+          <div className="text-center max-w-3xl mx-auto">
+            <div className="hero-fade">
+              <p className="text-sm uppercase tracking-widest text-brand font-medium mb-4">
+                About Us
+              </p>
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight">
+                Every Founder Deserves a{" "}
+                <span className="bg-gradient-to-r from-brand to-brand-light bg-clip-text text-transparent">
+                  Technical Co-Founder
+                </span>
+              </h1>
+            </div>
+            <div className="hero-fade-delayed">
+              <p className="mt-6 text-lg text-white/50 leading-relaxed">
+                We are building the autonomous development system that bridges the
+                gap between vision and execution. No equity split required.
+              </p>
+            </div>
+          </div>
         </div>
       </section>
 

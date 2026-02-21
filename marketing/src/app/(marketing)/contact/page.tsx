@@ -10,14 +10,16 @@ export default function ContactPage() {
       <section className="relative pt-32 pb-16 lg:pt-40 lg:pb-20 overflow-hidden">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-brand/8 rounded-full blur-[120px] pointer-events-none" />
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <FadeIn>
+          <div className="hero-fade">
             <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">
               Get in Touch
             </h1>
+          </div>
+          <div className="hero-fade-delayed">
             <p className="mt-4 text-lg text-white/50 max-w-xl mx-auto">
               Have a question about Co-Founder.ai? We would love to hear from you.
             </p>
-          </FadeIn>
+          </div>
         </div>
       </section>
 
