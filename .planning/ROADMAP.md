@@ -124,7 +124,11 @@ Plans:
   3. robots.txt is accessible at https://getinsourced.ai/robots.txt and references the sitemap
   4. Viewing page source for any page shows a canonical link tag pointing to the correct absolute URL
   5. Google Rich Results Test passes for Organization, WebSite, and SoftwareApplication structured data
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 24-01-PLAN.md — SEO foundation: metadataBase, seo.ts shared constants, OG image, contact page split, JSON-LD cleanup
+- [ ] 24-02-PLAN.md — Per-page metadata (8 pages) with canonical URLs, OG tags, SoftwareApplication move
+- [ ] 24-03-PLAN.md — Sitemap + robots.txt via next-sitemap, build-time JSON-LD validation script
 
 ### Phase 25: Loading UX
 **Goal**: First-time visitors see a branded splash and all visitors experience smooth page transitions and skeleton placeholders rather than blank content
@@ -189,7 +193,7 @@ Plans:
 | 21. Marketing CI/CD | v0.3 | 1/1 | Complete | 2026-02-20 |
 | 22. Security Headers + Baseline Audit | v0.4 | 3/3 | Complete | 2026-02-21 |
 | 23. Performance Baseline | v0.4 | 3/3 | Complete | 2026-02-21 |
-| 24. SEO Infrastructure | v0.4 | 0/TBD | Not started | - |
+| 24. SEO Infrastructure | v0.4 | 0/3 | Planned | - |
 | 25. Loading UX | v0.4 | 0/TBD | Not started | - |
 | 26. Image Pipeline | v0.4 | 0/TBD | Not started | - |
 | 27. GEO + Content | v0.4 | 0/TBD | Not started | - |
