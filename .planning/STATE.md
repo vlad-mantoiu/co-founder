@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 ## Current Position
 
 Phase: 23 (Performance Baseline)
-Plan: 1 of 3 in current phase — Plan 01 COMPLETE
-Status: Phase 23 in progress — Plan 01 shipped (globals CSS + layout fixes)
-Last activity: 2026-02-21 — Plan 23-01 complete: Added hero-fade CSS classes with @starting-style, prefers-reduced-motion block, font-display: block on Space Grotesk, MotionConfig reducedMotion="user" wrapping marketing layout.
+Plan: 2 of 3 in current phase — Plan 02 COMPLETE
+Status: Phase 23 in progress — Plans 01+02 shipped (globals CSS + all 8 hero sections converted to CSS hero-fade)
+Last activity: 2026-02-21 — Plan 23-02 complete: All 8 hero sections across marketing pages replaced Framer Motion opacity:0 wrappers with CSS hero-fade/hero-fade-delayed classes. PERF-01, PERF-04, PERF-05 satisfied.
 
 Progress: [█████████████████░░░░░░░░░░░░░] 82% (v0.1 + v0.2 + v0.3 shipped; Phase 22.1 complete; Phase 23 in progress)
 
@@ -38,6 +38,7 @@ Progress: [█████████████████░░░░░░
 | Phase 22.1 P03 | 2 | 2 tasks | 5 files |
 | Phase 22.1 P02 | 15 | 2 tasks | 4 files |
 | Phase 23-performance-baseline P01 | 2 | 2 tasks | 3 files |
+| Phase 23-performance-baseline P02 | 3 | 4 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -79,6 +80,9 @@ Recent decisions affecting current work:
 - [Phase 23-01]: Reduced-motion: animation-duration: 0.01ms only (not animation: none) — prevents snap to invisible keyframe state while stopping marquee/float/pulse
 - [Phase 23-01]: transition-duration not set in reduced-motion block — hover effects (button scale, card lift) remain active per locked user decision
 - [Phase 23-01]: MotionConfig reducedMotion=user at layout level — single wrapper covers all current and future marketing Framer Motion components
+- [Phase 23-02]: Hero split pattern — hero-fade wraps badge+h1, hero-fade-delayed wraps paragraphs+CTA+social proof (75ms stagger creates visual hierarchy without blocking LCP)
+- [Phase 23-02]: home-content.tsx terminal animation preserved as Framer Motion — motion.div/motion.span used for typing effect below fold
+- [Phase 23-02]: PERF-04/PERF-05 satisfied by default — zero rendered img/Image tags in marketing site; logo.png only in JSON-LD structured data as string URL
 
 ### Pending Todos
 
@@ -98,8 +102,8 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Completed 23-01-PLAN.md — hero-fade CSS classes, font-display: block, MotionConfig reducedMotion="user"
-Resume file: .planning/phases/23-performance-baseline/23-02-PLAN.md
+Stopped at: Completed 23-02-PLAN.md — all 8 hero sections converted to CSS hero-fade, PERF-01/PERF-04/PERF-05 satisfied
+Resume file: .planning/phases/23-performance-baseline/23-03-PLAN.md
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*

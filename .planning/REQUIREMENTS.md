@@ -14,11 +14,11 @@ Requirements for Marketing Speed & SEO milestone. Each maps to roadmap phases.
 
 ### Performance
 
-- [ ] **PERF-01**: Hero content renders without Framer Motion opacity delay blocking LCP
-- [ ] **PERF-02**: Fonts preloaded with `display: swap` to eliminate FOUT
-- [ ] **PERF-03**: `prefers-reduced-motion` respected — animations disabled for users who prefer it
-- [ ] **PERF-04**: Images served as optimized WebP with responsive srcset via build pipeline
-- [ ] **PERF-05**: Images lazy-loaded below the fold, eager-loaded above the fold
+- [x] **PERF-01**: Hero content renders without Framer Motion opacity delay blocking LCP
+- [x] **PERF-02**: Fonts preloaded with `display: swap` to eliminate FOUT
+- [x] **PERF-03**: `prefers-reduced-motion` respected — animations disabled for users who prefer it
+- [x] **PERF-04**: Images served as optimized WebP with responsive srcset via build pipeline
+- [x] **PERF-05**: Images lazy-loaded below the fold, eager-loaded above the fold
 - [ ] **PERF-06**: Bundle analyzed and unused code tree-shaken
 - [ ] **PERF-07**: CloudFront `images/*` cache behavior with long TTL for optimized images
 
@@ -83,11 +83,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | INFRA-01 | Phase 22 | Complete |
 | INFRA-02 | Phase 22 | Complete |
-| PERF-01 | Phase 23 | Pending |
-| PERF-02 | Phase 23 | Pending |
-| PERF-03 | Phase 23 | Pending |
-| PERF-04 | Phase 23 | Pending |
-| PERF-05 | Phase 23 | Pending |
+| PERF-01 | Phase 23 | Complete |
+| PERF-02 | Phase 23 | Complete |
+| PERF-03 | Phase 23 | Complete |
+| PERF-04 | Phase 23 | Complete |
+| PERF-05 | Phase 23 | Complete |
 | PERF-06 | Phase 26 | Pending |
 | PERF-07 | Phase 26 | Pending |
 | LOAD-01 | Phase 25 | Pending |
