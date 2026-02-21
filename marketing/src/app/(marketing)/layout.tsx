@@ -1,3 +1,6 @@
+"use client";
+
+import { MotionConfig } from "framer-motion";
 import { Navbar } from "@/components/marketing/navbar";
 import { Footer } from "@/components/marketing/footer";
 
@@ -9,7 +12,9 @@ export default function MarketingLayout({
   return (
     <div className="font-display min-h-screen bg-obsidian text-white">
       <Navbar />
-      <main>{children}</main>
+      <MotionConfig reducedMotion="user">
+        <main>{children}</main>
+      </MotionConfig>
       <Footer />
     </div>
   );
