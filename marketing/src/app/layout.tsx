@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { Space_Grotesk } from "next/font/google";
+import { SITE_URL } from "@/lib/seo";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -12,27 +13,20 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
-    default:
-      "Insourced AI | AI Technical Co-Founder and Autonomous Agents for Founders",
-    template: "%s | Insourced AI",
+    default: "GetInsourced — AI Co-Founder",
+    template: "%s | GetInsourced",
   },
   description:
-    "Insourced AI helps non-technical founders ship software faster. Start with Co-Founder.ai to plan, build, test, and deploy with an AI technical co-founder.",
+    "AI technical co-founder that plans architecture, writes code, runs tests, and ships software for non-technical founders.",
   openGraph: {
-    title:
-      "Insourced AI | AI Technical Co-Founder and Autonomous Agents for Founders",
-    description:
-      "Autonomous AI agents for founders who want faster product execution without outsourced teams.",
-    siteName: "Insourced AI",
+    siteName: "GetInsourced",
     type: "website",
+    locale: "en_US",
   },
   twitter: {
     card: "summary_large_image",
-    title:
-      "Insourced AI | AI Technical Co-Founder and Autonomous Agents for Founders",
-    description:
-      "Autonomous AI agents for founders who want faster product execution without outsourced teams.",
   },
   robots: { index: true, follow: true },
 };
@@ -51,12 +45,11 @@ export default function RootLayout({
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "Organization",
-              name: "Insourced AI",
+              name: "GetInsourced",
               url: "https://getinsourced.ai",
               logo: "https://getinsourced.ai/logo.png",
               description:
-                "Insourced AI helps non-technical founders ship software faster with AI agents and an AI technical co-founder.",
-              sameAs: [],
+                "GetInsourced helps non-technical founders ship software faster with AI agents and an AI technical co-founder.",
             }),
           }}
         />
@@ -66,36 +59,10 @@ export default function RootLayout({
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "WebSite",
-              name: "Insourced AI",
+              name: "GetInsourced",
               url: "https://getinsourced.ai",
               description:
                 "AI Technical Co-Founder and Autonomous Agents for Founders",
-            }),
-          }}
-        />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "SoftwareApplication",
-              name: "Co-Founder.ai",
-              url: "https://cofounder.getinsourced.ai",
-              applicationCategory: "BusinessApplication",
-              operatingSystem: "Web",
-              offers: {
-                "@type": "Offer",
-                price: "0",
-                priceCurrency: "USD",
-                description: "Free tier available",
-              },
-              description:
-                "AI technical co-founder that plans architecture, writes code, runs tests, and prepares deployments for non-technical founders.",
-              publisher: {
-                "@type": "Organization",
-                name: "Insourced AI",
-                url: "https://getinsourced.ai",
-              },
             }),
           }}
         />
