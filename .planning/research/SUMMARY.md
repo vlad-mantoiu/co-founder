@@ -1,198 +1,187 @@
 # Project Research Summary
 
-**Project:** getinsourced.ai Marketing Site — Premium UX, Performance, SEO & GEO
-**Domain:** Next.js 15 static export on CloudFront + S3 — loading UX, performance optimization, technical SEO, and Generative Engine Optimization
-**Researched:** 2026-02-20
+**Project:** AI Co-Founder — E2B Sandbox Build Pipeline (v0.5)
+**Domain:** End-to-end sandbox build pipeline — E2B lifecycle, build output streaming, iframe preview, auto-retry debugging
+**Researched:** 2026-02-22
 **Confidence:** HIGH
 
 ## Executive Summary
 
-The getinsourced.ai marketing site is a Next.js 15 static export (`output: "export"`) delivered via S3 + CloudFront. This constraint is the single most important architectural fact of the milestone: it eliminates SSR, ISR, Route Handlers, and any runtime server — everything must be either baked at build time or handled purely in the browser. The site already has a working foundation (8 pages, Framer Motion v12, Tailwind v4, Space Grotesk font, CloudFront CDN), so this milestone is additive rather than greenfield. The recommended approach is minimal new dependencies: `nextjs-toploader` for the progress bar, `next-export-optimize-images` for WebP conversion, `next-sitemap` for sitemap generation, and `schema-dts` as a dev-only TypeScript aid — four packages total. Everything else (splash screen, skeleton screens, meta tags, JSON-LD, robots.txt, llms.txt) uses existing tooling or zero-dependency patterns.
+The v0.5 milestone completes the AI Co-Founder's core promise: a founder describes their idea and watches a running full-stack app appear in an embedded iframe — without leaving the product. The codebase already ships substantial infrastructure (LangGraph pipeline, E2B runtime, job state machine, build progress UI), but critical gaps prevent the milestone from being shippable: the sandbox runtime uses a deprecated sync SDK pattern that blocks the event loop under concurrency, the build pipeline never starts a dev server so the stored `preview_url` is always dead, and the frontend lacks iframe embedding and raw log visibility. All four research files converge on a tightly scoped set of additions rather than rewrites.
 
-The strategic split is: SEO and structured data first (high value, zero risk, required for everything else), loading UX second (branded splash + progress bar add polish but must not regress LCP), and GEO third (FAQPage schema + answer-format copy + llms.txt). The most important performance fix — removing Framer Motion's `initial={{ opacity: 0 }}` from above-fold content — should happen before any loading UX work is added, because the splash screen would mask a pre-existing LCP regression that Lighthouse would then attribute to the new splash. Fix the performance baseline first, measure it, then layer loading UX on top.
+The recommended approach is surgical: migrate `E2BSandboxRuntime` to native async (`AsyncSandbox`), wire real `npm install` and `npm run dev` commands with streaming callbacks into Redis Streams, add an SSE log endpoint, embed the preview as an `<iframe>` with a graceful fallback, and call `beta_pause()` after every successful build to eliminate idle sandbox billing. The entire delivery decomposes into five dependency-ordered implementation phases, starting with backend-only streaming (no frontend risk) and ending with snapshot/cost verification. Zero new frontend npm packages are needed; the only backend addition is `sse-starlette`.
 
-The top risk is the CloudFront `SECURITY_HEADERS` managed policy: it silently blocks third-party scripts via an invisible CSP that lives in AWS, not in source code. This must be replaced with a custom `ResponseHeadersPolicy` in CDK before any SEO verification tools or analytics are added. The second risk is building loading UX features using patterns that only work in `next dev` but silently fail in the static export production build — specifically, `loading.tsx` (which static export ignores completely) and `useState(false)` splash initialization (which causes hydration mismatches and double-flash). Every loading UX feature must be tested against `next build && npx serve out`, not `npm run dev`.
+The top risks are: (1) the E2B `autoPause` multi-resume file persistence bug (GitHub #884, confirmed open) must be avoided — do NOT use `auto_pause=True`; (2) the ALB/Service Connect infrastructure kills SSE connections at 15-60 seconds, making the fetch-based `ReadableStreamDefaultReader` pattern (already used in `useAgentStream.ts`) the only safe frontend SSE consumer; (3) hardcoded port 8080 in `generation_service.py` produces dead preview URLs — must be corrected to 3000 before any E2E testing. Each risk has a clear mitigation documented in the research.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The existing stack requires zero changes to core technology. The four new packages are justified by specific static-export gaps that have no native solution. `next-export-optimize-images` replaces the `images: { unoptimized: true }` escape hatch with build-time Sharp-powered WebP conversion — the only viable image optimization path for a runtime-serverless site. `nextjs-toploader` provides the progress bar because App Router has no `router.events` API. `next-sitemap` is required because the App Router's built-in `sitemap.ts` convention generates a Route Handler that static export silently omits from `out/`. `schema-dts` is a dev-only TypeScript type package from Google — zero runtime cost.
+The existing stack requires minimal additions. The only new backend dependency is `sse-starlette>=2.1.0` for clean SSE endpoint framing with `Last-Event-ID` support. The E2B version lower bounds must be updated from stale `>=1.0.0` to `e2b>=2.13.3` (for `AsyncSandbox`, `beta_pause`, `beta_create`) and `e2b-code-interpreter>=2.4.1`. Redis Streams (`XADD`/`XREAD`) are already available via the installed `redis>=5.2.0` — no new library. The frontend adds zero npm packages; iframe embedding uses native HTML and SSE is consumed via native `fetch()` + `ReadableStreamDefaultReader`, consistent with the existing `useAgentStream.ts` pattern.
 
 **Core technologies:**
-- `next-export-optimize-images@^4.7.0`: build-time WebP + srcset generation — replaces `images: { unoptimized: true }`, only viable image optimization for static export
-- `nextjs-toploader@^3.9.17`: route progress bar — required because App Router has no `router.events`; explicit Next.js 15 support confirmed
-- `next-sitemap@^4.2.3`: postbuild sitemap + robots.txt — required because `sitemap.ts` Route Handler is not exported in static builds
-- `schema-dts@^1.1.5` (devDependency): TypeScript types for Schema.org JSON-LD — zero runtime, zero bundle impact
-- `framer-motion@^12.34.0` (existing): splash screen exit via `AnimatePresence`, hero entry — do not add a second animation library
-- `tailwindcss@^4.0.0` (existing): `animate-pulse` for skeleton screens — sufficient for a static marketing site, no skeleton library needed
+- `e2b>=2.13.3` (`AsyncSandbox`): native async sandbox lifecycle — eliminates `run_in_executor` hacks and enables `on_stdout`/`on_stderr` streaming callbacks; verified from installed SDK source
+- `sse-starlette>=2.1.0`: SSE endpoint — handles `Last-Event-ID` reconnect, ASGI flush, correct framing; cleaner than raw `StreamingResponse`
+- Redis Streams (built-in via `redis>=5.2.0`): build log buffer — persistent, ordered, replayable; survives frontend disconnects unlike pub/sub
+- Native `fetch()` + `ReadableStreamDefaultReader` (browser): zero-dependency authenticated SSE consumer — mandatory because Clerk JWT requires `Authorization` header which native `EventSource` cannot set
+- Native `<iframe>` (HTML): zero-dependency preview embedding — no React wrapper libraries needed
+
+**Critical version requirement:** Both `e2b` and `e2b-code-interpreter` must remain on the `2.x` series — their internal APIs are co-versioned and mixing major versions breaks functionality.
 
 ### Expected Features
 
-**Must have (table stakes):**
-- Sitemap.xml — reliable crawler discovery for all 8 pages; without it indexing is unreliable
-- robots.txt — explicit allow for GPTBot, ClaudeBot, PerplexityBot; missing means crawler uncertainty
-- Canonical URL per page — prevents duplicate content penalty from www vs. naked domain on CloudFront
-- Organization schema (JSON-LD in root layout) — establishes brand entity for Google and AI engines
-- LCP fix: hero above-fold — Framer Motion `initial={{ opacity: 0 }}` on the H1 actively hurts LCP; confirmed ranking signal regression
-- prefers-reduced-motion support — WCAG 2.1 AA; `fade-in.tsx` currently runs animations unconditionally
-- Page-transition progress bar — perceived performance signal for between-page navigations
+The competitive landscape (Bolt, Lovable, Replit Agent, v0) defines what non-technical founders expect. All four research files agree on a tight P1 set with clear P2 and future deferrals.
 
-**Should have (competitive differentiators):**
-- Branded splash screen — first-visit only, sessionStorage gate, <1.2s, CSS overlay (not a content gate)
-- SoftwareApplication schema on `/cofounder` — enables rich results for product queries
-- FAQPage schema + answer-format content sections — highest-impact GEO signal; correlates with AI Overview citations
-- OG image (static 1200x630 PNG + `metadataBase`) — social sharing currently shows blank cards
-- llms.txt in `public/` — zero-cost forward-compatibility signal for AI crawlers, 20 lines of Markdown
+**Must have (table stakes — v0.5 MVP):**
+- **In-page preview iframe** — every competitor shows the running app inside the product; external link alone is a dealbreaker for the perceived UX
+- **Build stage labels in plain English** — non-technical founders need "Writing your code", not "CODE" or "DEPS"
+- **Elapsed build timer** — "Building for 2m 34s" reassures users the system is alive during long npm installs
+- **Debugger retry visibility** — surface "Auto-fixing (attempt 2 of 5)" when the debugger is retrying; a silent spinner for 10 extra minutes destroys trust
+- **Richer plain-English failure messages** — expand `_friendly_message()` to cover common error categories (missing env var, npm install failure, port conflict, OOM)
+- **Sandbox `beta_pause()` after READY** — non-negotiable for cost control; idle sandboxes bill ~$0.10/hour; `auto_pause=True` must NOT be used (E2B #884 bug)
+
+**Should have (competitive — v0.5.x):**
+- **Expandable raw build log** — collapsible "Technical details" panel; serves technical founders without cluttering the default view
+- **Preview freshness indicator** — countdown to sandbox expiry; prevents silent blank-iframe complaints
+- **Device frame toggle** — mobile/desktop viewport CSS toggle; Bolt and Lovable both offer this, low effort
+- **Preview URL copy-to-clipboard** — one-line addition; first user complaint will request it
 
 **Defer (v2+):**
-- CloudFront image optimization via Lambda@Edge — only needed when raster hero images are added; current site is CSS-only
-- Framer Motion bundle splitting / CSS scroll animation replacement — audit first; build only if Lighthouse data justifies the refactor cost
-- Per-page OG images — shared default OG image is sufficient for launch; per-page variants need design time per page
-- View Transitions API — progressive enhancement for Chrome 126+, not a launch blocker
+- Build history list — requires product-market fit signal that founders iterate frequently
+- GitHub code export — foundation exists (`github.py`) but distracts from the core running-app experience
+- Live code editor inside sandbox — 10x infrastructure complexity; not the product model
+- Multiple simultaneous build previews — linear E2B cost multiplication; build history is the right UX
 
 ### Architecture Approach
 
-The site operates on a strict build-time vs. runtime split. Everything that affects SEO and structured data is baked into HTML at build time — crawlers see fully populated `<head>` tags with zero JavaScript execution. Loading UX features (splash overlay, progress bar, scroll reveals) operate exclusively at runtime in the browser. The CSS-first approach for the splash screen is architecturally mandated: it must appear at t=0ms before React hydrates, which means it cannot depend on `useState` or Framer Motion — it must be a CSS class on `<html>` toggled by a tiny inline `<script>` in `<head>`. The build pipeline gains two postbuild steps (image optimization and sitemap generation) and the CDK infra gains two new CloudFront behaviors for `images/*` and `og/*` with 1-year immutable TTLs.
+The architecture is additive: five new methods/helpers across three existing backend files, two new frontend components, two new API endpoints, and two new database columns. The dominant patterns are: (1) `run_in_executor` wrapping all sync E2B SDK calls with `asyncio.run_coroutine_threadsafe` for thread-safe Redis writes from `on_stdout` callbacks; (2) Redis Streams (`job:{id}:logs`) as a durable ordered log buffer between sandbox execution and SSE fan-out; (3) `fetch()` + `ReadableStreamDefaultReader` for authenticated frontend SSE (Clerk JWT requires `Authorization` header, which native `EventSource` cannot set); (4) direct `<iframe src={previewUrl}>` embedding with a graceful `onError` fallback to an "Open in New Tab" link.
 
 **Major components:**
-1. `SplashOverlay` — CSS-only branded loading veil; shown via `<html class="splash-visible">` before hydration, dismissed by `window` `load` event; must use `useState(true)` (not `useState(false)`) to avoid hydration mismatch
-2. `PageProgressBar` — thin top bar using `nextjs-toploader`; fires only on between-page navigations, never on first load; 100ms delay threshold prevents flicker on fast navigations
-3. `generateMetadata()` — per-page static metadata export in each `page.tsx`; baked into HTML at build time; uses `metadataBase: new URL('https://getinsourced.ai')` to resolve relative OG image paths to absolute URLs
-4. JSON-LD blocks — Organization + WebSite schema in root layout, SoftwareApplication + FAQPage in per-page Server Components; must NOT be in `"use client"` components or AI crawlers will not see them
-5. Postbuild pipeline — `next-export-optimize-images` (WebP variants) then `next-sitemap` (sitemap.xml); run in `postbuild` script after `next build`
+1. `E2BSandboxRuntime` (extend) — add `stream_command()` with `on_stdout`/`on_stderr` callbacks and `snapshot()` wrapping `beta_pause()`
+2. `GenerationService` (extend) — add `_stream_build_logs_to_redis()`, `_wait_for_dev_server()`, `_pause_sandbox_after_build()` helpers; fix port 8080 → 3000; wire dev server launch in CHECKS phase
+3. `GET /{job_id}/logs/stream` (new route) — SSE endpoint reading Redis Stream `job:{id}:logs` with `XREAD BLOCK`; terminates on READY/FAILED; sets 24h TTL on stream after done
+4. `POST /{job_id}/snapshot` (new route) — manual trigger for `beta_pause()`; called automatically post-build; idempotent
+5. `useBuildLogs` + `BuildLogPanel` (new frontend) — fetch-based SSE consumer accumulating log lines into a scrolling terminal display; collapses on terminal state
+6. `PreviewPane` (new frontend) — `<iframe>` with `onError` fallback to "Open in New Tab" link; shown in `BuildSummary` success state
+
+**Database additions:** `jobs.sandbox_paused` (Boolean, default False) and `jobs.traffic_access_token` (String, nullable) — both require a migration before Phase 2 ships.
 
 ### Critical Pitfalls
 
-1. **SECURITY_HEADERS managed policy silently blocks third-party scripts** — Replace `ResponseHeadersPolicy.SECURITY_HEADERS` with a custom CDK `ResponseHeadersPolicy` before adding any analytics, verification scripts, or Clerk integrations. The managed policy is invisible in source code and produces no build errors — only silent CSP violations in the browser console that block third-party resources.
+All 12 documented pitfalls have clear mitigations. The top 5 that would silently break the milestone:
 
-2. **`loading.tsx` is silently ignored in static export** — Never use `loading.tsx` for skeleton screens. It works in `next dev` but is completely ignored in the static `out/` build. Test all loading UX with `next build && npx serve out`, not `npm run dev`.
+1. **Sandbox default timeout kills `npm install`** — existing `E2BSandboxRuntime.start()` passes no `timeout` parameter; default is 300s; a cold React project install takes 3-4 minutes. Fix: set `timeout=900` on create, call `set_timeout(3600)` after dev server is running. Must be fixed before the first production build attempt.
 
-3. **Splash screen hydration mismatch / double-flash** — Initialize `showSplash` to `true` in `useState` (not `false`). Use CSS `opacity` transition for dismissal. Do NOT use `document.fonts.ready` as the dismissal trigger — fires inconsistently on CloudFront edge caches.
+2. **`autoPause` multi-resume file loss (E2B #884)** — confirmed open bug: file changes after the first resume are silently discarded on subsequent resumes. Never use `auto_pause=True`. Use explicit `beta_pause()` after READY instead; store all generated files in PostgreSQL as the source of truth, never in E2B sandbox filesystem alone.
 
-4. **JSON-LD structured data in `"use client"` components** — AI crawlers do not execute JavaScript. JSON-LD must be in Server Components. Verify with `curl https://getinsourced.ai/ | grep application/ld+json` — if no output, the structured data is client-only and invisible to every crawler and AI engine.
+3. **`connect()` resets sandbox timeout to 5 minutes** — reconnecting to a sandbox silently resets its kill timer to the default 300s. Fix: always call `sandbox.set_timeout(desired_seconds)` immediately after every `connect()` call. Manifests as: preview iframe goes blank exactly 5 minutes after an iteration build.
 
-5. **OG image `metadataBase` missing** — Without `metadataBase: new URL('https://getinsourced.ai')` in root layout, relative OG image paths render as relative URLs that social scrapers cannot follow — social sharing shows blank cards. Build does not fail or warn when `metadataBase` is absent.
+4. **ALB/Service Connect kills SSE at 15-60 seconds** — confirmed AWS infrastructure behavior: Service Connect caps idle SSE connections at 15 seconds regardless of ALB configuration. The fix is NOT to tune SSE timeouts — it is to use `fetch()` + `ReadableStreamDefaultReader` (already established in `useAgentStream.ts`). Never use native `EventSource` in this codebase.
 
-6. **CloudFront stale HTML without post-deploy invalidation** — Every deploy must end with `aws cloudfront create-invalidation --paths "/*"`. Upload hashed `_next/static/` assets first, then HTML, then invalidate — this order prevents a window where new HTML references non-existent chunk filenames.
-
-7. **Sitemap Route Handler not exported in static builds** — App Router's `sitemap.ts` generates a Route Handler that static export omits silently from `out/`. Use `next-sitemap` as a `postbuild` script. Configure `outDir: './out'` and `trailingSlash: true` to match CloudFront URL rewriting.
+5. **`get_host(3000)` returns URL before dev server is ready** — `get_host()` is a URL generator, not a health check. The preview URL becomes live 10-30 seconds after `npm run dev` is started. Gate the READY transition on `_wait_for_dev_server()` polling or the iframe shows a permanent connection error on first load.
 
 ## Implications for Roadmap
 
-Based on research, the dependency chain is clear: security headers first (CSP blocks everything else if untouched), then performance baseline (LCP fix must precede splash screen or the regression is masked), then SEO infrastructure, then loading UX, then GEO. Features within each phase are grouped by their shared risk surface and code dependencies.
+All four research files agree on a five-phase implementation order driven by clear dependencies. Backend-only phases come first (lower risk, unblocks frontend), then frontend integration, then verification.
 
-### Phase 1: Security Headers + Baseline Audit
+### Phase 1: Build Log Streaming (Backend Only)
 
-**Rationale:** The CloudFront SECURITY_HEADERS managed policy is a silent prerequisite blocker. Every subsequent phase adds scripts or relies on verified tooling (Google Rich Results Test, social preview debuggers) that CSP may silently block. This must be the first change — before any loading UX or SEO scripts are added — or every test runs against a broken baseline. Also establishes the Lighthouse LCP/CLS/INP baseline scores before any changes are made.
-**Delivers:** Custom CDK `ResponseHeadersPolicy` with explicit source allowlists in source control; Lighthouse baseline scores documented; confirmed zero CSP errors in browser console; font preloading verified.
-**Addresses:** SECURITY_HEADERS pitfall (Critical Pitfall 1); baseline before any measurement.
-**Avoids:** Testing SEO and loading features against a CSP-broken environment where verification tools are silently blocked.
+**Rationale:** The SSE log endpoint and Redis Stream infrastructure unblock all downstream visibility. This is backend-only — no frontend risk. Logs flow to Redis regardless of whether the frontend consumes them. This phase is also the first E2E exercise of real sandbox commands producing output, validating the E2B async migration.
+**Delivers:** `stream_command()` on `E2BSandboxRuntime`; `_stream_build_logs_to_redis()` helper; Redis Stream `job:{id}:logs`; `GET /{id}/logs/stream` SSE endpoint. Real `npm install` and `npm run build` wired in `execute_build()` replacing the stub commands.
+**Addresses:** "Expandable raw build log" (P2 prerequisite), "Debugger retry visibility" (P1 prerequisite)
+**Avoids:** Pitfall 5 (background stdout inaccessible — attach `on_stdout`/`on_stderr`), Pitfall 6 (pub/sub loses messages — Redis Streams used instead), Pitfall 7 (ALB kills SSE — fetch-based consumer used, not native `EventSource`)
 
-### Phase 2: Performance Baseline + LCP Fix
+### Phase 2: Dev Server Launch + Valid Preview URL
 
-**Rationale:** The Framer Motion `initial={{ opacity: 0 }}` on above-fold hero content is a pre-existing LCP regression that must be fixed before the splash screen ships. If the splash is added first, it visually masks the LCP issue — Lighthouse still penalizes it, but the developer experience hides it. Fix LCP first, measure, then add the splash overlay on top of a known-good performance baseline. prefers-reduced-motion touches the same `fade-in.tsx` file, so group it here.
-**Delivers:** Green LCP score (< 2.5s); WCAG 2.1 AA prefers-reduced-motion compliance via `useReducedMotion()` in `fade-in.tsx`; confirmed CLS < 0.1 on all pages; all `<Image>` components with explicit `width`/`height` dimensions.
-**Addresses:** Hero animation LCP risk (FEATURES.md P1); WCAG compliance (FEATURES.md P1); Image CLS pitfall (Critical Pitfall + PITFALLS.md Pitfall 7).
-**Uses:** `framer-motion@12` `useReducedMotion()` hook — already installed, zero new dependencies.
+**Rationale:** The `preview_url` returned by `generation_service.py` currently points to port 8080 with no running server — it is always dead. This phase makes the preview URL actually work. It also adds the schema columns and sandbox pause logic that all later phases depend on. The `FileChange.new_content` key bug (line 109 of `generation_service.py` uses `"content"` instead of `"new_content"`) must be fixed here during E2E testing.
+**Delivers:** `_wait_for_dev_server()` helper; `sandbox.run_background("npm run dev")` wired in CHECKS phase; port corrected 8080 → 3000; `sandbox_paused` and `traffic_access_token` DB columns + migration; `_pause_sandbox_after_build()` wired post-READY.
+**Uses:** `AsyncSandbox.beta_pause()`, `AsyncSandbox.get_host(3000)`, `httpx` for dev server polling
+**Avoids:** Pitfall 1 (timeout — set explicitly on create), Pitfall 3 (connect resets timeout — `set_timeout` called after reconnect), Pitfall 4 (`autoPause` bug — explicit `beta_pause()` only), Pitfall 12 (URL returned before server ready)
 
-### Phase 3: SEO Infrastructure
+### Phase 3: Frontend Log Panel
 
-**Rationale:** Sitemap, robots.txt, canonical URLs, OG image, and Organization schema are all build-time or static file changes with no runtime complexity. Grouping them in one phase avoids fragmented deploys and ensures `metadataBase` is set before any OG image work proceeds. This phase must complete before the GEO phase because Organization schema is a prerequisite for SoftwareApplication and FAQPage schemas (they reference the same entity). robots.txt must ship before sitemap submission.
-**Delivers:** `sitemap.xml` accessible at `https://getinsourced.ai/sitemap.xml`; `robots.txt` with explicit AI crawler allows; canonical URLs on all 8 pages; Organization + WebSite JSON-LD baked into root layout HTML; OG image (static 1200x630 PNG) with absolute URL via `metadataBase`; SoftwareApplication schema on `/cofounder`.
-**Addresses:** All P1 SEO table stakes (FEATURES.md); Sitemap pitfall (Pitfall 5); OG metadataBase pitfall (Pitfall 6); robots.txt S3 upload pitfall (Pitfall 9); JSON-LD server component requirement (Pitfall 8).
-**Uses:** `next-sitemap@^4.2.3`; `schema-dts@^1.1.5` (devDependency); `generateMetadata()` built-in; static `public/robots.txt`.
-**Avoids:** App Router `sitemap.ts` Route Handler (incompatible with static export); dynamic OG image generation via `ImageResponse` (requires Edge Runtime); JSON-LD in `"use client"` components.
+**Rationale:** With the SSE endpoint live (Phase 1) and real builds executing, the frontend log panel can be developed and validated against actual build output. Frontend-only phase — no backend changes. Validates the authenticated SSE consumer pattern before Phase 4 adds CSP complexity.
+**Delivers:** `useBuildLogs` hook (fetch-based SSE reader using `apiFetch`); `BuildLogPanel` component (scrolling terminal, auto-scroll to bottom); wired into `BuildPage` during build phases, collapsed on terminal state.
+**Implements:** Pattern 3 — fetch-based SSE consumer identical to existing `useAgentStream.ts`
+**Addresses:** "Expandable raw build log" (P2), visible build progress during long npm installs
 
-### Phase 4: Loading UX
+### Phase 4: Preview Iframe Embedding
 
-**Rationale:** Splash screen and progress bar ship after the performance baseline is confirmed clean (Phase 2) and SEO metadata is verified (Phase 3). The splash must be implemented with the CSS-first pattern — `useState(true)`, CSS class on `<html>`, inline `<script>` in `<head>` — not `loading.tsx` and not `useState(false)`. Progress bar needs a 100ms show-delay to prevent flicker on fast static page navigations. This phase has the highest FOUC/hydration-mismatch risk and requires explicit testing against the static build (`next build && npx serve out`), not the dev server.
-**Delivers:** Branded first-visit splash overlay (sessionStorage gate, CSS opacity transition, <1.2s maximum); `nextjs-toploader` route progress bar; skeleton shimmer on Navbar via `animate-pulse`.
-**Addresses:** Premium loading UX differentiators (FEATURES.md P2); branded first impression for cold-traffic founders.
-**Uses:** `nextjs-toploader@^3.9.17`; `framer-motion AnimatePresence` (existing) for optional splash exit animation; Tailwind `animate-pulse` (built-in) for skeletons.
-**Avoids:** `loading.tsx` (silently ignored in static export — Critical Pitfall 2); `useState(false)` splash initialization (hydration mismatch — Critical Pitfall 3); `document.fonts.ready` dismissal trigger (inconsistent on CDN edges).
+**Rationale:** Requires a live dev server (Phase 2) to produce a working `preview_url`. The iframe is the milestone's core deliverable — placed after streaming validation to ensure the entire build pipeline works end-to-end before the frontend is wired to it.
+**Delivers:** `PreviewPane` component (`<iframe>` + `onError` fallback to "Open in New Tab"); `trafficAccessToken` added to `useBuildProgress` state and `GenerationStatusResponse`; `PreviewPane` wired into `BuildSummary` success state; `next.config.ts` CSP `frame-src https://*.e2b.app`.
+**Addresses:** "In-page preview iframe" (P1), "Device frame toggle" (P2 CSS add-on), "Preview URL copy" (P2 one-liner)
+**Avoids:** Pitfall 8 (traffic token + iframe incompatibility — use public sandbox default), Pitfall 9 (CSP blocks e2b.app — explicit `frame-src` added to `next.config.ts`)
 
-### Phase 5: Image Pipeline
+### Phase 5: Snapshot Lifecycle Verification + Iteration Build
 
-**Rationale:** Image optimization infrastructure can be wired up whether or not raster images currently exist in the site. Setting up `next-export-optimize-images`, updating `next.config.ts`, and adding the CloudFront `images/*` behavior creates the pipeline so that when product screenshots or hero images are added, they are automatically optimized. The OG image from Phase 3 serves as the first image through this pipeline.
-**Delivers:** `next-export-optimize-images` replacing `images: { unoptimized: true }`; postbuild script generating WebP variants in `out/images/`; `images/*` and `og/*` CloudFront behaviors with 1-year TTL in CDK; OG image from Phase 3 served with correct long-term caching.
-**Uses:** `next-export-optimize-images@^4.7.0`; CDK `additionalBehaviors` additions in `infra/lib/marketing-stack.ts`.
-**Avoids:** Lambda@Edge image optimization (deferred until raster hero images are actually introduced into the site).
-
-### Phase 6: GEO + Content
-
-**Rationale:** GEO is the highest content-effort, lowest technical-complexity phase. FAQPage schema requires answer-format copy to exist on the page first — the content must be written before the structured data can be accurate. llms.txt is a 20-line static file with no technical dependencies. This phase is last because it builds on all prior SEO infrastructure (Organization schema from Phase 3 must exist first) and requires content team collaboration on the FAQ copy.
-**Delivers:** FAQPage JSON-LD on `/cofounder` and `/pricing` (3-5 Q&A pairs each); answer-format "What is Co-Founder.ai?" content section on `/cofounder`; `public/llms.txt` with site map summary; Google Rich Results Test validation passing for all structured data.
-**Addresses:** GEO differentiators (FEATURES.md P2); FAQPage schema GEO signal; AI engine citation visibility.
-**Avoids:** JSON-LD in `"use client"` components (Critical Pitfall 4); placeholder or inaccurate schema data (structured data with wrong claims is worse than no structured data).
+**Rationale:** `beta_pause()` is wired in Phase 2 but the iteration build reconnect path (`execute_iteration_build()`) needs explicit E2E validation: paused sandbox resumes correctly, dev server relaunches, updated preview is served. Also adds the manual snapshot API endpoint for operational recovery when auto-pause fails.
+**Delivers:** `POST /{id}/snapshot` endpoint (manual pause trigger, idempotent); verified `execute_iteration_build()` reconnect + `set_timeout()` after reconnect + dev server relaunch; integration test: build → pause → iterate → updated preview served.
+**Addresses:** "Sandbox snapshot on build complete" (differentiator), "Preview freshness indicator" (P2 follow-on)
+**Avoids:** Pitfall 3 (connect timeout reset — verified in integration test), Pitfall 4 (`autoPause` bug confirmed absent)
 
 ### Phase Ordering Rationale
 
-- Security headers first because CSP silently blocks verification tools and analytics — every subsequent test runs against a broken baseline if this is skipped
-- LCP fix before splash screen because the splash visually masks a pre-existing LCP regression that Lighthouse still measures and penalizes
-- SEO metadata before GEO because Organization schema is a prerequisite for SoftwareApplication and FAQPage schemas — they reference the same entity
-- Image pipeline can run in parallel with Phase 4 loading UX if bandwidth allows — there are no cross-phase dependencies between them
-- GEO last because it requires accurate content (content team dependency) and has no technical blockers from earlier phases beyond Organization schema existing
+- **Backend before frontend:** Phases 1-2 are backend-only. Frontend phases (3-4) depend on live endpoints and working preview URLs. This prevents frontend development against stubs that require rework.
+- **Streaming before iframe:** The log panel (Phase 3) validates the SSE infrastructure and authenticated fetch pattern before the iframe (Phase 4) adds CSP complexity. SSE transport issues are caught with lower blast radius.
+- **Schema changes in Phase 2:** `sandbox_paused` and `traffic_access_token` columns are added when first needed by `execute_build()`. Available for Phase 4 (status response) and Phase 5 (snapshot endpoint) without additional migrations.
+- **Verification last:** Phase 5 is integration testing plus one new endpoint, not a new feature. Placing it last ensures all components are fully integrated before the multi-step sandbox lifecycle is tested end-to-end.
 
 ### Research Flags
 
 Phases likely needing deeper research during planning:
-- **Phase 1:** Custom CDK `ResponseHeadersPolicy` syntax — CDK v2 API for custom response headers policies has specific constructor syntax; verify exact CDK construct shape before coding to avoid CloudFormation deployment errors
-- **Phase 4:** `nextjs-toploader` interaction with `AnimatePresence` splash exit — both manipulate visibility simultaneously during the 400ms splash fade; test in isolation against the static build before shipping
 
-Phases with standard patterns (skip research-phase):
-- **Phase 2:** Framer Motion `useReducedMotion()` — official, documented API with no static export caveats
-- **Phase 3:** `generateMetadata()` + `next-sitemap` — HIGH confidence, both covered by official Next.js docs with static export compatibility confirmed
-- **Phase 5:** `next-export-optimize-images` — official project docs explicitly document configuration for the exact `output: "export"` use case
-- **Phase 6:** JSON-LD in Server Components — official Next.js JSON-LD guide covers the exact pattern with the XSS escape note
+- **Phase 2:** Port detection from generated project metadata is not fully specified — the research recommends defaulting to 3000 for TypeScript/Next.js and 8000 for Python, but the Architect node's output format for dev server commands needs inspection to confirm. Also: the `FileChange.new_content` key bug at `generation_service.py` line 109 needs a targeted fix verified against actual LangGraph state output.
+- **Phase 5:** E2B `beta_pause()` is labeled BETA. Behavior on repeated pause/resume cycles (beyond 2) is not fully documented. Needs hands-on testing; verify E2B #884 status at time of implementation. If still open, the fallback to full rebuild from DB files must be explicitly tested.
+
+Phases with standard patterns (skip research):
+
+- **Phase 1:** Redis Streams `XADD`/`XREAD` and `StreamingResponse` SSE are well-documented. The `stream_command()` callback signature is verified from installed SDK source.
+- **Phase 3:** `fetch()` + `ReadableStreamDefaultReader` authenticated SSE is already implemented in `useAgentStream.ts`. Copy-adapt pattern.
+- **Phase 4:** `<iframe>` with `onError` fallback is standard HTML. CSP `frame-src` is a one-line addition to `next.config.ts`.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All 4 new packages verified against official docs or explicit version support claims. Rejection decisions for alternatives are based on official comparison pages and documented limitations. |
-| Features | HIGH | Based on direct codebase inspection of `/marketing/` plus verified 2026 sources. Priority matrix grounded in actual implementation cost estimates and confirmed SEO/GEO impact data from multiple sources. |
-| Architecture | HIGH | Based on direct codebase analysis of `marketing/src/`, `infra/lib/marketing-stack.ts`, `infra/functions/url-handler.js`, and `.github/workflows/deploy-marketing.yml` combined with verified Next.js 15 official docs. |
-| Pitfalls | HIGH | All 9 pitfalls verified against official docs, GitHub issues, or direct codebase inspection. Warning signs and recovery steps are specific, actionable, and grounded in actual code behavior. |
+| Stack | HIGH | E2B SDK verified from installed source (`e2b` 2.13.2 at `.venv/`); `sse-starlette` API stable across 2.x/3.x; no speculative dependencies; all alternatives explicitly rejected with documented reasons |
+| Features | HIGH | Direct codebase read of all existing components; competitor analysis (Bolt, Lovable, Replit) confirmed against public product UX; P1/P2/P3 boundaries are grounded in actual implementation cost and user persona research |
+| Architecture | HIGH | All file paths, method signatures, and data flows verified against actual codebase; `FileChange.new_content` bug confirmed at specific line number; E2B SDK URL format confirmed from `connection_config.py` source; existing patterns (`useAgentStream.ts`, `apiFetch`) identified as the correct templates |
+| Pitfalls | HIGH | E2B timeout defaults confirmed from SDK source; `autoPause` bug confirmed from open GitHub issue #884; ALB/Service Connect SSE timeout confirmed from AWS re:Post and oliverio.dev; CSP behavior confirmed from MDN; all pitfalls include specific warning signs and recovery strategies |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **llms.txt confirmed GEO impact:** As of early 2026, no major AI crawler has confirmed they act on `llms.txt`. The file has zero confirmed GEO benefit. Build it (20 lines, zero cost), but do not invest engineering time optimizing its content or treat it as a ranking lever.
-- **View Transitions API interaction with Framer Motion:** The experimental `viewTransition: true` Next.js config flag is Chrome 126+ only and may conflict with Framer Motion layout animations on shared elements. Test in isolation before enabling — this feature may need to be deferred if conflicts are found.
-- **Raster image presence assumption:** Research assumes the current site is CSS-only (CSS glows, SVG icons). If product screenshots or hero mockup images are added during this milestone, Phase 5 becomes higher priority and image CLS (PITFALLS.md Pitfall 7) becomes an immediate risk. Audit final designs before committing to phase order.
-- **Google Search Console access:** SEO verification (sitemap submission, canonical URL confirmation, rich results indexing) requires access to Google Search Console for `getinsourced.ai`. Confirm access is available before Phase 3 ships.
+- **E2B `beta_pause()` multi-resume behavior:** GitHub #884 is confirmed open as of December 2025. At implementation time of Phase 5, check if the bug has been resolved. If still open, the fallback path (full rebuild from DB files) must be validated as the correct recovery and documented in `execute_iteration_build()`.
+- **Port detection from Architect output:** The research defaults to port 3000 (Next.js) and 8000 (Python), but the port should ideally be parsed from the generated `package.json` scripts. The default heuristic is acceptable for MVP; flag for Phase 2 planning.
+- **E2B Hobby vs. Pro plan limits:** Auto-pause sandboxes on Hobby plan max at 1 hour lifetime; paused sandboxes on Hobby may not persist state past the TTL. Pro plan required for the full snapshot pattern to be useful between sessions. Design the system to gracefully return a "rebuild needed" state on expired sandbox — do not show a broken iframe.
+- **`iframe` X-Frame-Options from E2B:** E2B may set `X-Frame-Options: DENY` or `frame-ancestors 'none'` on sandbox responses — not yet verified against a live sandbox. The `PreviewPane` `onError` fallback handles this, but the happy-path iframe behavior must be validated with a real sandbox during Phase 4 before closing the phase.
+- **E2B API key injection pattern:** The current `e2b_runtime.py` sets `os.environ["E2B_API_KEY"]` globally on the process. Under concurrent builds this is a potential race condition on key rotation. Fix: pass `api_key=self.settings.e2b_api_key` as a constructor parameter — note this in Phase 1 scope.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- `/Users/vladcortex/co-founder/marketing/` — direct codebase inspection; confirmed stack, constraints, existing animation patterns
-- `/Users/vladcortex/co-founder/infra/lib/marketing-stack.ts` — confirmed CloudFront behaviors, cache policies, SECURITY_HEADERS policy usage
-- `/Users/vladcortex/co-founder/infra/functions/url-handler.js` — confirmed extension-check logic that passes image URLs unchanged
-- `/Users/vladcortex/co-founder/.github/workflows/deploy-marketing.yml` — confirmed S3 sync and CloudFront invalidation pattern
-- [Next.js JSON-LD Guide (v16.1.6)](https://nextjs.org/docs/app/guides/json-ld) — JSON-LD in Server Components, XSS escape pattern
-- [Next.js Metadata docs](https://nextjs.org/docs/app/getting-started/metadata-and-og-images) — `generateMetadata`, `metadataBase` requirement
-- [next-export-optimize-images comparison](https://next-export-optimize-images.vercel.app/docs/comparison) — package selection rationale vs. alternative
-- [nextjs-toploader GitHub (v3.9.17)](https://github.com/TheSGJ/nextjs-toploader) — Next.js 15 support confirmed
-- [next-sitemap GitHub](https://github.com/iamvishnusankar/next-sitemap) — static export support, `outDir` config
-- [Next.js Static Export limitations](https://nextjs.org/docs/pages/guides/static-exports) — `loading.tsx` incompatibility confirmed
-- [Next.js sitemap.ts static export bug #59136](https://github.com/vercel/next.js/issues/59136) — Route Handler omission confirmed
-- [Clerk CSP Headers docs](https://clerk.com/docs/guides/secure/best-practices/csp-headers) — CSP allowlist requirements
-- [Tailwind animate-pulse docs](https://tailwindcss.com/docs/animation) — built-in skeleton animation
+
+- E2B SDK installed source — `e2b` 2.13.2 at `.venv/lib/python3.12/site-packages/e2b/` — `AsyncSandbox`, `Commands`, `ConnectionConfig`, `SandboxBase` classes
+- Codebase direct reads — `e2b_runtime.py`, `generation_service.py`, `debugger.py`, `graph.py`, `state.py`, `worker.py`, `job.py`, `BuildProgressBar.tsx`, `BuildSummary.tsx`, `build/page.tsx`, `useAgentStream.ts`, `useBuildProgress.ts`
+- E2B internet access docs — `https://e2b.mintlify.app/docs/sandbox/internet-access.md` — URL format, `allowPublicTraffic`, traffic token header
+- E2B secured access docs — `https://e2b.mintlify.app/docs/sandbox/secured-access.md` — `X-Access-Token` header requirement
+- E2B persistence docs — `https://e2b.dev/docs/sandbox/persistence` — `beta_pause()`, `connect()` timeout-reset behavior, pause/resume lifecycle
 
 ### Secondary (MEDIUM confidence)
-- [GEO FAQPage schema impact](https://seotuners.com/blog/seo/schema-for-aeo-geo-faq-how-to-entities-that-win/) — 3.2x AI Overview citation correlation for FAQPage markup; multiple corroborating sources
-- [AI crawler robots.txt guide 2025](https://www.adnanzameer.com/2025/09/how-to-allow-ai-bots-in-your-robotstxt.html) — PerplexityBot, OAI-SearchBot allow rules
-- [SaaS above-fold behavior (CXL)](https://cxl.com/blog/above-the-fold/) — 57% viewing time above fold statistic
-- [Next.js Core Web Vitals / Framer Motion LCP](https://makersden.io/blog/optimize-web-vitals-in-nextjs-2025) — confirmed LCP regression from `initial={{ opacity: 0 }}` on above-fold elements
-- [Open Graph metadataBase requirement (Next.js Discussion #50546)](https://github.com/vercel/next.js/discussions/50546) — confirmed metadataBase requirement for non-Vercel deployments
+
+- E2B GitHub Issue #884 — `https://github.com/e2b-dev/E2B/issues/884` — multi-resume file persistence bug (open as of December 2025)
+- E2B pricing — `https://e2b.dev/pricing` (Feb 2026) — compute costs, Hobby/Pro plan limits (~$0.10/hour, 1h Hobby max)
+- oliverio.dev: AWS Service Connect SSE timeout — confirmed 15-second Service Connect cap; WebSocket as the correct fix
+- AWS re:Post: Fargate timeout for long-running connections — ALB 60-second idle timeout behavior
+- E2B Fragments reference implementation — `https://github.com/e2b-dev/fragments` — Next.js + E2B architecture pattern for AI code generation previews
+- E2B Next.js template example — `https://e2b.mintlify.app/docs/template/examples/nextjs.md` — `waitForURL` pattern, port 3000, dev server startup sequence
 
 ### Tertiary (LOW confidence)
-- [llmstxt.org specification](https://llmstxt.org/) — spec format; no confirmed crawler adoption as of early 2026
-- [GEO llms.txt effectiveness 2026](https://searchsignal.online/blog/llms-txt-2026) — confirmed zero benefit from major AI crawlers as of late 2025
-- [View Transitions API + Next.js](https://nextjs.org/docs/app/api-reference/config/next-config-js/viewTransition) — experimental flag; Chrome 126+ only; interaction with Framer Motion unverified
+
+- Custom E2B template build process — `e2b.toml` format not fully verified; `e2b template build` command documented but not tested end-to-end. Relevant for post-MVP cold-start optimization (Option B in STACK.md) only.
+- Full-stack multi-port sandbox behavior — derived from `get_host()` URL format logic; no explicit E2B documentation for running two servers simultaneously on different ports. Assumed safe based on port isolation in sandbox VM networking.
 
 ---
-*Research completed: 2026-02-20*
+*Research completed: 2026-02-22*
 *Ready for roadmap: yes*
