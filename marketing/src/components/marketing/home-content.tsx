@@ -18,16 +18,48 @@ import {
 import { FadeIn, StaggerContainer, StaggerItem } from "./fade-in";
 import HowItWorksSection from "./how-it-works-section";
 
+/* ─── Shared FAQ Data (exported for JSON-LD in page.tsx) ─── */
+
+export const cofounderFaqs: { question: string; answer: string }[] = [
+  {
+    question: "What does Co-Founder.ai actually do?",
+    answer:
+      "Co-Founder.ai is your AI technical co-founder — it thinks through product decisions WITH you, then executes. That means generating system architecture, writing production code, running tests, and preparing deployment-ready changes. It's not a no-code builder where you're still doing the building. Think of it as having a senior engineer on call 24/7, without the equity negotiation or 6-week agency ramp-up. You describe what you want; it translates that into technical decisions and working code.",
+  },
+  {
+    question: "Do I need technical skills to use it?",
+    answer:
+      "No. You communicate in plain language — describe what you want your product to do, and Co-Founder.ai handles the technical translation. It designs the architecture, chooses the right tools, writes the code, and explains every decision in founder-friendly terms. You review and approve changes at each step. If you can describe your product idea, you can work with Co-Founder.ai.",
+  },
+  {
+    question: "Is my idea safe with Co-Founder.ai?",
+    answer:
+      "Yes. All data is encrypted in transit (TLS 1.3) and at rest (AES-256). Your code and business logic are never used to train models — your IP stays yours. We run on SOC2-compliant infrastructure, and you can export everything at any time. Your idea doesn't leave your control.",
+  },
+  {
+    question: "How is this different from hiring a developer or agency?",
+    answer:
+      "Hiring a CTO means equity negotiations and months of recruiting. An agency means $15k–$40k/month retainers, 6-week timelines, and handoff risk when the engagement ends. Co-Founder.ai costs $99–$999/month, starts immediately, is available 24/7, never loses context between sessions, and you own 100% of the output. It's senior-level execution without the overhead of a hiring process or a retainer contract.",
+  },
+  {
+    question: "How long does it take to go from idea to MVP?",
+    answer:
+      "Minutes for strategy, days for working code. The moment you describe your idea, Co-Founder.ai analyzes requirements, designs the architecture, and starts building. You stay in control by reviewing and approving at every step — no waiting for sprint planning or stand-ups. Most founders have a working prototype within a week of starting.",
+  },
+];
+
 export default function HomeContent() {
   return (
     <>
       <HeroSection />
       <LogoTicker />
+      <WhatIsSection />
       <ComparisonSection />
       <FeatureGrid />
       <HowItWorksSection />
       <TestimonialSection />
       <SecuritySection />
+      <CofounderFaqSection />
       <CTASection />
     </>
   );
@@ -207,6 +239,73 @@ function LogoTicker() {
             </div>
           ))}
         </div>
+      </div>
+    </section>
+  );
+}
+
+/* ─── What Is Section (GEO-02) ─── */
+
+const whatIsCallouts = [
+  {
+    title: "No Equity Required",
+    description:
+      "Get senior-level technical execution without giving up a percentage of your company. Pay a flat monthly fee — full stop.",
+  },
+  {
+    title: "24/7 Availability",
+    description:
+      "Your AI co-founder never takes PTO, never loses context between sessions, and is ready to build the moment you have an idea.",
+  },
+  {
+    title: "Senior-Level Execution",
+    description:
+      "Architecture decisions, production-quality code, and test coverage that matches what an experienced engineering team delivers.",
+  },
+];
+
+function WhatIsSection() {
+  return (
+    <section className="py-24 lg:py-32 border-t border-white/5">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <FadeIn>
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-6">
+            What is Co-Founder.ai?
+          </h2>
+          <p className="text-white/70 leading-relaxed max-w-3xl mb-4">
+            Co-Founder.ai is an AI technical co-founder built for non-technical
+            founders. It analyzes your product requirements, designs system
+            architecture, writes production code, runs tests, and prepares
+            deployment-ready changes — all without requiring you to write a
+            single line of code. Unlike hiring a CTO or contracting an agency,
+            there&apos;s no equity negotiation, no contracts, and no 6-week
+            ramp-up timeline.
+          </p>
+          <p className="text-white/70 leading-relaxed max-w-3xl">
+            What you actually get: go from idea to MVP strategy in minutes, not
+            months. The AI doesn&apos;t just execute orders — it thinks through
+            product decisions with you, retains full context across every
+            session, and is available around the clock. You own 100% of the
+            code. You approve every change. And you never have to explain your
+            product from scratch again.
+          </p>
+        </FadeIn>
+
+        <StaggerContainer
+          className="mt-12 grid sm:grid-cols-3 gap-5"
+          stagger={0.1}
+        >
+          {whatIsCallouts.map((callout) => (
+            <StaggerItem key={callout.title}>
+              <div className="glass rounded-xl p-6 h-full">
+                <p className="font-bold text-white mb-2">{callout.title}</p>
+                <p className="text-sm text-white/45 leading-relaxed">
+                  {callout.description}
+                </p>
+              </div>
+            </StaggerItem>
+          ))}
+        </StaggerContainer>
       </div>
     </section>
   );
@@ -520,6 +619,40 @@ function SecuritySection() {
             </StaggerItem>
           ))}
         </StaggerContainer>
+      </div>
+    </section>
+  );
+}
+
+/* ─── Co-Founder FAQ Section (GEO-01) ─── */
+
+function CofounderFaqSection() {
+  return (
+    <section className="py-24 lg:py-32 border-t border-white/5">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+        <FadeIn className="text-center mb-12">
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+            Frequently Asked Questions
+          </h2>
+        </FadeIn>
+
+        <div className="space-y-4">
+          {cofounderFaqs.map((faq, i) => (
+            <FadeIn key={faq.question} delay={i * 0.08}>
+              <details className="group glass rounded-xl overflow-hidden">
+                <summary className="flex items-center justify-between p-5 cursor-pointer list-none text-left font-semibold hover:bg-white/[0.02] transition-colors">
+                  {faq.question}
+                  <span className="text-white/30 group-open:rotate-45 transition-transform duration-200 text-xl ml-4 flex-shrink-0">
+                    +
+                  </span>
+                </summary>
+                <div className="px-5 pb-5 text-sm text-white/50 leading-relaxed">
+                  {faq.answer}
+                </div>
+              </details>
+            </FadeIn>
+          ))}
+        </div>
       </div>
     </section>
   );
