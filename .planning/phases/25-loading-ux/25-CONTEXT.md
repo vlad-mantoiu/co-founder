@@ -17,13 +17,13 @@ Branded splash screen on first visit, route progress bar on all navigations, ske
 - Logo with draw/trace-in animation — logo strokes draw themselves on screen for a technical/crafted feel
 - Logo shrinks to its position in the site header when dismissing, then the splash overlay fades away
 - First visit only (per session) — subsequent visits within same browser session skip the splash
-- No minimum duration — if content is ready instantly, skip the splash entirely (speed over branding)
-- Splash stays until content is actually ready to paint, then dismisses (variable timing)
+- Draw animation always plays on first visit (~1.2s) as the premium brand moment — no artificial extra wait beyond the animation itself
+- "Speed over branding" means no minimum hold time after animation completes, not skipping the animation
 
 ### Progress bar style
 - Animated gradient that shifts colors as it progresses
 - Trailing glow effect behind the leading edge — soft light trail for premium polish
-- Shows on both initial page load and navigation between pages
+- Shows on SPA navigations between pages (splash screen handles first-load experience)
 - Position: top of viewport (slim bar at the very top)
 
 ### Skeleton placeholders
