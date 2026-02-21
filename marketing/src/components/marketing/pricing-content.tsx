@@ -4,6 +4,9 @@ import { useState } from "react";
 import { Check, Zap, Star, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FadeIn, StaggerContainer, StaggerItem } from "./fade-in";
+import { pricingFaqs } from "@/lib/faq-data";
+
+export { pricingFaqs };
 
 const plans = [
   {
@@ -64,25 +67,6 @@ const plans = [
       "SLA guarantee",
       "Priority feature requests",
     ],
-  },
-];
-
-const faqs = [
-  {
-    q: "Who owns the code and project IP?",
-    a: "You do. Everything built by Co-Founder.ai belongs to you. We never claim ownership of your code, assets, or intellectual property.",
-  },
-  {
-    q: "Can I cancel without a long-term contract?",
-    a: "Yes. There are no long-term contracts. Cancel any time and keep access through your current billing period. You can export code and data before you leave.",
-  },
-  {
-    q: "Can Co-Founder.ai work with my existing codebase?",
-    a: "Yes. Co-Founder.ai connects to your GitHub repository and works with your existing architecture, code conventions, and workflows.",
-  },
-  {
-    q: "How do you protect my code and data?",
-    a: "Data is encrypted in transit (TLS 1.3) and at rest (AES-256). Your code is never used to train models. We run on SOC2-compliant infrastructure with audit logging and VPC deployment options on higher plans.",
   },
 ];
 
@@ -264,7 +248,7 @@ export default function PricingContent() {
           </FadeIn>
 
           <div className="space-y-4">
-            {faqs.map((faq, i) => (
+            {pricingFaqs.map((faq, i) => (
               <FadeIn key={faq.q} delay={i * 0.08}>
                 <details className="group glass rounded-xl overflow-hidden">
                   <summary className="flex items-center justify-between p-5 cursor-pointer list-none text-left font-semibold hover:bg-white/[0.02] transition-colors">

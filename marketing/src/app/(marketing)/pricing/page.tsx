@@ -3,6 +3,7 @@ import { sharedOG, SITE_URL } from '@/lib/seo'
 import PricingContent from "@/components/marketing/pricing-content";
 import { PageContentWrapper } from "@/components/marketing/loading/page-content-wrapper";
 import { ListSkeleton } from "@/components/marketing/loading/skeleton-templates";
+import { pricingFaqs } from "@/lib/faq-data";
 
 export const metadata: Metadata = {
   title: 'Pricing',
@@ -18,8 +19,27 @@ export const metadata: Metadata = {
 
 export default function PricingPage() {
   return (
-    <PageContentWrapper skeleton={<ListSkeleton />}>
-      <PricingContent />
-    </PageContentWrapper>
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'FAQPage',
+            mainEntity: pricingFaqs.map(faq => ({
+              '@type': 'Question',
+              name: faq.q,
+              acceptedAnswer: {
+                '@type': 'Answer',
+                text: faq.a,
+              },
+            })),
+          }),
+        }}
+      />
+      <PageContentWrapper skeleton={<ListSkeleton />}>
+        <PricingContent />
+      </PageContentWrapper>
+    </>
   );
 }

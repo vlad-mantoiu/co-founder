@@ -1,0 +1,33 @@
+# Co-Founder.ai
+
+> Co-Founder.ai is an AI technical co-founder for non-technical founders. It analyzes your product requirements, designs architecture, writes production code, runs tests, and prepares deployment-ready changes — without equity, contracts, or a hiring process.
+
+Co-Founder.ai is made by GetInsourced (https://getinsourced.ai). It is not a no-code builder or a freelancer marketplace. No-code tools like Bubble or Webflow give you drag-and-drop to build things yourself. Co-Founder.ai is different: it thinks through product decisions with you, generates architecture plans, and writes the actual code. You stay in control through review and approval; it handles the engineering. The closest comparison is hiring a technical co-founder or CTO — Co-Founder.ai provides the same senior-level execution without the equity negotiation or recruiting process.
+
+## Product
+
+- [Co-Founder.ai Product Overview](https://getinsourced.ai/cofounder/): What it is, how it works, and who it's for
+- [How It Works](https://getinsourced.ai/cofounder/how-it-works/): Step-by-step process from idea to deployed code
+- [Pricing Plans](https://getinsourced.ai/pricing/): All plans with current prices and feature details
+
+## Pricing
+
+**The Bootstrapper** — $99/month ($79/month billed annually)
+For solo founders shipping and validating an early-stage product. Includes: 1 active project, standard build speed, GitHub integration, sandbox execution, basic session memory, community support.
+
+**Autonomous Partner** — $299/month ($239/month billed annually) — Most popular
+For founders who need faster execution with a full autonomous build loop. Includes: 3 active projects, priority build speed, Nightly Janitor (automated maintenance), Deep Memory (full context retention), messaging integration, priority support, custom deployment targets, automated testing suite.
+
+**CTO Scale** — $999/month ($799/month billed annually)
+For teams running multi-agent workflows with advanced control needs. Includes: unlimited projects, multi-agent workflows, VPC deployment option, dedicated support engineer, SOC2 compliance, custom integrations, SLA guarantee.
+
+All plans: code ownership is 100% yours. No equity required. Cancel anytime.
+
+## How It Differs from Alternatives
+
+Co-Founder.ai is not a development agency (no retainer, no account management, no 6-week timelines). It is not a no-code builder (you are not building anything yourself). It is not a freelancer marketplace (no hiring, no interviews, no handoffs). The correct comparison is: hiring a technical co-founder who works 24/7, never loses context, costs $99-$999/month instead of 15-25% equity, and starts immediately.
+
+## Optional
+
+- [About GetInsourced](https://getinsourced.ai/about/): Company background, mission, and team
+- [Privacy Policy](https://getinsourced.ai/privacy/): Data handling, code security, and what is never used for model training
