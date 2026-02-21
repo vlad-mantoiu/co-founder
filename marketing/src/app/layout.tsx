@@ -3,6 +3,7 @@ import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { Space_Grotesk } from "next/font/google";
 import { SITE_URL } from "@/lib/seo";
+import { SplashScreen } from "@/components/marketing/loading/splash-screen";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -66,10 +67,16 @@ export default function RootLayout({
             }),
           }}
         />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{if(sessionStorage.getItem('gi-splash')){document.documentElement.setAttribute('data-no-splash','')}}catch(e){}})();`,
+          }}
+        />
       </head>
       <body
         className={`${GeistSans.variable} ${GeistMono.variable} ${spaceGrotesk.variable} antialiased`}
       >
+        <SplashScreen />
         {children}
       </body>
     </html>
