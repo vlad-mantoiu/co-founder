@@ -33,15 +33,15 @@ Requirements for Marketing Speed & SEO milestone. Each maps to roadmap phases.
 
 ### SEO
 
-- [ ] **SEO-01**: Every page has unique title and meta description tags
+- [x] **SEO-01**: Every page has unique title and meta description tags
 - [x] **SEO-02**: `metadataBase` set so OG image URLs are absolute
-- [ ] **SEO-03**: Open Graph and Twitter Card tags on every page
+- [x] **SEO-03**: Open Graph and Twitter Card tags on every page
 - [x] **SEO-04**: Static OG image (1200x630) served for social sharing previews
-- [ ] **SEO-05**: Canonical URL set on every page
+- [x] **SEO-05**: Canonical URL set on every page
 - [x] **SEO-06**: XML sitemap generated at build time via next-sitemap postbuild
 - [x] **SEO-07**: robots.txt configured for crawlability with sitemap reference
 - [x] **SEO-08**: Organization JSON-LD schema on homepage
-- [ ] **SEO-09**: SoftwareApplication JSON-LD schema on product page
+- [x] **SEO-09**: SoftwareApplication JSON-LD schema on product page
 - [x] **SEO-10**: WebSite JSON-LD schema with SearchAction on homepage
 
 ### GEO
@@ -96,15 +96,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LOAD-04 | Phase 25 | Pending |
 | LOAD-05 | Phase 25 | Pending |
 | LOAD-06 | Phase 25 | Pending |
-| SEO-01 | Phase 24 | Pending |
+| SEO-01 | Phase 24 | Complete |
 | SEO-02 | Phase 24 | Complete |
-| SEO-03 | Phase 24 | Pending |
+| SEO-03 | Phase 24 | Complete |
 | SEO-04 | Phase 24 | Complete |
-| SEO-05 | Phase 24 | Pending |
+| SEO-05 | Phase 24 | Complete |
 | SEO-06 | Phase 24 | Complete |
 | SEO-07 | Phase 24 | Complete |
 | SEO-08 | Phase 24 | Complete |
-| SEO-09 | Phase 24 | Pending |
+| SEO-09 | Phase 24 | Complete |
 | SEO-10 | Phase 24 | Complete |
 | GEO-01 | Phase 27 | Pending |
 | GEO-02 | Phase 27 | Pending |
