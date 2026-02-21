@@ -44,10 +44,17 @@ jobs:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Sync to S3
+      - name: Sync to S3 (HTML + assets)
         run: |
           aws s3 sync marketing/out/ s3://${{ env.S3_BUCKET }}/ \
             --delete \
+            --exclude "images/*" \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Sync images to S3 (long-lived cache)
+        run: |
+          aws s3 sync marketing/out/images/ s3://${{ env.S3_BUCKET }}/images/ \
+            --cache-control "public, max-age=31536000, immutable" \
             --region ${{ env.AWS_REGION }}
 
       - name: Invalidate CloudFront cache
