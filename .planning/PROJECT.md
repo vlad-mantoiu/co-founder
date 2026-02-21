@@ -108,7 +108,16 @@ A non-technical founder can go from idea to running MVP preview in under 10 minu
 
 ### Active
 
-(No active requirements — next milestone not yet defined)
+**Current Milestone: v0.5 Sandbox Integration**
+
+**Goal:** Make the core product promise real — a founder's idea goes through the LLM pipeline and results in a running full-stack app they can see and interact with in their dashboard.
+
+**Target features:**
+- End-to-end build pipeline: RunnerReal + LangGraph → code generation → E2B sandbox execution
+- Embedded iframe preview in founder dashboard showing the running app
+- Build progress UX: high-level stages with expandable raw build output
+- Sandbox snapshot + on-demand lifecycle (save state, spin up fresh on return)
+- Auto-retry with Debugger agent on build failures, then explain to founder in plain English
 
 ### Out of Scope
 
@@ -120,6 +129,8 @@ A non-technical founder can go from idea to running MVP preview in under 10 minu
 - Export to Figma/design tools — PDF and Markdown cover sharing needs
 - Multi-project concurrent builds — one active build per project for MVP
 - Stripe one-time purchases — subscriptions only
+- Iteration/rebuild cycle — deferred to future milestone (v0.5 is first working build only)
+- GitHub repo push for generated code — deferred to future milestone (sandbox-only for now)
 
 ## Context
 
@@ -179,4 +190,4 @@ Non-technical, product-led founders who think in roadmaps, reports, and artifact
 | Allow all AI crawlers including training crawlers | User decision: maximize discoverability, no Disallow entries for any bot | ✓ Good — all AI engines can index and cite content |
 
 ---
-*Last updated: 2026-02-22 after v0.4 milestone completed*
+*Last updated: 2026-02-22 after v0.5 milestone started*
