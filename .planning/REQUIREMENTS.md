@@ -38,8 +38,8 @@ Requirements for Marketing Speed & SEO milestone. Each maps to roadmap phases.
 - [ ] **SEO-03**: Open Graph and Twitter Card tags on every page
 - [x] **SEO-04**: Static OG image (1200x630) served for social sharing previews
 - [ ] **SEO-05**: Canonical URL set on every page
-- [ ] **SEO-06**: XML sitemap generated at build time via next-sitemap postbuild
-- [ ] **SEO-07**: robots.txt configured for crawlability with sitemap reference
+- [x] **SEO-06**: XML sitemap generated at build time via next-sitemap postbuild
+- [x] **SEO-07**: robots.txt configured for crawlability with sitemap reference
 - [x] **SEO-08**: Organization JSON-LD schema on homepage
 - [ ] **SEO-09**: SoftwareApplication JSON-LD schema on product page
 - [x] **SEO-10**: WebSite JSON-LD schema with SearchAction on homepage
@@ -101,8 +101,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SEO-03 | Phase 24 | Pending |
 | SEO-04 | Phase 24 | Complete |
 | SEO-05 | Phase 24 | Pending |
-| SEO-06 | Phase 24 | Pending |
-| SEO-07 | Phase 24 | Pending |
+| SEO-06 | Phase 24 | Complete |
+| SEO-07 | Phase 24 | Complete |
 | SEO-08 | Phase 24 | Complete |
 | SEO-09 | Phase 24 | Pending |
 | SEO-10 | Phase 24 | Complete |

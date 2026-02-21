@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** Phase 24 (SEO Infrastructure) — Plan 01 COMPLETE
+**Current focus:** Phase 24 (SEO Infrastructure) — Plans 01 + 03 COMPLETE (Wave 1 done), Plan 02 next
 
 ## Current Position
 
 Phase: 24 (SEO Infrastructure) — IN PROGRESS
-Plan: 1 of 3 in current phase — Plan 01 COMPLETE
-Status: Plan 24-01 complete — SEO metadata foundation shipped: metadataBase, seo.ts constants, 1200x630 OG image, contact page server/client split, JSON-LD cleanup.
-Last activity: 2026-02-21 — Plan 24-01 complete: 3 tasks, next build passes clean, all success criteria met.
+Plan: 3 of 3 in current phase — Plans 01 and 03 COMPLETE (Wave 1); Plan 02 pending (Wave 2)
+Status: Plans 24-01 and 24-03 complete — SEO metadata foundation + sitemap/robots.txt/JSON-LD validation shipped. Plan 24-02 (per-page metadata overhaul + SoftwareApplication schema) is next and completes the phase.
+Last activity: 2026-02-21 — Plan 24-03 complete: 2 tasks, next-sitemap configured, sitemap.xml (8 pages) + robots.txt generated, JSON-LD validation script created.
 
-Progress: [███████████████████░░░░░░░░░░░] 84% (v0.1 + v0.2 + v0.3 shipped; Phase 22.1 complete; Phase 23 complete; Phase 24 Plan 01 complete)
+Progress: [████████████████████░░░░░░░░░░] 85% (v0.1 + v0.2 + v0.3 shipped; Phase 22.1 complete; Phase 23 complete; Phase 24 Plans 01+03 complete)
 
 ## Performance Metrics
 
@@ -41,6 +41,7 @@ Progress: [███████████████████░░░░
 | Phase 23-performance-baseline P02 | 3 | 4 tasks | 8 files |
 | Phase 23-performance-baseline P03 | 1 | 1 task (checkpoint) | 0 files |
 | Phase 24-seo-infrastructure P01 | ~3 | 3 tasks | 6 files |
+| Phase 24-seo-infrastructure P03 | ~2 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -91,6 +92,10 @@ Recent decisions affecting current work:
 - [24-01]: OG image generated as raw PNG using Node.js zlib/Buffer — no external image tools required
 - [24-01]: Contact page server/client split: page.tsx is thin server wrapper, contact-content.tsx holds all interactive JSX
 - [Phase 24]: metadataBase set to SITE_URL constant from seo.ts — single source of truth for site URL
+- [24-03]: next-sitemap outDir: 'out' — deploy pipeline syncs marketing/out/ to S3; sitemap must land in out/ not public/
+- [24-03]: exclude /404/ from sitemap — error pages excluded; 8 content pages only in sitemap
+- [24-03]: postbuild chains next-sitemap && validate-jsonld — validation runs after sitemap generation, breaks build on schema errors
+- [24-03]: JSON-LD validation designed for final state post Plan 02 — not executed during Wave 1 build verification
 
 ### Pending Todos
 
@@ -110,8 +115,8 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Completed 24-01-PLAN.md — SEO metadata foundation shipped: metadataBase, seo.ts, OG image, contact split, JSON-LD cleanup
-Resume file: Phase 24 Plan 02 (Per-page metadata overhaul)
+Stopped at: Completed 24-03-PLAN.md — Sitemap + robots.txt generation (next-sitemap) and JSON-LD validation script shipped (Wave 1 complete)
+Resume file: Phase 24 Plan 02 (Per-page metadata overhaul + SoftwareApplication schema on /cofounder)
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
