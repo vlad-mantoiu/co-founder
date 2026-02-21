@@ -10,14 +10,16 @@ export default function TermsPage() {
   return (
     <section className="pt-32 pb-24 lg:pt-40 lg:pb-32">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-        <FadeIn>
+        <div className="hero-fade">
           <h1 className="text-4xl sm:text-5xl font-bold tracking-tight mb-4">
             Terms of Service
           </h1>
+        </div>
+        <div className="hero-fade-delayed">
           <p className="text-white/40 text-sm mb-12">
             Last updated: February 15, 2026
           </p>
-        </FadeIn>
+        </div>
 
         <div className="prose-invert space-y-10">
           <FadeIn delay={0.05}>
