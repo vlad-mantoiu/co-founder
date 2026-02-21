@@ -56,7 +56,8 @@ Key v0.5 decisions (from research):
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: v0.5 roadmap created — 5 phases (28-32), 12/12 requirements mapped.
+Stopped at: Phase 28 context gathered — all 4 gray areas discussed (project type detection, server readiness, build failure, sandbox timeout).
+Resume file: .planning/phases/28-sandbox-runtime-fixes/28-CONTEXT.md
 Resume: Run `/gsd:plan-phase 28` to plan Sandbox Runtime Fixes.
 
 ---
