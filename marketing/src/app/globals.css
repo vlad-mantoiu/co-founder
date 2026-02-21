@@ -360,6 +360,29 @@ body {
   display: none !important;
 }
 
+/* Progress bar — animated gradient that shifts colors */
+@keyframes progress-gradient {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.animate-progress-gradient {
+  background: linear-gradient(90deg, #6467f2, #0df2f2, #8183f5, #00ff9d, #6467f2);
+  background-size: 300% 100%;
+  animation: progress-gradient 2s linear infinite;
+}
+
+/* Skeleton shimmer — diagonal sweep (Stripe-style) */
+@keyframes shimmer-diagonal {
+  0%   { transform: translateX(-200%) skewX(-15deg); }
+  100% { transform: translateX(200%) skewX(-15deg); }
+}
+
+.animate-shimmer-diagonal {
+  animation: shimmer-diagonal 1.8s ease-in-out infinite;
+}
+
 /* Reduced motion: stop CSS keyframe animations (marquee, pulse, float, rotate-gradient)
    Preserve CSS transitions so hover effects (button scale, card lift, link color) remain active.
    Do NOT set transition-duration — user decision requires hover effects to stay. */
