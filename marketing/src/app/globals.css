@@ -355,6 +355,11 @@ body {
   }
 }
 
+/* Splash screen — hidden on repeat visits via pre-hydration script */
+[data-no-splash] #splash-overlay {
+  display: none !important;
+}
+
 /* Reduced motion: stop CSS keyframe animations (marquee, pulse, float, rotate-gradient)
    Preserve CSS transitions so hover effects (button scale, card lift, link color) remain active.
    Do NOT set transition-duration — user decision requires hover effects to stay. */
