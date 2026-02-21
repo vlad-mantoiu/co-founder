@@ -58,6 +58,39 @@ function validateWebSite(schema, file) {
 }
 
 /**
+ * Validate FAQPage schema (Google Rich Results requirements)
+ */
+function validateFAQPage(schema, file) {
+  if (!schema.mainEntity) {
+    errors.push(`${file}: FAQPage missing 'mainEntity' (required)`)
+    return
+  }
+  if (!Array.isArray(schema.mainEntity) || schema.mainEntity.length === 0) {
+    errors.push(`${file}: FAQPage 'mainEntity' must be a non-empty array`)
+    return
+  }
+  for (let i = 0; i < schema.mainEntity.length; i++) {
+    const q = schema.mainEntity[i]
+    if (q['@type'] !== 'Question') {
+      errors.push(`${file}: FAQPage mainEntity[${i}] must have @type 'Question'`)
+    }
+    if (!q.name) {
+      errors.push(`${file}: FAQPage mainEntity[${i}] missing 'name' (the question text)`)
+    }
+    if (!q.acceptedAnswer) {
+      errors.push(`${file}: FAQPage mainEntity[${i}] missing 'acceptedAnswer'`)
+    } else {
+      if (q.acceptedAnswer['@type'] !== 'Answer') {
+        errors.push(`${file}: FAQPage mainEntity[${i}].acceptedAnswer must have @type 'Answer'`)
+      }
+      if (!q.acceptedAnswer.text) {
+        errors.push(`${file}: FAQPage mainEntity[${i}].acceptedAnswer missing 'text'`)
+      }
+    }
+  }
+}
+
+/**
  * Validate SoftwareApplication schema (Google Rich Results requirements)
  */
 function validateSoftwareApplication(schema, file) {
@@ -79,10 +112,12 @@ function validateSoftwareApplication(schema, file) {
 
 // Pages to validate
 // Homepage has Organization + WebSite
-// /cofounder has SoftwareApplication
+// /cofounder has SoftwareApplication + FAQPage
+// /pricing has FAQPage
 const pagesToValidate = [
   { path: 'index.html', expectedTypes: ['Organization', 'WebSite'] },
-  { path: 'cofounder/index.html', expectedTypes: ['SoftwareApplication'] },
+  { path: 'cofounder/index.html', expectedTypes: ['SoftwareApplication', 'FAQPage'] },
+  { path: 'pricing/index.html', expectedTypes: ['FAQPage'] },
 ]
 
 console.log('Validating JSON-LD schemas...\n')
@@ -113,6 +148,9 @@ for (const page of pagesToValidate) {
         break
       case 'SoftwareApplication':
         validateSoftwareApplication(schema, page.path)
+        break
+      case 'FAQPage':
+        validateFAQPage(schema, page.path)
         break
       default:
         warnings.push(`${page.path}: Unknown schema type '${type}'`)

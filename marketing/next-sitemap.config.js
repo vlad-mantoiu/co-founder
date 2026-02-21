@@ -13,6 +13,15 @@ module.exports = {
   robotsTxtOptions: {
     policies: [
       { userAgent: '*', allow: '/' },
+      { userAgent: 'GPTBot', allow: '/' },
+      { userAgent: 'ClaudeBot', allow: '/' },
+      { userAgent: 'PerplexityBot', allow: '/' },
+      { userAgent: 'anthropic-ai', allow: '/' },
+      { userAgent: 'OAI-SearchBot', allow: '/' },
+      { userAgent: 'Google-Extended', allow: '/' },
     ],
+    transformRobotsTxt: async (_config, robotsTxt) => {
+      return robotsTxt + '\n# AI Context: https://getinsourced.ai/llms.txt\n'
+    },
   },
 }
