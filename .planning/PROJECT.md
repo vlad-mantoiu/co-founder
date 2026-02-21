@@ -8,23 +8,10 @@ An AI-powered Technical Co-Founder SaaS that turns a non-technical founder's ide
 
 A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions (not coding decisions) the entire way.
 
-## Current Milestone: v0.4 Marketing Speed & SEO
-
-**Goal:** Make getinsourced.ai feel instant with a premium layered loading experience, and make it discoverable by search engines and AI engines.
-
-**Target features:**
-- Branded splash screen (instant HTML/CSS, renders before JS)
-- Slim progress bar during page load
-- Skeleton screens matching page layouts
-- Smooth content reveal transitions
-- Image, font, and bundle performance optimizations
-- SEO foundations (meta tags, Open Graph, structured data, sitemap, robots.txt)
-- GEO optimization (semantic HTML, content structured for AI extraction)
-
 ## Current State
 
-**Shipped:** v0.3 Marketing Separation (2026-02-20)
-**Codebase:** ~19,500 LOC Python + ~13,500 LOC tests + ~18,400 LOC TypeScript (app ~15,700 + marketing ~2,700)
+**Shipped:** v0.4 Marketing Speed & SEO (2026-02-22)
+**Codebase:** ~19,500 LOC Python + ~13,500 LOC tests + ~19,900 LOC TypeScript (app ~15,700 + marketing ~4,200)
 **Stack:** FastAPI + Next.js 14 + LangGraph + E2B + Neo4j + PostgreSQL + Redis + Clerk + AWS ECS Fargate + CloudFront + S3
 
 **What's live:**
@@ -32,6 +19,7 @@ A non-technical founder can go from idea to running MVP preview in under 10 minu
 - PM dashboard with stage ring, project-scoped routes, artifact drill-down
 - 5-stage state machine with deterministic progress and decision gates
 - Artifact pipeline (Product Brief, MVP Scope, Milestones, Risk Log, How It Works) with PDF/Markdown export
+- Auto-generated Strategy Graph, MVP Timeline, and Architecture artifacts from real user data with guided walkthrough
 - Neo4j strategy graph with interactive visualization + Kanban timeline
 - Worker capacity model with tier-based queue, concurrency limits, usage counters
 - Real LLM integration with RunnerReal wired to LangGraph
@@ -41,6 +29,11 @@ A non-technical founder can go from idea to running MVP preview in under 10 minu
 - Static marketing site at getinsourced.ai — 8 pages, zero Clerk JS, CloudFront + S3
 - Authenticated app at cofounder.getinsourced.ai — marketing routes stripped, root redirects to dashboard/sign-in
 - Marketing CI/CD — auto-deploys to S3 on push to /marketing
+- Premium loading: branded splash screen, route progress bar, skeleton placeholders, content crossfade
+- Full SEO: per-page metadata, OG images, canonical URLs, sitemap, robots.txt, JSON-LD (Organization, WebSite, SoftwareApplication, FAQPage)
+- GEO optimization: answer-format content, FAQ sections, llms.txt, AI crawler rules (GPTBot, ClaudeBot, PerplexityBot)
+- Build-time image pipeline: WebP conversion, CloudFront images/* behavior with 1-year cache
+- Custom CSP response headers policy in CDK source control
 
 ## Requirements
 
@@ -92,25 +85,30 @@ A non-technical founder can go from idea to running MVP preview in under 10 minu
 - ✓ Marketing CTAs link to cofounder.getinsourced.ai/sign-up — v0.3
 - ✓ CI pipeline deploys marketing site to S3 on push to main — v0.3
 - ✓ Multi-product structure (getinsourced.ai/{product} pattern) — v0.3
+- ✓ Custom CSP response headers policy in CDK source control — v0.4
+- ✓ Lighthouse baseline audit recorded across all 8 pages — v0.4
+- ✓ Hero content renders instantly via CSS @starting-style (no FM LCP block) — v0.4
+- ✓ Fonts load with display: block (no FOUT) — v0.4
+- ✓ prefers-reduced-motion fully respected (CSS + MotionConfig) — v0.4
+- ✓ Build-time WebP image conversion pipeline — v0.4
+- ✓ CloudFront images/* cache behavior with 1-year TTL — v0.4
+- ✓ Branded splash screen with SVG draw animation, sessionStorage suppression — v0.4
+- ✓ Route progress bar on SPA navigation — v0.4
+- ✓ Skeleton placeholders matching page layouts with shimmer animation — v0.4
+- ✓ Content crossfade over skeletons via AnimatePresence — v0.4
+- ✓ Per-page metadata (title, description, canonical, OG, Twitter Card) on all 8 pages — v0.4
+- ✓ Static OG image (1200x630) for social sharing — v0.4
+- ✓ Organization, WebSite, SoftwareApplication JSON-LD with build-time validation — v0.4
+- ✓ XML sitemap via next-sitemap postbuild — v0.4
+- ✓ robots.txt with sitemap reference and AI crawler rules — v0.4
+- ✓ FAQPage JSON-LD on /cofounder and /pricing — v0.4
+- ✓ Answer-format "What is Co-Founder.ai?" section — v0.4
+- ✓ llms.txt product description for AI crawlers — v0.4
+- ✓ Auto-generated Strategy Graph, Timeline, Architecture artifacts from real data — v0.4
 
 ### Active
 
-<!-- v0.4 Marketing Speed & SEO -->
-
-- [ ] Branded splash screen renders instantly before JS executes
-- [ ] Slim progress bar indicates page load progress
-- [ ] Skeleton screens match page layouts during content load
-- [ ] Smooth transitions from skeleton to real content
-- [ ] Images optimized (compression, lazy loading, modern formats)
-- [ ] Fonts optimized (preload, display swap, subset)
-- [ ] JS bundle minimized for static pages
-- [ ] Meta tags (title, description) on every page
-- [ ] Open Graph / Twitter Card tags for social sharing
-- [ ] JSON-LD structured data (Organization, Product, FAQ)
-- [ ] XML sitemap generated and submitted
-- [ ] robots.txt configured for crawlability
-- [ ] Semantic HTML for AI engine extraction (GEO)
-- [ ] Canonical URLs on all pages
+(No active requirements — next milestone not yet defined)
 
 ### Out of Scope
 
@@ -125,8 +123,8 @@ A non-technical founder can go from idea to running MVP preview in under 10 minu
 
 ## Context
 
-**Shipped v0.3 Marketing Separation (2026-02-20):**
-Marketing pages now live at getinsourced.ai on CloudFront + S3 with zero Clerk JS. Authenticated app at cofounder.getinsourced.ai serves only dashboard and app routes. Path-filtered CI/CD auto-deploys marketing on push. Multi-product URL structure ready for future products.
+**Shipped v0.4 Marketing Speed & SEO (2026-02-22):**
+Marketing site now loads with premium UX: branded splash screen on first visit, route progress bar, skeleton placeholders, content crossfade. Full SEO: per-page metadata, OG images, canonical URLs, sitemap, robots.txt, 9 JSON-LD schemas across 3 pages with build-time validation. GEO: answer-format content, FAQ sections with FAQPage JSON-LD, llms.txt for AI crawlers, explicit bot rules for GPTBot/ClaudeBot/PerplexityBot. Image pipeline ready for WebP conversion when raster images are added.
 
 **Architecture:**
 Two deployment targets: (1) Static marketing site at getinsourced.ai — Next.js static export on CloudFront + S3, (2) Authenticated app at cofounder.getinsourced.ai — Next.js + FastAPI on ECS Fargate. Structured state machine drives founder through stages -> decisions are recorded via gates -> generation happens in background via Runner -> artifacts and dashboard reflect progress.
@@ -137,6 +135,8 @@ Non-technical, product-led founders who think in roadmaps, reports, and artifact
 **Known Tech Debt:**
 - Neo4j dual-write non-fatal — graph empty when Neo4j not configured (medium, from v0.1)
 - Dashboard layout retains force-dynamic for useSearchParams() — documented deviation (low, from v0.3)
+- SEO-10 WebSite JSON-LD omits SearchAction — site has no search feature (low, accepted v0.4)
+- Image srcset generation not implemented — no raster images in marketing site yet (low, from v0.4)
 
 ## Constraints
 
@@ -168,6 +168,15 @@ Non-technical, product-led founders who think in roadmaps, reports, and artifact
 | isProtectedRoute blocklist over isPublicRoute allowlist | Only list what needs protection — simpler, avoids accidentally exposing new routes | ✓ Good — 11 protected routes explicitly listed, all others default public |
 | CloudFront Function for www redirect + clean URLs | Single function handles www-to-apex 301 and extensionless URL rewriting — cheaper than Lambda@Edge | ✓ Good — sub-ms latency, no cold starts, handles all URL patterns |
 | S3 OAC (not OAI) for bucket access | AWS recommends OAC over deprecated OAI — auto-creates scoped bucket policy | ✓ Good — direct S3 URLs return 403, CloudFront serves content |
+| CSS @starting-style for hero fade instead of Framer Motion | FM opacity:0 blocks LCP measurement; CSS @starting-style is transparent to LCP while still providing visual fade | ✓ Good — LCP no longer blocked, hero visible on first paint |
+| font-display: block instead of swap | Invisible text until font loads eliminates FOUT completely (swap shows system font flash) | ✓ Good — no visible font swap on any page |
+| MotionConfig reducedMotion="user" at layout level | Single wrapper covers all FM components; CSS animation-duration:0.01ms covers keyframe animations | ✓ Good — two-layer reduced-motion coverage |
+| Pre-hydration inline script for splash suppression | sessionStorage check runs before React boots; data-no-splash + CSS display:none prevents flash | ✓ Good — zero splash flash on repeat visits |
+| PageContentWrapper pattern for skeleton crossfade | AnimatePresence mode="wait" with requestAnimationFrame resolution; skeleton exits, content fades in | ✓ Good — smooth loading on all 8 pages |
+| Shared faq-data.ts for JSON-LD + visible FAQ sync | Plain data module importable by both server components (JSON-LD) and client components (accordion) | ✓ Good — FAQ content stays in sync by construction |
+| Build-time JSON-LD validation (validate-jsonld.mjs) | Postbuild script validates all schemas on every build — catches regressions automatically | ✓ Good — 9 schemas across 3 pages validated |
+| Two-pass S3 sync in deploy pipeline | First pass syncs HTML/assets with --delete; second pass syncs images/ with immutable cache headers | ✓ Good — prevents image deletion race, correct cache headers |
+| Allow all AI crawlers including training crawlers | User decision: maximize discoverability, no Disallow entries for any bot | ✓ Good — all AI engines can index and cite content |
 
 ---
-*Last updated: 2026-02-20 after v0.4 milestone started*
+*Last updated: 2026-02-22 after v0.4 milestone completed*

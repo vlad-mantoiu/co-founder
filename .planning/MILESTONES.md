@@ -73,3 +73,13 @@
 
 ---
 
+
+## v0.4 Marketing Speed & SEO (Shipped: 2026-02-21)
+
+**Phases completed:** 12 phases, 41 plans, 7 tasks
+
+**Key accomplishments:**
+- (none recorded)
+
+---
+
