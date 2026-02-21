@@ -168,7 +168,10 @@ Plans:
   2. The /cofounder page contains a visible "What is Co-Founder.ai?" section written in direct answer format
   3. https://getinsourced.ai/llms.txt is accessible and describes the product in Markdown
   4. robots.txt explicitly allows GPTBot, ClaudeBot, and PerplexityBot while disabling AI training crawlers
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 27-01-PLAN.md — /cofounder answer-format section + FAQ accordion + FAQPage JSON-LD
+- [ ] 27-02-PLAN.md — /pricing FAQ update + JSON-LD, llms.txt, robots.txt AI crawler rules, build validation
 
 ## Progress
 
@@ -202,8 +205,8 @@ Plans:
 | 24. SEO Infrastructure | 3/3 | Complete    | 2026-02-21 | - |
 | 25. Loading UX | 2/2 | Complete    | 2026-02-21 | - |
 | 26. Image Pipeline | 2/2 | Complete    | 2026-02-21 | - |
-| 27. GEO + Content | v0.4 | 0/TBD | Not started | - |
+| 27. GEO + Content | v0.4 | 0/2 | Not started | - |
 
 ---
 *Created: 2026-02-16*
-*Updated: 2026-02-21 — Phase 23 complete, verified*
+*Updated: 2026-02-22 — Phase 27 planned (2 plans)*
