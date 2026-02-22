@@ -5,6 +5,7 @@ import time
 import uuid
 
 import structlog
+from sqlalchemy import select
 
 from app.agent.runner import Runner
 from app.db.redis import get_redis
@@ -113,13 +114,34 @@ async def process_next_job(runner: Runner | None = None, redis=None) -> bool:
             )
         await state_machine.transition(job_id, JobStatus.READY, ready_message)
 
+        # Auto-pause sandbox to stop idle billing (Phase 32 SBOX-04)
+        paused_ok = False
+        if build_result:
+            sandbox_runtime = build_result.pop("_sandbox_runtime", None)
+            if sandbox_runtime:
+                await sandbox_runtime.beta_pause()
+                # beta_pause() handles errors internally (logs warning) — reaching here means success
+                paused_ok = True
+                await _mark_sandbox_paused(job_id, paused=True)
+                await state_machine.redis.hset(f"job:{job_id}", mapping={
+                    "sandbox_paused": "true",
+                    "sandbox_id": build_result.get("sandbox_id", ""),
+                    "workspace_path": build_result.get("workspace_path", ""),
+                    "preview_url": build_result.get("preview_url", ""),
+                })
+                logger.info("sandbox_auto_paused", job_id=job_id,
+                            sandbox_id=build_result.get("sandbox_id"))
+
         # Record duration for wait time estimation
         duration = time.time() - start_time
         estimator = WaitTimeEstimator(redis)
         await estimator.record_completion(tier, duration)
 
         # Persist to Postgres (terminal state)
-        await _persist_job_to_postgres(job_id, job_data, JobStatus.READY, duration, build_result=build_result)
+        await _persist_job_to_postgres(
+            job_id, job_data, JobStatus.READY, duration,
+            build_result=build_result, sandbox_paused=paused_ok,
+        )
         # Archive logs to S3 after successful Postgres persistence (non-fatal)
         await _archive_logs_to_s3(job_id, redis)
 
@@ -157,6 +179,32 @@ async def process_next_job(runner: Runner | None = None, redis=None) -> bool:
         await project_sem.release(job_id)
 
     return True
+
+
+async def _mark_sandbox_paused(job_id: str, paused: bool) -> None:
+    """Update jobs.sandbox_paused in Postgres.
+
+    Non-fatal: any failure is logged as a warning and returns without raising.
+
+    Args:
+        job_id: Unique job identifier
+        paused: Value to set sandbox_paused to
+    """
+    from app.db.base import get_session_factory
+    from app.db.models.job import Job
+
+    try:
+        factory = get_session_factory()
+        async with factory() as session:
+            result = await session.execute(
+                select(Job).where(Job.id == uuid.UUID(job_id))
+            )
+            job = result.scalar_one_or_none()
+            if job:
+                job.sandbox_paused = paused
+                await session.commit()
+    except Exception as exc:
+        logger.warning("mark_sandbox_paused_failed", job_id=job_id, error=str(exc))
 
 
 async def _archive_logs_to_s3(job_id: str, redis) -> None:
@@ -226,6 +274,7 @@ async def _persist_job_to_postgres(
     error_message: str | None = None,
     debug_id: str | None = None,
     build_result: dict | None = None,
+    sandbox_paused: bool = False,
 ) -> None:
     """Write job record to Postgres for audit trail (terminal states only).
 
@@ -237,6 +286,7 @@ async def _persist_job_to_postgres(
         error_message: Error details for failed jobs
         debug_id: Debug identifier for failed jobs
         build_result: Dict with sandbox_id, preview_url, build_version, workspace_path
+        sandbox_paused: True if sandbox was successfully paused via beta_pause()
     """
     from app.db.base import get_session_factory
     from app.db.models.job import Job
@@ -259,6 +309,7 @@ async def _persist_job_to_postgres(
                 preview_url=build_result.get("preview_url") if build_result else None,
                 build_version=build_result.get("build_version") if build_result else None,
                 workspace_path=build_result.get("workspace_path") if build_result else None,
+                sandbox_paused=sandbox_paused,
             )
             session.add(job)
             await session.commit()

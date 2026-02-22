@@ -177,6 +177,7 @@ class GenerationService:
                 "preview_url": preview_url,
                 "build_version": build_version,
                 "workspace_path": workspace_path,
+                "_sandbox_runtime": sandbox,  # Worker consumes this to call beta_pause() — popped before DB persist
             }
 
         except Exception as exc:
@@ -404,6 +405,7 @@ class GenerationService:
                 "preview_url": preview_url,
                 "build_version": build_version,
                 "workspace_path": workspace_path,
+                "_sandbox_runtime": sandbox,  # Worker consumes this to call beta_pause() — popped before DB persist
             }
 
         except Exception as exc:

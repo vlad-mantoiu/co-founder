@@ -72,6 +72,7 @@ class GenerationStatusResponse(BaseModel):
     error_message: str | None = None
     debug_id: str | None = None
     sandbox_expires_at: str | None = None
+    sandbox_paused: bool = False
 
 
 class CancelGenerationResponse(BaseModel):
@@ -252,6 +253,8 @@ async def get_generation_status(
     build_version = job_data.get("build_version")
     error_message = job_data.get("error_message")
     debug_id = job_data.get("debug_id")
+    # Redis stores boolean as string — convert to bool
+    sandbox_paused = job_data.get("sandbox_paused", "false") == "true"
 
     # Compute sandbox expiry: updated_at + 3600s when status is ready
     sandbox_expires_at: str | None = None
@@ -274,6 +277,7 @@ async def get_generation_status(
         error_message=error_message,
         debug_id=debug_id,
         sandbox_expires_at=sandbox_expires_at,
+        sandbox_paused=sandbox_paused,
     )
 
 
