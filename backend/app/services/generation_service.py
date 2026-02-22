@@ -104,6 +104,14 @@ class GenerationService:
             await streamer.write_event("--- Running LLM code generation ---")
             final_state = await self.runner.run(agent_state)
 
+            # Emit auto-fix signal to log stream if debugger retried
+            retry_count = final_state.get("retry_count", 0)
+            max_retries = final_state.get("max_retries", 5)
+            if retry_count > 0:
+                await streamer.write_event(
+                    f"--- Auto-fixing (attempt {retry_count} of {max_retries}) ---"
+                )
+
             # 4. DEPS — create E2B sandbox, write generated files
             await state_machine.transition(
                 job_id, JobStatus.DEPS, "Provisioning E2B sandbox and installing dependencies"
@@ -293,6 +301,14 @@ class GenerationService:
             agent_state["change_request"] = change_request
 
             final_state = await self.runner.run(agent_state)
+
+            # Emit auto-fix signal to log stream if debugger retried
+            retry_count = final_state.get("retry_count", 0)
+            max_retries = final_state.get("max_retries", 5)
+            if retry_count > 0:
+                await streamer.write_event(
+                    f"--- Auto-fixing (attempt {retry_count} of {max_retries}) ---"
+                )
 
             # 4. DEPS — write changed files to sandbox (patch mode for reconnected, full for fresh)
             await state_machine.transition(
