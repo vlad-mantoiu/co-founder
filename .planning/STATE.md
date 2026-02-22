@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-22)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** v0.5 Sandbox Integration — Phase 28 complete (Plans 01-02 complete)
+**Current focus:** v0.5 Sandbox Integration — Phase 29 in progress (Plan 02 of 03 complete)
 
 ## Current Position
 
-Phase: 28 of 32 (Sandbox Runtime Fixes)
-Plan: 02 complete (28-02: Dev server launch with framework detection)
-Status: Phase 28 complete
-Last activity: 2026-02-22 — Phase 28 Plan 02 executed
+Phase: 29 of 32 (Build Log Streaming)
+Plan: 02 complete (29-02: SSE streaming and REST log pagination endpoints)
+Status: Phase 29 in progress
+Last activity: 2026-02-22 — Phase 29 Plan 02 executed
 
 Progress: [██░░░░░░░░░░░░░░░░░░░░░░░░░░░░] 4% (v0.5: Phase 28 in progress, 1/N plans complete)
 
@@ -30,6 +30,7 @@ Progress: [██░░░░░░░░░░░░░░░░░░░░░
 | v0.2 Production Ready | 5 | 20 | 2 days (2026-02-18 to 2026-02-19) |
 | v0.3 Marketing Separation | 4 | 9 | 2 days (2026-02-19 to 2026-02-20) |
 | v0.4 Marketing Speed & SEO | 7 | 21 | 3 days (2026-02-20 to 2026-02-22) |
+| v0.5 Sandbox Integration | 5 phases (28-32) | in progress | 2026-02-22 |
 
 ## Accumulated Context
 
@@ -54,6 +55,11 @@ Key v0.5 decisions (from research):
 - Framework detection priority: Next.js > Vite > CRA > Express/Hono > scripts.dev > scripts.start > fallback
 - preview_url now comes from start_dev_server (verified live URL) not unpolled get_host() + manual f-string
 
+**29-02 decisions (executed 2026-02-22):**
+- Exclusive before_id bound (xrevrange max='(before_id') prevents ID duplication across pagination pages
+- 9 tests: REST pagination (5) + SSE auth/ownership gates (3) — full SSE generator deferred to integration
+- live-only SSE with last_id='$' per locked research decision — no full replay on connect
+
 ### Pending Todos
 
 - [ ] Verify workflow_run gate: push a commit with a failing test and confirm deploy.yml does NOT trigger
@@ -68,9 +74,9 @@ Key v0.5 decisions (from research):
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed 28-02-PLAN.md — Dev server launch with framework detection, httpx readiness polling, 15 tests passing. Phase 28 complete.
-Resume file: .planning/phases/28-sandbox-runtime-fixes/28-02-SUMMARY.md
-Resume: Continue with Phase 29 (next phase in v0.5 Sandbox Integration).
+Stopped at: Completed 29-02-PLAN.md — SSE streaming and REST log pagination endpoints, 9 tests passing. Phase 29 Plan 02 complete.
+Resume file: .planning/phases/29-build-log-streaming/29-02-SUMMARY.md
+Resume: Continue with Phase 29 Plan 03 (frontend SSE consumer component).
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
