@@ -18,7 +18,7 @@ class FeaturesResponse(BaseModel):
     features: dict[str, bool]
 
 
-@router.get("/", response_model=FeaturesResponse)
+@router.get("", response_model=FeaturesResponse)
 async def get_features(user: ClerkUser = Depends(require_auth)) -> FeaturesResponse:
     """Get enabled feature flags for the authenticated user.
 

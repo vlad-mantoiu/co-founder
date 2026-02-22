@@ -98,7 +98,7 @@ async def _compute_project_flags(session, project_id: str) -> dict:
     }
 
 
-@router.post("/", response_model=ProjectResponse)
+@router.post("", response_model=ProjectResponse)
 async def create_project(request: ProjectCreate, user: ClerkUser = Depends(require_subscription)):
     """Create a new project, respecting plan limits."""
     factory = get_session_factory()
@@ -151,7 +151,7 @@ async def create_project(request: ProjectCreate, user: ClerkUser = Depends(requi
         )
 
 
-@router.get("/", response_model=list[ProjectResponse])
+@router.get("", response_model=list[ProjectResponse])
 async def list_projects(user: ClerkUser = Depends(require_auth)):
     """List all projects for the current user."""
     factory = get_session_factory()
