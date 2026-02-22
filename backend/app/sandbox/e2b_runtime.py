@@ -11,6 +11,7 @@ import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
+import httpx
 from e2b_code_interpreter import AsyncSandbox
 
 from app.core.config import get_settings
@@ -333,6 +334,136 @@ class E2BSandboxRuntime:
             pass  # Best effort
         finally:
             del self._background_processes[pid]
+
+    @staticmethod
+    def _detect_framework(package_json_content: str) -> tuple[str, int]:
+        """Detect framework from package.json and return (start_command, port).
+
+        Detection priority:
+        1. Next.js (deps: "next") → "npm run dev", 3000
+        2. Vite (deps: "vite") → "npm run dev", 5173
+        3. Create React App (deps: "react-scripts") → "npm start", 3000
+        4. Express/Hono (deps: "express" or "@hono/node-server") → "npm start", 3000
+        5. Fallback: check scripts.dev → "npm run dev", 3000
+        6. Last resort: "npm run dev", 3000
+        """
+        import json
+
+        try:
+            pkg = json.loads(package_json_content)
+        except (json.JSONDecodeError, TypeError):
+            return ("npm run dev", 3000)
+
+        deps = {**pkg.get("dependencies", {}), **pkg.get("devDependencies", {})}
+        scripts = pkg.get("scripts", {})
+
+        if "next" in deps:
+            return ("npm run dev", 3000)
+        if "vite" in deps:
+            return ("npm run dev", 5173)
+        if "react-scripts" in deps:
+            return ("npm start", 3000)
+        if "express" in deps or "@hono/node-server" in deps:
+            return ("npm start", 3000)
+
+        if "dev" in scripts:
+            return ("npm run dev", 3000)
+        if "start" in scripts:
+            return ("npm start", 3000)
+
+        return ("npm run dev", 3000)
+
+    async def _wait_for_dev_server(self, url: str, timeout: int = 120, interval: float = 3.0) -> None:
+        """Poll URL with httpx until a non-5xx response or timeout.
+
+        Args:
+            url: Full HTTPS preview URL to poll
+            timeout: Max seconds to wait (default: 120)
+            interval: Seconds between poll attempts (default: 3.0)
+
+        Raises:
+            SandboxError: If server doesn't respond within timeout
+        """
+        import asyncio
+
+        deadline = asyncio.get_event_loop().time() + timeout
+        async with httpx.AsyncClient(verify=False, timeout=10.0) as client:
+            while asyncio.get_event_loop().time() < deadline:
+                try:
+                    resp = await client.get(url, follow_redirects=True)
+                    if resp.status_code < 500:
+                        return  # Server is up
+                except (httpx.ConnectError, httpx.TimeoutException, httpx.RemoteProtocolError):
+                    pass  # Server not ready yet
+                await asyncio.sleep(interval)
+
+        raise SandboxError(f"Dev server did not become ready within {timeout}s at {url}")
+
+    async def start_dev_server(self, workspace_path: str, working_files: dict | None = None) -> str:
+        """Detect framework, start dev server, wait for readiness, return preview_url.
+
+        Args:
+            workspace_path: Absolute path to project root in sandbox (e.g., /home/user/project)
+            working_files: Dict of file paths to FileChange dicts. Used to read package.json
+                           for framework detection without a sandbox filesystem read.
+
+        Returns:
+            HTTPS preview URL that is confirmed live (non-5xx response)
+
+        Raises:
+            SandboxError: If sandbox not started, or server fails to become ready
+        """
+        if not self._sandbox:
+            raise SandboxError("Sandbox not started")
+
+        # Detect framework from package.json
+        package_json_content = None
+        if working_files:
+            # Try to find package.json in working_files (may be at root or workspace-relative path)
+            for key in ["package.json", f"{workspace_path}/package.json", "/home/user/project/package.json"]:
+                fc = working_files.get(key)
+                if fc:
+                    package_json_content = fc.get("new_content", "") if isinstance(fc, dict) else str(fc)
+                    break
+
+        if package_json_content is None:
+            # Read from sandbox filesystem as fallback
+            try:
+                package_json_content = await self.read_file(f"{workspace_path}/package.json")
+            except SandboxError:
+                package_json_content = ""
+
+        start_cmd, port = self._detect_framework(package_json_content)
+
+        # Install dependencies first
+        install_result = await self.run_command("npm install", timeout=300, cwd=workspace_path)
+        if install_result.get("exit_code", 1) != 0:
+            stderr = install_result.get("stderr", "")
+            # Retry once on network errors
+            if any(keyword in stderr.lower() for keyword in ["econnreset", "network", "etimedout"]):
+                import asyncio
+                await asyncio.sleep(10)
+                install_result = await self.run_command("npm install", timeout=300, cwd=workspace_path)
+                if install_result.get("exit_code", 1) != 0:
+                    raise SandboxError(
+                        f"npm install failed after retry: {install_result.get('stderr', '')[:500]}"
+                    )
+            else:
+                raise SandboxError(
+                    f"npm install failed: {install_result.get('stderr', '')[:500]}"
+                )
+
+        # Start dev server in background
+        await self.run_background(start_cmd, cwd=workspace_path)
+
+        # Build preview URL
+        host = self.get_host(port)
+        preview_url = f"https://{host}"
+
+        # Poll until server responds
+        await self._wait_for_dev_server(preview_url, timeout=120)
+
+        return preview_url
 
     async def install_packages(self, packages: list[str], manager: str = "pip") -> dict:
         """Install packages in the sandbox.
