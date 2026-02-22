@@ -74,7 +74,7 @@
 
 **Milestone Goal:** Make the core product promise real — a founder's idea goes through the LLM pipeline and results in a running full-stack app they can see and interact with in their dashboard.
 
-- [ ] **Phase 28: Sandbox Runtime Fixes** — AsyncSandbox migration, dev server launch, FileChange bug fix
+- [x] **Phase 28: Sandbox Runtime Fixes** — AsyncSandbox migration, dev server launch, FileChange bug fix (completed 2026-02-22)
 - [ ] **Phase 29: Build Log Streaming** — Redis Streams buffer + SSE endpoint for backend log delivery
 - [ ] **Phase 30: Frontend Build UX** — Log panel, build progress stages, auto-retry visibility
 - [ ] **Phase 31: Preview Iframe** — Embedded iframe, CSP update, sandbox expiry handling, new-tab fallback
@@ -91,7 +91,7 @@
   2. Generated files appear in the sandbox filesystem — `npm run build` operates on the correct file content, not empty stubs
   3. `npm run dev` starts inside the sandbox and a valid HTTPS preview URL is returned in the job status response
   4. The preview URL is live (HTTP 200) when the job reaches READY state — not dead due to port 8080 or server not started
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 - [ ] 28-01-PLAN.md — AsyncSandbox migration + FileChange key fix (SBOX-01, SBOX-03)
 - [ ] 28-02-PLAN.md — Dev server launch with framework detection + readiness polling (SBOX-02)
 
@@ -171,7 +171,7 @@
 | 25. Loading UX | v0.4 | 2/2 | Complete | 2026-02-21 |
 | 26. Image Pipeline | v0.4 | 2/2 | Complete | 2026-02-21 |
 | 27. GEO + Content | v0.4 | 2/2 | Complete | 2026-02-22 |
-| 28. Sandbox Runtime Fixes | 1/2 | In Progress|  | - |
+| 28. Sandbox Runtime Fixes | 2/2 | Complete   | 2026-02-22 | - |
 | 29. Build Log Streaming | v0.5 | 0/TBD | Not started | - |
 | 30. Frontend Build UX | v0.5 | 0/TBD | Not started | - |
 | 31. Preview Iframe | v0.5 | 0/TBD | Not started | - |

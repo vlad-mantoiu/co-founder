@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-22)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** v0.5 Sandbox Integration — Phase 28 in progress (Plan 01 complete)
+**Current focus:** v0.5 Sandbox Integration — Phase 28 complete (Plans 01-02 complete)
 
 ## Current Position
 
 Phase: 28 of 32 (Sandbox Runtime Fixes)
-Plan: 01 complete (28-01: AsyncSandbox migration + FileChange key fix)
-Status: In progress
-Last activity: 2026-02-22 — Phase 28 Plan 01 executed
+Plan: 02 complete (28-02: Dev server launch with framework detection)
+Status: Phase 28 complete
+Last activity: 2026-02-22 — Phase 28 Plan 02 executed
 
 Progress: [██░░░░░░░░░░░░░░░░░░░░░░░░░░░░] 4% (v0.5: Phase 28 in progress, 1/N plans complete)
 
@@ -48,6 +48,12 @@ Key v0.5 decisions (from research):
 - Port corrected from 8080 to 3000 — Next.js dev server default
 - asyncio import removed entirely — no longer needed after run_in_executor elimination
 
+**28-02 decisions (executed 2026-02-22):**
+- httpx.AsyncClient used for readiness polling — verify=False for E2B self-signed certs
+- npm install runs before dev server start with 300s timeout and single network-error retry
+- Framework detection priority: Next.js > Vite > CRA > Express/Hono > scripts.dev > scripts.start > fallback
+- preview_url now comes from start_dev_server (verified live URL) not unpolled get_host() + manual f-string
+
 ### Pending Todos
 
 - [ ] Verify workflow_run gate: push a commit with a failing test and confirm deploy.yml does NOT trigger
@@ -62,9 +68,9 @@ Key v0.5 decisions (from research):
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed 28-01-PLAN.md — AsyncSandbox migration, FileChange key fix, beta_pause() added, all 8 tests passing.
-Resume file: .planning/phases/28-sandbox-runtime-fixes/28-01-SUMMARY.md
-Resume: Continue with next plan in Phase 28 (Sandbox Runtime Fixes).
+Stopped at: Completed 28-02-PLAN.md — Dev server launch with framework detection, httpx readiness polling, 15 tests passing. Phase 28 complete.
+Resume file: .planning/phases/28-sandbox-runtime-fixes/28-02-SUMMARY.md
+Resume: Continue with Phase 29 (next phase in v0.5 Sandbox Integration).
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
