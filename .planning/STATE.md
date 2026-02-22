@@ -31,6 +31,7 @@ Progress: [███████████████████████
 | v0.3 Marketing Separation | 4 | 9 | 2 days (2026-02-19 to 2026-02-20) |
 | v0.4 Marketing Speed & SEO | 7 | 21 | 3 days (2026-02-20 to 2026-02-22) |
 | v0.5 Sandbox Integration | 5 phases (28-32) | 14 plans | 2026-02-22 |
+| Phase 32-sandbox-snapshot-lifecycle P02 | 4 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -63,7 +64,35 @@ Key v0.5 decisions (from research):
 **29-02 decisions (executed 2026-02-22):**
 - Exclusive before_id bound (xrevrange max='(before_id') prevents ID duplication across pagination pages
 - 9 tests: REST pagination (5) + SSE auth/ownership gates (3) — full SSE generator deferred to integration
-- live-only SSE with last_id='$' per locked research decision — no full replay on connect
+- live-only SSE with last_id='
+- [Phase 32-02]: snapshot endpoint catches all exceptions from connect/beta_pause — sandbox may have expired after READY; idempotency covers this case
+- [Phase 32-02]: 503 with structured detail dict {message, error_type} for resume failure — frontend distinguishes sandbox_expired (rebuild) from sandbox_unreachable (retry)
+
+### Pending Todos
+
+- [ ] Verify workflow_run gate: push a commit with a failing test and confirm deploy.yml does NOT trigger
+- [ ] Verify path filtering: push a backend-only change and confirm deploy-frontend job is skipped
+- [ ] Google Search Console: confirm access for sitemap submission
+
+### Blockers/Concerns
+
+None — Phase 32 complete.
+
+## Session Continuity
+
+Last session: 2026-02-22
+Stopped at: Completed Phase 32 Plan 03 (frontend paused sandbox UX — PausedView/ResumingView/ResumeFailedView, handleResume, sandboxPaused prop chain). Phase 32 COMPLETE.
+Resume file: .planning/phases/32-sandbox-snapshot-lifecycle/32-03-SUMMARY.md
+Resume: v0.5 Sandbox Integration complete. All 5 phases (28-32) shipped.
+
+---
+*v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
+*v0.2 COMPLETE — 5 phases (13-17), 43 requirements (2026-02-19)*
+*v0.3 COMPLETE — 4 phases (18-21), 16 requirements (2026-02-20)*
+*v0.4 COMPLETE — 7 phases (22-27), 29 requirements (2026-02-22)*
+*v0.5 COMPLETE — 5 phases (28-32), 14 plans, SBOX-01 through SBOX-04 satisfied (2026-02-22)*
+*Phase 32 COMPLETE — 3 plans (32-01, 32-02, 32-03), SBOX-04 satisfied (2026-02-22)*
+ per locked research decision — no full replay on connect
 
 **29-03 decisions (executed 2026-02-22):**
 - _NullStreamer fallback used when Redis unavailable in tests — avoids breaking existing unit tests while keeping LogStreamer wiring in production
@@ -119,6 +148,7 @@ Key v0.5 decisions (from research):
 - activePreviewUrl state in usePreviewPane — tracks current URL separately so resume returns new sandbox URL and iframe auto-reloads
 - 2-attempt retry with 5s delay in handleResume — one transient failure shouldn't surface error to user
 - Rebuild confirmation uses window.confirm — "This will use 1 build credit. Continue?" without new modal component
+- [Phase 32-02]: Module-level imports for resume_sandbox and E2BSandboxRuntime in generation.py — lazy imports inside endpoint body prevent patch() from finding attributes at test time
 
 ### Pending Todos
 
