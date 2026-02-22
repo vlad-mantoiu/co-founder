@@ -91,7 +91,7 @@ async def process_next_job(runner: Runner | None = None, redis=None) -> bool:
                 runner=runner,
                 sandbox_runtime_factory=lambda: E2BSandboxRuntime(),
             )
-            build_result = await generation_service.execute_build(job_id, job_data, state_machine)
+            build_result = await generation_service.execute_build(job_id, job_data, state_machine, redis=redis)
         else:
             # Backwards-compatible simulated loop (no runner injected)
             await state_machine.transition(job_id, JobStatus.STARTING, "Starting job execution")
@@ -120,6 +120,8 @@ async def process_next_job(runner: Runner | None = None, redis=None) -> bool:
 
         # Persist to Postgres (terminal state)
         await _persist_job_to_postgres(job_id, job_data, JobStatus.READY, duration, build_result=build_result)
+        # Archive logs to S3 after successful Postgres persistence (non-fatal)
+        await _archive_logs_to_s3(job_id, redis)
 
     except Exception as exc:
         logger.error("job_failed", job_id=job_id, error=str(exc), error_type=type(exc).__name__, exc_info=True)
@@ -146,6 +148,8 @@ async def process_next_job(runner: Runner | None = None, redis=None) -> bool:
             error_message=error_message,
             debug_id=debug_id,
         )
+        # Archive logs to S3 after failed job persistence (non-fatal)
+        await _archive_logs_to_s3(job_id, redis)
 
     finally:
         # Release semaphores
@@ -153,6 +157,65 @@ async def process_next_job(runner: Runner | None = None, redis=None) -> bool:
         await project_sem.release(job_id)
 
     return True
+
+
+async def _archive_logs_to_s3(job_id: str, redis) -> None:
+    """Archive build logs from Redis Stream to S3 as newline-delimited JSON.
+
+    Non-fatal: any failure is logged as a warning and the function returns without raising.
+    Skips archival if log_archive_bucket is empty (opt-in via LOG_ARCHIVE_BUCKET env var).
+
+    Args:
+        job_id: Unique job identifier (stream key: job:{job_id}:logs)
+        redis: Redis client with xrange support
+    """
+    from app.core.config import get_settings
+
+    settings = get_settings()
+    bucket = settings.log_archive_bucket
+    if not bucket:
+        return  # Archival disabled (empty bucket = skip)
+
+    try:
+        import json
+
+        import boto3
+
+        stream_key = f"job:{job_id}:logs"
+        entries = await redis.xrange(stream_key)
+        if not entries:
+            return
+
+        lines = []
+        for entry_id, fields in entries:
+            lines.append(
+                json.dumps(
+                    {
+                        "id": entry_id,
+                        "ts": fields.get("ts", ""),
+                        "source": fields.get("source", ""),
+                        "text": fields.get("text", ""),
+                        "phase": fields.get("phase", ""),
+                    }
+                )
+            )
+        body = "\n".join(lines)
+
+        s3 = boto3.client("s3", region_name="us-east-1")
+        s3.put_object(
+            Bucket=bucket,
+            Key=f"build-logs/{job_id}/build.jsonl",
+            Body=body.encode("utf-8"),
+            ContentType="application/x-ndjson",
+        )
+        logger.info("build_log_archive_success", job_id=job_id, bucket=bucket, entry_count=len(lines))
+    except Exception as exc:
+        logger.warning(
+            "build_log_archive_failed",
+            job_id=job_id,
+            error=str(exc),
+            error_type=type(exc).__name__,
+        )
 
 
 async def _persist_job_to_postgres(
