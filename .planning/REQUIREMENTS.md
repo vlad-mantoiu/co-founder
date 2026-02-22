@@ -16,7 +16,7 @@ Requirements for v0.5 Sandbox Integration. Each maps to roadmap phases.
 
 ### Build Experience
 
-- [ ] **BUILD-01**: Build log streaming — Redis Streams buffer with SSE endpoint, `on_stdout`/`on_stderr` callbacks on sandbox commands
+- [x] **BUILD-01**: Build log streaming — Redis Streams buffer with SSE endpoint, `on_stdout`/`on_stderr` callbacks on sandbox commands
 - [ ] **BUILD-02**: Frontend log panel — expandable raw log panel in build UI with auto-scroll, fetch-based SSE (not EventSource)
 - [ ] **BUILD-03**: Build progress stages — high-level stage indicators (Designing → Writing code → Installing deps → Starting app → Ready)
 - [ ] **BUILD-04**: Auto-retry visibility — distinct "Auto-fixing..." UI state when Debugger agent retries, attempt counter display
@@ -61,7 +61,7 @@ Requirements for v0.5 Sandbox Integration. Each maps to roadmap phases.
 | SBOX-02 | Phase 28 | Complete |
 | SBOX-03 | Phase 28 | Complete |
 | SBOX-04 | Phase 32 | Complete |
-| BUILD-01 | Phase 29 | Pending |
+| BUILD-01 | Phase 29 | Complete |
 | BUILD-02 | Phase 30 | Pending |
 | BUILD-03 | Phase 30 | Pending |
 | BUILD-04 | Phase 30 | Pending |

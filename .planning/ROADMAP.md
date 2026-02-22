@@ -175,7 +175,7 @@
 | 26. Image Pipeline | v0.4 | 2/2 | Complete | 2026-02-21 |
 | 27. GEO + Content | v0.4 | 2/2 | Complete | 2026-02-22 |
 | 28. Sandbox Runtime Fixes | 2/2 | Complete    | 2026-02-22 | - |
-| 29. Build Log Streaming | 3/3 | Complete   | 2026-02-22 | - |
+| 29. Build Log Streaming | 3/3 | Complete    | 2026-02-22 | - |
 | 30. Frontend Build UX | v0.5 | 0/TBD | Not started | - |
 | 31. Preview Iframe | v0.5 | 0/TBD | Not started | - |
 | 32. Sandbox Snapshot Lifecycle | v0.5 | 0/TBD | Not started | - |
