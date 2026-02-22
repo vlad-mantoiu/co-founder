@@ -5,22 +5,22 @@
 See: .planning/PROJECT.md (updated 2026-02-22)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** v0.5 Sandbox Integration — Phase 31 complete, ready for Phase 32
+**Current focus:** v0.5 Sandbox Integration — Phase 32 Plan 03 complete, Phase 32 COMPLETE
 
 ## Current Position
 
-Phase: 32 of 32 (Sandbox Lifecycle) — IN PROGRESS
-Plan: 01 complete (32-01: sandbox_paused DB column, worker auto-pause, API field)
-Status: Phase 32 Plan 01 complete, Plan 02 next
-Last activity: 2026-02-22 — Phase 32 Plan 01 executed
+Phase: 32 of 32 (Sandbox Lifecycle) — COMPLETE
+Plan: 03 complete (32-03: frontend paused sandbox UX — PausedView/ResumingView/ResumeFailedView)
+Status: Phase 32 all 3 plans complete — SBOX-04 satisfied
+Last activity: 2026-02-22 — Phase 32 Plan 03 executed
 
-Progress: [████░░░░░░░░░░░░░░░░░░░░░░░░░░] 15% (v0.5: Phases 28-31 complete, Phase 32 next)
+Progress: [████████████████████████████████] 100% (v0.5: Phases 28-32 complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 92 (v0.1: 47, v0.2: 20, v0.3: 9, v0.4: 5, v0.5: 11)
-- Total phases shipped: 30 (across 4 milestones + v0.5 Phases 28-31 complete)
+- Total plans completed: 95 (v0.1: 47, v0.2: 20, v0.3: 9, v0.4: 5, v0.5: 14)
+- Total phases shipped: 32 (across 4 milestones + v0.5 Phases 28-32 complete)
 
 **By Milestone:**
 
@@ -30,7 +30,7 @@ Progress: [████░░░░░░░░░░░░░░░░░░░
 | v0.2 Production Ready | 5 | 20 | 2 days (2026-02-18 to 2026-02-19) |
 | v0.3 Marketing Separation | 4 | 9 | 2 days (2026-02-19 to 2026-02-20) |
 | v0.4 Marketing Speed & SEO | 7 | 21 | 3 days (2026-02-20 to 2026-02-22) |
-| v0.5 Sandbox Integration | 5 phases (28-32) | in progress | 2026-02-22 |
+| v0.5 Sandbox Integration | 5 phases (28-32) | 14 plans | 2026-02-22 |
 
 ## Accumulated Context
 
@@ -113,6 +113,13 @@ Key v0.5 decisions (from research):
 - paused_ok=False default — Hobby plan pause failure is non-fatal; sandbox_paused stays False rather than crashing
 - _mark_sandbox_paused is a separate function doing targeted UPDATE — cleaner than mixing into INSERT path of _persist_job_to_postgres
 
+**32-03 decisions (executed 2026-02-22):**
+- Full replacement card (no BrowserChrome) for paused/resuming/resume_failed states — consistent with blocked/expired UX per locked plan decision
+- sandboxPaused mount effect short-circuits runPreviewCheck — no unnecessary preview-check API call when sandbox is known paused
+- activePreviewUrl state in usePreviewPane — tracks current URL separately so resume returns new sandbox URL and iframe auto-reloads
+- 2-attempt retry with 5s delay in handleResume — one transient failure shouldn't surface error to user
+- Rebuild confirmation uses window.confirm — "This will use 1 build credit. Continue?" without new modal component
+
 ### Pending Todos
 
 - [ ] Verify workflow_run gate: push a commit with a failing test and confirm deploy.yml does NOT trigger
@@ -121,19 +128,19 @@ Key v0.5 decisions (from research):
 
 ### Blockers/Concerns
 
-- Phase 32 (SBOX-04): E2B `beta_pause()` is BETA. GitHub #884 multi-resume file loss still open as of Dec 2025 — confirm status at implementation time. Fallback: full rebuild from DB files.
+None — Phase 32 complete.
 
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed Phase 32 Plan 01 (sandbox_paused column, worker auto-pause after READY, API sandbox_paused field).
-Resume file: .planning/phases/32-sandbox-snapshot-lifecycle/32-01-SUMMARY.md
-Resume: Continue with Phase 32 Plan 02 (sandbox resume endpoint).
+Stopped at: Completed Phase 32 Plan 03 (frontend paused sandbox UX — PausedView/ResumingView/ResumeFailedView, handleResume, sandboxPaused prop chain). Phase 32 COMPLETE.
+Resume file: .planning/phases/32-sandbox-snapshot-lifecycle/32-03-SUMMARY.md
+Resume: v0.5 Sandbox Integration complete. All 5 phases (28-32) shipped.
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
 *v0.2 COMPLETE — 5 phases (13-17), 43 requirements (2026-02-19)*
 *v0.3 COMPLETE — 4 phases (18-21), 16 requirements (2026-02-20)*
 *v0.4 COMPLETE — 7 phases (22-27), 29 requirements (2026-02-22)*
-*v0.5 IN PROGRESS — 5 phases (28-32), 12 requirements defined*
-*Phase 31 COMPLETE — 4 plans, all requirements PREV-01 through PREV-04 satisfied (2026-02-22)*
+*v0.5 COMPLETE — 5 phases (28-32), 14 plans, SBOX-01 through SBOX-04 satisfied (2026-02-22)*
+*Phase 32 COMPLETE — 3 plans (32-01, 32-02, 32-03), SBOX-04 satisfied (2026-02-22)*
