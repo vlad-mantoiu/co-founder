@@ -64,6 +64,9 @@ class Settings(BaseSettings):
     coder_model: str = "claude-sonnet-4-20250514"
     debugger_model: str = "claude-sonnet-4-20250514"
 
+    # Build log archival
+    log_archive_bucket: str = ""
+
     # Feature flags and routing
     default_feature_flags: dict[str, bool] = {
         "deep_research": False,

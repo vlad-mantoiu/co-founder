@@ -228,6 +228,8 @@ class E2BSandboxRuntime:
         command: str,
         timeout: int = 120,
         cwd: str | None = None,
+        on_stdout=None,  # Optional[Callable[[str], Awaitable[None]]]
+        on_stderr=None,  # Optional[Callable[[str], Awaitable[None]]]
     ) -> dict:
         """Run a shell command in the sandbox.
 
@@ -235,6 +237,8 @@ class E2BSandboxRuntime:
             command: Shell command to execute
             timeout: Timeout in seconds (default 120)
             cwd: Working directory (optional, defaults to /home/user)
+            on_stdout: Optional async callback for stdout chunks (e.g. LogStreamer.on_stdout)
+            on_stderr: Optional async callback for stderr chunks (e.g. LogStreamer.on_stderr)
 
         Returns:
             Dict with keys: stdout, stderr, exit_code
@@ -252,6 +256,8 @@ class E2BSandboxRuntime:
                 command,
                 timeout=float(timeout),
                 cwd=work_dir,
+                on_stdout=on_stdout,
+                on_stderr=on_stderr,
             )
             return {
                 "stdout": result.stdout,
@@ -261,12 +267,20 @@ class E2BSandboxRuntime:
         except Exception as e:
             raise SandboxError(f"Failed to run command '{command}': {e}") from e
 
-    async def run_background(self, command: str, cwd: str | None = None) -> str:
+    async def run_background(
+        self,
+        command: str,
+        cwd: str | None = None,
+        on_stdout=None,  # Optional[Callable[[str], Awaitable[None]]]
+        on_stderr=None,  # Optional[Callable[[str], Awaitable[None]]]
+    ) -> str:
         """Run a command in the background (e.g., dev server).
 
         Args:
             command: Shell command to execute
             cwd: Working directory (optional)
+            on_stdout: Optional async callback for stdout chunks (e.g. LogStreamer.on_stdout)
+            on_stderr: Optional async callback for stderr chunks (e.g. LogStreamer.on_stderr)
 
         Returns:
             Process ID for later reference
@@ -281,7 +295,13 @@ class E2BSandboxRuntime:
                 work_dir = f"/home/user/{work_dir}"
 
             # Use commands.run with background=True to get a CommandHandle
-            handle = await self._sandbox.commands.run(command, background=True, cwd=work_dir)
+            handle = await self._sandbox.commands.run(
+                command,
+                background=True,
+                cwd=work_dir,
+                on_stdout=on_stdout,
+                on_stderr=on_stderr,
+            )
             pid = str(handle.pid)
             self._background_processes[pid] = handle
             return pid
@@ -399,13 +419,21 @@ class E2BSandboxRuntime:
 
         raise SandboxError(f"Dev server did not become ready within {timeout}s at {url}")
 
-    async def start_dev_server(self, workspace_path: str, working_files: dict | None = None) -> str:
+    async def start_dev_server(
+        self,
+        workspace_path: str,
+        working_files: dict | None = None,
+        on_stdout=None,  # Optional[Callable[[str], Awaitable[None]]]
+        on_stderr=None,  # Optional[Callable[[str], Awaitable[None]]]
+    ) -> str:
         """Detect framework, start dev server, wait for readiness, return preview_url.
 
         Args:
             workspace_path: Absolute path to project root in sandbox (e.g., /home/user/project)
             working_files: Dict of file paths to FileChange dicts. Used to read package.json
                            for framework detection without a sandbox filesystem read.
+            on_stdout: Optional async callback for stdout chunks (e.g. LogStreamer.on_stdout)
+            on_stderr: Optional async callback for stderr chunks (e.g. LogStreamer.on_stderr)
 
         Returns:
             HTTPS preview URL that is confirmed live (non-5xx response)
@@ -436,14 +464,18 @@ class E2BSandboxRuntime:
         start_cmd, port = self._detect_framework(package_json_content)
 
         # Install dependencies first
-        install_result = await self.run_command("npm install", timeout=300, cwd=workspace_path)
+        install_result = await self.run_command(
+            "npm install", timeout=300, cwd=workspace_path, on_stdout=on_stdout, on_stderr=on_stderr
+        )
         if install_result.get("exit_code", 1) != 0:
             stderr = install_result.get("stderr", "")
             # Retry once on network errors
             if any(keyword in stderr.lower() for keyword in ["econnreset", "network", "etimedout"]):
                 import asyncio
                 await asyncio.sleep(10)
-                install_result = await self.run_command("npm install", timeout=300, cwd=workspace_path)
+                install_result = await self.run_command(
+                    "npm install", timeout=300, cwd=workspace_path, on_stdout=on_stdout, on_stderr=on_stderr
+                )
                 if install_result.get("exit_code", 1) != 0:
                     raise SandboxError(
                         f"npm install failed after retry: {install_result.get('stderr', '')[:500]}"
@@ -454,7 +486,7 @@ class E2BSandboxRuntime:
                 )
 
         # Start dev server in background
-        await self.run_background(start_cmd, cwd=workspace_path)
+        await self.run_background(start_cmd, cwd=workspace_path, on_stdout=on_stdout, on_stderr=on_stderr)
 
         # Build preview URL
         host = self.get_host(port)

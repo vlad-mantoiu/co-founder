@@ -65,7 +65,13 @@ class FakeSandboxRuntime:
     async def run_background(self, cmd: str, **kwargs) -> str:
         return "fake-pid-001"
 
-    async def start_dev_server(self, workspace_path: str, working_files: dict | None = None) -> str:
+    async def start_dev_server(
+        self,
+        workspace_path: str,
+        working_files: dict | None = None,
+        on_stdout=None,
+        on_stderr=None,
+    ) -> str:
         """Fake dev server launch — returns preview URL immediately."""
         return f"https://3000-{self._sandbox_id}.e2b.app"
 

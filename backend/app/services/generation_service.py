@@ -15,10 +15,12 @@ from sqlalchemy import select
 from app.agent.runner import Runner
 from app.agent.state import create_initial_state
 from app.db.base import get_session_factory
+from app.db.redis import get_redis
 from app.metrics.cloudwatch import emit_business_event
 from app.queue.schemas import JobStatus
 from app.queue.state_machine import JobStateMachine
 from app.sandbox.e2b_runtime import E2BSandboxRuntime
+from app.services.log_streamer import LogStreamer
 
 logger = structlog.get_logger(__name__)
 
@@ -52,6 +54,7 @@ class GenerationService:
         job_id: str,
         job_data: dict,
         state_machine: JobStateMachine,
+        redis=None,
     ) -> dict:
         """Execute the full build pipeline and return sandbox build results.
 
@@ -72,13 +75,21 @@ class GenerationService:
         sandbox = None
         user_id = job_data.get("user_id", "")
         project_id = job_data.get("project_id", "")
+        try:
+            _redis = redis if redis is not None else get_redis()
+            streamer: LogStreamer = LogStreamer(redis=_redis, job_id=job_id, phase="scaffold")
+        except RuntimeError:
+            # Redis not initialized (test environment or misconfiguration) — use no-op streamer
+            streamer = _NullStreamer()  # type: ignore[assignment]
 
         try:
             # 1. STARTING
             await state_machine.transition(job_id, JobStatus.STARTING, "Starting generation pipeline")
+            await streamer.write_event("--- Starting generation pipeline ---")
 
             # 2. SCAFFOLD — create initial LangGraph state
             await state_machine.transition(job_id, JobStatus.SCAFFOLD, "Scaffolding project state")
+            await streamer.write_event("--- Scaffolding project state ---")
             agent_state = create_initial_state(
                 user_id=user_id,
                 project_id=project_id,
@@ -89,12 +100,16 @@ class GenerationService:
 
             # 3. CODE — run the Runner pipeline
             await state_machine.transition(job_id, JobStatus.CODE, "Running LLM code generation pipeline")
+            streamer._phase = "code"
+            await streamer.write_event("--- Running LLM code generation ---")
             final_state = await self.runner.run(agent_state)
 
             # 4. DEPS — create E2B sandbox, write generated files
             await state_machine.transition(
                 job_id, JobStatus.DEPS, "Provisioning E2B sandbox and installing dependencies"
             )
+            streamer._phase = "install"
+            await streamer.write_event("--- Provisioning sandbox and installing dependencies ---")
             sandbox = self.sandbox_runtime_factory()
             await sandbox.start()
 
@@ -112,12 +127,23 @@ class GenerationService:
 
             # 5. CHECKS — basic health check
             await state_machine.transition(job_id, JobStatus.CHECKS, "Running health checks")
-            await sandbox.run_command("echo 'health-check-ok'", cwd=workspace_path)
+            streamer._phase = "checks"
+            await streamer.write_event("--- Running health checks ---")
+            await sandbox.run_command(
+                "echo 'health-check-ok'",
+                cwd=workspace_path,
+                on_stdout=streamer.on_stdout,
+                on_stderr=streamer.on_stderr,
+            )
 
             # 5b. Start dev server and get live preview URL
+            streamer._phase = "install"
+            await streamer.write_event("--- Starting dev server ---")
             preview_url = await sandbox.start_dev_server(
                 workspace_path=workspace_path,
                 working_files=working_files,
+                on_stdout=streamer.on_stdout,
+                on_stderr=streamer.on_stderr,
             )
 
             # 6. Compute build result fields
@@ -155,6 +181,11 @@ class GenerationService:
                 error_type=type(exc).__name__,
                 exc_info=True,
             )
+            try:
+                await streamer.flush()
+                await streamer.write_event(f"BUILD FAILED: {_friendly_message(exc)}", source="system")
+            except Exception:
+                pass
             await state_machine.transition(
                 job_id,
                 JobStatus.FAILED,
@@ -164,12 +195,19 @@ class GenerationService:
             exc.debug_id = debug_id  # type: ignore[attr-defined]
             raise
 
+        finally:
+            try:
+                await streamer.flush()
+            except Exception:
+                pass
+
     async def execute_iteration_build(
         self,
         job_id: str,
         job_data: dict,
         state_machine: JobStateMachine,
         change_request: dict,
+        redis=None,
     ) -> dict:
         """Execute an iteration build that patches an existing sandbox or rebuilds from scratch.
 
@@ -194,15 +232,23 @@ class GenerationService:
         user_id = job_data.get("user_id", "")
         project_id = job_data.get("project_id", "")
         previous_sandbox_id = job_data.get("previous_sandbox_id", None)
+        try:
+            _redis = redis if redis is not None else get_redis()
+            streamer: LogStreamer = LogStreamer(redis=_redis, job_id=job_id, phase="scaffold")
+        except RuntimeError:
+            # Redis not initialized (test environment or misconfiguration) — use no-op streamer
+            streamer = _NullStreamer()  # type: ignore[assignment]
 
         try:
             # 1. STARTING
             await state_machine.transition(job_id, JobStatus.STARTING, "Starting iteration build pipeline")
+            await streamer.write_event("--- Starting iteration build pipeline ---")
 
             # 2. SCAFFOLD — try to reconnect to previous sandbox, fall back to fresh
             await state_machine.transition(
                 job_id, JobStatus.SCAFFOLD, "Reconnecting to existing sandbox or scaffolding fresh state"
             )
+            await streamer.write_event("--- Reconnecting to sandbox or scaffolding fresh ---")
 
             sandbox = None
 
@@ -232,6 +278,8 @@ class GenerationService:
 
             # 3. CODE — run Runner with change_request context
             await state_machine.transition(job_id, JobStatus.CODE, "Running LLM patch generation")
+            streamer._phase = "code"
+            await streamer.write_event("--- Running LLM patch generation ---")
 
             # Build agent state that includes the change request context
             agent_state = create_initial_state(
@@ -252,6 +300,8 @@ class GenerationService:
                 JobStatus.DEPS,
                 "Writing patched files to sandbox",
             )
+            streamer._phase = "install"
+            await streamer.write_event("--- Writing patched files to sandbox ---")
 
             working_files: dict = final_state.get("working_files", {})
             workspace_path = "/home/user/project"
@@ -262,8 +312,15 @@ class GenerationService:
 
             # 5. CHECKS — run health check, attempt rollback if fails (GENL-03)
             await state_machine.transition(job_id, JobStatus.CHECKS, "Running health checks on patched build")
+            streamer._phase = "checks"
+            await streamer.write_event("--- Running health checks on patched build ---")
 
-            check_result = await sandbox.run_command("echo 'health-check-ok'", cwd=workspace_path)
+            check_result = await sandbox.run_command(
+                "echo 'health-check-ok'",
+                cwd=workspace_path,
+                on_stdout=streamer.on_stdout,
+                on_stderr=streamer.on_stderr,
+            )
             check_passed = check_result.get("exit_code", 0) == 0
 
             if not check_passed:
@@ -303,9 +360,13 @@ class GenerationService:
                 raise exc
 
             # 5b. Start dev server on patched codebase
+            streamer._phase = "install"
+            await streamer.write_event("--- Starting dev server ---")
             preview_url = await sandbox.start_dev_server(
                 workspace_path=workspace_path,
                 working_files=working_files,
+                on_stdout=streamer.on_stdout,
+                on_stderr=streamer.on_stderr,
             )
 
             # 6. Compute remaining build result fields
@@ -332,6 +393,11 @@ class GenerationService:
         except Exception as exc:
             if hasattr(exc, "debug_id"):
                 # Already handled (needs-review path raises with debug_id)
+                try:
+                    await streamer.flush()
+                    await streamer.write_event(f"BUILD FAILED: {_friendly_message(exc)}", source="system")
+                except Exception:
+                    pass
                 raise
             debug_id = str(uuid4())
             logger.error(
@@ -342,6 +408,11 @@ class GenerationService:
                 error_type=type(exc).__name__,
                 exc_info=True,
             )
+            try:
+                await streamer.flush()
+                await streamer.write_event(f"BUILD FAILED: {_friendly_message(exc)}", source="system")
+            except Exception:
+                pass
             await state_machine.transition(
                 job_id,
                 JobStatus.FAILED,
@@ -349,6 +420,12 @@ class GenerationService:
             )
             exc.debug_id = debug_id  # type: ignore[attr-defined]
             raise
+
+        finally:
+            try:
+                await streamer.flush()
+            except Exception:
+                pass
 
     # ------------------------------------------------------------------
     # Helpers
@@ -529,6 +606,24 @@ class GenerationService:
             )
             session.add(iteration_event)
             await session.commit()
+
+
+class _NullStreamer:
+    """No-op LogStreamer used when Redis is unavailable (e.g., unit tests without Redis)."""
+
+    _phase: str = "build"
+
+    async def on_stdout(self, chunk: str) -> None:
+        pass
+
+    async def on_stderr(self, chunk: str) -> None:
+        pass
+
+    async def flush(self) -> None:
+        pass
+
+    async def write_event(self, text: str, source: str = "system") -> None:
+        pass
 
 
 def _friendly_message(exc: Exception) -> str:
