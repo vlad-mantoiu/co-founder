@@ -78,7 +78,7 @@
 - [x] **Phase 29: Build Log Streaming** — Redis Streams buffer + SSE endpoint for backend log delivery (completed 2026-02-22)
 - [x] **Phase 30: Frontend Build UX** — Log panel, build progress stages, auto-retry visibility (3 plans) (completed 2026-02-22)
 - [x] **Phase 31: Preview Iframe** — Embedded iframe, CSP update, sandbox expiry handling, new-tab fallback (completed 2026-02-22)
-- [ ] **Phase 32: Sandbox Snapshot Lifecycle** — beta_pause after build, snapshot endpoint, resume verification
+- [x] **Phase 32: Sandbox Snapshot Lifecycle** — beta_pause after build, snapshot endpoint, resume verification (completed 2026-02-22)
 
 ## Phase Details
 
@@ -147,7 +147,7 @@
   2. `POST /api/jobs/{id}/snapshot` is idempotent — calling it on an already-paused sandbox returns 200 without error
   3. Reconnecting to a paused sandbox produces a working preview URL — the dev server relaunches and the iframe loads correctly
   4. The reconnected sandbox does not expire in 5 minutes — `set_timeout()` is called after every `connect()` and the preview remains live for the configured duration
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 Plans:
 - [ ] 32-01-PLAN.md — DB migration + worker auto-pause + API sandbox_paused field (SBOX-04)
 - [ ] 32-02-PLAN.md — Resume service + resume/snapshot API endpoints + tests (SBOX-04)
@@ -190,7 +190,7 @@ Plans:
 | 29. Build Log Streaming | 3/3 | Complete    | 2026-02-22 | - |
 | 30. Frontend Build UX | 3/3 | Complete    | 2026-02-22 | - |
 | 31. Preview Iframe | 4/4 | Complete    | 2026-02-22 | - |
-| 32. Sandbox Snapshot Lifecycle | 3/4 | In Progress|  | - |
+| 32. Sandbox Snapshot Lifecycle | 4/4 | Complete   | 2026-02-22 | - |
 
 ---
 *Created: 2026-02-16*

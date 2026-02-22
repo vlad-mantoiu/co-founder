@@ -32,6 +32,7 @@ Progress: [███████████████████████
 | v0.4 Marketing Speed & SEO | 7 | 21 | 3 days (2026-02-20 to 2026-02-22) |
 | v0.5 Sandbox Integration | 5 phases (28-32) | 14 plans | 2026-02-22 |
 | Phase 32-sandbox-snapshot-lifecycle P02 | 4 | 2 tasks | 3 files |
+| Phase 32 P04 | 2min | 1 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -67,6 +68,8 @@ Key v0.5 decisions (from research):
 - live-only SSE with last_id='
 - [Phase 32-02]: snapshot endpoint catches all exceptions from connect/beta_pause — sandbox may have expired after READY; idempotency covers this case
 - [Phase 32-02]: 503 with structured detail dict {message, error_type} for resume failure — frontend distinguishes sandbox_expired (rebuild) from sandbox_unreachable (retry)
+- [Phase 32]: ResumeButton placed outside Link wrapper (absolute-positioned) to prevent navigation on click
+- [Phase 32]: latest_job_id/sandbox_paused added to ProjectResponse via _compute_project_flags — zero route handler changes needed
 
 ### Pending Todos
 
