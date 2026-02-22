@@ -112,13 +112,15 @@ function CheckoutAutoRedirector({ getToken }: { getToken: () => Promise<string |
 
 export default function DashboardPage() {
   const { user } = useUser();
-  const { getToken } = useAuth();
+  const { getToken, isLoaded: authLoaded } = useAuth();
   const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
 
   useEffect(() => {
+    if (!authLoaded) return;
+
     async function fetchProjects() {
       try {
         const statusRes = await apiFetch("/api/onboarding/status", getToken);
@@ -143,7 +145,7 @@ export default function DashboardPage() {
       }
     }
     fetchProjects();
-  }, [getToken, router]);
+  }, [getToken, authLoaded, router]);
 
   const hasProjects = projects.length > 0;
   const firstName = user?.firstName || "Builder";

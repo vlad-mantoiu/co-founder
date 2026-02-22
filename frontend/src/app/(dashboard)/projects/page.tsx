@@ -116,28 +116,37 @@ function formatStatus(status: string): string {
 }
 
 export default function ProjectsPage() {
-  const { getToken } = useAuth();
+  const { getToken, isLoaded: authLoaded } = useAuth();
   const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!authLoaded) return;
+
     async function fetchProjects() {
       try {
+        setError(null);
         const res = await apiFetch("/api/projects", getToken);
         if (res.ok) {
           const data = await res.json();
           setProjects(Array.isArray(data) ? data : []);
+        } else {
+          const text = await res.text().catch(() => "");
+          console.error(`[projects] fetch failed: ${res.status}`, text);
+          setError(`Failed to load projects (${res.status})`);
         }
-      } catch {
-        // API may not be running
+      } catch (err) {
+        console.error("[projects] network error:", err);
+        setError("Unable to reach the server. Please try again.");
       } finally {
         setLoaded(true);
       }
     }
     fetchProjects();
-  }, [getToken]);
+  }, [getToken, authLoaded]);
 
   async function handleAbandonProject(projectId: string) {
     const confirmed = window.confirm(
@@ -195,8 +204,15 @@ export default function ProjectsPage() {
         </Link>
       </div>
 
+      {/* Error state */}
+      {error && (
+        <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-sm text-red-400">
+          {error}
+        </div>
+      )}
+
       {/* Projects list */}
-      {projects.length === 0 ? (
+      {!error && projects.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <div className="w-16 h-16 rounded-2xl bg-brand/10 flex items-center justify-center mb-5">
             <FolderOpen className="w-8 h-8 text-brand" />

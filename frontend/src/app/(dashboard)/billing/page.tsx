@@ -95,7 +95,7 @@ function UsageMeter({ usage }: { usage: UsageData }) {
 }
 
 export default function BillingPage() {
-  const { getToken } = useAuth();
+  const { getToken, isLoaded: authLoaded } = useAuth();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<BillingStatus | null>(null);
   const [usage, setUsage] = useState<UsageData | null>(null);
@@ -104,6 +104,8 @@ export default function BillingPage() {
   const [checkoutLoading, setCheckoutLoading] = useState(false);
 
   useEffect(() => {
+    if (!authLoaded) return;
+
     async function fetchData() {
       try {
         const [statusRes, usageRes] = await Promise.all([
@@ -119,7 +121,7 @@ export default function BillingPage() {
       }
     }
     fetchData();
-  }, [getToken]);
+  }, [getToken, authLoaded]);
 
   async function handleManageSubscription() {
     setPortalLoading(true);
