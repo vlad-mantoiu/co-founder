@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { AlertTriangle, RefreshCw, ChevronDown, ChevronUp } from "lucide-react";
+import { AlertTriangle, RefreshCw, ChevronDown, ChevronUp, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -17,7 +17,7 @@ interface BuildFailureCardProps {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Component — friendly failure + retry (locked decision: no tech details unless expanded)
+// Component — friendly failure with two recovery paths: Try again + Contact support
 // ──────────────────────────────────────────────────────────────────────────────
 
 export function BuildFailureCard({
@@ -54,11 +54,11 @@ export function BuildFailureCard({
           We hit an issue.
         </h2>
         <p className="text-sm text-white/60">
-          Want us to try again? We&apos;ll pick up from where things left off.
+          Don&apos;t worry — this happens sometimes. Here&apos;s what you can do:
         </p>
       </div>
 
-      {/* Retry button */}
+      {/* Primary recovery: Try again */}
       <motion.button
         onClick={onRetry}
         whileHover={{ scale: 1.02 }}
@@ -68,6 +68,15 @@ export function BuildFailureCard({
         <RefreshCw className="w-4 h-4" />
         Try again
       </motion.button>
+
+      {/* Secondary recovery: Contact support — mailto with debug ID in subject */}
+      <a
+        href={`mailto:hello@getinsourced.ai?subject=${encodeURIComponent(`Build failure - debug ID ${debugId}`)}`}
+        className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-white/60 transition-colors"
+      >
+        <Mail className="w-3.5 h-3.5" />
+        Contact support
+      </a>
 
       {/* Expandable details — collapsed by default (locked decision) */}
       <div className="w-full max-w-sm">

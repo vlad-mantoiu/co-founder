@@ -1,9 +1,36 @@
 "use client";
 
+import { useEffect } from "react";
 import { motion } from "framer-motion";
 import { ExternalLink, CheckCircle2, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Confetti burst — dynamic import avoids SSR crash (canvas-confetti accesses window)
+// ──────────────────────────────────────────────────────────────────────────────
+
+async function triggerConfetti() {
+  const confetti = (await import("canvas-confetti")).default;
+  // Main burst from bottom center
+  confetti({
+    particleCount: 80,
+    spread: 70,
+    origin: { x: 0.5, y: 0.8 },
+    colors: ["#6467f2", "#8183f5", "#0df2f2", "#ffffff"],
+    zIndex: 9999,
+  });
+  // Follow-up burst 300ms later for lingering effect
+  setTimeout(() => {
+    confetti({
+      particleCount: 40,
+      spread: 50,
+      origin: { x: 0.4, y: 0.75 },
+      colors: ["#6467f2", "#8183f5"],
+      zIndex: 9999,
+    });
+  }, 300);
+}
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Props
@@ -20,7 +47,7 @@ interface BuildSummaryProps {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Component — on success: quick summary with preview link (locked decision)
+// Component — on success: confetti celebration + "Your app is live!" headline
 // ──────────────────────────────────────────────────────────────────────────────
 
 export function BuildSummary({
@@ -32,6 +59,11 @@ export function BuildSummary({
   projectId,
   className,
 }: BuildSummaryProps) {
+  // Fire confetti once on mount
+  useEffect(() => {
+    triggerConfetti();
+  }, []);
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.97 }}
@@ -58,10 +90,10 @@ export function BuildSummary({
           <span className="text-xs font-mono text-brand">{buildVersion}</span>
         </div>
         <h2 className="text-2xl font-display font-semibold text-white">
-          Your MVP is ready!
+          Your app is live!
         </h2>
         <p className="text-sm text-white/60">
-          We shipped your first working preview.
+          We built your first working preview — take a look.
         </p>
       </div>
 
@@ -107,7 +139,7 @@ export function BuildSummary({
         className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-brand hover:bg-brand-dark text-white font-semibold text-sm transition-colors shadow-glow"
       >
         <ExternalLink className="w-4 h-4" />
-        Open Preview
+        Open your app
       </motion.a>
 
       {/* Secondary link — back to dashboard */}
