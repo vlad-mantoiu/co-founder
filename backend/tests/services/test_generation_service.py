@@ -65,6 +65,10 @@ class FakeSandboxRuntime:
     async def run_background(self, cmd: str, **kwargs) -> str:
         return "fake-pid-001"
 
+    async def start_dev_server(self, workspace_path: str, working_files: dict | None = None) -> str:
+        """Fake dev server launch — returns preview URL immediately."""
+        return f"https://3000-{self._sandbox_id}.e2b.app"
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -231,3 +235,71 @@ async def test_get_next_build_version_increment():
         version = await service._get_next_build_version(project_id, state_machine)
 
     assert version == "build_v0_3", f"Expected 'build_v0_3', got '{version}'"
+
+
+# ---------------------------------------------------------------------------
+# Tests: framework detection (SBOX-02)
+# ---------------------------------------------------------------------------
+
+
+def test_detect_framework_nextjs():
+    """Next.js detected from dependencies → npm run dev on port 3000."""
+    from app.sandbox.e2b_runtime import E2BSandboxRuntime
+
+    cmd, port = E2BSandboxRuntime._detect_framework('{"dependencies": {"next": "14.0.0"}}')
+    assert cmd == "npm run dev"
+    assert port == 3000
+
+
+def test_detect_framework_vite():
+    """Vite detected from dependencies → npm run dev on port 5173."""
+    from app.sandbox.e2b_runtime import E2BSandboxRuntime
+
+    cmd, port = E2BSandboxRuntime._detect_framework('{"dependencies": {"vite": "5.0.0"}}')
+    assert cmd == "npm run dev"
+    assert port == 5173
+
+
+def test_detect_framework_cra():
+    """Create React App detected → npm start on port 3000."""
+    from app.sandbox.e2b_runtime import E2BSandboxRuntime
+
+    cmd, port = E2BSandboxRuntime._detect_framework('{"dependencies": {"react-scripts": "5.0.0"}}')
+    assert cmd == "npm start"
+    assert port == 3000
+
+
+def test_detect_framework_express():
+    """Express detected → npm start on port 3000."""
+    from app.sandbox.e2b_runtime import E2BSandboxRuntime
+
+    cmd, port = E2BSandboxRuntime._detect_framework('{"dependencies": {"express": "4.18.0"}}')
+    assert cmd == "npm start"
+    assert port == 3000
+
+
+def test_detect_framework_fallback_invalid_json():
+    """Invalid JSON → fallback to npm run dev on port 3000."""
+    from app.sandbox.e2b_runtime import E2BSandboxRuntime
+
+    cmd, port = E2BSandboxRuntime._detect_framework("not valid json")
+    assert cmd == "npm run dev"
+    assert port == 3000
+
+
+def test_detect_framework_fallback_scripts_dev():
+    """No known framework but scripts.dev exists → npm run dev on port 3000."""
+    from app.sandbox.e2b_runtime import E2BSandboxRuntime
+
+    cmd, port = E2BSandboxRuntime._detect_framework('{"scripts": {"dev": "node server.js"}}')
+    assert cmd == "npm run dev"
+    assert port == 3000
+
+
+def test_detect_framework_fallback_scripts_start():
+    """No known framework, no dev script, but scripts.start exists → npm start on port 3000."""
+    from app.sandbox.e2b_runtime import E2BSandboxRuntime
+
+    cmd, port = E2BSandboxRuntime._detect_framework('{"scripts": {"start": "node index.js"}}')
+    assert cmd == "npm start"
+    assert port == 3000

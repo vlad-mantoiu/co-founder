@@ -66,6 +66,10 @@ class FakeSandboxRuntime:
     async def run_background(self, cmd: str, **kwargs) -> str:
         return "fake-pid-001"
 
+    async def start_dev_server(self, workspace_path: str, working_files: dict | None = None) -> str:
+        """Fake dev server launch — returns preview URL immediately."""
+        return f"https://3000-{self._sandbox_id}.e2b.app"
+
 
 class FakeSandboxRuntimeConnectFails(FakeSandboxRuntime):
     """Sandbox that raises on connect() to test fallback to full rebuild."""

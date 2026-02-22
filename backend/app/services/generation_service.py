@@ -114,9 +114,13 @@ class GenerationService:
             await state_machine.transition(job_id, JobStatus.CHECKS, "Running health checks")
             await sandbox.run_command("echo 'health-check-ok'", cwd=workspace_path)
 
+            # 5b. Start dev server and get live preview URL
+            preview_url = await sandbox.start_dev_server(
+                workspace_path=workspace_path,
+                working_files=working_files,
+            )
+
             # 6. Compute build result fields
-            host = sandbox.get_host(3000)
-            preview_url = f"https://{host}"
             sandbox_id = sandbox.sandbox_id
             build_version = await self._get_next_build_version(project_id, state_machine)
 
@@ -298,9 +302,13 @@ class GenerationService:
                 exc.debug_id = debug_id  # type: ignore[attr-defined]
                 raise exc
 
-            # 6. Compute build result fields
-            host = sandbox.get_host(3000)
-            preview_url = f"https://{host}"
+            # 5b. Start dev server on patched codebase
+            preview_url = await sandbox.start_dev_server(
+                workspace_path=workspace_path,
+                working_files=working_files,
+            )
+
+            # 6. Compute remaining build result fields
             sandbox_id = sandbox.sandbox_id
             build_version = await self._get_next_build_version(project_id, state_machine)
 
