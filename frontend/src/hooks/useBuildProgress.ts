@@ -60,6 +60,7 @@ export interface BuildProgressState {
   buildVersion: string | null;
   error: string | null;
   debugId: string | null;
+  sandboxExpiresAt: string | null;
   stageIndex: number;
   totalStages: number;
   isTerminal: boolean;
@@ -77,6 +78,7 @@ interface GenerationStatusResponse {
   build_version?: string | null;
   error_message?: string | null;
   debug_id?: string | null;
+  sandbox_expires_at?: string | null;
 }
 
 const TERMINAL_STATUSES = new Set(["ready", "failed"]);
@@ -101,6 +103,7 @@ export function useBuildProgress(
     buildVersion: null,
     error: null,
     debugId: null,
+    sandboxExpiresAt: null,
     stageIndex: 0,
     totalStages: STAGE_ORDER.length,
     isTerminal: false,
@@ -139,6 +142,7 @@ export function useBuildProgress(
         buildVersion: data.build_version ?? null,
         error: data.error_message ?? null,
         debugId: data.debug_id ?? null,
+        sandboxExpiresAt: data.sandbox_expires_at ?? null,
         stageIndex: statusToStageIndex(status),
         totalStages: STAGE_ORDER.length,
         isTerminal,

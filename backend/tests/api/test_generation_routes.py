@@ -499,11 +499,15 @@ def test_workspace_files_expected():
             files: dict = {}
             _started = False
             _sandbox = _FakeSandboxInner()
+            sandbox_id = "fake-ws-sandbox-001"
 
             async def start(self):
                 self._started = True
 
             async def stop(self):
+                pass
+
+            async def set_timeout(self, t):
                 pass
 
             async def write_file(self, path, content):
@@ -514,6 +518,12 @@ def test_workspace_files_expected():
 
             async def run_background(self, cmd, **kwargs):
                 return "fake-pid"
+
+            async def start_dev_server(self, **kwargs):
+                return "https://3000-fake-ws-sandbox-001.e2b.app"
+
+            async def connect(self, sandbox_id):
+                pass
 
         fake_sandbox = _FakeSandboxRuntime()
         service = GenerationService(
@@ -548,3 +558,75 @@ def test_workspace_files_expected():
     assert any("product" in p.lower() for p in written_paths), (
         "Workspace must contain product files as core application code"
     )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Test 10: sandbox_expires_at in READY status response (PREV-02)
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def test_sandbox_expires_at_present_when_ready(api_client: TestClient, fake_redis, user_a):
+    """PREV-02: GET /api/generation/{job_id}/status for a READY job returns sandbox_expires_at
+    as an ISO8601 string approximately 3600 seconds after the updated_at timestamp."""
+    from datetime import datetime, timedelta, timezone
+
+    project_id = str(uuid.uuid4())
+    job_id = f"test-expires-ready-{uuid.uuid4().hex[:8]}"
+
+    # Walk job to READY state to get a real updated_at timestamp set by the FSM
+    _setup_job_in_state(fake_redis, job_id, user_a.user_id, project_id, JobStatus.READY)
+
+    # Read the updated_at that was set during transition to READY
+    state_machine = JobStateMachine(fake_redis)
+    job_data = asyncio.run(state_machine.get_job(job_id))
+    assert job_data is not None
+    updated_at_str = job_data.get("updated_at")
+    assert updated_at_str is not None, "FSM must set updated_at on transition"
+
+    app: FastAPI = api_client.app
+    app.dependency_overrides[require_auth] = override_auth(user_a)
+    app.dependency_overrides[get_redis] = lambda: fake_redis
+
+    response = api_client.get(f"/api/generation/{job_id}/status")
+
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.json()}"
+    data = response.json()
+    assert data["status"] == "ready"
+
+    # sandbox_expires_at must be present and be a valid ISO8601 string
+    sandbox_expires_at = data.get("sandbox_expires_at")
+    assert sandbox_expires_at is not None, "sandbox_expires_at must be present for READY status"
+
+    # Parse both timestamps and verify the difference is ~3600s
+    updated_dt = datetime.fromisoformat(updated_at_str)
+    expires_dt = datetime.fromisoformat(sandbox_expires_at)
+    delta = expires_dt - updated_dt
+    assert abs(delta.total_seconds() - 3600) < 1, (
+        f"Expected sandbox_expires_at ~3600s after updated_at, got delta={delta.total_seconds()}s"
+    )
+
+    app.dependency_overrides.clear()
+
+
+def test_sandbox_expires_at_none_when_not_ready(api_client: TestClient, fake_redis, user_a):
+    """PREV-02: GET /api/generation/{job_id}/status for a non-READY job returns sandbox_expires_at=None."""
+    project_id = str(uuid.uuid4())
+    job_id = f"test-expires-nonready-{uuid.uuid4().hex[:8]}"
+
+    # Use CODE state — well past QUEUED but not yet READY
+    _setup_job_in_state(fake_redis, job_id, user_a.user_id, project_id, JobStatus.CODE)
+
+    app: FastAPI = api_client.app
+    app.dependency_overrides[require_auth] = override_auth(user_a)
+    app.dependency_overrides[get_redis] = lambda: fake_redis
+
+    response = api_client.get(f"/api/generation/{job_id}/status")
+
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.json()}"
+    data = response.json()
+    assert data["status"] == "code"
+    assert data.get("sandbox_expires_at") is None, (
+        f"sandbox_expires_at must be None for non-READY status, got: {data.get('sandbox_expires_at')}"
+    )
+
+    app.dependency_overrides.clear()
