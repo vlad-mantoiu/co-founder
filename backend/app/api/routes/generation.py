@@ -1,7 +1,9 @@
-"""Generation API routes — start, status, cancel, preview-viewed."""
+"""Generation API routes — start, status, cancel, preview-viewed, preview-check."""
 
 import uuid as _uuid
+from datetime import datetime, timedelta, timezone
 
+import httpx
 import structlog
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -69,6 +71,7 @@ class GenerationStatusResponse(BaseModel):
     build_version: str | None = None
     error_message: str | None = None
     debug_id: str | None = None
+    sandbox_expires_at: str | None = None
 
 
 class CancelGenerationResponse(BaseModel):
@@ -84,6 +87,14 @@ class PreviewViewedResponse(BaseModel):
 
     gate_id: str | None = None
     status: str  # "gate_created" | "gate_already_created"
+
+
+class PreviewCheckResponse(BaseModel):
+    """Response for GET /api/generation/{job_id}/preview-check."""
+
+    embeddable: bool
+    preview_url: str
+    reason: str | None = None
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -242,6 +253,18 @@ async def get_generation_status(
     error_message = job_data.get("error_message")
     debug_id = job_data.get("debug_id")
 
+    # Compute sandbox expiry: updated_at + 3600s when status is ready
+    sandbox_expires_at: str | None = None
+    if status == JobStatus.READY.value:
+        updated_at = job_data.get("updated_at")
+        if updated_at is not None:
+            try:
+                updated_dt = datetime.fromisoformat(updated_at)
+                expires_dt = updated_dt + timedelta(seconds=3600)
+                sandbox_expires_at = expires_dt.isoformat()
+            except (ValueError, TypeError):
+                sandbox_expires_at = None
+
     return GenerationStatusResponse(
         job_id=job_id,
         status=status,
@@ -250,6 +273,7 @@ async def get_generation_status(
         build_version=build_version,
         error_message=error_message,
         debug_id=debug_id,
+        sandbox_expires_at=sandbox_expires_at,
     )
 
 
@@ -358,3 +382,82 @@ async def preview_viewed(
             # Gate already exists — idempotent response
             return PreviewViewedResponse(gate_id=None, status="gate_already_created")
         raise
+
+
+@router.get("/{job_id}/preview-check", response_model=PreviewCheckResponse)
+async def check_preview_embeddable(
+    job_id: str,
+    user: ClerkUser = Depends(require_auth),
+    redis=Depends(get_redis),
+):
+    """Check if the sandbox preview URL can be embedded in an iframe.
+
+    Performs a server-side HEAD request to the preview URL and inspects
+    X-Frame-Options and Content-Security-Policy headers. Browsers cannot
+    read cross-origin response headers, so this proxy approach is required.
+
+    Returns:
+        PreviewCheckResponse with embeddable=True/False, preview_url, and optional reason.
+
+    Raises:
+        HTTPException(404): Job not found, user mismatch, or no preview_url available.
+    """
+    state_machine = JobStateMachine(redis)
+    job_data = await state_machine.get_job(job_id)
+
+    if not job_data or job_data.get("user_id") != user.user_id:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    preview_url = job_data.get("preview_url")
+    if not preview_url:
+        raise HTTPException(status_code=404, detail="No preview URL available")
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0, verify=False) as client:
+            response = await client.head(preview_url)
+
+        # Check X-Frame-Options header
+        xfo = response.headers.get("x-frame-options", "")
+        if xfo.upper() in ("DENY", "SAMEORIGIN"):
+            return PreviewCheckResponse(
+                embeddable=False,
+                preview_url=preview_url,
+                reason=f"X-Frame-Options: {xfo}",
+            )
+
+        # Check Content-Security-Policy for frame-ancestors directive
+        csp = response.headers.get("content-security-policy", "")
+        if "frame-ancestors" in csp.lower():
+            # frame-ancestors 'none' or frame-ancestors 'self' block embedding
+            directives = [d.strip() for d in csp.split(";")]
+            for directive in directives:
+                if directive.lower().startswith("frame-ancestors"):
+                    parts = directive.split(None, 1)
+                    value = parts[1].strip() if len(parts) > 1 else ""
+                    if value in ("'none'", "'self'", "none", "self"):
+                        return PreviewCheckResponse(
+                            embeddable=False,
+                            preview_url=preview_url,
+                            reason=f"Content-Security-Policy: {directive.strip()}",
+                        )
+
+        return PreviewCheckResponse(embeddable=True, preview_url=preview_url, reason=None)
+
+    except httpx.ConnectError:
+        return PreviewCheckResponse(
+            embeddable=False,
+            preview_url=preview_url,
+            reason="Sandbox unreachable (may have expired)",
+        )
+    except httpx.TimeoutException:
+        return PreviewCheckResponse(
+            embeddable=False,
+            preview_url=preview_url,
+            reason="Sandbox unreachable (may have expired)",
+        )
+    except Exception:
+        return PreviewCheckResponse(
+            embeddable=False,
+            preview_url=preview_url,
+            reason="Unable to verify preview",
+        )
