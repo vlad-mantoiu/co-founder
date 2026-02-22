@@ -139,8 +139,9 @@ export default function ProjectsPage() {
           setError(`Failed to load projects (${res.status})`);
         }
       } catch (err) {
-        console.error("[projects] network error:", err);
-        setError("Unable to reach the server. Please try again.");
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error("[projects] network error:", msg, err);
+        setError(`Unable to reach the server: ${msg}`);
       } finally {
         setLoaded(true);
       }
