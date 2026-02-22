@@ -91,7 +91,9 @@
   2. Generated files appear in the sandbox filesystem — `npm run build` operates on the correct file content, not empty stubs
   3. `npm run dev` starts inside the sandbox and a valid HTTPS preview URL is returned in the job status response
   4. The preview URL is live (HTTP 200) when the job reaches READY state — not dead due to port 8080 or server not started
-**Plans**: TBD
+**Plans:** 2 plans
+- [ ] 28-01-PLAN.md — AsyncSandbox migration + FileChange key fix (SBOX-01, SBOX-03)
+- [ ] 28-02-PLAN.md — Dev server launch with framework detection + readiness polling (SBOX-02)
 
 ### Phase 29: Build Log Streaming
 **Goal**: Every line of stdout/stderr from sandbox commands is captured to a Redis Stream and available via an authenticated SSE endpoint — ready for any frontend to consume.
@@ -169,7 +171,7 @@
 | 25. Loading UX | v0.4 | 2/2 | Complete | 2026-02-21 |
 | 26. Image Pipeline | v0.4 | 2/2 | Complete | 2026-02-21 |
 | 27. GEO + Content | v0.4 | 2/2 | Complete | 2026-02-22 |
-| 28. Sandbox Runtime Fixes | v0.5 | 0/TBD | Not started | - |
+| 28. Sandbox Runtime Fixes | v0.5 | 0/2 | Planned | - |
 | 29. Build Log Streaming | v0.5 | 0/TBD | Not started | - |
 | 30. Frontend Build UX | v0.5 | 0/TBD | Not started | - |
 | 31. Preview Iframe | v0.5 | 0/TBD | Not started | - |
