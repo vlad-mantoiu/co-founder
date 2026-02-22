@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-22)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** v0.5 Sandbox Integration — Phase 28 ready to plan
+**Current focus:** v0.5 Sandbox Integration — Phase 28 in progress (Plan 01 complete)
 
 ## Current Position
 
 Phase: 28 of 32 (Sandbox Runtime Fixes)
-Plan: — (not yet planned)
-Status: Ready to plan
-Last activity: 2026-02-22 — v0.5 roadmap created (Phases 28-32)
+Plan: 01 complete (28-01: AsyncSandbox migration + FileChange key fix)
+Status: In progress
+Last activity: 2026-02-22 — Phase 28 Plan 01 executed
 
-Progress: [░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░] 0% (v0.5: 0/5 phases)
+Progress: [██░░░░░░░░░░░░░░░░░░░░░░░░░░░░] 4% (v0.5: Phase 28 in progress, 1/N plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 81 (v0.1: 47, v0.2: 20, v0.3: 9, v0.4: 5)
+- Total plans completed: 82 (v0.1: 47, v0.2: 20, v0.3: 9, v0.4: 5, v0.5: 1)
 - Total phases shipped: 27 (across 4 milestones)
 
 **By Milestone:**
@@ -42,6 +42,12 @@ Key v0.5 decisions (from research):
 - `set_timeout()` must be called after every `connect()` — reconnect silently resets TTL to 300s
 - Port 3000 (not 8080) for dev server; gate READY on `_wait_for_dev_server()` poll before returning URL
 
+**28-01 decisions (executed 2026-02-22):**
+- AsyncSandbox.create() used instead of run_in_executor — eliminates event loop blocking for concurrent builds
+- beta_pause() wrapped in try/except — E2B Hobby plan raises on pause, prevents hard failure
+- Port corrected from 8080 to 3000 — Next.js dev server default
+- asyncio import removed entirely — no longer needed after run_in_executor elimination
+
 ### Pending Todos
 
 - [ ] Verify workflow_run gate: push a commit with a failing test and confirm deploy.yml does NOT trigger
@@ -56,9 +62,9 @@ Key v0.5 decisions (from research):
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Phase 28 context gathered — all 4 gray areas discussed (project type detection, server readiness, build failure, sandbox timeout).
-Resume file: .planning/phases/28-sandbox-runtime-fixes/28-CONTEXT.md
-Resume: Run `/gsd:plan-phase 28` to plan Sandbox Runtime Fixes.
+Stopped at: Completed 28-01-PLAN.md — AsyncSandbox migration, FileChange key fix, beta_pause() added, all 8 tests passing.
+Resume file: .planning/phases/28-sandbox-runtime-fixes/28-01-SUMMARY.md
+Resume: Continue with next plan in Phase 28 (Sandbox Runtime Fixes).
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*

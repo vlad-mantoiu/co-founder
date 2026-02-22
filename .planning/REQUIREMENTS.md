@@ -9,10 +9,10 @@ Requirements for v0.5 Sandbox Integration. Each maps to roadmap phases.
 
 ### Sandbox Runtime
 
-- [ ] **SBOX-01**: AsyncSandbox migration — replace sync `Sandbox` with native `AsyncSandbox`, proper timeout handling, remove `run_in_executor` wrapper
+- [x] **SBOX-01**: AsyncSandbox migration — replace sync `Sandbox` with native `AsyncSandbox`, proper timeout handling, remove `run_in_executor` wrapper
 - [ ] **SBOX-02**: Dev server launch — start `npm run dev` (or equivalent) in sandbox, detect port, generate valid preview URL
-- [ ] **SBOX-03**: FileChange bug fix — fix `content` vs `new_content` key mismatch so generated files are actually written to sandbox
-- [ ] **SBOX-04**: Sandbox pause/snapshot — `beta_pause()` after successful build, `connect()` to resume on demand, `set_timeout()` after reconnect
+- [x] **SBOX-03**: FileChange bug fix — fix `content` vs `new_content` key mismatch so generated files are actually written to sandbox
+- [x] **SBOX-04**: Sandbox pause/snapshot — `beta_pause()` after successful build, `connect()` to resume on demand, `set_timeout()` after reconnect
 
 ### Build Experience
 
@@ -57,10 +57,10 @@ Requirements for v0.5 Sandbox Integration. Each maps to roadmap phases.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SBOX-01 | Phase 28 | Pending |
+| SBOX-01 | Phase 28 | Complete |
 | SBOX-02 | Phase 28 | Pending |
-| SBOX-03 | Phase 28 | Pending |
-| SBOX-04 | Phase 32 | Pending |
+| SBOX-03 | Phase 28 | Complete |
+| SBOX-04 | Phase 32 | Complete |
 | BUILD-01 | Phase 29 | Pending |
 | BUILD-02 | Phase 30 | Pending |
 | BUILD-03 | Phase 30 | Pending |
