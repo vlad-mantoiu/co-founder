@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 ## Current Position
 
 Phase: 31 of 32 (Preview Iframe) — IN PROGRESS
-Plan: 02 complete (31-02: Preview-check proxy endpoint with X-Frame-Options detection)
-Status: Phase 31, Plan 02 complete
-Last activity: 2026-02-22 — Phase 31 Plan 02 executed
+Plan: 03 complete (31-03: usePreviewPane hook, BrowserChrome, PreviewPane components)
+Status: Phase 31, Plan 03 complete
+Last activity: 2026-02-22 — Phase 31 Plan 03 executed
 
 Progress: [████░░░░░░░░░░░░░░░░░░░░░░░░░░] 12% (v0.5: Phase 30 complete, Phase 31 next)
 
@@ -96,6 +96,12 @@ Key v0.5 decisions (from research):
 - CSP frame-ancestors check only blocks for 'none' and 'self' values — wildcard * is permissive
 - Test file uses pytest.mark.unit with minimal FastAPI app fixture (no DB) since endpoint only needs Redis
 
+**31-03 decisions (executed 2026-02-22):**
+- Hidden iframe with opacity-0 in loading state fires onLoad to trigger markLoaded() before becoming visible — no double-fetch or flash
+- Full replacement card (no BrowserChrome) for blocked/expired states — per locked plan decision for clean UX
+- AnimatePresence mode=wait on chrome/fullcard swap prevents ghost-frame overlap during state transition
+- Screenshot capture skipped this phase — Clock icon placeholder used in expired state per plan discretion note
+
 ### Pending Todos
 
 - [ ] Verify workflow_run gate: push a commit with a failing test and confirm deploy.yml does NOT trigger
@@ -110,9 +116,9 @@ Key v0.5 decisions (from research):
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed Phase 31 Plan 01 (sandbox_expires_at API field + CSP frame-src for E2B iframes). Plans 01 and 02 both complete.
-Resume file: .planning/phases/31-preview-iframe/31-01-SUMMARY.md
-Resume: Continue with Phase 31 Plan 03 (frontend usePreviewPane hook).
+Stopped at: Completed Phase 31 Plan 03 (usePreviewPane hook, BrowserChrome, PreviewPane components). Plans 01, 02, and 03 complete.
+Resume file: .planning/phases/31-preview-iframe/31-03-SUMMARY.md
+Resume: Continue with Phase 31 Plan 04 (integrate PreviewPane into build page).
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
