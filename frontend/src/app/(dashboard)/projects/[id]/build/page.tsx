@@ -23,6 +23,7 @@ import { BuildLogPanel } from "@/components/build/BuildLogPanel";
 import { AutoFixBanner } from "@/components/build/AutoFixBanner";
 import { BuildSummary } from "@/components/build/BuildSummary";
 import { BuildFailureCard } from "@/components/build/BuildFailureCard";
+import { PreviewPane } from "@/components/build/PreviewPane";
 import { apiFetch } from "@/lib/api";
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -49,6 +50,7 @@ export default function BuildPage() {
     totalStages,
     isTerminal,
     connectionFailed,
+    sandboxExpiresAt,
   } = useBuildProgress(jobId, getToken);
 
   // SSE log streaming — called unconditionally so autoFixAttempt detection works
@@ -88,6 +90,20 @@ export default function BuildPage() {
   function handleRetry() {
     // Navigate back to the project dashboard where they can trigger a new build
     window.location.href = `/projects/${projectId}/deploy`;
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // PreviewPane callbacks — rebuild or iterate from expired state
+  // ────────────────────────────────────────────────────────────────────────────
+
+  function handleRebuild() {
+    // Navigate to deploy page to trigger a fresh build
+    window.location.href = `/projects/${projectId}/deploy`;
+  }
+
+  function handleIterate() {
+    // Navigate to conversation/iterate flow
+    window.location.href = `/projects/${projectId}/deploy?iterate=true`;
   }
 
   const isBuilding = !isTerminal && status !== "failed";
@@ -160,18 +176,18 @@ export default function BuildPage() {
         </div>
       )}
 
-      <div className="w-full max-w-xl mx-auto px-4">
-        <AnimatePresence mode="wait">
-          {/* Building state */}
-          {isBuilding && (
-            <motion.div
-              key="building"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -12 }}
-              transition={{ duration: 0.35 }}
-              className="glass rounded-2xl p-8 space-y-8"
-            >
+      <AnimatePresence mode="wait">
+        {/* Building state — narrow container */}
+        {isBuilding && (
+          <motion.div
+            key="building"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            transition={{ duration: 0.35 }}
+            className="w-full max-w-xl mx-auto px-4"
+          >
+            <div className="glass rounded-2xl p-8 space-y-8">
               {/* Header */}
               <div className="text-center space-y-1">
                 <h1 className="text-xl font-display font-semibold text-white">
@@ -215,34 +231,48 @@ export default function BuildPage() {
                 hasEarlierLines={hasEarlierLines}
                 onLoadEarlier={loadEarlier}
               />
-            </motion.div>
-          )}
+            </div>
+          </motion.div>
+        )}
 
-          {/* Success state */}
-          {isSuccess && previewUrl && (
-            <motion.div
-              key="success"
-              initial={{ opacity: 0, scale: 0.96 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.4 }}
-            >
-              <BuildSummary
-                buildVersion={buildVersion ?? "build v0.1"}
+        {/* Success state with preview — wide container to give iframe room */}
+        {isSuccess && previewUrl && (
+          <motion.div
+            key="success"
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4 }}
+            className="w-full max-w-5xl mx-auto px-4 space-y-6"
+          >
+            <BuildSummary
+              buildVersion={buildVersion ?? "build v0.1"}
+              previewUrl={previewUrl}
+              projectId={projectId}
+            />
+            <div className="w-full">
+              <PreviewPane
                 previewUrl={previewUrl}
+                sandboxExpiresAt={sandboxExpiresAt}
+                jobId={jobId}
                 projectId={projectId}
+                getToken={getToken}
+                onRebuild={handleRebuild}
+                onIterate={handleIterate}
               />
-            </motion.div>
-          )}
+            </div>
+          </motion.div>
+        )}
 
-          {/* Success but no preview URL yet (edge case) */}
-          {isSuccess && !previewUrl && (
-            <motion.div
-              key="success-no-preview"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="glass rounded-2xl p-8 text-center space-y-4"
-            >
+        {/* Success but no preview URL yet (edge case) */}
+        {isSuccess && !previewUrl && (
+          <motion.div
+            key="success-no-preview"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="w-full max-w-xl mx-auto px-4"
+          >
+            <div className="glass rounded-2xl p-8 text-center space-y-4">
               <p className="text-white font-semibold">Build complete!</p>
               <p className="text-white/50 text-sm">
                 Preview URL is being prepared...
@@ -253,27 +283,28 @@ export default function BuildPage() {
               >
                 Back to deploy
               </a>
-            </motion.div>
-          )}
+            </div>
+          </motion.div>
+        )}
 
-          {/* Failure state */}
-          {isFailure && (
-            <motion.div
-              key="failure"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.35 }}
-            >
-              <BuildFailureCard
-                errorMessage={error ?? "An unexpected error occurred."}
-                debugId={debugId ?? jobId ?? "unknown"}
-                onRetry={handleRetry}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+        {/* Failure state — narrow container */}
+        {isFailure && (
+          <motion.div
+            key="failure"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.35 }}
+            className="w-full max-w-xl mx-auto px-4"
+          >
+            <BuildFailureCard
+              errorMessage={error ?? "An unexpected error occurred."}
+              debugId={debugId ?? jobId ?? "unknown"}
+              onRetry={handleRetry}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
