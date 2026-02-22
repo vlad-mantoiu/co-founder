@@ -1,5 +1,7 @@
 """Project management API routes — DB-backed."""
 
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import and_, exists, func, select
@@ -177,7 +179,7 @@ async def list_projects(user: ClerkUser = Depends(require_auth)):
 
 
 @router.get("/{project_id}", response_model=ProjectResponse)
-async def get_project(project_id: str, user: ClerkUser = Depends(require_auth)):
+async def get_project(project_id: UUID, user: ClerkUser = Depends(require_auth)):
     """Get a specific project."""
     factory = get_session_factory()
     async with factory() as session:
@@ -206,7 +208,7 @@ async def get_project(project_id: str, user: ClerkUser = Depends(require_auth)):
 
 
 @router.delete("/{project_id}")
-async def delete_project(project_id: str, user: ClerkUser = Depends(require_auth)):
+async def delete_project(project_id: UUID, user: ClerkUser = Depends(require_auth)):
     """Soft-delete a project."""
     factory = get_session_factory()
     async with factory() as session:
@@ -226,7 +228,7 @@ async def delete_project(project_id: str, user: ClerkUser = Depends(require_auth
 
 
 @router.post("/{project_id}/link-github")
-async def link_github_repo(project_id: str, github_repo: str, user: ClerkUser = Depends(require_auth)):
+async def link_github_repo(project_id: UUID, github_repo: str, user: ClerkUser = Depends(require_auth)):
     """Link a GitHub repository to a project."""
     factory = get_session_factory()
     async with factory() as session:
