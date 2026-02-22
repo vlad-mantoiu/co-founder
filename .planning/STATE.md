@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-22)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** v0.5 Sandbox Integration — Phase 32 Plan 03 complete, Phase 32 COMPLETE
+**Current focus:** v0.5 Sandbox Integration — Phase 32 Plan 04 complete, Phase 32 COMPLETE (4 plans)
 
 ## Current Position
 
 Phase: 32 of 32 (Sandbox Lifecycle) — COMPLETE
-Plan: 03 complete (32-03: frontend paused sandbox UX — PausedView/ResumingView/ResumeFailedView)
-Status: Phase 32 all 3 plans complete — SBOX-04 satisfied
-Last activity: 2026-02-22 — Phase 32 Plan 03 executed
+Plan: 04 complete (32-04: dashboard Resume button + human-verified pause/resume lifecycle)
+Status: Phase 32 all 4 plans complete — SBOX-04 satisfied, full lifecycle human-verified
+Last activity: 2026-02-22 — Phase 32 Plan 04 executed, human verification approved
 
 Progress: [████████████████████████████████] 100% (v0.5: Phases 28-32 complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 95 (v0.1: 47, v0.2: 20, v0.3: 9, v0.4: 5, v0.5: 14)
+- Total plans completed: 96 (v0.1: 47, v0.2: 20, v0.3: 9, v0.4: 5, v0.5: 15)
 - Total phases shipped: 32 (across 4 milestones + v0.5 Phases 28-32 complete)
 
 **By Milestone:**
@@ -70,6 +70,7 @@ Key v0.5 decisions (from research):
 - [Phase 32-02]: 503 with structured detail dict {message, error_type} for resume failure — frontend distinguishes sandbox_expired (rebuild) from sandbox_unreachable (retry)
 - [Phase 32]: ResumeButton placed outside Link wrapper (absolute-positioned) to prevent navigation on click
 - [Phase 32]: latest_job_id/sandbox_paused added to ProjectResponse via _compute_project_flags — zero route handler changes needed
+- [Phase 32]: Task 2 human-verify approved — full pause/resume lifecycle confirmed end-to-end: auto-pause after READY, sleeping card on build page, Resume spinner, iframe reload, dashboard Resume button
 
 ### Pending Todos
 
