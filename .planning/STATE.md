@@ -5,22 +5,22 @@
 See: .planning/PROJECT.md (updated 2026-02-22)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** v0.5 Sandbox Integration — Phase 30 complete, ready for Phase 31
+**Current focus:** v0.5 Sandbox Integration — Phase 31 complete, ready for Phase 32
 
 ## Current Position
 
-Phase: 31 of 32 (Preview Iframe) — IN PROGRESS
-Plan: 03 complete (31-03: usePreviewPane hook, BrowserChrome, PreviewPane components)
-Status: Phase 31, Plan 03 complete
-Last activity: 2026-02-22 — Phase 31 Plan 03 executed
+Phase: 32 of 32 (Sandbox Lifecycle) — NEXT
+Plan: 04 complete (31-04: PreviewPane integrated into build page — Phase 31 COMPLETE)
+Status: Phase 31 complete, Phase 32 next
+Last activity: 2026-02-22 — Phase 31 Plan 04 executed and human-verified
 
-Progress: [████░░░░░░░░░░░░░░░░░░░░░░░░░░] 12% (v0.5: Phase 30 complete, Phase 31 next)
+Progress: [████░░░░░░░░░░░░░░░░░░░░░░░░░░] 15% (v0.5: Phases 28-31 complete, Phase 32 next)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 88 (v0.1: 47, v0.2: 20, v0.3: 9, v0.4: 5, v0.5: 7)
-- Total phases shipped: 29 (across 4 milestones + v0.5 Phases 28-30 complete)
+- Total plans completed: 92 (v0.1: 47, v0.2: 20, v0.3: 9, v0.4: 5, v0.5: 11)
+- Total phases shipped: 30 (across 4 milestones + v0.5 Phases 28-31 complete)
 
 **By Milestone:**
 
@@ -102,6 +102,11 @@ Key v0.5 decisions (from research):
 - AnimatePresence mode=wait on chrome/fullcard swap prevents ghost-frame overlap during state transition
 - Screenshot capture skipped this phase — Clock icon placeholder used in expired state per plan discretion note
 
+**31-04 decisions (executed 2026-02-22):**
+- _previewUrl prefix in BuildSummary — BrowserChrome toolbar owns open-in-new-tab, prop kept for type safety but not rendered
+- Success container widened to max-w-5xl — building and failure states keep max-w-xl for focus
+- handleRebuild/handleIterate use window.location.href for sandbox expiry recovery — avoids Next.js router state conflicts
+
 ### Pending Todos
 
 - [ ] Verify workflow_run gate: push a commit with a failing test and confirm deploy.yml does NOT trigger
@@ -111,14 +116,13 @@ Key v0.5 decisions (from research):
 ### Blockers/Concerns
 
 - Phase 32 (SBOX-04): E2B `beta_pause()` is BETA. GitHub #884 multi-resume file loss still open as of Dec 2025 — confirm status at implementation time. Fallback: full rebuild from DB files.
-- Phase 31 (PREV-01): `X-Frame-Options` behavior from E2B sandboxes not confirmed — must validate live iframe during Phase 31 before closing.
 
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed Phase 31 Plan 03 (usePreviewPane hook, BrowserChrome, PreviewPane components). Plans 01, 02, and 03 complete.
-Resume file: .planning/phases/31-preview-iframe/31-03-SUMMARY.md
-Resume: Continue with Phase 31 Plan 04 (integrate PreviewPane into build page).
+Stopped at: Completed Phase 31 Plan 04 (PreviewPane integrated into build page — Phase 31 COMPLETE). All 4 plans in Phase 31 done.
+Resume file: .planning/phases/31-preview-iframe/31-04-SUMMARY.md
+Resume: Continue with Phase 32 (Sandbox Lifecycle / SBOX-04).
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
@@ -126,3 +130,4 @@ Resume: Continue with Phase 31 Plan 04 (integrate PreviewPane into build page).
 *v0.3 COMPLETE — 4 phases (18-21), 16 requirements (2026-02-20)*
 *v0.4 COMPLETE — 7 phases (22-27), 29 requirements (2026-02-22)*
 *v0.5 IN PROGRESS — 5 phases (28-32), 12 requirements defined*
+*Phase 31 COMPLETE — 4 plans, all requirements PREV-01 through PREV-04 satisfied (2026-02-22)*

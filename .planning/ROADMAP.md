@@ -77,7 +77,7 @@
 - [x] **Phase 28: Sandbox Runtime Fixes** — AsyncSandbox migration, dev server launch, FileChange bug fix (completed 2026-02-22)
 - [x] **Phase 29: Build Log Streaming** — Redis Streams buffer + SSE endpoint for backend log delivery (completed 2026-02-22)
 - [x] **Phase 30: Frontend Build UX** — Log panel, build progress stages, auto-retry visibility (3 plans) (completed 2026-02-22)
-- [ ] **Phase 31: Preview Iframe** — Embedded iframe, CSP update, sandbox expiry handling, new-tab fallback
+- [x] **Phase 31: Preview Iframe** — Embedded iframe, CSP update, sandbox expiry handling, new-tab fallback (completed 2026-02-22)
 - [ ] **Phase 32: Sandbox Snapshot Lifecycle** — beta_pause after build, snapshot endpoint, resume verification
 
 ## Phase Details
@@ -132,7 +132,7 @@
   2. The iframe loads without CSP errors in both local development and production (Next.js config and CDK headers both updated)
   3. When the sandbox has expired, the dashboard shows a clear "Sandbox expired" message with a rebuild option — not a blank or broken iframe
   4. If the iframe is blocked by E2B response headers, a visible "Open in new tab" link appears as an automatic fallback
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 - [ ] 31-01-PLAN.md — Backend sandbox_expires_at API field + CSP frame-src in Next.js (PREV-02)
 - [ ] 31-02-PLAN.md — Backend preview-check proxy endpoint for X-Frame-Options detection (PREV-04)
 - [ ] 31-03-PLAN.md — usePreviewPane hook + BrowserChrome + PreviewPane components (PREV-01, PREV-03, PREV-04)
@@ -184,7 +184,7 @@
 | 28. Sandbox Runtime Fixes | 2/2 | Complete    | 2026-02-22 | - |
 | 29. Build Log Streaming | 3/3 | Complete    | 2026-02-22 | - |
 | 30. Frontend Build UX | 3/3 | Complete    | 2026-02-22 | - |
-| 31. Preview Iframe | 3/4 | In Progress|  | - |
+| 31. Preview Iframe | 4/4 | Complete   | 2026-02-22 | - |
 | 32. Sandbox Snapshot Lifecycle | v0.5 | 0/TBD | Not started | - |
 
 ---
