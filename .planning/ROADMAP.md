@@ -118,7 +118,7 @@
   2. A founder can expand a "Technical details" panel to see raw build output scrolling in real time, with auto-scroll to the latest line
   3. When the Debugger agent retries, the UI shows "Auto-fixing (attempt N of 5)" — the attempt count is visible and increments
   4. The log panel and stage indicators update without page refresh and continue working after the ALB 60-second idle window
-**Plans:** 3 plans
+**Plans:** 2/3 plans executed
 - [ ] 30-01-PLAN.md — useBuildLogs SSE hook + BuildLogPanel + backend auto-fix signal (BUILD-02, BUILD-04)
 - [ ] 30-02-PLAN.md — Stage bar redesign + success confetti + failure "Contact support" (BUILD-03, BUILD-02)
 - [ ] 30-03-PLAN.md — AutoFixBanner + build page integration + visual verification (BUILD-04, BUILD-02, BUILD-03)
@@ -179,7 +179,7 @@
 | 27. GEO + Content | v0.4 | 2/2 | Complete | 2026-02-22 |
 | 28. Sandbox Runtime Fixes | 2/2 | Complete    | 2026-02-22 | - |
 | 29. Build Log Streaming | 3/3 | Complete    | 2026-02-22 | - |
-| 30. Frontend Build UX | v0.5 | 0/3 | Not started | - |
+| 30. Frontend Build UX | 2/3 | In Progress|  | - |
 | 31. Preview Iframe | v0.5 | 0/TBD | Not started | - |
 | 32. Sandbox Snapshot Lifecycle | v0.5 | 0/TBD | Not started | - |
 

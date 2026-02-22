@@ -5,22 +5,22 @@
 See: .planning/PROJECT.md (updated 2026-02-22)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** v0.5 Sandbox Integration — Phase 29 complete, ready for Phase 30
+**Current focus:** v0.5 Sandbox Integration — Phase 30 in progress (Plan 02 complete)
 
 ## Current Position
 
-Phase: 29 of 32 (Build Log Streaming) — COMPLETE
-Plan: 03 complete (29-03: E2BSandboxRuntime callbacks + GenerationService LogStreamer + S3 archival)
-Status: Phase 29 complete
-Last activity: 2026-02-22 — Phase 29 Plan 03 executed
+Phase: 30 of 32 (Frontend Build UX) — IN PROGRESS
+Plan: 02 complete (30-02: BuildProgressBar horizontal segmented bar, confetti, Contact support)
+Status: Phase 30 Plan 02 complete — Plan 03 next
+Last activity: 2026-02-22 — Phase 30 Plan 02 executed
 
-Progress: [██░░░░░░░░░░░░░░░░░░░░░░░░░░░░] 4% (v0.5: Phase 29 complete, Phase 30 next)
+Progress: [██░░░░░░░░░░░░░░░░░░░░░░░░░░░░] 6% (v0.5: Phase 30 P01+P02 complete, P03 next)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 85 (v0.1: 47, v0.2: 20, v0.3: 9, v0.4: 5, v0.5: 4)
-- Total phases shipped: 28 (across 4 milestones + v0.5 Phase 29)
+- Total plans completed: 87 (v0.1: 47, v0.2: 20, v0.3: 9, v0.4: 5, v0.5: 6)
+- Total phases shipped: 28 (across 4 milestones + v0.5 Phase 29 complete)
 
 **By Milestone:**
 
@@ -70,6 +70,16 @@ Key v0.5 decisions (from research):
 - redis injected into execute_build()/execute_iteration_build() as optional param — worker passes its client; tests without Redis fall back to NullStreamer
 - flush() called in finally blocks of execute_build and execute_iteration_build — ensures last buffered lines captured even on failure paths
 
+**30-01 decisions (executed 2026-02-22):**
+- fetch()+ReadableStreamDefaultReader for SSE — bypasses ALB 15s EventSource kill; named block parsing on double-newline delimiter
+- Auto-fix emission post-hoc after runner.run() — exposes final retry_count; real-time per-retry needs runner callback architecture (deferred)
+
+**30-02 decisions (executed 2026-02-22):**
+- Dynamic import of canvas-confetti in useEffect — avoids SSR crash since canvas-confetti accesses window
+- STAGE_BAR_ITEMS backendIndex maps to STAGE_ORDER positions (scaffold=2, code=3, deps=4, checks=5, ready=6)
+- autoFixAttempt prop drives amber color branch — bar stays brand color unless explicitly non-null
+- Elapsed timer starts when isBuilding becomes true, resets to 0 when build terminates
+
 ### Pending Todos
 
 - [ ] Verify workflow_run gate: push a commit with a failing test and confirm deploy.yml does NOT trigger
@@ -84,9 +94,9 @@ Key v0.5 decisions (from research):
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed 29-03-PLAN.md — LogStreamer wired into E2BSandboxRuntime, GenerationService, and worker.py S3 archival. Phase 29 (Build Log Streaming) complete. All 3 plans done (01: LogStreamer, 02: SSE/REST endpoints, 03: pipeline integration).
-Resume file: .planning/phases/29-build-log-streaming/29-03-SUMMARY.md
-Resume: Continue with Phase 30.
+Stopped at: Completed 30-02-PLAN.md — BuildProgressBar refactored to horizontal segmented bar, BuildSummary gets confetti, BuildFailureCard gets Contact support mailto link. Phase 30 Plans 01+02 complete.
+Resume file: .planning/phases/30-frontend-build-ux/30-02-SUMMARY.md
+Resume: Continue with Phase 30 Plan 03 (wiring).
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
