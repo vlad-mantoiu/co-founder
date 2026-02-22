@@ -172,9 +172,10 @@ async def get_job_logs(
 
     stream_key = _stream_key(job_id)
 
-    # xrevrange reads newest-first; max=before_id for pagination cursor
-    # Request limit+1 to determine has_more
-    max_id = before_id if before_id else "+"
+    # xrevrange reads newest-first; use exclusive bound (before_id) for pagination.
+    # Exclusive prefix ( ensures before_id itself is not returned (already shown to client).
+    # Request limit+1 to determine has_more.
+    max_id = f"({before_id}" if before_id else "+"
     try:
         raw = await redis.xrevrange(stream_key, max=max_id, count=limit + 1)
     except Exception:
