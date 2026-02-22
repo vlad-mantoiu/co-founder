@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 
 ## Current Position
 
-Phase: 30 of 32 (Frontend Build UX) — COMPLETE
-Plan: 03 complete (30-03: AutoFixBanner + build page integration + visual verification)
-Status: Phase 30 complete
-Last activity: 2026-02-22 — Phase 30 Plan 03 executed
+Phase: 31 of 32 (Preview Iframe) — IN PROGRESS
+Plan: 02 complete (31-02: Preview-check proxy endpoint with X-Frame-Options detection)
+Status: Phase 31, Plan 02 complete
+Last activity: 2026-02-22 — Phase 31 Plan 02 executed
 
 Progress: [████░░░░░░░░░░░░░░░░░░░░░░░░░░] 12% (v0.5: Phase 30 complete, Phase 31 next)
 
@@ -86,6 +86,12 @@ Key v0.5 decisions (from research):
 - BuildLogPanel not rendered in failure/success states — error summary and confetti are the focus
 - Dual data source: polling (useBuildProgress) + SSE (useBuildLogs) run concurrently in build page
 
+**31-02 decisions (executed 2026-02-22):**
+- httpx.AsyncClient with verify=False used for HEAD request — E2B sandboxes use self-signed certs
+- Both ConnectError and TimeoutException map to "Sandbox unreachable (may have expired)" — same user-facing message
+- CSP frame-ancestors check only blocks for 'none' and 'self' values — wildcard * is permissive
+- Test file uses pytest.mark.unit with minimal FastAPI app fixture (no DB) since endpoint only needs Redis
+
 ### Pending Todos
 
 - [ ] Verify workflow_run gate: push a commit with a failing test and confirm deploy.yml does NOT trigger
@@ -100,9 +106,9 @@ Key v0.5 decisions (from research):
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed Phase 30 (Frontend Build UX) — all 3 plans done. AutoFixBanner, BuildLogPanel, BuildProgressBar segmented bar, confetti, Contact support all wired into build page. Visual verification approved.
-Resume file: .planning/phases/30-frontend-build-ux/30-03-SUMMARY.md
-Resume: Continue with Phase 31 (Preview Iframe).
+Stopped at: Completed Phase 31 Plan 02 (preview-check proxy endpoint). GET /api/generation/{job_id}/preview-check returns embeddable bool with server-side X-Frame-Options detection.
+Resume file: .planning/phases/31-preview-iframe/31-02-SUMMARY.md
+Resume: Continue with Phase 31 Plan 03 (frontend usePreviewPane hook).
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*

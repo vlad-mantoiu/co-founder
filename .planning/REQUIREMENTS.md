@@ -26,7 +26,7 @@ Requirements for v0.5 Sandbox Integration. Each maps to roadmap phases.
 - [ ] **PREV-01**: Embedded iframe — `PreviewPane` component showing running sandbox app inside founder dashboard
 - [ ] **PREV-02**: CSP frame-src update — add `https://*.e2b.app` to Content-Security-Policy in both Next.js config and CDK
 - [ ] **PREV-03**: Sandbox expiry handling — detect expired sandbox, show "sandbox expired" state with rebuild option
-- [ ] **PREV-04**: New-tab fallback — external link to preview URL as fallback if iframe is blocked by E2B headers
+- [x] **PREV-04**: New-tab fallback — external link to preview URL as fallback if iframe is blocked by E2B headers
 
 ## Future Requirements
 
@@ -68,7 +68,7 @@ Requirements for v0.5 Sandbox Integration. Each maps to roadmap phases.
 | PREV-01 | Phase 31 | Pending |
 | PREV-02 | Phase 31 | Pending |
 | PREV-03 | Phase 31 | Pending |
-| PREV-04 | Phase 31 | Pending |
+| PREV-04 | Phase 31 | Complete |
 
 **Coverage:**
 - v0.5 requirements: 12 total
