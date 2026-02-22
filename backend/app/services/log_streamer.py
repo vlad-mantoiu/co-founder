@@ -42,9 +42,7 @@ _ANSI_RE = re.compile(r"\x1b(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 # For standalone patterns (sk-..., AKIA..., connection strings): replace entire match.
 _SECRET_PATTERNS = [
     # Generic key=value / key: value patterns (API keys, secrets, tokens, passwords)
-    re.compile(
-        r"(?i)(api[_-]?key|secret|token|password|passwd|auth)\s*[=:]\s*\S{8,}"
-    ),
+    re.compile(r"(?i)(api[_-]?key|secret|token|password|passwd|auth)\s*[=:]\s*\S{8,}"),
     # OpenAI-style API keys: sk-<20+ alphanumeric chars>
     re.compile(r"(?i)sk-[a-zA-Z0-9]{20,}"),
     # Stripe keys: pk_live_... or pk_test_...

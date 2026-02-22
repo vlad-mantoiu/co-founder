@@ -224,8 +224,10 @@ def test_resume_expired(app_client):
     async def mock_resume_expired(sandbox_id: str, workspace_path: str) -> str:
         raise SandboxExpiredError("Sandbox sbx_expired_001 not found")
 
-    with patch("app.api.routes.generation.resume_sandbox", mock_resume_expired), \
-         patch("app.api.routes.generation.SandboxExpiredError", SandboxExpiredError):
+    with (
+        patch("app.api.routes.generation.resume_sandbox", mock_resume_expired),
+        patch("app.api.routes.generation.SandboxExpiredError", SandboxExpiredError),
+    ):
         response = client.post(f"/api/generation/{job_id}/resume")
 
     assert response.status_code == 503, f"Expected 503, got {response.status_code}: {response.json()}"
@@ -247,8 +249,10 @@ def test_resume_unreachable(app_client):
     async def mock_resume_unreachable(sandbox_id: str, workspace_path: str) -> str:
         raise SandboxUnreachableError("Sandbox unreachable after 2 attempts")
 
-    with patch("app.api.routes.generation.resume_sandbox", mock_resume_unreachable), \
-         patch("app.api.routes.generation.SandboxUnreachableError", SandboxUnreachableError):
+    with (
+        patch("app.api.routes.generation.resume_sandbox", mock_resume_unreachable),
+        patch("app.api.routes.generation.SandboxUnreachableError", SandboxUnreachableError),
+    ):
         response = client.post(f"/api/generation/{job_id}/resume")
 
     assert response.status_code == 503, f"Expected 503, got {response.status_code}: {response.json()}"

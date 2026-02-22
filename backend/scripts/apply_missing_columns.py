@@ -77,7 +77,6 @@ STATEMENTS: list[str] = [
     "ALTER TABLE projects ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()",
     # Indexes
     "CREATE INDEX IF NOT EXISTS ix_projects_clerk_user_id ON projects (clerk_user_id)",
-
     # ──────────────────────────────────────────────────────────────────────
     # TABLE: artifacts
     # Model: Artifact  (backend/app/db/models/artifact.py)
@@ -104,7 +103,6 @@ STATEMENTS: list[str] = [
             ALTER TABLE artifacts ADD CONSTRAINT uq_project_artifact_type UNIQUE (project_id, artifact_type);
         END IF;
     END $$""",
-
     # ──────────────────────────────────────────────────────────────────────
     # TABLE: decision_gates
     # Model: DecisionGate  (backend/app/db/models/decision_gate.py)
@@ -121,7 +119,6 @@ STATEMENTS: list[str] = [
     "ALTER TABLE decision_gates ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()",
     # Indexes
     "CREATE INDEX IF NOT EXISTS ix_decision_gates_project_id ON decision_gates (project_id)",
-
     # ──────────────────────────────────────────────────────────────────────
     # TABLE: jobs
     # Model: Job  (backend/app/db/models/job.py)
@@ -147,7 +144,6 @@ STATEMENTS: list[str] = [
     # Indexes
     "CREATE INDEX IF NOT EXISTS ix_jobs_project_id ON jobs (project_id)",
     "CREATE INDEX IF NOT EXISTS ix_jobs_clerk_user_id ON jobs (clerk_user_id)",
-
     # ──────────────────────────────────────────────────────────────────────
     # TABLE: onboarding_sessions
     # Model: OnboardingSession  (backend/app/db/models/onboarding_session.py)
@@ -167,7 +163,6 @@ STATEMENTS: list[str] = [
     "ALTER TABLE onboarding_sessions ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP WITH TIME ZONE",
     # Indexes
     "CREATE INDEX IF NOT EXISTS ix_onboarding_sessions_clerk_user_id ON onboarding_sessions (clerk_user_id)",
-
     # ──────────────────────────────────────────────────────────────────────
     # TABLE: plan_tiers
     # Model: PlanTier  (backend/app/db/models/plan_tier.py)
@@ -183,7 +178,6 @@ STATEMENTS: list[str] = [
     "ALTER TABLE plan_tiers ADD COLUMN IF NOT EXISTS allowed_models JSONB NOT NULL DEFAULT '[]'::jsonb",
     # slug is unique=True and index=True in the model
     "CREATE UNIQUE INDEX IF NOT EXISTS ix_plan_tiers_slug ON plan_tiers (slug)",
-
     # ──────────────────────────────────────────────────────────────────────
     # TABLE: stage_configs
     # Model: StageConfig  (backend/app/db/models/stage_config.py)
@@ -206,7 +200,6 @@ STATEMENTS: list[str] = [
             ALTER TABLE stage_configs ADD CONSTRAINT uq_project_stage UNIQUE (project_id, stage_number);
         END IF;
     END $$""",
-
     # ──────────────────────────────────────────────────────────────────────
     # TABLE: stage_events
     # Model: StageEvent  (backend/app/db/models/stage_event.py)
@@ -224,14 +217,12 @@ STATEMENTS: list[str] = [
     "CREATE INDEX IF NOT EXISTS ix_stage_events_project_id ON stage_events (project_id)",
     "CREATE INDEX IF NOT EXISTS ix_stage_events_correlation_id ON stage_events (correlation_id)",
     "CREATE INDEX IF NOT EXISTS ix_stage_events_created_at ON stage_events (created_at)",
-
     # ──────────────────────────────────────────────────────────────────────
     # TABLE: stripe_webhook_events
     # Model: StripeWebhookEvent  (backend/app/db/models/stripe_event.py)
     # PK is event_id (String), not 'id', so we skip event_id.
     # ──────────────────────────────────────────────────────────────────────
     "ALTER TABLE stripe_webhook_events ADD COLUMN IF NOT EXISTS processed_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()",
-
     # ──────────────────────────────────────────────────────────────────────
     # TABLE: understanding_sessions
     # Model: UnderstandingSession  (backend/app/db/models/understanding_session.py)
@@ -249,7 +240,6 @@ STATEMENTS: list[str] = [
     "ALTER TABLE understanding_sessions ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP WITH TIME ZONE",
     # Indexes
     "CREATE INDEX IF NOT EXISTS ix_understanding_sessions_clerk_user_id ON understanding_sessions (clerk_user_id)",
-
     # ──────────────────────────────────────────────────────────────────────
     # TABLE: usage_logs
     # Model: UsageLog  (backend/app/db/models/usage_log.py)
@@ -268,7 +258,6 @@ STATEMENTS: list[str] = [
     "CREATE INDEX IF NOT EXISTS ix_usage_logs_clerk_user_id ON usage_logs (clerk_user_id)",
     "CREATE INDEX IF NOT EXISTS ix_usage_logs_session_id ON usage_logs (session_id)",
     "CREATE INDEX IF NOT EXISTS ix_usage_logs_created_at ON usage_logs (created_at)",
-
     # ──────────────────────────────────────────────────────────────────────
     # TABLE: user_settings
     # Model: UserSettings  (backend/app/db/models/user_settings.py)

@@ -112,10 +112,7 @@ async def resume_sandbox(sandbox_id: str, workspace_path: str) -> str:
 
     if is_not_found:
         raise SandboxExpiredError(
-            f"Sandbox {sandbox_id} not found — it has expired and cannot be resumed. "
-            "A full rebuild is required."
+            f"Sandbox {sandbox_id} not found — it has expired and cannot be resumed. A full rebuild is required."
         ) from last_exc
 
-    raise SandboxUnreachableError(
-        f"Sandbox {sandbox_id} is unreachable after 2 attempts: {last_exc}"
-    ) from last_exc
+    raise SandboxUnreachableError(f"Sandbox {sandbox_id} is unreachable after 2 attempts: {last_exc}") from last_exc

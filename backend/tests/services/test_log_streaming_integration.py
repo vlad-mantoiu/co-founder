@@ -177,23 +177,15 @@ async def test_generation_service_creates_stage_events():
     texts = [fields.get("text", "") for _, fields in entries]
 
     # Verify at least one system stage-change event was written
-    system_entries = [
-        (entry_id, fields)
-        for entry_id, fields in entries
-        if fields.get("source") == "system"
-    ]
+    system_entries = [(entry_id, fields) for entry_id, fields in entries if fields.get("source") == "system"]
     assert len(system_entries) > 0, "Expected at least one system stage event, found none"
 
     # Verify the pipeline start event is present
     pipeline_start_texts = [t for t in texts if "Starting generation pipeline" in t]
-    assert len(pipeline_start_texts) > 0, (
-        f"Expected '--- Starting generation pipeline ---' in stream, got: {texts}"
-    )
+    assert len(pipeline_start_texts) > 0, f"Expected '--- Starting generation pipeline ---' in stream, got: {texts}"
 
     # Verify at least one stdout line from the fake sandbox was captured
-    stdout_entries = [
-        (eid, fields) for eid, fields in entries if fields.get("source") == "stdout"
-    ]
+    stdout_entries = [(eid, fields) for eid, fields in entries if fields.get("source") == "stdout"]
     assert len(stdout_entries) > 0, "Expected at least one stdout log entry from build commands"
 
 
@@ -209,15 +201,17 @@ async def test_archive_logs_to_s3_success():
 
     # Seed Redis stream with two entries
     stream_key = f"job:{job_id}:logs"
-    await redis.xadd(stream_key, {"ts": "2026-01-01T00:00:00+00:00", "source": "stdout", "text": "hello", "phase": "install"})
-    await redis.xadd(stream_key, {"ts": "2026-01-01T00:00:01+00:00", "source": "system", "text": "done", "phase": "checks"})
+    await redis.xadd(
+        stream_key, {"ts": "2026-01-01T00:00:00+00:00", "source": "stdout", "text": "hello", "phase": "install"}
+    )
+    await redis.xadd(
+        stream_key, {"ts": "2026-01-01T00:00:01+00:00", "source": "system", "text": "done", "phase": "checks"}
+    )
 
     mock_s3 = MagicMock()
     mock_s3.put_object = MagicMock()
 
-    with patch("app.core.config.get_settings") as mock_settings_fn, \
-         patch("boto3.client", return_value=mock_s3):
-
+    with patch("app.core.config.get_settings") as mock_settings_fn, patch("boto3.client", return_value=mock_s3):
         mock_settings = MagicMock()
         mock_settings.log_archive_bucket = "test-log-bucket"
         mock_settings_fn.return_value = mock_settings
@@ -252,11 +246,11 @@ async def test_archive_logs_to_s3_skip_when_no_bucket():
 
     # Seed a log entry so the function wouldn't skip for "no entries"
     stream_key = f"job:{job_id}:logs"
-    await redis.xadd(stream_key, {"ts": "2026-01-01T00:00:00+00:00", "source": "stdout", "text": "hello", "phase": "install"})
+    await redis.xadd(
+        stream_key, {"ts": "2026-01-01T00:00:00+00:00", "source": "stdout", "text": "hello", "phase": "install"}
+    )
 
-    with patch("app.core.config.get_settings") as mock_settings_fn, \
-         patch("boto3.client") as mock_boto3:
-
+    with patch("app.core.config.get_settings") as mock_settings_fn, patch("boto3.client") as mock_boto3:
         mock_settings = MagicMock()
         mock_settings.log_archive_bucket = ""  # Empty = skip
         mock_settings_fn.return_value = mock_settings
@@ -279,14 +273,14 @@ async def test_archive_logs_to_s3_nonfatal_on_error():
 
     # Seed a log entry
     stream_key = f"job:{job_id}:logs"
-    await redis.xadd(stream_key, {"ts": "2026-01-01T00:00:00+00:00", "source": "stdout", "text": "hello", "phase": "install"})
+    await redis.xadd(
+        stream_key, {"ts": "2026-01-01T00:00:00+00:00", "source": "stdout", "text": "hello", "phase": "install"}
+    )
 
     mock_s3 = MagicMock()
     mock_s3.put_object = MagicMock(side_effect=Exception("S3 connection refused"))
 
-    with patch("app.core.config.get_settings") as mock_settings_fn, \
-         patch("boto3.client", return_value=mock_s3):
-
+    with patch("app.core.config.get_settings") as mock_settings_fn, patch("boto3.client", return_value=mock_s3):
         mock_settings = MagicMock()
         mock_settings.log_archive_bucket = "test-log-bucket"
         mock_settings_fn.return_value = mock_settings

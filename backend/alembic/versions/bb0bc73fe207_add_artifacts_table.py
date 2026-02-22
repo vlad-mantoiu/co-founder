@@ -5,6 +5,7 @@ Revises: b2a5eef209b4
 Create Date: 2026-02-17 08:13:14.778258
 
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -13,8 +14,8 @@ from sqlalchemy.dialects import postgresql
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = 'bb0bc73fe207'
-down_revision: str | Sequence[str] | None = 'b2a5eef209b4'
+revision: str = "bb0bc73fe207"
+down_revision: str | Sequence[str] | None = "b2a5eef209b4"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -25,117 +26,145 @@ def upgrade() -> None:
 
     # Create artifacts table
     op.create_table(
-        'artifacts',
-        sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column('project_id', postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column('artifact_type', sa.String(length=50), nullable=False),
-        sa.Column('current_content', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
-        sa.Column('previous_content', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
-        sa.Column('version_number', sa.Integer(), nullable=False, server_default='1'),
-        sa.Column('schema_version', sa.Integer(), nullable=False, server_default='1'),
-        sa.Column('has_user_edits', sa.Boolean(), nullable=False, server_default='false'),
-        sa.Column('edited_sections', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
-        sa.Column('annotations', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
-        sa.Column('generation_status', sa.String(length=20), nullable=False, server_default='idle'),
-        sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
-        sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
-        sa.ForeignKeyConstraint(['project_id'], ['projects.id'], ),
-        sa.PrimaryKeyConstraint('id'),
-        sa.UniqueConstraint('project_id', 'artifact_type', name='uq_project_artifact_type')
+        "artifacts",
+        sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("project_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("artifact_type", sa.String(length=50), nullable=False),
+        sa.Column("current_content", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column("previous_content", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column("version_number", sa.Integer(), nullable=False, server_default="1"),
+        sa.Column("schema_version", sa.Integer(), nullable=False, server_default="1"),
+        sa.Column("has_user_edits", sa.Boolean(), nullable=False, server_default="false"),
+        sa.Column("edited_sections", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column("annotations", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column("generation_status", sa.String(length=20), nullable=False, server_default="idle"),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["project_id"],
+            ["projects.id"],
+        ),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("project_id", "artifact_type", name="uq_project_artifact_type"),
     )
-    op.create_index(op.f('ix_artifacts_project_id'), 'artifacts', ['project_id'], unique=False)
+    op.create_index(op.f("ix_artifacts_project_id"), "artifacts", ["project_id"], unique=False)
 
-    op.drop_index(op.f('ix_episodes_project_id'), table_name='episodes')
-    op.drop_index(op.f('ix_episodes_session_id'), table_name='episodes')
-    op.drop_index(op.f('ix_episodes_user_id'), table_name='episodes')
-    op.drop_table('episodes')
-    op.add_column('jobs', sa.Column('duration_seconds', sa.Integer(), nullable=True))
-    op.add_column('projects', sa.Column('stage_number', sa.Integer(), nullable=True))
-    op.add_column('projects', sa.Column('stage_entered_at', sa.DateTime(timezone=True), nullable=True))
-    op.add_column('projects', sa.Column('progress_percent', sa.Integer(), nullable=False))
-    op.alter_column('projects', 'created_at',
-               existing_type=postgresql.TIMESTAMP(),
-               type_=sa.DateTime(timezone=True),
-               existing_nullable=False)
-    op.alter_column('projects', 'updated_at',
-               existing_type=postgresql.TIMESTAMP(),
-               type_=sa.DateTime(timezone=True),
-               existing_nullable=False)
-    op.add_column('user_settings', sa.Column('email', sa.String(length=255), nullable=True))
-    op.add_column('user_settings', sa.Column('name', sa.String(length=255), nullable=True))
-    op.add_column('user_settings', sa.Column('avatar_url', sa.String(length=500), nullable=True))
-    op.add_column('user_settings', sa.Column('company_name', sa.String(length=255), nullable=True))
-    op.add_column('user_settings', sa.Column('role', sa.String(length=100), nullable=True))
-    op.add_column('user_settings', sa.Column('timezone', sa.String(length=100), nullable=True))
-    op.add_column('user_settings', sa.Column('onboarding_completed', sa.Boolean(), nullable=False))
-    op.add_column('user_settings', sa.Column('beta_features', sa.JSON(), nullable=True))
-    op.alter_column('user_settings', 'created_at',
-               existing_type=postgresql.TIMESTAMP(),
-               type_=sa.DateTime(timezone=True),
-               existing_nullable=False)
-    op.alter_column('user_settings', 'updated_at',
-               existing_type=postgresql.TIMESTAMP(),
-               type_=sa.DateTime(timezone=True),
-               existing_nullable=False)
+    op.drop_index(op.f("ix_episodes_project_id"), table_name="episodes")
+    op.drop_index(op.f("ix_episodes_session_id"), table_name="episodes")
+    op.drop_index(op.f("ix_episodes_user_id"), table_name="episodes")
+    op.drop_table("episodes")
+    op.add_column("jobs", sa.Column("duration_seconds", sa.Integer(), nullable=True))
+    op.add_column("projects", sa.Column("stage_number", sa.Integer(), nullable=True))
+    op.add_column("projects", sa.Column("stage_entered_at", sa.DateTime(timezone=True), nullable=True))
+    op.add_column("projects", sa.Column("progress_percent", sa.Integer(), nullable=False))
+    op.alter_column(
+        "projects",
+        "created_at",
+        existing_type=postgresql.TIMESTAMP(),
+        type_=sa.DateTime(timezone=True),
+        existing_nullable=False,
+    )
+    op.alter_column(
+        "projects",
+        "updated_at",
+        existing_type=postgresql.TIMESTAMP(),
+        type_=sa.DateTime(timezone=True),
+        existing_nullable=False,
+    )
+    op.add_column("user_settings", sa.Column("email", sa.String(length=255), nullable=True))
+    op.add_column("user_settings", sa.Column("name", sa.String(length=255), nullable=True))
+    op.add_column("user_settings", sa.Column("avatar_url", sa.String(length=500), nullable=True))
+    op.add_column("user_settings", sa.Column("company_name", sa.String(length=255), nullable=True))
+    op.add_column("user_settings", sa.Column("role", sa.String(length=100), nullable=True))
+    op.add_column("user_settings", sa.Column("timezone", sa.String(length=100), nullable=True))
+    op.add_column("user_settings", sa.Column("onboarding_completed", sa.Boolean(), nullable=False))
+    op.add_column("user_settings", sa.Column("beta_features", sa.JSON(), nullable=True))
+    op.alter_column(
+        "user_settings",
+        "created_at",
+        existing_type=postgresql.TIMESTAMP(),
+        type_=sa.DateTime(timezone=True),
+        existing_nullable=False,
+    )
+    op.alter_column(
+        "user_settings",
+        "updated_at",
+        existing_type=postgresql.TIMESTAMP(),
+        type_=sa.DateTime(timezone=True),
+        existing_nullable=False,
+    )
     # ### end Alembic commands ###
 
 
 def downgrade() -> None:
     """Downgrade schema."""
     # ### commands auto generated by Alembic - please adjust! ###
-    op.alter_column('user_settings', 'updated_at',
-               existing_type=sa.DateTime(timezone=True),
-               type_=postgresql.TIMESTAMP(),
-               existing_nullable=False)
-    op.alter_column('user_settings', 'created_at',
-               existing_type=sa.DateTime(timezone=True),
-               type_=postgresql.TIMESTAMP(),
-               existing_nullable=False)
-    op.drop_column('user_settings', 'beta_features')
-    op.drop_column('user_settings', 'onboarding_completed')
-    op.drop_column('user_settings', 'timezone')
-    op.drop_column('user_settings', 'role')
-    op.drop_column('user_settings', 'company_name')
-    op.drop_column('user_settings', 'avatar_url')
-    op.drop_column('user_settings', 'name')
-    op.drop_column('user_settings', 'email')
-    op.alter_column('projects', 'updated_at',
-               existing_type=sa.DateTime(timezone=True),
-               type_=postgresql.TIMESTAMP(),
-               existing_nullable=False)
-    op.alter_column('projects', 'created_at',
-               existing_type=sa.DateTime(timezone=True),
-               type_=postgresql.TIMESTAMP(),
-               existing_nullable=False)
-    op.drop_column('projects', 'progress_percent')
-    op.drop_column('projects', 'stage_entered_at')
-    op.drop_column('projects', 'stage_number')
-    op.drop_column('jobs', 'duration_seconds')
+    op.alter_column(
+        "user_settings",
+        "updated_at",
+        existing_type=sa.DateTime(timezone=True),
+        type_=postgresql.TIMESTAMP(),
+        existing_nullable=False,
+    )
+    op.alter_column(
+        "user_settings",
+        "created_at",
+        existing_type=sa.DateTime(timezone=True),
+        type_=postgresql.TIMESTAMP(),
+        existing_nullable=False,
+    )
+    op.drop_column("user_settings", "beta_features")
+    op.drop_column("user_settings", "onboarding_completed")
+    op.drop_column("user_settings", "timezone")
+    op.drop_column("user_settings", "role")
+    op.drop_column("user_settings", "company_name")
+    op.drop_column("user_settings", "avatar_url")
+    op.drop_column("user_settings", "name")
+    op.drop_column("user_settings", "email")
+    op.alter_column(
+        "projects",
+        "updated_at",
+        existing_type=sa.DateTime(timezone=True),
+        type_=postgresql.TIMESTAMP(),
+        existing_nullable=False,
+    )
+    op.alter_column(
+        "projects",
+        "created_at",
+        existing_type=sa.DateTime(timezone=True),
+        type_=postgresql.TIMESTAMP(),
+        existing_nullable=False,
+    )
+    op.drop_column("projects", "progress_percent")
+    op.drop_column("projects", "stage_entered_at")
+    op.drop_column("projects", "stage_number")
+    op.drop_column("jobs", "duration_seconds")
 
     # Drop artifacts table
-    op.drop_index(op.f('ix_artifacts_project_id'), table_name='artifacts')
-    op.drop_table('artifacts')
-    op.create_table('episodes',
-    sa.Column('id', sa.INTEGER(), autoincrement=True, nullable=False),
-    sa.Column('user_id', sa.VARCHAR(length=255), autoincrement=False, nullable=False),
-    sa.Column('project_id', sa.VARCHAR(length=255), autoincrement=False, nullable=False),
-    sa.Column('session_id', sa.VARCHAR(length=255), autoincrement=False, nullable=False),
-    sa.Column('goal', sa.TEXT(), autoincrement=False, nullable=False),
-    sa.Column('plan', postgresql.JSON(astext_type=sa.Text()), autoincrement=False, nullable=True),
-    sa.Column('status', sa.VARCHAR(length=50), autoincrement=False, nullable=False),
-    sa.Column('steps_completed', sa.INTEGER(), autoincrement=False, nullable=True),
-    sa.Column('total_steps', sa.INTEGER(), autoincrement=False, nullable=True),
-    sa.Column('errors', postgresql.JSON(astext_type=sa.Text()), autoincrement=False, nullable=True),
-    sa.Column('final_error', sa.TEXT(), autoincrement=False, nullable=True),
-    sa.Column('files_created', postgresql.JSON(astext_type=sa.Text()), autoincrement=False, nullable=True),
-    sa.Column('commit_sha', sa.VARCHAR(length=255), autoincrement=False, nullable=True),
-    sa.Column('pr_url', sa.VARCHAR(length=512), autoincrement=False, nullable=True),
-    sa.Column('started_at', postgresql.TIMESTAMP(), autoincrement=False, nullable=True),
-    sa.Column('completed_at', postgresql.TIMESTAMP(), autoincrement=False, nullable=True),
-    sa.Column('extra_data', postgresql.JSON(astext_type=sa.Text()), autoincrement=False, nullable=True),
-    sa.PrimaryKeyConstraint('id', name=op.f('episodes_pkey'))
+    op.drop_index(op.f("ix_artifacts_project_id"), table_name="artifacts")
+    op.drop_table("artifacts")
+    op.create_table(
+        "episodes",
+        sa.Column("id", sa.INTEGER(), autoincrement=True, nullable=False),
+        sa.Column("user_id", sa.VARCHAR(length=255), autoincrement=False, nullable=False),
+        sa.Column("project_id", sa.VARCHAR(length=255), autoincrement=False, nullable=False),
+        sa.Column("session_id", sa.VARCHAR(length=255), autoincrement=False, nullable=False),
+        sa.Column("goal", sa.TEXT(), autoincrement=False, nullable=False),
+        sa.Column("plan", postgresql.JSON(astext_type=sa.Text()), autoincrement=False, nullable=True),
+        sa.Column("status", sa.VARCHAR(length=50), autoincrement=False, nullable=False),
+        sa.Column("steps_completed", sa.INTEGER(), autoincrement=False, nullable=True),
+        sa.Column("total_steps", sa.INTEGER(), autoincrement=False, nullable=True),
+        sa.Column("errors", postgresql.JSON(astext_type=sa.Text()), autoincrement=False, nullable=True),
+        sa.Column("final_error", sa.TEXT(), autoincrement=False, nullable=True),
+        sa.Column("files_created", postgresql.JSON(astext_type=sa.Text()), autoincrement=False, nullable=True),
+        sa.Column("commit_sha", sa.VARCHAR(length=255), autoincrement=False, nullable=True),
+        sa.Column("pr_url", sa.VARCHAR(length=512), autoincrement=False, nullable=True),
+        sa.Column("started_at", postgresql.TIMESTAMP(), autoincrement=False, nullable=True),
+        sa.Column("completed_at", postgresql.TIMESTAMP(), autoincrement=False, nullable=True),
+        sa.Column("extra_data", postgresql.JSON(astext_type=sa.Text()), autoincrement=False, nullable=True),
+        sa.PrimaryKeyConstraint("id", name=op.f("episodes_pkey")),
     )
-    op.create_index(op.f('ix_episodes_user_id'), 'episodes', ['user_id'], unique=False)
-    op.create_index(op.f('ix_episodes_session_id'), 'episodes', ['session_id'], unique=False)
-    op.create_index(op.f('ix_episodes_project_id'), 'episodes', ['project_id'], unique=False)
+    op.create_index(op.f("ix_episodes_user_id"), "episodes", ["user_id"], unique=False)
+    op.create_index(op.f("ix_episodes_session_id"), "episodes", ["session_id"], unique=False)
+    op.create_index(op.f("ix_episodes_project_id"), "episodes", ["project_id"], unique=False)
     # ### end Alembic commands ###

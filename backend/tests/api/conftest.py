@@ -40,9 +40,7 @@ async def engine() -> AsyncEngine:
 
     # Set global factory in the pytest-asyncio loop for in-process tests
     db_mod._engine = engine
-    db_mod._session_factory = async_sessionmaker(
-        engine, class_=AsyncSession, expire_on_commit=False
-    )
+    db_mod._session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     # Seed plan tiers
     from app.db.seed import seed_plan_tiers

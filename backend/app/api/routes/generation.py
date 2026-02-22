@@ -641,9 +641,7 @@ async def _mark_sandbox_resumed(job_id: str, new_preview_url: str) -> None:
     try:
         factory = get_session_factory()
         async with factory() as session:
-            result = await session.execute(
-                select(Job).where(Job.id == _uuid_mod.UUID(job_id))
-            )
+            result = await session.execute(select(Job).where(Job.id == _uuid_mod.UUID(job_id)))
             job = result.scalar_one_or_none()
             if job:
                 job.sandbox_paused = False
@@ -665,9 +663,7 @@ async def _mark_sandbox_paused_in_postgres(job_id: str) -> None:
     try:
         factory = get_session_factory()
         async with factory() as session:
-            result = await session.execute(
-                select(Job).where(Job.id == _uuid_mod.UUID(job_id))
-            )
+            result = await session.execute(select(Job).where(Job.id == _uuid_mod.UUID(job_id)))
             job = result.scalar_one_or_none()
             if job:
                 job.sandbox_paused = True

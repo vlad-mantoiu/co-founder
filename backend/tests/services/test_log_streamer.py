@@ -466,9 +466,7 @@ async def test_redis_expire_failure_does_not_raise():
         async def expire(self, *args, **kwargs):
             raise ConnectionError("Redis expire failed")
 
-    streamer = LogStreamer(
-        redis=PartiallyBrokenRedis(), job_id="test-job-006", phase="build"
-    )
+    streamer = LogStreamer(redis=PartiallyBrokenRedis(), job_id="test-job-006", phase="build")
     await streamer.on_stdout("line\n")
     # Should complete without raising
     assert call_count["xadd"] == 1

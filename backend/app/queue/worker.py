@@ -123,14 +123,16 @@ async def process_next_job(runner: Runner | None = None, redis=None) -> bool:
                 # beta_pause() handles errors internally (logs warning) — reaching here means success
                 paused_ok = True
                 await _mark_sandbox_paused(job_id, paused=True)
-                await state_machine.redis.hset(f"job:{job_id}", mapping={
-                    "sandbox_paused": "true",
-                    "sandbox_id": build_result.get("sandbox_id", ""),
-                    "workspace_path": build_result.get("workspace_path", ""),
-                    "preview_url": build_result.get("preview_url", ""),
-                })
-                logger.info("sandbox_auto_paused", job_id=job_id,
-                            sandbox_id=build_result.get("sandbox_id"))
+                await state_machine.redis.hset(
+                    f"job:{job_id}",
+                    mapping={
+                        "sandbox_paused": "true",
+                        "sandbox_id": build_result.get("sandbox_id", ""),
+                        "workspace_path": build_result.get("workspace_path", ""),
+                        "preview_url": build_result.get("preview_url", ""),
+                    },
+                )
+                logger.info("sandbox_auto_paused", job_id=job_id, sandbox_id=build_result.get("sandbox_id"))
 
         # Record duration for wait time estimation
         duration = time.time() - start_time
@@ -139,8 +141,12 @@ async def process_next_job(runner: Runner | None = None, redis=None) -> bool:
 
         # Persist to Postgres (terminal state)
         await _persist_job_to_postgres(
-            job_id, job_data, JobStatus.READY, duration,
-            build_result=build_result, sandbox_paused=paused_ok,
+            job_id,
+            job_data,
+            JobStatus.READY,
+            duration,
+            build_result=build_result,
+            sandbox_paused=paused_ok,
         )
         # Archive logs to S3 after successful Postgres persistence (non-fatal)
         await _archive_logs_to_s3(job_id, redis)
@@ -196,9 +202,7 @@ async def _mark_sandbox_paused(job_id: str, paused: bool) -> None:
     try:
         factory = get_session_factory()
         async with factory() as session:
-            result = await session.execute(
-                select(Job).where(Job.id == uuid.UUID(job_id))
-            )
+            result = await session.execute(select(Job).where(Job.id == uuid.UUID(job_id)))
             job = result.scalar_one_or_none()
             if job:
                 job.sandbox_paused = paused

@@ -22,9 +22,7 @@ async def main() -> None:
         for row in rows:
             print(f"  {row[0]} | status={row[1]} | project_id={row[3]} | idea={str(row[2])[:50]}")
 
-        result = await conn.execute(
-            text("SELECT id, name, status, clerk_user_id FROM projects ORDER BY created_at")
-        )
+        result = await conn.execute(text("SELECT id, name, status, clerk_user_id FROM projects ORDER BY created_at"))
         projects = result.fetchall()
         print(f"\nFound {len(projects)} project(s):")
         for p in projects:
@@ -38,9 +36,7 @@ async def main() -> None:
                 print(f"\n  Deleted project {p[0]}")
 
         # 3. Clear project_id references from onboarding sessions
-        await conn.execute(
-            text("UPDATE onboarding_sessions SET project_id = NULL WHERE project_id IS NOT NULL")
-        )
+        await conn.execute(text("UPDATE onboarding_sessions SET project_id = NULL WHERE project_id IS NOT NULL"))
         print("Cleared project_id references from sessions.")
 
         # 4. Abandon all non-completed sessions

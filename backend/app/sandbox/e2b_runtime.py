@@ -124,9 +124,7 @@ class E2BSandboxRuntime:
         try:
             await self._sandbox.beta_pause()
         except Exception as e:
-            logger.warning(
-                "beta_pause() failed (may be unsupported on Hobby tier): %s", e
-            )
+            logger.warning("beta_pause() failed (may be unsupported on Hobby tier): %s", e)
 
     @property
     def sandbox_id(self) -> str | None:
@@ -472,18 +470,15 @@ class E2BSandboxRuntime:
             # Retry once on network errors
             if any(keyword in stderr.lower() for keyword in ["econnreset", "network", "etimedout"]):
                 import asyncio
+
                 await asyncio.sleep(10)
                 install_result = await self.run_command(
                     "npm install", timeout=300, cwd=workspace_path, on_stdout=on_stdout, on_stderr=on_stderr
                 )
                 if install_result.get("exit_code", 1) != 0:
-                    raise SandboxError(
-                        f"npm install failed after retry: {install_result.get('stderr', '')[:500]}"
-                    )
+                    raise SandboxError(f"npm install failed after retry: {install_result.get('stderr', '')[:500]}")
             else:
-                raise SandboxError(
-                    f"npm install failed: {install_result.get('stderr', '')[:500]}"
-                )
+                raise SandboxError(f"npm install failed: {install_result.get('stderr', '')[:500]}")
 
         # Start dev server in background
         await self.run_background(start_cmd, cwd=workspace_path, on_stdout=on_stdout, on_stderr=on_stderr)
