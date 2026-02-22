@@ -55,6 +55,11 @@ Key v0.5 decisions (from research):
 - Framework detection priority: Next.js > Vite > CRA > Express/Hono > scripts.dev > scripts.start > fallback
 - preview_url now comes from start_dev_server (verified live URL) not unpolled get_host() + manual f-string
 
+**29-01 decisions (executed 2026-02-22):**
+- Secret redaction preserves key name in key=value patterns (API_KEY=[REDACTED] not [REDACTED]) — gives founders context
+- expire() called on every write — idempotent, ensures TTL stays ~24h after last log line not first
+- _redact_secrets() extracted as module-level function — avoids closure variable capture issues in re.sub
+
 **29-02 decisions (executed 2026-02-22):**
 - Exclusive before_id bound (xrevrange max='(before_id') prevents ID duplication across pagination pages
 - 9 tests: REST pagination (5) + SSE auth/ownership gates (3) — full SSE generator deferred to integration
