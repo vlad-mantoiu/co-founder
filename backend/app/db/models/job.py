@@ -3,7 +3,7 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.db.base import Base
@@ -30,6 +30,7 @@ class Job(Base):
     preview_url = Column(Text, nullable=True)  # Full preview URL (https://{port}-{sandbox_id}.e2b.app)
     build_version = Column(String(50), nullable=True)  # Version tag like "build_v0_1"
     workspace_path = Column(String(500), nullable=True)  # Path in sandbox (/home/user/project)
+    sandbox_paused = Column(Boolean, nullable=False, default=False)  # True after beta_pause() in READY transition
 
     # Error tracking
     error_message = Column(Text, nullable=True)
