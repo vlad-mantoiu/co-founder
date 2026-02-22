@@ -86,6 +86,10 @@ Key v0.5 decisions (from research):
 - BuildLogPanel not rendered in failure/success states — error summary and confetti are the focus
 - Dual data source: polling (useBuildProgress) + SSE (useBuildLogs) run concurrently in build page
 
+**31-01 decisions (executed 2026-02-22):**
+- CSP applied via Next.js headers() only — ALB topology means no CloudFront, no CDK changes needed
+- sandbox_expires_at computed at API read time (updated_at + 3600s) not stored separately — keeps Redis lean
+
 **31-02 decisions (executed 2026-02-22):**
 - httpx.AsyncClient with verify=False used for HEAD request — E2B sandboxes use self-signed certs
 - Both ConnectError and TimeoutException map to "Sandbox unreachable (may have expired)" — same user-facing message
@@ -106,8 +110,8 @@ Key v0.5 decisions (from research):
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed Phase 31 Plan 02 (preview-check proxy endpoint). GET /api/generation/{job_id}/preview-check returns embeddable bool with server-side X-Frame-Options detection.
-Resume file: .planning/phases/31-preview-iframe/31-02-SUMMARY.md
+Stopped at: Completed Phase 31 Plan 01 (sandbox_expires_at API field + CSP frame-src for E2B iframes). Plans 01 and 02 both complete.
+Resume file: .planning/phases/31-preview-iframe/31-01-SUMMARY.md
 Resume: Continue with Phase 31 Plan 03 (frontend usePreviewPane hook).
 
 ---
