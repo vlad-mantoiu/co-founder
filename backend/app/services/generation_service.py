@@ -99,14 +99,14 @@ class GenerationService:
             await sandbox.start()
 
             # Extend sandbox lifetime so it survives the full build cycle
-            sandbox._sandbox.set_timeout(3600)
+            await sandbox.set_timeout(3600)
 
             # Write all generated files into sandbox
             working_files: dict = final_state.get("working_files", {})
             workspace_path = "/home/user/project"
             for rel_path, file_change in working_files.items():
-                # FileChange is a TypedDict — content is in the 'content' key
-                content = file_change.get("content", "") if isinstance(file_change, dict) else str(file_change)
+                # FileChange is a TypedDict — content is in the 'new_content' key
+                content = file_change.get("new_content", "") if isinstance(file_change, dict) else str(file_change)
                 abs_path = rel_path if rel_path.startswith("/") else f"{workspace_path}/{rel_path}"
                 await sandbox.write_file(abs_path, content)
 
@@ -115,9 +115,9 @@ class GenerationService:
             await sandbox.run_command("echo 'health-check-ok'", cwd=workspace_path)
 
             # 6. Compute build result fields
-            host = sandbox._sandbox.get_host(8080)
+            host = sandbox.get_host(3000)
             preview_url = f"https://{host}"
-            sandbox_id = sandbox._sandbox.sandbox_id
+            sandbox_id = sandbox.sandbox_id
             build_version = await self._get_next_build_version(project_id, state_machine)
 
             # 7. Post-build hook: MVP Built state transition (non-fatal)
@@ -224,7 +224,7 @@ class GenerationService:
                 await sandbox.start()
 
             # Extend sandbox lifetime
-            sandbox._sandbox.set_timeout(3600)
+            await sandbox.set_timeout(3600)
 
             # 3. CODE — run Runner with change_request context
             await state_machine.transition(job_id, JobStatus.CODE, "Running LLM patch generation")
@@ -252,7 +252,7 @@ class GenerationService:
             working_files: dict = final_state.get("working_files", {})
             workspace_path = "/home/user/project"
             for rel_path, file_change in working_files.items():
-                content = file_change.get("content", "") if isinstance(file_change, dict) else str(file_change)
+                content = file_change.get("new_content", "") if isinstance(file_change, dict) else str(file_change)
                 abs_path = rel_path if rel_path.startswith("/") else f"{workspace_path}/{rel_path}"
                 await sandbox.write_file(abs_path, content)
 
@@ -276,7 +276,7 @@ class GenerationService:
                     rollback_result = await self.runner.run(rollback_state)
                     rollback_files: dict = rollback_result.get("working_files", {})
                     for rel_path, file_change in rollback_files.items():
-                        content = file_change.get("content", "") if isinstance(file_change, dict) else str(file_change)
+                        content = file_change.get("new_content", "") if isinstance(file_change, dict) else str(file_change)
                         abs_path = rel_path if rel_path.startswith("/") else f"{workspace_path}/{rel_path}"
                         await sandbox.write_file(abs_path, content)
                 except Exception as rollback_exc:
@@ -299,9 +299,9 @@ class GenerationService:
                 raise exc
 
             # 6. Compute build result fields
-            host = sandbox._sandbox.get_host(8080)
+            host = sandbox.get_host(3000)
             preview_url = f"https://{host}"
-            sandbox_id = sandbox._sandbox.sandbox_id
+            sandbox_id = sandbox.sandbox_id
             build_version = await self._get_next_build_version(project_id, state_machine)
 
             # 7. Timeline narration (GENL-05)

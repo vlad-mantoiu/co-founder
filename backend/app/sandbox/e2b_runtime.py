@@ -7,14 +7,16 @@ This module provides a sandboxed environment for the AI Co-Founder to:
 - Sync files between sandbox and persistent storage
 """
 
-import asyncio
+import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from e2b_code_interpreter import Sandbox
+from e2b_code_interpreter import AsyncSandbox
 
 from app.core.config import get_settings
 from app.core.exceptions import SandboxError
+
+logger = logging.getLogger(__name__)
 
 
 class E2BSandboxRuntime:
@@ -28,7 +30,7 @@ class E2BSandboxRuntime:
         """
         self.settings = get_settings()
         self.template = template
-        self._sandbox: Sandbox | None = None
+        self._sandbox: AsyncSandbox | None = None
         self._background_processes: dict[str, any] = {}
 
     @asynccontextmanager
@@ -57,12 +59,7 @@ class E2BSandboxRuntime:
             # E2B v1.x API - set API key via environment variable
             os.environ["E2B_API_KEY"] = self.settings.e2b_api_key
 
-            # Use the synchronous Sandbox.create() wrapped in executor
-            loop = asyncio.get_event_loop()
-            self._sandbox = await loop.run_in_executor(
-                None,
-                Sandbox.create,  # E2B v1.x factory method
-            )
+            self._sandbox = await AsyncSandbox.create()
         except Exception as e:
             raise SandboxError(f"Failed to start sandbox: {e}") from e
 
@@ -82,11 +79,7 @@ class E2BSandboxRuntime:
 
         try:
             os.environ["E2B_API_KEY"] = self.settings.e2b_api_key
-            loop = asyncio.get_event_loop()
-            self._sandbox = await loop.run_in_executor(
-                None,
-                lambda: Sandbox.connect(sandbox_id),
-            )
+            self._sandbox = await AsyncSandbox.connect(sandbox_id)
         except Exception as e:
             raise SandboxError(f"Failed to connect to sandbox {sandbox_id}: {e}") from e
 
@@ -100,12 +93,57 @@ class E2BSandboxRuntime:
             await self.kill_process(pid)
 
         try:
-            loop = asyncio.get_event_loop()
-            await loop.run_in_executor(None, self._sandbox.kill)
+            await self._sandbox.kill()
         except Exception:
             pass  # Best effort cleanup
 
         self._sandbox = None
+
+    async def set_timeout(self, seconds: int) -> None:
+        """Extend sandbox lifetime. Must be awaited.
+
+        Args:
+            seconds: New timeout in seconds
+        """
+        if not self._sandbox:
+            return
+        await self._sandbox.set_timeout(seconds)
+
+    async def beta_pause(self) -> None:
+        """Pause (snapshot) the sandbox for later reconnection via connect().
+
+        Per locked decision: always use explicit beta_pause(), never auto_pause=True
+        (E2B #884 bug: file loss on multi-resume).
+
+        Wraps in try/except because E2B Hobby plan does not support pause —
+        if it fails, logs a warning and returns without raising.
+        """
+        if not self._sandbox:
+            return
+        try:
+            await self._sandbox.beta_pause()
+        except Exception as e:
+            logger.warning(
+                "beta_pause() failed (may be unsupported on Hobby tier): %s", e
+            )
+
+    @property
+    def sandbox_id(self) -> str | None:
+        """Return the sandbox ID for reconnection."""
+        return self._sandbox.sandbox_id if self._sandbox else None
+
+    def get_host(self, port: int) -> str:
+        """Get the public hostname for a port. Synchronous — no await needed.
+
+        Args:
+            port: Port number to get public hostname for
+
+        Returns:
+            Public hostname string
+        """
+        if not self._sandbox:
+            raise SandboxError("Sandbox not started")
+        return self._sandbox.get_host(port)
 
     async def write_file(self, path: str, content: str) -> None:
         """Write content to a file in the sandbox.
@@ -120,13 +158,8 @@ class E2BSandboxRuntime:
         try:
             # E2B expects absolute paths - prepend /home/user if relative
             abs_path = path if path.startswith("/") else f"/home/user/{path}"
-
-            loop = asyncio.get_event_loop()
             # E2B files.write() accepts str, bytes, or IO directly
-            await loop.run_in_executor(
-                None,
-                lambda: self._sandbox.files.write(abs_path, content),
-            )
+            await self._sandbox.files.write(abs_path, content)
         except Exception as e:
             raise SandboxError(f"Failed to write file {path}: {e}") from e
 
@@ -145,12 +178,7 @@ class E2BSandboxRuntime:
         try:
             # E2B expects absolute paths
             abs_path = path if path.startswith("/") else f"/home/user/{path}"
-
-            loop = asyncio.get_event_loop()
-            content = await loop.run_in_executor(
-                None,
-                lambda: self._sandbox.files.read(abs_path),
-            )
+            content = await self._sandbox.files.read(abs_path)
             # Content may be bytes, decode if needed
             if isinstance(content, bytes):
                 return content.decode("utf-8")
@@ -173,12 +201,7 @@ class E2BSandboxRuntime:
         try:
             # E2B expects absolute paths
             abs_path = path if path.startswith("/") else f"/home/user/{path}"
-
-            loop = asyncio.get_event_loop()
-            files = await loop.run_in_executor(
-                None,
-                lambda: self._sandbox.files.list(abs_path),
-            )
+            files = await self._sandbox.files.list(abs_path)
             return [f.name for f in files]
         except Exception as e:
             raise SandboxError(f"Failed to list files in {path}: {e}") from e
@@ -195,12 +218,7 @@ class E2BSandboxRuntime:
         try:
             # E2B expects absolute paths
             abs_path = path if path.startswith("/") else f"/home/user/{path}"
-
-            loop = asyncio.get_event_loop()
-            await loop.run_in_executor(
-                None,
-                lambda: self._sandbox.files.make_dir(abs_path),
-            )
+            await self._sandbox.files.make_dir(abs_path)
         except Exception as e:
             raise SandboxError(f"Failed to create directory {path}: {e}") from e
 
@@ -229,14 +247,10 @@ class E2BSandboxRuntime:
             if not work_dir.startswith("/"):
                 work_dir = f"/home/user/{work_dir}"
 
-            loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(
-                None,
-                lambda: self._sandbox.commands.run(
-                    command,
-                    timeout=timeout,
-                    cwd=work_dir,
-                ),
+            result = await self._sandbox.commands.run(
+                command,
+                timeout=float(timeout),
+                cwd=work_dir,
             )
             return {
                 "stdout": result.stdout,
@@ -265,12 +279,8 @@ class E2BSandboxRuntime:
             if not work_dir.startswith("/"):
                 work_dir = f"/home/user/{work_dir}"
 
-            loop = asyncio.get_event_loop()
             # Use commands.run with background=True to get a CommandHandle
-            handle = await loop.run_in_executor(
-                None,
-                lambda: self._sandbox.commands.run(command, background=True, cwd=work_dir),
-            )
+            handle = await self._sandbox.commands.run(command, background=True, cwd=work_dir)
             pid = str(handle.pid)
             self._background_processes[pid] = handle
             return pid
@@ -293,11 +303,7 @@ class E2BSandboxRuntime:
         # CommandHandle tracks the process - check if it's still running
         # by checking if pid is in the list of running processes
         try:
-            loop = asyncio.get_event_loop()
-            processes = await loop.run_in_executor(
-                None,
-                self._sandbox.commands.list,
-            )
+            processes = await self._sandbox.commands.list()
             running = any(p.pid == int(pid) for p in processes)
             return {
                 "stdout": "",  # Output streams in background, not accessible directly
@@ -321,12 +327,8 @@ class E2BSandboxRuntime:
             return
 
         try:
-            loop = asyncio.get_event_loop()
             # Use commands.kill(pid) to kill the process
-            await loop.run_in_executor(
-                None,
-                lambda: self._sandbox.commands.kill(int(pid)),
-            )
+            await self._sandbox.commands.kill(int(pid))
         except Exception:
             pass  # Best effort
         finally:
