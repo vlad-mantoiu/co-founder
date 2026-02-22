@@ -5,22 +5,22 @@
 See: .planning/PROJECT.md (updated 2026-02-22)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** v0.5 Sandbox Integration — Phase 30 in progress (Plan 02 complete)
+**Current focus:** v0.5 Sandbox Integration — Phase 30 complete, ready for Phase 31
 
 ## Current Position
 
-Phase: 30 of 32 (Frontend Build UX) — IN PROGRESS
-Plan: 02 complete (30-02: BuildProgressBar horizontal segmented bar, confetti, Contact support)
-Status: Phase 30 Plan 02 complete — Plan 03 next
-Last activity: 2026-02-22 — Phase 30 Plan 02 executed
+Phase: 30 of 32 (Frontend Build UX) — COMPLETE
+Plan: 03 complete (30-03: AutoFixBanner + build page integration + visual verification)
+Status: Phase 30 complete
+Last activity: 2026-02-22 — Phase 30 Plan 03 executed
 
-Progress: [██░░░░░░░░░░░░░░░░░░░░░░░░░░░░] 6% (v0.5: Phase 30 P01+P02 complete, P03 next)
+Progress: [████░░░░░░░░░░░░░░░░░░░░░░░░░░] 12% (v0.5: Phase 30 complete, Phase 31 next)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 87 (v0.1: 47, v0.2: 20, v0.3: 9, v0.4: 5, v0.5: 6)
-- Total phases shipped: 28 (across 4 milestones + v0.5 Phase 29 complete)
+- Total plans completed: 88 (v0.1: 47, v0.2: 20, v0.3: 9, v0.4: 5, v0.5: 7)
+- Total phases shipped: 29 (across 4 milestones + v0.5 Phases 28-30 complete)
 
 **By Milestone:**
 
@@ -80,6 +80,12 @@ Key v0.5 decisions (from research):
 - autoFixAttempt prop drives amber color branch — bar stays brand color unless explicitly non-null
 - Elapsed timer starts when isBuilding becomes true, resets to 0 when build terminates
 
+**30-03 decisions (executed 2026-02-22):**
+- effectiveStageIndex rewinds to index 3 (Writing code) when autoFixAttempt non-null — visual retry feedback
+- useBuildLogs called unconditionally so autoFixAttempt detection works even when log panel collapsed
+- BuildLogPanel not rendered in failure/success states — error summary and confetti are the focus
+- Dual data source: polling (useBuildProgress) + SSE (useBuildLogs) run concurrently in build page
+
 ### Pending Todos
 
 - [ ] Verify workflow_run gate: push a commit with a failing test and confirm deploy.yml does NOT trigger
@@ -94,9 +100,9 @@ Key v0.5 decisions (from research):
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed 30-02-PLAN.md — BuildProgressBar refactored to horizontal segmented bar, BuildSummary gets confetti, BuildFailureCard gets Contact support mailto link. Phase 30 Plans 01+02 complete.
-Resume file: .planning/phases/30-frontend-build-ux/30-02-SUMMARY.md
-Resume: Continue with Phase 30 Plan 03 (wiring).
+Stopped at: Completed Phase 30 (Frontend Build UX) — all 3 plans done. AutoFixBanner, BuildLogPanel, BuildProgressBar segmented bar, confetti, Contact support all wired into build page. Visual verification approved.
+Resume file: .planning/phases/30-frontend-build-ux/30-03-SUMMARY.md
+Resume: Continue with Phase 31 (Preview Iframe).
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
