@@ -75,7 +75,7 @@
 **Milestone Goal:** Make the core product promise real — a founder's idea goes through the LLM pipeline and results in a running full-stack app they can see and interact with in their dashboard.
 
 - [x] **Phase 28: Sandbox Runtime Fixes** — AsyncSandbox migration, dev server launch, FileChange bug fix (completed 2026-02-22)
-- [ ] **Phase 29: Build Log Streaming** — Redis Streams buffer + SSE endpoint for backend log delivery
+- [x] **Phase 29: Build Log Streaming** — Redis Streams buffer + SSE endpoint for backend log delivery (completed 2026-02-22)
 - [ ] **Phase 30: Frontend Build UX** — Log panel, build progress stages, auto-retry visibility
 - [ ] **Phase 31: Preview Iframe** — Embedded iframe, CSP update, sandbox expiry handling, new-tab fallback
 - [ ] **Phase 32: Sandbox Snapshot Lifecycle** — beta_pause after build, snapshot endpoint, resume verification
@@ -104,7 +104,7 @@
   2. `GET /api/jobs/{id}/logs/stream` delivers log lines as SSE events to an authenticated client without dropping lines after ALB idle timeout
   3. The SSE stream terminates cleanly when the job reaches READY or FAILED state
   4. Log lines persist in Redis for 24 hours after job completion — a frontend connecting after the build finishes replays all prior output
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 - [ ] 29-01-PLAN.md — LogStreamer TDD: Redis Stream writer with line buffering, ANSI stripping, secret redaction (BUILD-01)
 - [ ] 29-02-PLAN.md — SSE streaming endpoint + REST pagination endpoint + router registration (BUILD-01)
 - [ ] 29-03-PLAN.md — E2B runtime + GenerationService integration + S3 archival (BUILD-01)
@@ -175,7 +175,7 @@
 | 26. Image Pipeline | v0.4 | 2/2 | Complete | 2026-02-21 |
 | 27. GEO + Content | v0.4 | 2/2 | Complete | 2026-02-22 |
 | 28. Sandbox Runtime Fixes | 2/2 | Complete    | 2026-02-22 | - |
-| 29. Build Log Streaming | 2/3 | In Progress|  | - |
+| 29. Build Log Streaming | 3/3 | Complete   | 2026-02-22 | - |
 | 30. Frontend Build UX | v0.5 | 0/TBD | Not started | - |
 | 31. Preview Iframe | v0.5 | 0/TBD | Not started | - |
 | 32. Sandbox Snapshot Lifecycle | v0.5 | 0/TBD | Not started | - |

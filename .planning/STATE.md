@@ -5,22 +5,22 @@
 See: .planning/PROJECT.md (updated 2026-02-22)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** v0.5 Sandbox Integration — Phase 29 in progress (Plan 02 of 03 complete)
+**Current focus:** v0.5 Sandbox Integration — Phase 29 complete, ready for Phase 30
 
 ## Current Position
 
-Phase: 29 of 32 (Build Log Streaming)
-Plan: 02 complete (29-02: SSE streaming and REST log pagination endpoints)
-Status: Phase 29 in progress
-Last activity: 2026-02-22 — Phase 29 Plan 02 executed
+Phase: 29 of 32 (Build Log Streaming) — COMPLETE
+Plan: 03 complete (29-03: E2BSandboxRuntime callbacks + GenerationService LogStreamer + S3 archival)
+Status: Phase 29 complete
+Last activity: 2026-02-22 — Phase 29 Plan 03 executed
 
-Progress: [██░░░░░░░░░░░░░░░░░░░░░░░░░░░░] 4% (v0.5: Phase 28 in progress, 1/N plans complete)
+Progress: [██░░░░░░░░░░░░░░░░░░░░░░░░░░░░] 4% (v0.5: Phase 29 complete, Phase 30 next)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 82 (v0.1: 47, v0.2: 20, v0.3: 9, v0.4: 5, v0.5: 1)
-- Total phases shipped: 27 (across 4 milestones)
+- Total plans completed: 85 (v0.1: 47, v0.2: 20, v0.3: 9, v0.4: 5, v0.5: 4)
+- Total phases shipped: 28 (across 4 milestones + v0.5 Phase 29)
 
 **By Milestone:**
 
@@ -65,6 +65,11 @@ Key v0.5 decisions (from research):
 - 9 tests: REST pagination (5) + SSE auth/ownership gates (3) — full SSE generator deferred to integration
 - live-only SSE with last_id='$' per locked research decision — no full replay on connect
 
+**29-03 decisions (executed 2026-02-22):**
+- _NullStreamer fallback used when Redis unavailable in tests — avoids breaking existing unit tests while keeping LogStreamer wiring in production
+- redis injected into execute_build()/execute_iteration_build() as optional param — worker passes its client; tests without Redis fall back to NullStreamer
+- flush() called in finally blocks of execute_build and execute_iteration_build — ensures last buffered lines captured even on failure paths
+
 ### Pending Todos
 
 - [ ] Verify workflow_run gate: push a commit with a failing test and confirm deploy.yml does NOT trigger
@@ -79,9 +84,9 @@ Key v0.5 decisions (from research):
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed 29-02-PLAN.md — SSE streaming and REST log pagination endpoints, 9 tests passing. Phase 29 Plan 02 complete.
-Resume file: .planning/phases/29-build-log-streaming/29-02-SUMMARY.md
-Resume: Continue with Phase 29 Plan 03 (frontend SSE consumer component).
+Stopped at: Completed 29-03-PLAN.md — LogStreamer wired into E2BSandboxRuntime, GenerationService, and worker.py S3 archival. Phase 29 (Build Log Streaming) complete. All 3 plans done (01: LogStreamer, 02: SSE/REST endpoints, 03: pipeline integration).
+Resume file: .planning/phases/29-build-log-streaming/29-03-SUMMARY.md
+Resume: Continue with Phase 30.
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
