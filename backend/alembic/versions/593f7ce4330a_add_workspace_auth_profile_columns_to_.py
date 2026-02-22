@@ -5,18 +5,18 @@ Revises: c4e91a96cf27
 Create Date: 2026-02-16 21:16:31.797515
 
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = '593f7ce4330a'
-down_revision: Union[str, Sequence[str], None] = 'c4e91a96cf27'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = 'c4e91a96cf27'
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:

@@ -1,7 +1,7 @@
 """Generation API routes — start, status, cancel, preview-viewed, preview-check, resume, snapshot."""
 
 import uuid as _uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import httpx
 import structlog
@@ -543,7 +543,7 @@ async def resume_sandbox_preview(
         mapping={
             "preview_url": new_preview_url,
             "sandbox_paused": "false",
-            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(UTC).isoformat(),
         },
     )
 
@@ -615,7 +615,7 @@ async def snapshot_sandbox(
             f"job:{job_id}",
             mapping={
                 "sandbox_paused": "true",
-                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(UTC).isoformat(),
             },
         )
         # Update Postgres

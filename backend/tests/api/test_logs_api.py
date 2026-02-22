@@ -159,7 +159,7 @@ def test_get_logs_pagination_before_id(api_client: TestClient, fake_redis, user_
 
     job_id = str(uuid.uuid4())
     _seed_job(fake_redis, job_id, user_a.user_id)
-    entry_ids = _seed_log_entries(fake_redis, job_id, 5)
+    _seed_log_entries(fake_redis, job_id, 5)
 
     # First page: get last 2 (newest 2 = line 3, line 4)
     first_response = api_client.get(f"/api/jobs/{job_id}/logs?limit=2")

@@ -4,12 +4,11 @@ All tests use fakeredis.aioredis.FakeRedis() for an in-process Redis Stream
 implementation. Tests verify correct stream writes via xrange after each operation.
 """
 
+import fakeredis.aioredis
 import pytest
 import pytest_asyncio
-import fakeredis.aioredis
 
-from app.services.log_streamer import LogStreamer, MAX_LINE_LENGTH, STREAM_TTL_SECONDS
-
+from app.services.log_streamer import MAX_LINE_LENGTH, STREAM_TTL_SECONDS, LogStreamer
 
 # ---------------------------------------------------------------------------
 # Fixtures

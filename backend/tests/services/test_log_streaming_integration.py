@@ -14,7 +14,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import fakeredis.aioredis
 import pytest
 
-from app.queue.schemas import JobStatus
 from app.queue.state_machine import JobStateMachine
 from app.queue.worker import _archive_logs_to_s3
 from app.services.generation_service import GenerationService
@@ -149,7 +148,6 @@ async def test_run_command_with_callbacks():
 
 async def test_generation_service_creates_stage_events():
     """execute_build writes system stage-change log entries to the Redis Stream."""
-    from unittest.mock import AsyncMock
 
     from app.agent.runner_fake import RunnerFake
 

@@ -568,7 +568,7 @@ def test_workspace_files_expected():
 def test_sandbox_expires_at_present_when_ready(api_client: TestClient, fake_redis, user_a):
     """PREV-02: GET /api/generation/{job_id}/status for a READY job returns sandbox_expires_at
     as an ISO8601 string approximately 3600 seconds after the updated_at timestamp."""
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime
 
     project_id = str(uuid.uuid4())
     job_id = f"test-expires-ready-{uuid.uuid4().hex[:8]}"

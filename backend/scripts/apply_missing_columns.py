@@ -18,7 +18,6 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.core.config import get_settings
 
-
 # Tables that may not exist at all — create them minimally so the ALTER
 # statements below succeed.  Uses IF NOT EXISTS so it's safe to re-run.
 CREATE_TABLES: list[str] = [

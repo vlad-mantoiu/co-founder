@@ -3,10 +3,10 @@
 
 import asyncio
 import sys
+
 sys.path.insert(0, "/Users/vladcortex/co-founder/backend")
 
 from app.memory.knowledge_graph import get_knowledge_graph
-
 
 SAMPLE_PYTHON = '''
 """Sample module for testing."""
