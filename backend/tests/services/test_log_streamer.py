@@ -88,17 +88,24 @@ async def test_partial_line_buffering(streamer, redis):
 
 @pytest.mark.asyncio
 async def test_multi_chunk_line_assembly(streamer, redis):
-    """Multi-chunk message: 'ins' + '\ntalling dep\nendencies\n' → two lines."""
+    """Multi-chunk assembly: 'ins' buffered, then '\ntalling dep\nendencies\n' completes all three lines.
+
+    First chunk 'ins' is held in buffer (no newline).
+    Second chunk '\ntalling dep\nendencies\n' triggers:
+      - buffer flush: "ins" + "" → emit "ins"
+      - "talling dep" → emit "talling dep"
+      - "endencies" → emit "endencies" (trailing \n means complete line)
+    All three entries are emitted after the second on_stdout call.
+    """
     await streamer.on_stdout("ins")
+    entries = await read_all_entries(redis, "test-job-001")
+    assert len(entries) == 0  # "ins" is buffered, no newline yet
+
     await streamer.on_stdout("\ntalling dep\nendencies\n")
     entries = await read_all_entries(redis, "test-job-001")
-    assert len(entries) == 2
+    assert len(entries) == 3
     assert entries[0]["text"] == "ins"
     assert entries[1]["text"] == "talling dep"
-    # "endencies" is buffered — call flush to emit
-    await streamer.flush()
-    entries = await read_all_entries(redis, "test-job-001")
-    assert len(entries) == 3
     assert entries[2]["text"] == "endencies"
 
 
