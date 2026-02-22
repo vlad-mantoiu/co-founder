@@ -9,6 +9,7 @@ from app.core.llm_config import get_or_create_user_settings
 from app.db.base import get_session_factory
 from app.db.models.artifact import Artifact
 from app.db.models.decision_gate import DecisionGate
+from app.db.models.job import Job
 from app.db.models.project import Project
 from app.db.models.understanding_session import UnderstandingSession
 
@@ -33,6 +34,8 @@ class ProjectResponse(BaseModel):
     has_understanding_session: bool = False
     has_brief: bool = False
     has_execution_plan: bool = False
+    latest_job_id: str | None = None
+    sandbox_paused: bool = False
 
 
 async def _compute_project_flags(session, project_id: str) -> dict:
@@ -75,11 +78,21 @@ async def _compute_project_flags(session, project_id: str) -> dict:
     has_brief = (await session.execute(brief_q)).scalar() or False
     has_execution_plan = (await session.execute(execution_plan_q)).scalar() or False
 
+    latest_job_q = (
+        select(Job)
+        .where(and_(Job.project_id == project_id, Job.status == "ready"))
+        .order_by(Job.created_at.desc())
+        .limit(1)
+    )
+    latest_job = (await session.execute(latest_job_q)).scalar_one_or_none()
+
     return {
         "has_pending_gate": has_pending_gate,
         "has_understanding_session": has_understanding_session,
         "has_brief": has_brief,
         "has_execution_plan": has_execution_plan,
+        "latest_job_id": str(latest_job.id) if latest_job else None,
+        "sandbox_paused": latest_job.sandbox_paused if latest_job else False,
     }
 
 

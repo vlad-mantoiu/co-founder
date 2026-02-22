@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { GlassCard } from "@/components/ui/glass-card";
 import { apiFetch } from "@/lib/api";
+import { ResumeButton } from "@/components/build/ResumeButton";
 
 interface Project {
   id: string;
@@ -30,6 +31,8 @@ interface Project {
   has_understanding_session?: boolean;
   has_brief?: boolean;
   has_execution_plan?: boolean;
+  latest_job_id?: string;
+  sandbox_paused?: boolean;
 }
 
 /* ─── Checkout success detector (must be in Suspense — uses useSearchParams) ─── */
@@ -180,7 +183,7 @@ export default function DashboardPage() {
         <CheckoutSuccessDetector />
         <CheckoutAutoRedirector getToken={getToken} />
       </Suspense>
-      <ReturningUserDashboard firstName={firstName} projects={projects} />
+      <ReturningUserDashboard firstName={firstName} projects={projects} getToken={getToken} />
     </>
   );
 }
@@ -190,9 +193,11 @@ export default function DashboardPage() {
 function ReturningUserDashboard({
   firstName,
   projects,
+  getToken,
 }: {
   firstName: string;
   projects: Project[];
+  getToken: () => Promise<string | null>;
 }) {
   // Check if any projects have pending gates or understanding sessions
   const pendingGateProjects = projects.filter((p) => p.has_pending_gate);
@@ -280,59 +285,74 @@ function ReturningUserDashboard({
         </h2>
         <div className="grid sm:grid-cols-2 gap-4">
           {projects.map((project) => (
-            <Link key={project.id} href={`/projects/${project.id}`}>
-              <GlassCard variant="strong" className="group hover:ring-1 hover:ring-brand/30 transition-all cursor-pointer h-full">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <h3 className="font-display font-semibold text-white group-hover:text-brand transition-colors">
-                      {project.name}
-                    </h3>
-                    {project.description && (
-                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                        {project.description}
-                      </p>
-                    )}
-                    {/* Status badges */}
-                    <div className="mt-2 flex items-center gap-2 flex-wrap">
-                      {project.status === "parked" && (
-                        <span className="px-2.5 py-1 text-xs rounded-full bg-yellow-500/10 text-yellow-400 font-medium">
-                          Parked
-                        </span>
+            <div key={project.id} className="relative">
+              <Link href={`/projects/${project.id}`}>
+                <GlassCard variant="strong" className="group hover:ring-1 hover:ring-brand/30 transition-all cursor-pointer h-full">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h3 className="font-display font-semibold text-white group-hover:text-brand transition-colors">
+                        {project.name}
+                      </h3>
+                      {project.description && (
+                        <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                          {project.description}
+                        </p>
                       )}
-                      {project.has_pending_gate && (
-                        <span className="px-2.5 py-1 text-xs rounded-full bg-brand/10 text-brand font-medium">
-                          Pending Gate
-                        </span>
-                      )}
-                      {project.has_understanding_session && !project.has_brief && (
-                        <span className="px-2.5 py-1 text-xs rounded-full bg-white/10 text-white font-medium">
-                          Understanding...
-                        </span>
-                      )}
-                      {project.has_execution_plan && (
-                        <span className="px-2.5 py-1 text-xs rounded-full bg-neon-green/10 text-neon-green font-medium">
-                          Plan Ready
-                        </span>
-                      )}
+                      {/* Status badges */}
+                      <div className="mt-2 flex items-center gap-2 flex-wrap">
+                        {project.status === "parked" && (
+                          <span className="px-2.5 py-1 text-xs rounded-full bg-yellow-500/10 text-yellow-400 font-medium">
+                            Parked
+                          </span>
+                        )}
+                        {project.has_pending_gate && (
+                          <span className="px-2.5 py-1 text-xs rounded-full bg-brand/10 text-brand font-medium">
+                            Pending Gate
+                          </span>
+                        )}
+                        {project.has_understanding_session && !project.has_brief && (
+                          <span className="px-2.5 py-1 text-xs rounded-full bg-white/10 text-white font-medium">
+                            Understanding...
+                          </span>
+                        )}
+                        {project.has_execution_plan && (
+                          <span className="px-2.5 py-1 text-xs rounded-full bg-neon-green/10 text-neon-green font-medium">
+                            Plan Ready
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <span className="flex-shrink-0 px-2.5 py-1 text-xs rounded-full bg-neon-green/10 text-neon-green font-medium">
-                    {project.status !== "parked" ? project.status : "idle"}
-                  </span>
-                </div>
-                <div className="mt-4 flex items-center gap-3 text-xs text-muted-foreground">
-                  {project.github_repo && (
-                    <span className="flex items-center gap-1">
-                      <Github className="w-3.5 h-3.5" /> {project.github_repo}
+                    <span className="flex-shrink-0 px-2.5 py-1 text-xs rounded-full bg-neon-green/10 text-neon-green font-medium">
+                      {project.status !== "parked" ? project.status : "idle"}
                     </span>
+                  </div>
+                  <div className="mt-4 flex items-center gap-3 text-xs text-muted-foreground">
+                    {project.github_repo && (
+                      <span className="flex items-center gap-1">
+                        <Github className="w-3.5 h-3.5" /> {project.github_repo}
+                      </span>
+                    )}
+                    <span>
+                      Created{" "}
+                      {new Date(project.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                  {/* Reserve space for ResumeButton when it is shown */}
+                  {project.sandbox_paused && project.latest_job_id && (
+                    <div className="mt-3 h-5" />
                   )}
-                  <span>
-                    Created{" "}
-                    {new Date(project.created_at).toLocaleDateString()}
-                  </span>
+                </GlassCard>
+              </Link>
+              {project.sandbox_paused && project.latest_job_id && (
+                <div className="absolute bottom-4 left-4" onClick={(e) => e.stopPropagation()}>
+                  <ResumeButton
+                    jobId={project.latest_job_id}
+                    projectId={project.id}
+                    getToken={getToken}
+                  />
                 </div>
-              </GlassCard>
-            </Link>
+              )}
+            </div>
           ))}
         </div>
       </section>
