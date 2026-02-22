@@ -14,6 +14,7 @@ from app.api.routes import (
     generation,
     health,
     jobs,
+    logs,
     onboarding,
     projects,
     strategy_graph,
@@ -29,6 +30,7 @@ api_router.include_router(projects.router, prefix="/projects", tags=["projects"]
 api_router.include_router(onboarding.router, prefix="/onboarding", tags=["onboarding"])
 api_router.include_router(understanding.router, prefix="/understanding", tags=["understanding"])
 api_router.include_router(jobs.router, prefix="/jobs", tags=["jobs"])
+api_router.include_router(logs.router, prefix="/jobs", tags=["logs"])
 api_router.include_router(generation.router, prefix="/generation", tags=["generation"])
 api_router.include_router(artifacts.router, prefix="/artifacts", tags=["artifacts"])
 api_router.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])
