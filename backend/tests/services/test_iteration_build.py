@@ -25,18 +25,6 @@ pytestmark = pytest.mark.unit
 # ---------------------------------------------------------------------------
 
 
-class _FakeSandboxInner:
-    """Mimics the real E2B sandbox._sandbox object interface."""
-
-    sandbox_id = "fake-iter-sandbox-001"
-
-    def get_host(self, port: int) -> str:
-        return f"{port}-fake-iter-sandbox-001.e2b.app"
-
-    def set_timeout(self, t: int) -> None:
-        pass  # no-op in tests
-
-
 class FakeSandboxRuntime:
     """Happy-path test double for E2BSandboxRuntime — no real network calls."""
 
@@ -44,7 +32,7 @@ class FakeSandboxRuntime:
         self.files: dict[str, str] = {}
         self._started = False
         self._connected = False
-        self._sandbox = _FakeSandboxInner()
+        self._sandbox_id = "fake-iter-sandbox-001"
 
     async def start(self) -> None:
         self._started = True
@@ -55,6 +43,19 @@ class FakeSandboxRuntime:
     async def connect(self, sandbox_id: str) -> None:
         """Simulate successful reconnect."""
         self._connected = True
+
+    async def set_timeout(self, seconds: int) -> None:
+        pass
+
+    async def beta_pause(self) -> None:
+        pass  # no-op in tests
+
+    @property
+    def sandbox_id(self) -> str | None:
+        return self._sandbox_id
+
+    def get_host(self, port: int) -> str:
+        return f"{port}-{self._sandbox_id}.e2b.app"
 
     async def write_file(self, path: str, content: str) -> None:
         self.files[path] = content
@@ -144,7 +145,7 @@ async def test_iteration_build_creates_v0_2():
 
     assert result["build_version"] == "build_v0_2", f"Expected 'build_v0_2', got '{result['build_version']}'"
     assert result["sandbox_id"] == "fake-iter-sandbox-001"
-    assert result["preview_url"] == "https://8080-fake-iter-sandbox-001.e2b.app"
+    assert result["preview_url"] == "https://3000-fake-iter-sandbox-001.e2b.app"
 
 
 # ---------------------------------------------------------------------------

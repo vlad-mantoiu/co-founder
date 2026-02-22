@@ -25,31 +25,36 @@ pytestmark = pytest.mark.unit
 # ---------------------------------------------------------------------------
 
 
-class _FakeSandboxInner:
-    """Mimics the real E2B sandbox._sandbox object interface."""
-
-    sandbox_id = "fake-sandbox-001"
-
-    def get_host(self, port: int) -> str:
-        return f"{port}-fake-sandbox-001.e2b.app"
-
-    def set_timeout(self, t: int) -> None:
-        pass  # no-op in tests
-
-
 class FakeSandboxRuntime:
     """Test double for E2BSandboxRuntime — no real network calls."""
 
     def __init__(self) -> None:
         self.files: dict[str, str] = {}
         self._started = False
-        self._sandbox = _FakeSandboxInner()
+        self._sandbox_id = "fake-sandbox-001"
+        self._timeout: int | None = None
 
     async def start(self) -> None:
         self._started = True
 
     async def stop(self) -> None:
         pass
+
+    async def connect(self, sandbox_id: str) -> None:
+        self._sandbox_id = sandbox_id
+
+    async def set_timeout(self, seconds: int) -> None:
+        self._timeout = seconds
+
+    async def beta_pause(self) -> None:
+        pass  # no-op in tests
+
+    @property
+    def sandbox_id(self) -> str | None:
+        return self._sandbox_id
+
+    def get_host(self, port: int) -> str:
+        return f"{port}-{self._sandbox_id}.e2b.app"
 
     async def write_file(self, path: str, content: str) -> None:
         self.files[path] = content
@@ -127,7 +132,7 @@ async def test_execute_build_success():
 
     # Assert result contains all 4 required fields
     assert result["sandbox_id"] == "fake-sandbox-001"
-    assert result["preview_url"] == "https://8080-fake-sandbox-001.e2b.app"
+    assert result["preview_url"] == "https://3000-fake-sandbox-001.e2b.app"
     assert result["build_version"] == "build_v0_1"
     assert result["workspace_path"] == "/home/user/project"
 
