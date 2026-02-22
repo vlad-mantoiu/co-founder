@@ -51,6 +51,7 @@ export default function BuildPage() {
     isTerminal,
     connectionFailed,
     sandboxExpiresAt,
+    sandboxPaused,
   } = useBuildProgress(jobId, getToken);
 
   // SSE log streaming — called unconditionally so autoFixAttempt detection works
@@ -254,6 +255,7 @@ export default function BuildPage() {
               <PreviewPane
                 previewUrl={previewUrl}
                 sandboxExpiresAt={sandboxExpiresAt}
+                sandboxPaused={sandboxPaused}
                 jobId={jobId}
                 projectId={projectId}
                 getToken={getToken}

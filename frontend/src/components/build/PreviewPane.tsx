@@ -7,6 +7,7 @@ import {
   Clock,
   ExternalLink,
   Loader2,
+  Moon,
 } from "lucide-react";
 import { usePreviewPane } from "@/hooks/usePreviewPane";
 import { BrowserChrome } from "./BrowserChrome";
@@ -19,6 +20,7 @@ import { cn } from "@/lib/utils";
 interface PreviewPaneProps {
   previewUrl: string;
   sandboxExpiresAt: string | null;
+  sandboxPaused: boolean;
   jobId: string;
   projectId: string;
   getToken: () => Promise<string | null>;
@@ -238,12 +240,74 @@ function ErrorView({
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
+// New paused / resuming / resume_failed views
+// ──────────────────────────────────────────────────────────────────────────────
+
+function PausedView({ onResume }: { onResume: () => void }) {
+  return (
+    <CenteredOverlay>
+      <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center">
+        <Moon className="w-5 h-5 text-white/40" />
+      </div>
+      <div className="text-center space-y-1.5">
+        <StatusHeading>Your preview is sleeping.</StatusHeading>
+      </div>
+      <ActionButton onClick={onResume} variant="primary">
+        Resume preview
+      </ActionButton>
+    </CenteredOverlay>
+  );
+}
+
+function ResumingView() {
+  return (
+    <CenteredOverlay>
+      <Loader2 className="w-7 h-7 text-white/40 animate-spin" />
+      <StatusSubtext>Resuming preview...</StatusSubtext>
+    </CenteredOverlay>
+  );
+}
+
+function ResumeFailedView({
+  errorType,
+  onRebuild,
+}: {
+  errorType: "sandbox_expired" | "sandbox_unreachable" | null;
+  onRebuild: () => void;
+}) {
+  const message =
+    errorType === "sandbox_expired"
+      ? "The sandbox has expired and can\u2019t be recovered."
+      : "The sandbox couldn\u2019t be reached. It may be corrupted.";
+
+  const handleRebuild = () => {
+    if (window.confirm("This will use 1 build credit. Continue?")) {
+      onRebuild();
+    }
+  };
+
+  return (
+    <CenteredOverlay>
+      <AlertCircle className="w-8 h-8 text-red-400/80" />
+      <div className="text-center space-y-1.5">
+        <StatusHeading>Resume failed</StatusHeading>
+        <StatusSubtext>{message}</StatusSubtext>
+      </div>
+      <ActionButton onClick={handleRebuild} variant="primary">
+        Rebuild
+      </ActionButton>
+    </CenteredOverlay>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
 // Main orchestrator
 // ──────────────────────────────────────────────────────────────────────────────
 
 export function PreviewPane({
   previewUrl,
   sandboxExpiresAt,
+  sandboxPaused,
   jobId,
   projectId: _projectId,
   getToken,
@@ -255,17 +319,25 @@ export function PreviewPane({
     state,
     deviceMode,
     setDeviceMode,
+    previewUrl: activePreviewUrl,
     blockReason,
     markLoaded,
     onRetry,
-  } = usePreviewPane(previewUrl, sandboxExpiresAt, jobId, getToken);
+    handleResume,
+    resumeErrorType,
+  } = usePreviewPane(previewUrl, sandboxExpiresAt, sandboxPaused, jobId, getToken);
 
   // ── States that always show the browser chrome ────────────────────────────
   const showChrome =
     state === "checking" || state === "loading" || state === "active" || state === "error";
 
   // ── States that show a full replacement card (no chrome) ──────────────────
-  const showFullCard = state === "blocked" || state === "expired";
+  const showFullCard =
+    state === "blocked" ||
+    state === "expired" ||
+    state === "paused" ||
+    state === "resuming" ||
+    state === "resume_failed";
 
   return (
     <div className={cn("w-full", className)}>
@@ -279,7 +351,7 @@ export function PreviewPane({
             transition={{ duration: 0.25 }}
           >
             <BrowserChrome
-              previewUrl={previewUrl}
+              previewUrl={activePreviewUrl}
               deviceMode={deviceMode}
               onDeviceModeChange={setDeviceMode}
             >
@@ -304,7 +376,7 @@ export function PreviewPane({
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.2 }}
                   >
-                    <LoadingView previewUrl={previewUrl} onLoad={markLoaded} />
+                    <LoadingView previewUrl={activePreviewUrl} onLoad={markLoaded} />
                   </motion.div>
                 )}
 
@@ -316,7 +388,7 @@ export function PreviewPane({
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.3 }}
                   >
-                    <ActiveView previewUrl={previewUrl} />
+                    <ActiveView previewUrl={activePreviewUrl} />
                   </motion.div>
                 )}
 
@@ -328,7 +400,7 @@ export function PreviewPane({
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.2 }}
                   >
-                    <ErrorView previewUrl={previewUrl} onRetry={onRetry} />
+                    <ErrorView previewUrl={activePreviewUrl} onRetry={onRetry} />
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -346,10 +418,19 @@ export function PreviewPane({
             className="rounded-xl border border-white/10 bg-[#0c0c10] overflow-hidden"
           >
             {state === "blocked" && (
-              <BlockedView previewUrl={previewUrl} blockReason={blockReason} />
+              <BlockedView previewUrl={activePreviewUrl} blockReason={blockReason} />
             )}
             {state === "expired" && (
               <ExpiredView onRebuild={onRebuild} onIterate={onIterate} />
+            )}
+            {state === "paused" && (
+              <PausedView onResume={handleResume} />
+            )}
+            {state === "resuming" && (
+              <ResumingView />
+            )}
+            {state === "resume_failed" && (
+              <ResumeFailedView errorType={resumeErrorType} onRebuild={onRebuild} />
             )}
           </motion.div>
         )}
