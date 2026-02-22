@@ -140,8 +140,9 @@ export default function ProjectsPage() {
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        console.error("[projects] network error:", msg, err);
-        setError(`Unable to reach the server: ${msg}`);
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "(fallback: localhost:8000)";
+        console.error("[projects] network error:", msg, "API_URL:", apiUrl, err);
+        setError(`Unable to reach server (${apiUrl}): ${msg}`);
       } finally {
         setLoaded(true);
       }
