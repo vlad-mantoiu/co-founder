@@ -14,6 +14,9 @@ export type PreviewState =
   | "active"
   | "blocked"
   | "expired"
+  | "paused"        // sandbox was beta_paused — show resume button
+  | "resuming"      // resume API call in progress
+  | "resume_failed" // both retry attempts failed
   | "error";
 
 export type DeviceMode = "desktop" | "tablet" | "mobile";
@@ -22,11 +25,13 @@ export interface UsePreviewPaneReturn {
   state: PreviewState;
   deviceMode: DeviceMode;
   setDeviceMode: (mode: DeviceMode) => void;
-  previewUrl: string;
+  previewUrl: string;      // returns activePreviewUrl
   blockReason: string | null;
   timeRemaining: number | null; // seconds, null when not applicable
   markLoaded: () => void;
   onRetry: () => void;
+  handleResume: () => void;                                              // NEW
+  resumeErrorType: "sandbox_expired" | "sandbox_unreachable" | null;   // NEW
 }
 
 interface PreviewCheckResponse {
@@ -42,6 +47,7 @@ interface PreviewCheckResponse {
 export function usePreviewPane(
   previewUrl: string,
   sandboxExpiresAt: string | null,
+  sandboxPaused: boolean,   // NEW param
   jobId: string,
   getToken: () => Promise<string | null>,
 ): UsePreviewPaneReturn {
@@ -49,6 +55,8 @@ export function usePreviewPane(
   const [deviceMode, setDeviceMode] = useState<DeviceMode>("desktop");
   const [blockReason, setBlockReason] = useState<string | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
+  const [activePreviewUrl, setActivePreviewUrl] = useState(previewUrl);
+  const [resumeErrorType, setResumeErrorType] = useState<"sandbox_expired" | "sandbox_unreachable" | null>(null);
 
   // Refs for cleanup and one-shot toast guard
   const loadingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -157,25 +165,67 @@ export function usePreviewPane(
     runPreviewCheck();
   }, [runPreviewCheck]);
 
-  // ─── Mount: run preview check ────────────────────────────────────────────────
+  // ─── handleResume — POST /resume with 2-attempt retry ───────────────────────
+
+  const handleResume = useCallback(async () => {
+    setState("resuming");
+    setResumeErrorType(null);
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const res = await apiFetch(`/api/generation/${jobId}/resume`, getToken, { method: "POST" });
+        if (!res.ok) {
+          const body = await res.json().catch(() => null);
+          if (res.status === 503 && body?.detail?.error_type) {
+            throw new Error(body.detail.error_type);
+          }
+          throw new Error(`HTTP ${res.status}`);
+        }
+        const data: { preview_url: string; sandbox_id: string } = await res.json();
+        setActivePreviewUrl(data.preview_url);
+        setState("loading");  // triggers iframe load → markLoaded → active
+        return;
+      } catch (err) {
+        if (attempt === 0) {
+          await new Promise(r => setTimeout(r, 5000));
+          continue;
+        }
+        // Final failure — classify error
+        const msg = err instanceof Error ? err.message : "";
+        if (msg === "sandbox_expired") {
+          setResumeErrorType("sandbox_expired");
+        } else {
+          setResumeErrorType("sandbox_unreachable");
+        }
+        setState("resume_failed");
+      }
+    }
+  }, [jobId, getToken]);
+
+  // ─── Mount: run preview check or go straight to paused ───────────────────────
 
   useEffect(() => {
+    if (sandboxPaused) {
+      setState("paused");
+      return;
+    }
     runPreviewCheck();
 
     return () => {
       clearLoadingTimeout();
       clearExpiryInterval();
     };
-  }, [runPreviewCheck, clearLoadingTimeout, clearExpiryInterval]);
+  }, [sandboxPaused, runPreviewCheck, clearLoadingTimeout, clearExpiryInterval]);
 
   return {
     state,
     deviceMode,
     setDeviceMode,
-    previewUrl,
+    previewUrl: activePreviewUrl,
     blockReason,
     timeRemaining,
     markLoaded,
     onRetry,
+    handleResume,
+    resumeErrorType,
   };
 }
