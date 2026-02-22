@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 
 ## Current Position
 
-Phase: 32 of 32 (Sandbox Lifecycle) — NEXT
-Plan: 04 complete (31-04: PreviewPane integrated into build page — Phase 31 COMPLETE)
-Status: Phase 31 complete, Phase 32 next
-Last activity: 2026-02-22 — Phase 31 Plan 04 executed and human-verified
+Phase: 32 of 32 (Sandbox Lifecycle) — IN PROGRESS
+Plan: 01 complete (32-01: sandbox_paused DB column, worker auto-pause, API field)
+Status: Phase 32 Plan 01 complete, Plan 02 next
+Last activity: 2026-02-22 — Phase 32 Plan 01 executed
 
 Progress: [████░░░░░░░░░░░░░░░░░░░░░░░░░░] 15% (v0.5: Phases 28-31 complete, Phase 32 next)
 
@@ -107,6 +107,12 @@ Key v0.5 decisions (from research):
 - Success container widened to max-w-5xl — building and failure states keep max-w-xl for focus
 - handleRebuild/handleIterate use window.location.href for sandbox expiry recovery — avoids Next.js router state conflicts
 
+**32-01 decisions (executed 2026-02-22):**
+- beta_pause() call is inline in worker (not background task) — simplest path, sandbox stays alive until pause succeeds
+- _sandbox_runtime popped from build_result before Postgres persist — runtime objects must not be serialized
+- paused_ok=False default — Hobby plan pause failure is non-fatal; sandbox_paused stays False rather than crashing
+- _mark_sandbox_paused is a separate function doing targeted UPDATE — cleaner than mixing into INSERT path of _persist_job_to_postgres
+
 ### Pending Todos
 
 - [ ] Verify workflow_run gate: push a commit with a failing test and confirm deploy.yml does NOT trigger
@@ -120,9 +126,9 @@ Key v0.5 decisions (from research):
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed Phase 31 Plan 04 (PreviewPane integrated into build page — Phase 31 COMPLETE). All 4 plans in Phase 31 done.
-Resume file: .planning/phases/31-preview-iframe/31-04-SUMMARY.md
-Resume: Continue with Phase 32 (Sandbox Lifecycle / SBOX-04).
+Stopped at: Completed Phase 32 Plan 01 (sandbox_paused column, worker auto-pause after READY, API sandbox_paused field).
+Resume file: .planning/phases/32-sandbox-snapshot-lifecycle/32-01-SUMMARY.md
+Resume: Continue with Phase 32 Plan 02 (sandbox resume endpoint).
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
