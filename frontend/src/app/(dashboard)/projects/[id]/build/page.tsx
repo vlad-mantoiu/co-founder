@@ -17,7 +17,10 @@ import {
 import { Loader2, X } from "lucide-react";
 import { useAuth } from "@clerk/nextjs";
 import { useBuildProgress } from "@/hooks/useBuildProgress";
+import { useBuildLogs } from "@/hooks/useBuildLogs";
 import { BuildProgressBar } from "@/components/build/BuildProgressBar";
+import { BuildLogPanel } from "@/components/build/BuildLogPanel";
+import { AutoFixBanner } from "@/components/build/AutoFixBanner";
 import { BuildSummary } from "@/components/build/BuildSummary";
 import { BuildFailureCard } from "@/components/build/BuildFailureCard";
 import { apiFetch } from "@/lib/api";
@@ -47,6 +50,16 @@ export default function BuildPage() {
     isTerminal,
     connectionFailed,
   } = useBuildProgress(jobId, getToken);
+
+  // SSE log streaming — called unconditionally so autoFixAttempt detection works
+  // even when the log panel is collapsed (which it is by default)
+  const {
+    lines: logLines,
+    isConnected: logConnected,
+    hasEarlierLines,
+    autoFixAttempt,
+    loadEarlier,
+  } = useBuildLogs(jobId, getToken);
 
   const [cancelling, setCancelling] = useState(false);
 
@@ -80,6 +93,11 @@ export default function BuildPage() {
   const isBuilding = !isTerminal && status !== "failed";
   const isSuccess = status === "ready";
   const isFailure = status === "failed";
+
+  // When auto-fix is active, rewind the visual stage bar to "code" (index 3 in STAGE_ORDER).
+  // The debugger returns to the coder which maps to the "Writing code" stage.
+  const effectiveStageIndex =
+    autoFixAttempt !== null && isBuilding ? 3 : stageIndex;
 
   // ────────────────────────────────────────────────────────────────────────────
   // No job ID — graceful empty state
@@ -174,12 +192,28 @@ export default function BuildPage() {
                 </div>
               )}
 
-              {/* Progress bar */}
+              {/* Auto-fix banner — above the stage bar when debugger is retrying */}
+              <AnimatePresence>
+                {autoFixAttempt !== null && (
+                  <AutoFixBanner attempt={autoFixAttempt} />
+                )}
+              </AnimatePresence>
+
+              {/* Progress bar — stage rewound to "Writing code" during auto-fix */}
               <BuildProgressBar
-                stageIndex={stageIndex}
+                stageIndex={effectiveStageIndex}
                 totalStages={totalStages}
                 label={label}
                 status={status}
+                autoFixAttempt={autoFixAttempt}
+              />
+
+              {/* Log panel — collapsed by default, below the progress bar */}
+              <BuildLogPanel
+                lines={logLines}
+                isConnected={logConnected}
+                hasEarlierLines={hasEarlierLines}
+                onLoadEarlier={loadEarlier}
               />
             </motion.div>
           )}
