@@ -1,4 +1,4 @@
-"""Generation API routes — start, status, cancel, preview-viewed, preview-check."""
+"""Generation API routes — start, status, cancel, preview-viewed, preview-check, resume, snapshot."""
 
 import uuid as _uuid
 from datetime import datetime, timedelta, timezone
@@ -16,6 +16,8 @@ from app.db.redis import get_redis
 from app.queue.manager import QueueManager
 from app.queue.schemas import JobStatus
 from app.queue.state_machine import JobStateMachine
+from app.sandbox.e2b_runtime import E2BSandboxRuntime
+from app.services.resume_service import SandboxExpiredError, SandboxUnreachableError, resume_sandbox
 
 logger = structlog.get_logger(__name__)
 
@@ -96,6 +98,20 @@ class PreviewCheckResponse(BaseModel):
     embeddable: bool
     preview_url: str
     reason: str | None = None
+
+
+class ResumeResponse(BaseModel):
+    """Response for POST /api/generation/{job_id}/resume."""
+
+    preview_url: str
+    sandbox_id: str
+
+
+class SnapshotResponse(BaseModel):
+    """Response for POST /api/generation/{job_id}/snapshot."""
+
+    job_id: str
+    paused: bool
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -465,3 +481,196 @@ async def check_preview_embeddable(
             preview_url=preview_url,
             reason="Unable to verify preview",
         )
+
+
+@router.post("/{job_id}/resume", response_model=ResumeResponse)
+async def resume_sandbox_preview(
+    job_id: str,
+    user: ClerkUser = Depends(require_auth),
+    redis=Depends(get_redis),
+):
+    """Reconnect to a paused sandbox and return a fresh preview URL.
+
+    Calls resume_service.resume_sandbox() which:
+    - Reconnects to the paused E2B sandbox
+    - Extends TTL via set_timeout(3600)
+    - Kills lingering processes, restarts dev server
+    - Polls until the dev server is ready
+
+    On success: updates Redis (preview_url, sandbox_paused=false, updated_at) and Postgres.
+
+    Returns:
+        ResumeResponse with fresh preview_url and sandbox_id.
+
+    Raises:
+        HTTPException(404): Job not found, user mismatch, or no sandbox_id.
+        HTTPException(503): Sandbox expired or unreachable (distinct error_type).
+    """
+    state_machine = JobStateMachine(redis)
+    job_data = await state_machine.get_job(job_id)
+
+    if not job_data or job_data.get("user_id") != user.user_id:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    sandbox_id = job_data.get("sandbox_id")
+    if not sandbox_id:
+        raise HTTPException(status_code=404, detail="No sandbox_id associated with this job")
+
+    workspace_path = job_data.get("workspace_path", "/home/user/project")
+
+    try:
+        new_preview_url = await resume_sandbox(sandbox_id, workspace_path)
+    except SandboxExpiredError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "message": "Sandbox has expired and cannot be resumed. Please rebuild.",
+                "error_type": "sandbox_expired",
+            },
+        ) from exc
+    except SandboxUnreachableError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "message": "Sandbox is unreachable. Please try again or rebuild.",
+                "error_type": "sandbox_unreachable",
+            },
+        ) from exc
+
+    # Update Redis: fresh preview_url, mark as not paused
+    await redis.hset(
+        f"job:{job_id}",
+        mapping={
+            "preview_url": new_preview_url,
+            "sandbox_paused": "false",
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        },
+    )
+
+    # Update Postgres: sandbox_paused=False, preview_url=new_url
+    await _mark_sandbox_resumed(job_id, new_preview_url)
+
+    return ResumeResponse(preview_url=new_preview_url, sandbox_id=sandbox_id)
+
+
+@router.post("/{job_id}/snapshot", response_model=SnapshotResponse)
+async def snapshot_sandbox(
+    job_id: str,
+    user: ClerkUser = Depends(require_auth),
+    redis=Depends(get_redis),
+):
+    """Pause (snapshot) a running sandbox to stop idle billing.
+
+    Idempotent: returns 200 even if the sandbox is already paused or the pause
+    call fails — the sandbox may have been paused externally or auto-paused.
+
+    - Verifies status is READY (422 if not — cannot snapshot a non-READY build).
+    - Connects to sandbox and calls beta_pause().
+    - Updates Redis and Postgres sandbox_paused=True on success.
+    - Returns 200 with paused=True regardless of pause outcome.
+
+    Returns:
+        SnapshotResponse(job_id=job_id, paused=True) — always 200.
+
+    Raises:
+        HTTPException(404): Job not found, user mismatch, or no sandbox_id.
+        HTTPException(422): Job is not in READY state.
+    """
+    state_machine = JobStateMachine(redis)
+    job_data = await state_machine.get_job(job_id)
+
+    if not job_data or job_data.get("user_id") != user.user_id:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    status = job_data.get("status", "")
+    if status != JobStatus.READY.value:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Cannot snapshot job in state '{status}'. Job must be READY.",
+        )
+
+    sandbox_id = job_data.get("sandbox_id")
+    if not sandbox_id:
+        raise HTTPException(status_code=404, detail="No sandbox_id associated with this job")
+
+    # Best-effort: connect and pause — idempotent on failure
+    paused_ok = False
+    try:
+        runtime = E2BSandboxRuntime()
+        await runtime.connect(sandbox_id)
+        await runtime.beta_pause()
+        paused_ok = True
+    except Exception:
+        # Idempotent: sandbox may already be paused or expired — return 200 anyway
+        logger.info(
+            "snapshot_pause_skipped",
+            job_id=job_id,
+            sandbox_id=sandbox_id,
+            reason="connect or beta_pause raised (may already be paused)",
+        )
+
+    if paused_ok:
+        # Update Redis
+        await redis.hset(
+            f"job:{job_id}",
+            mapping={
+                "sandbox_paused": "true",
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            },
+        )
+        # Update Postgres
+        await _mark_sandbox_paused_in_postgres(job_id)
+
+    return SnapshotResponse(job_id=job_id, paused=True)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Internal DB helpers for resume / snapshot
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+async def _mark_sandbox_resumed(job_id: str, new_preview_url: str) -> None:
+    """Update jobs table: sandbox_paused=False, preview_url=new_preview_url.
+
+    Non-fatal: logs warning on failure, does not raise.
+    """
+    import uuid as _uuid_mod
+
+    from app.db.models.job import Job
+
+    try:
+        factory = get_session_factory()
+        async with factory() as session:
+            result = await session.execute(
+                select(Job).where(Job.id == _uuid_mod.UUID(job_id))
+            )
+            job = result.scalar_one_or_none()
+            if job:
+                job.sandbox_paused = False
+                job.preview_url = new_preview_url
+                await session.commit()
+    except Exception as exc:
+        logger.warning("mark_sandbox_resumed_failed", job_id=job_id, error=str(exc))
+
+
+async def _mark_sandbox_paused_in_postgres(job_id: str) -> None:
+    """Update jobs table: sandbox_paused=True.
+
+    Non-fatal: logs warning on failure, does not raise.
+    """
+    import uuid as _uuid_mod
+
+    from app.db.models.job import Job
+
+    try:
+        factory = get_session_factory()
+        async with factory() as session:
+            result = await session.execute(
+                select(Job).where(Job.id == _uuid_mod.UUID(job_id))
+            )
+            job = result.scalar_one_or_none()
+            if job:
+                job.sandbox_paused = True
+                await session.commit()
+    except Exception as exc:
+        logger.warning("mark_sandbox_paused_in_postgres_failed", job_id=job_id, error=str(exc))
