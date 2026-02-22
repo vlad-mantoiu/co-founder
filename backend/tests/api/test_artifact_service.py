@@ -38,14 +38,14 @@ def generator(runner_fake):
 
 
 @pytest.fixture
-def artifact_service(generator, api_client):
+def artifact_service(generator, engine):
     """ArtifactService with test database session factory.
 
-    Depends on api_client to ensure database is initialized.
+    Uses engine fixture directly to stay in the pytest-asyncio event loop.
     """
-    from app.db import get_session_factory
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-    factory = get_session_factory()
+    factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     return ArtifactService(generator=generator, session_factory=factory)
 
 

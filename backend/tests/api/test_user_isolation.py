@@ -55,13 +55,19 @@ def _mock_jwks_client():
     return client
 
 
+_TEST_CLERK_DOMAIN = "clerk.test.dev"
+_TEST_CLERK_PK = "pk_test_Y2xlcmsudGVzdC5kZXYk"  # base64("clerk.test.dev$")
+
+
 def _mock_settings():
     """Mock settings with test-friendly defaults."""
     s = MagicMock()
+    s.clerk_publishable_key = _TEST_CLERK_PK
     s.clerk_allowed_origins = [
         "http://localhost:3000",
         "https://cofounder.getinsourced.ai",
     ]
+    s.clerk_allowed_audiences = []  # disable aud validation in tests
     s.default_feature_flags = {"deep_research": False, "strategy_graph": False}
     return s
 
@@ -72,6 +78,7 @@ def _make_token(user_id: str) -> str:
     return _sign_jwt(
         {
             "sub": user_id,
+            "iss": f"https://{_TEST_CLERK_DOMAIN}",
             "iat": now - 10,
             "exp": now + 300,
             "nbf": now - 10,

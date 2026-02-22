@@ -163,7 +163,7 @@ async def test_submit_answer_returns_next_question(
         project_id=project.id,
     )
     db_session.add(onboarding)
-    await db_session.flush()
+    await db_session.commit()
 
     app: FastAPI = api_client.app
     app.dependency_overrides[require_auth] = override_auth(user_a)

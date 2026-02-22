@@ -12,9 +12,7 @@ from app.agent.runner_fake import RunnerFake
 from app.api.routes.artifacts import get_runner, router
 from app.core.auth import ClerkUser, require_auth
 from app.db.models.artifact import Artifact
-from app.db.models.plan_tier import PlanTier
 from app.db.models.project import Project
-from app.db.models.user_settings import UserSettings
 
 pytestmark = pytest.mark.integration
 
@@ -31,33 +29,20 @@ except ImportError:
 # ==================== FIXTURES ====================
 
 
+class _FakeTier:
+    slug = "bootstrapper"
+
+
+class _FakeUserSettings:
+    plan_tier = _FakeTier()
+
+
 @pytest.fixture
 def mock_user_settings():
     """Mock get_or_create_user_settings to return test tier."""
 
     async def mock_get_settings(user_id: str):
-        # Create a mock PlanTier
-        tier = PlanTier(
-            id=1,
-            slug="bootstrapper",
-            name="Bootstrapper",
-            description="Test tier",
-            price_monthly=0,
-            price_yearly=0,
-            features={},
-            limits={},
-            created_at=datetime.now(UTC),
-            updated_at=datetime.now(UTC),
-        )
-        return UserSettings(
-            clerk_user_id=user_id,
-            plan_tier=tier,
-            model_profile="balanced",
-            preferences=None,
-            beta_features=None,
-            created_at=datetime.now(UTC),
-            updated_at=datetime.now(UTC),
-        )
+        return _FakeUserSettings()
 
     with patch("app.api.routes.artifacts.get_or_create_user_settings", side_effect=mock_get_settings) as mock:
         yield mock
@@ -84,8 +69,8 @@ def app(request):
 
 
 @pytest.fixture
-async def client(app):
-    """Create test HTTP client."""
+async def client(app, engine):
+    """Create test HTTP client. Depends on engine to ensure DB is initialized."""
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         yield client
@@ -106,6 +91,7 @@ async def setup_project_and_artifacts(db_session):
         updated_at=datetime.now(UTC),
     )
     db_session.add(project)
+    await db_session.flush()  # ensure project row exists before FK-dependent artifacts
 
     # Create brief artifact
     brief = Artifact(
@@ -410,7 +396,7 @@ async def test_export_single_pdf_returns_bytes(client, setup_project_and_artifac
     if not WEASYPRINT_AVAILABLE:
         pytest.skip("WeasyPrint not available (system dependencies missing)")
 
-    data = await setup_project_and_artifacts
+    data = setup_project_and_artifacts
     brief_id = data["brief"].id
 
     response = await client.get(f"/api/artifacts/{brief_id}/export/pdf")
@@ -428,7 +414,7 @@ async def test_export_single_pdf_user_isolation(app, setup_project_and_artifacts
     if not WEASYPRINT_AVAILABLE:
         pytest.skip("WeasyPrint not available")
 
-    data = await setup_project_and_artifacts
+    data = setup_project_and_artifacts
     brief_id = data["brief"].id
 
     # Override auth to use different user
@@ -457,7 +443,7 @@ async def test_export_combined_pdf_returns_bytes(client, setup_project_and_artif
     if not WEASYPRINT_AVAILABLE:
         pytest.skip("WeasyPrint not available")
 
-    data = await setup_project_and_artifacts
+    data = setup_project_and_artifacts
     project_id = data["project"].id
 
     response = await client.get(f"/api/artifacts/project/{project_id}/export/pdf")
@@ -494,7 +480,7 @@ async def test_export_combined_pdf_user_isolation(app, setup_project_and_artifac
     if not WEASYPRINT_AVAILABLE:
         pytest.skip("WeasyPrint not available")
 
-    data = await setup_project_and_artifacts
+    data = setup_project_and_artifacts
     project_id = data["project"].id
 
     # Override auth to use different user

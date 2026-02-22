@@ -201,7 +201,7 @@ class JourneyService:
 
         # Apply resolution
         if resolution.decision == GateDecision.PROCEED and resolution.target_stage:
-            await self._transition_stage(gate.project_id, resolution.target_stage, correlation_id)
+            await self._transition_stage(gate.project_id, resolution.target_stage, correlation_id, gate_driven=True)
         elif resolution.decision == GateDecision.NARROW:
             await self._reset_milestones(
                 gate.project_id,
@@ -211,8 +211,9 @@ class JourneyService:
             )
             milestones_reset = resolution.milestones_to_reset
         elif resolution.decision == GateDecision.PIVOT and resolution.target_stage:
-            # Pivot: transition to earlier stage
-            await self._transition_stage(gate.project_id, resolution.target_stage, correlation_id)
+            # Pivot: transition to earlier stage (skip if already at or before target)
+            if resolution.target_stage.value < current_stage.value:
+                await self._transition_stage(gate.project_id, resolution.target_stage, correlation_id, gate_driven=True)
             # Reset milestones for all stages after target
             for stage_num in range(resolution.target_stage.value + 1, 6):
                 result = await self.session.execute(
@@ -252,13 +253,21 @@ class JourneyService:
             "milestones_reset": milestones_reset,
         }
 
-    async def _transition_stage(self, project_id: uuid.UUID, target_stage: Stage, correlation_id: uuid.UUID) -> None:
+    async def _transition_stage(
+        self,
+        project_id: uuid.UUID,
+        target_stage: Stage,
+        correlation_id: uuid.UUID,
+        *,
+        gate_driven: bool = False,
+    ) -> None:
         """Transition project to target stage if allowed.
 
         Args:
             project_id: UUID of the project
             target_stage: Target stage to transition to
             correlation_id: Correlation ID for event tracking
+            gate_driven: If True, skip gate-decision validation (caller is a gate resolution)
 
         Validates transition is allowed via domain logic before applying.
         """
@@ -269,15 +278,20 @@ class JourneyService:
         current_stage = Stage(project.stage_number) if project.stage_number else Stage.PRE_STAGE
         current_status = ProjectStatus(project.status)
 
-        # Load recent gate decisions for validation
-        result = await self.session.execute(
-            select(DecisionGate)
-            .where(DecisionGate.project_id == project_id, DecisionGate.status == "decided")
-            .order_by(DecisionGate.decided_at.desc())
-            .limit(5)
-        )
-        recent_gates = result.scalars().all()
-        gate_decisions = [{"decision": g.decision} for g in recent_gates]
+        if gate_driven:
+            # When called from gate resolution, skip gate-decision check
+            # but still validate parked/locked/same-stage constraints
+            gate_decisions = [{"decision": "proceed"}]  # Satisfy gate check
+        else:
+            # Load recent gate decisions for validation
+            result = await self.session.execute(
+                select(DecisionGate)
+                .where(DecisionGate.project_id == project_id, DecisionGate.status == "decided")
+                .order_by(DecisionGate.decided_at.desc())
+                .limit(5)
+            )
+            recent_gates = result.scalars().all()
+            gate_decisions = [{"decision": g.decision} for g in recent_gates]
 
         # Validate transition
         validation = validate_transition(current_stage, target_stage, current_status, gate_decisions)
@@ -317,11 +331,16 @@ class JourneyService:
             milestone_keys: List of milestone keys to reset
             correlation_id: Correlation ID for event tracking
         """
+        if not milestone_keys:
+            return
+
         # Load stage config
         result = await self.session.execute(
             select(StageConfig).where(StageConfig.project_id == project_id, StageConfig.stage_number == stage_number)
         )
-        stage_config = result.scalar_one()
+        stage_config = result.scalar_one_or_none()
+        if not stage_config:
+            return
 
         # Reset milestones
         for key in milestone_keys:
