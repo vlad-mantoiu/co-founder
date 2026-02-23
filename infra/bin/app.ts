@@ -8,6 +8,7 @@ import { DnsStack } from "../lib/dns-stack";
 import { ObservabilityStack } from "../lib/observability-stack";
 import { GitHubDeployStack } from "../lib/github-deploy-stack";
 import { MarketingStack } from "../lib/marketing-stack";
+import { ScreenshotsStack } from "../lib/screenshots-stack";
 
 const app = new cdk.App();
 
@@ -46,7 +47,15 @@ const databaseStack = new DatabaseStack(app, "CoFounderDatabase", {
 });
 databaseStack.addDependency(networkStack);
 
-// 4. Compute Stack (ECS Fargate)
+// 4. Screenshots Stack (S3 + CloudFront OAC for build screenshots)
+// Instantiated before ComputeStack so bucket + CF domain can be passed as props
+// No custom domain — backend uses default CF domain (dXXXX.cloudfront.net) stored in env vars
+const screenshotsStack = new ScreenshotsStack(app, "CoFounderScreenshots", {
+  env,
+  description: "S3 + CloudFront for build screenshots",
+});
+
+// 5. Compute Stack (ECS Fargate)
 const computeStack = new ComputeStack(app, "CoFounderCompute", {
   env,
   vpc: networkStack.vpc,
@@ -57,12 +66,15 @@ const computeStack = new ComputeStack(app, "CoFounderCompute", {
   dbSecretArn: databaseStack.dbSecret.secretArn,
   hostedZone: dnsStack.hostedZone,
   domainName: config.fullDomain,
+  screenshotsBucket: screenshotsStack.screenshotsBucket,
+  screenshotsCloudFrontDomain: screenshotsStack.screenshotsDistributionDomain,
   description: "ECS Fargate compute for AI Co-Founder",
 });
 computeStack.addDependency(databaseStack);
 computeStack.addDependency(dnsStack);
+computeStack.addDependency(screenshotsStack);
 
-// 5. Observability Stack (CloudWatch alarms, SNS alerts)
+// 6. Observability Stack (CloudWatch alarms, SNS alerts)
 const observabilityStack = new ObservabilityStack(app, "CoFounderObservability", {
   env,
   alertEmail: "vlad@getinsourced.ai",
@@ -74,7 +86,7 @@ const observabilityStack = new ObservabilityStack(app, "CoFounderObservability",
 });
 observabilityStack.addDependency(computeStack);
 
-// 6. GitHub Deploy Stack (OIDC + IAM role for GitHub Actions → ECS deploys)
+// 7. GitHub Deploy Stack (OIDC + IAM role for GitHub Actions → ECS deploys)
 new GitHubDeployStack(app, "CoFounderGitHubDeploy", {
   env,
   githubOrg: "vlad-mantoiu",
@@ -82,7 +94,7 @@ new GitHubDeployStack(app, "CoFounderGitHubDeploy", {
   description: "GitHub Actions OIDC deploy role for AI Co-Founder",
 });
 
-// 7. Marketing Stack (CloudFront + S3 for getinsourced.ai)
+// 8. Marketing Stack (CloudFront + S3 for getinsourced.ai)
 // No dependency on other stacks — uses HostedZone.fromLookup (cached in cdk.context.json)
 new MarketingStack(app, "CoFounderMarketing", {
   env,

@@ -9,6 +9,7 @@ import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as logs from "aws-cdk-lib/aws-logs";
 import * as route53Targets from "aws-cdk-lib/aws-route53-targets";
+import * as s3 from "aws-cdk-lib/aws-s3";
 import { Construct } from "constructs";
 
 export interface ComputeStackProps extends cdk.StackProps {
@@ -20,6 +21,9 @@ export interface ComputeStackProps extends cdk.StackProps {
   dbSecretArn: string;
   hostedZone: route53.IHostedZone;
   domainName: string;
+  // Optional screenshots props — absent before ScreenshotsStack deployed
+  screenshotsBucket?: s3.IBucket;
+  screenshotsCloudFrontDomain?: string;
 }
 
 export class ComputeStack extends cdk.Stack {
@@ -75,6 +79,11 @@ export class ComputeStack extends cdk.Stack {
     // Allow reading secrets
     appSecrets.grantRead(taskRole);
 
+    // Grant PutObject on screenshots bucket if provided (least privilege — CloudFront + OAC handles reads)
+    if (props.screenshotsBucket) {
+      props.screenshotsBucket.grantPut(taskRole);
+    }
+
     // Backend Task Definition
     const backendTaskDef = new ecs.FargateTaskDefinition(
       this,
@@ -106,6 +115,11 @@ export class ComputeStack extends cdk.Stack {
         STRIPE_PRICE_PARTNER_ANNUAL: "price_1T126V63L5edW2iAmeWZT55r",
         STRIPE_PRICE_CTO_MONTHLY: "price_1T126V63L5edW2iABYmT6Ol9",
         STRIPE_PRICE_CTO_ANNUAL: "price_1T126W63L5edW2iAbuHnmrHQ",
+        // Screenshots infrastructure — provided by ScreenshotsStack; fallback to '' before first deploy
+        SCREENSHOTS_BUCKET: props.screenshotsBucket?.bucketName ?? '',
+        SCREENSHOTS_CLOUDFRONT_DOMAIN: props.screenshotsCloudFrontDomain ?? '',
+        SCREENSHOT_ENABLED: 'true',
+        DOCS_GENERATION_ENABLED: 'true',
       },
       secrets: {
         ANTHROPIC_API_KEY: ecs.Secret.fromSecretsManager(
