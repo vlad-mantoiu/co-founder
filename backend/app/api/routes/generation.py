@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 
 import httpx
 import structlog
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
@@ -171,6 +171,22 @@ async def _predicted_build_version(project_id: str) -> str:
     return f"build_v0_{max_n + 1}"
 
 
+def _get_runner(request: Request):
+    """Build a Runner instance — RunnerReal in production, RunnerFake in dev."""
+    from app.core.config import get_settings
+
+    settings = get_settings()
+    if settings.anthropic_api_key:
+        from app.agent.runner_real import RunnerReal
+
+        checkpointer = getattr(request.app.state, "checkpointer", None)
+        return RunnerReal(checkpointer=checkpointer)
+    else:
+        from app.agent.runner_fake import RunnerFake
+
+        return RunnerFake()
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Endpoints
 # ──────────────────────────────────────────────────────────────────────────────
@@ -178,6 +194,7 @@ async def _predicted_build_version(project_id: str) -> str:
 
 @router.post("/start", status_code=201, response_model=StartGenerationResponse)
 async def start_generation(
+    request_obj: Request,
     request: StartGenerationRequest,
     background_tasks: BackgroundTasks,
     user: ClerkUser = Depends(require_build_subscription),
@@ -188,7 +205,7 @@ async def start_generation(
     - Verifies project ownership.
     - Checks no pending gate is blocking.
     - Creates job in state machine and enqueues it.
-    - Triggers background worker.
+    - Triggers background worker with real Runner.
 
     Returns:
         StartGenerationResponse with job_id, status="queued", and predicted build_version.
@@ -229,10 +246,13 @@ async def start_generation(
     queue_manager = QueueManager(redis)
     await queue_manager.enqueue(job_id, "bootstrapper")
 
+    # Build a real Runner so the worker uses GenerationService instead of simulation
+    runner = _get_runner(request_obj)
+
     # Trigger background worker
     from app.queue.worker import process_next_job
 
-    background_tasks.add_task(process_next_job, redis=redis)
+    background_tasks.add_task(process_next_job, runner=runner, redis=redis)
 
     return StartGenerationResponse(
         job_id=job_id,
