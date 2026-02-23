@@ -13,6 +13,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy dependency files
 COPY backend/pyproject.toml backend/README.md ./
 
+# Set browser path env before pip install (consistent with production stage)
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
 # Install dependencies
 RUN pip install --no-cache-dir -e .
 
@@ -35,6 +38,18 @@ COPY backend/app ./app
 COPY backend/alembic.ini ./alembic.ini
 COPY backend/alembic ./alembic
 COPY backend/scripts ./scripts
+
+# Set predictable browser binary path (must be set before playwright install)
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
+# Install Playwright Chromium headless-shell with system dependencies
+# --with-deps installs OS-level libs (libatk, libnspr, libnss, etc.) ~300MB
+# --only-shell installs headless-shell (not full Chrome for Testing) to save memory
+RUN playwright install --with-deps --only-shell chromium && \
+    rm -rf /var/lib/apt/lists/*
+
+# Ensure appuser can read the browser directory
+RUN chmod -R 755 /ms-playwright
 
 # Create sandbox directory
 RUN mkdir -p /tmp/cofounder
