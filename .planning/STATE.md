@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** v0.6 Live Build Experience — Phase 33 in progress (Plan 02 of N complete)
+**Current focus:** v0.6 Live Build Experience — Phase 34 in progress (Plan 01 of N complete)
 
 ## Current Position
 
-Phase: 33 of 39 (Infrastructure & Configuration)
-Plan: 02 complete
+Phase: 34 of 39 (ScreenshotService)
+Plan: 01 complete
 Status: In progress
-Last activity: 2026-02-23 — Phase 33 Plan 02 complete: Settings feature flags + /docs endpoint contract
+Last activity: 2026-02-24 — Phase 34 Plan 01 complete: ScreenshotService TDD — capture, validate, upload, persist
 
-Progress: [█░░░░░░░░░] ~3% (v0.6 in progress — 2 plans shipped)
+Progress: [█░░░░░░░░░] ~4% (v0.6 in progress — 3 plans shipped)
 
 ## Performance Metrics
 
@@ -67,6 +67,9 @@ Key v0.6 decisions (from Phase 33 Plan 02):
 - docs_ready computed via hkeys check on job:{job_id}:docs hash — avoids dedicated boolean field in main job hash
 - DocsResponse returns all four sections at once; ungenerated sections are null — no partial polling or snapshot history
 - snapshot_url read directly from job:{job_id} Redis hash — Phase 34 ScreenshotService writes it there
+- [Phase 34-screenshotservice]: CAPTURE_STAGES = frozenset({'checks','ready'}) — skip scaffold/code/deps (server not live)
+- [Phase 34-screenshotservice]: MIN_CHANNEL_STDDEV=8.0 — empirical; calibrate from production logs
+- [Phase 34-screenshotservice]: playwright>=1.58.0 added to pyproject.toml — ScreenshotService dependency
 
 ### Pending Todos
 
@@ -78,15 +81,14 @@ Key v0.6 decisions (from Phase 33 Plan 02):
 
 ### Blockers/Concerns
 
-None blocking Phase 33. Two items to resolve before Phase 34:
-- Screenshot approach needs live E2B spike to confirm worker-side Playwright works against public preview URL
+None blocking Phase 34 Plan 02.
 - `execute_iteration_build()` exact insertion point needs file read before Phase 36 (line numbers shift between versions)
 
 ## Session Continuity
 
-Last session: 2026-02-23
-Stopped at: Completed 33-02-PLAN.md — Settings feature flags + GenerationStatusResponse + /docs endpoint contract
-Resume: `/gsd:execute-phase 33` (continue with plan 03)
+Last session: 2026-02-24
+Stopped at: Completed 34-01-PLAN.md — ScreenshotService TDD implementation
+Resume: `/gsd:execute-phase 34` (continue with plan 02)
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*

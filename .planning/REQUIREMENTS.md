@@ -28,13 +28,13 @@ Requirements for v0.6 Live Build Experience. Each maps to roadmap phases.
 
 ### Live Screenshots
 
-- [ ] **SNAP-01**: Screenshot captured after each completed build stage via Playwright
-- [ ] **SNAP-02**: Screenshots stored in S3 and served via CloudFront URL
+- [x] **SNAP-01**: Screenshot captured after each completed build stage via Playwright
+- [x] **SNAP-02**: Screenshots stored in S3 and served via CloudFront URL
 - [ ] **SNAP-03**: SSE snapshot.updated event emitted when new screenshot is available
 - [ ] **SNAP-04**: Center panel displays latest screenshot with crossfade animation
 - [ ] **SNAP-05**: Skeleton placeholder shown before first screenshot arrives
-- [ ] **SNAP-06**: Screenshots below 5KB discarded as likely blank
-- [ ] **SNAP-07**: Screenshot failure is non-fatal — build continues if capture fails
+- [x] **SNAP-06**: Screenshots below 5KB discarded as likely blank
+- [x] **SNAP-07**: Screenshot failure is non-fatal — build continues if capture fails
 
 ### Documentation Generation
 
@@ -123,10 +123,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFRA-03 | Phase 33 | Pending |
 | INFRA-04 | Phase 33 | Complete |
 | INFRA-05 | Phase 33 | Complete |
-| SNAP-01 | Phase 34 | Pending |
-| SNAP-02 | Phase 34 | Pending |
-| SNAP-06 | Phase 34 | Pending |
-| SNAP-07 | Phase 34 | Pending |
+| SNAP-01 | Phase 34 | Complete |
+| SNAP-02 | Phase 34 | Complete |
+| SNAP-06 | Phase 34 | Complete |
+| SNAP-07 | Phase 34 | Complete |
 | DOCS-01 | Phase 35 | Pending |
 | DOCS-02 | Phase 35 | Pending |
 | DOCS-03 | Phase 35 | Pending |
