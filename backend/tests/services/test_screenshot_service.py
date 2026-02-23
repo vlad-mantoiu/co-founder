@@ -634,3 +634,25 @@ class TestUpload:
             service = ScreenshotService()
             result = await service.upload(png_bytes, "job-1", "checks")
             assert result is None
+
+    async def test_upload_sets_immutable_cache_control(self) -> None:
+        """S3 put_object must include CacheControl='max-age=31536000, immutable'."""
+        png_bytes = make_noise_png()
+
+        with (
+            patch("app.services.screenshot_service.get_settings") as mock_settings,
+            patch("app.services.screenshot_service.boto3") as mock_boto3,
+            patch("asyncio.to_thread", new_callable=AsyncMock) as mock_to_thread,
+        ):
+            mock_settings.return_value.screenshots_bucket = "my-bucket"
+            mock_settings.return_value.screenshots_cloudfront_domain = "d123.cloudfront.net"
+            mock_s3 = MagicMock()
+            mock_boto3.client.return_value = mock_s3
+            mock_to_thread.return_value = None
+
+            service = ScreenshotService()
+            await service.upload(png_bytes, "job-1", "checks")
+
+            assert mock_to_thread.called
+            _, kwargs = mock_to_thread.call_args
+            assert kwargs.get("CacheControl") == "max-age=31536000, immutable"

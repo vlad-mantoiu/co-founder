@@ -261,6 +261,7 @@ class ScreenshotService:
                 Key=s3_key,
                 Body=png_bytes,
                 ContentType="image/png",
+                CacheControl="max-age=31536000, immutable",
             )
             return f"https://{cf_domain}/{s3_key}"
         except Exception as exc:
