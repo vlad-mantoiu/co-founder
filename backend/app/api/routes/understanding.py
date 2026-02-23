@@ -647,10 +647,12 @@ async def get_session_state(
     for q in questions_list:
         q_id = q.get("id", "")
         if q_id in answers_dict:
-            answered.append({
-                "question": UnderstandingQuestion(**q).model_dump(),
-                "answer": answers_dict[q_id],
-            })
+            answered.append(
+                {
+                    "question": UnderstandingQuestion(**q).model_dump(),
+                    "answer": answers_dict[q_id],
+                }
+            )
     response["answered_questions"] = answered
 
     # Include current question for in-progress sessions
