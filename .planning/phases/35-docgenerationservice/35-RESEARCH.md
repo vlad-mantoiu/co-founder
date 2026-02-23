@@ -1,0 +1,517 @@
+# Phase 35: DocGenerationService - Research
+
+**Researched:** 2026-02-24
+**Domain:** Async Claude API call, Redis hash writes, asyncio task isolation, build pipeline integration
+**Confidence:** HIGH
+
+<user_constraints>
+## User Constraints (from CONTEXT.md)
+
+### Locked Decisions
+
+**Documentation voice & depth**
+- Conversational partner tone — warm, direct, like a co-founder explaining the product. "Your app lets users..." / "Here's what we built..."
+- Adaptive depth — short for simple projects, longer for complex ones. Claude adjusts based on what was scaffolded
+- Fully personalized — use the project's actual name, feature names, and descriptions throughout
+- Audience is end users of the product, not the founder. Written as if end users will read it: "Welcome to TaskFlow! Here's how to get started."
+
+**Content boundaries**
+- Getting Started targets product onboarding only — "Sign up, create your first X, invite a team member." No terminal commands, no deployment steps
+- Marketing-safe tech references allowed — "Powered by AI" or "Real-time" is fine, but never framework/database names (no React, Node.js, PostgreSQL)
+- Use product terms only — say "workspaces" and "projects" if the UI shows them, never "User model", "API endpoint", or "database table"
+- Dual-layer content safety: prompt instructs Claude what not to include, PLUS a post-generation regex filter strips anything that leaks through (code fences, file paths, CLI commands, internal architecture references)
+
+**Build context usage**
+- Input to Claude: summarized spec (extract key features and intent, strip conversational filler) + summarized file manifest (route names, component names, page structure — not raw internal paths)
+- File/route names only — no reading actual file contents. Claude infers from naming conventions
+- Describe what's being built (optimistic) — reference features from the full spec even if still building. Engaging over conservative
+- When spec is vague, infer features from the scaffolded code's route/component structure
+- Use available branding (project name, tagline, description) to make docs feel on-brand
+- Summarize the founder's spec before passing to Claude — don't include raw verbatim text to avoid parroting
+
+**Section definitions**
+- Fixed four sections: Overview, Features, Getting Started, FAQ. No extras. Frontend knows exactly what to render
+- **Overview**: Product pitch — 1-2 paragraphs explaining what the product does, who it's for, why it matters. Like a landing page hero section
+- **Features**: Bullet list with descriptions — each feature gets a bold name + 1-sentence description. Clean, scannable
+- **Getting Started**: 3 onboarding steps max — sign up, do the main action, see the result
+- **FAQ**: 3-5 questions inferred from product type — questions a new user would actually ask, not boilerplate
+
+**Progressive delivery**
+- One Claude API call generates all four sections. Service parses and writes each section to Redis hash as it's extracted
+- Emit `documentation.updated` event per section as it lands in Redis — frontend knows exactly when to re-render
+- Redis hash `job:{id}:docs` with flat structure: keys `overview`, `features`, `getting_started`, `faq` holding rendered markdown values
+- Add `_status` key to hash (underscore prefix distinguishes from content) — values: `pending`, `generating`, `complete`, `failed`, `partial`
+
+**Failure & degradation**
+- One retry with 2-3 second backoff on API failure. If second attempt fails, mark docs as failed and move on. Build continues
+- Partial success: write good sections, skip malformed ones. Status shows `partial`. Better than nothing
+- Silent to founder — no error messages about doc generation. Backend logs the error for debugging
+- 30-second timeout on the Claude API call. If no response by then, give up
+
+**Prompt structure**
+- Request structured JSON output: `{overview: "...", features: "...", getting_started: "...", faq: "..."}`  — each value is markdown. Clean parsing, no regex splitting needed
+- Use Haiku model — fast, cheap, good enough for product docs at this length
+- Include one high-quality example doc in the system prompt to anchor style, tone, and format
+- Both positive and negative instructions: "DO: Write for end users, use product terms. DO NOT: Include code blocks, file paths, CLI commands, architecture details"
+
+### Claude's Discretion
+- Iteration doc strategy for v0.2+ builds — regenerate fresh or update incrementally, based on how different the iteration is
+- Exact retry backoff timing
+- Specific regex patterns for the content safety filter
+- How to handle the few-shot example (exact content and structure)
+
+### Deferred Ideas (OUT OF SCOPE)
+None — discussion stayed within phase scope
+</user_constraints>
+
+<phase_requirements>
+## Phase Requirements
+
+| ID | Description | Research Support |
+|----|-------------|-----------------|
+| DOCS-01 | End-user documentation generated by separate Claude API call during build | Direct `anthropic.AsyncAnthropic().messages.create()` call with `claude-3-5-haiku-20241022`; isolated from the main LangGraph pipeline |
+| DOCS-02 | Sections appear progressively (Overview → Features → Getting Started → FAQ) | Single JSON response parsed in order; each section written to Redis hash + SSE event as extracted |
+| DOCS-03 | Documentation generation starts at scaffold.completed (founders read while building) | `asyncio.create_task()` injected into `execute_build()` immediately after SCAFFOLD→CODE transition; never awaited inline |
+| DOCS-07 | Documentation content is founder-safe — no code, CLI commands, or internal architecture | Dual-layer: prompt negative instructions + post-generation regex filter before Redis write |
+| DOCS-08 | Documentation generation failure is non-fatal — build continues if doc gen fails | Task fires and forgets; all exceptions caught internally; never raises to caller |
+</phase_requirements>
+
+## Summary
+
+Phase 35 introduces `DocGenerationService`, a self-contained async service that calls the Anthropic API with the Haiku model during a build, writes four documentation sections progressively to a Redis hash (`job:{id}:docs`), and emits a `documentation.updated` SSE event per section. The service runs as a fire-and-forget `asyncio.create_task()` launched from `GenerationService.execute_build()` immediately after the SCAFFOLD stage completes — this satisfies DOCS-03 (founders see content while the longer CODE/DEPS/CHECKS stages run).
+
+The critical design constraint is **complete isolation from the build's critical path**: the task must never block `execute_build()`, never raise to the caller, and never transition the job to FAILED. This is the same pattern already used in Phase 33/34 for ScreenshotService. The Anthropic call is not routed through LangChain/LangGraph — it calls `anthropic.AsyncAnthropic().messages.create()` directly (no LangChain wrapper), keeping token usage off the user's LangGraph quota and using Haiku's pricing. All error handling is internal: one retry with ~2.5-second backoff, 30-second timeout, then silent failure with `_status` = `failed` or `partial` in Redis.
+
+The service's codebase surface is: one new file (`backend/app/services/doc_generation_service.py`), one new test file (`backend/tests/services/test_doc_generation_service.py`), and two small edits — injecting the task call into `execute_build()` in `generation_service.py` and adding the feature flag check from `config.py`.
+
+**Primary recommendation:** Build `DocGenerationService` as a standalone async class mirroring `ScreenshotService`'s defensive structure (try/except everything, log warnings not errors, return None on failure). Call `anthropic.AsyncAnthropic().messages.create()` directly with `asyncio.wait_for(timeout=30)`, parse the JSON response sequentially, and write each section to Redis as it's extracted.
+
+## Standard Stack
+
+### Core
+| Library | Version | Purpose | Why Standard |
+|---------|---------|---------|--------------|
+| `anthropic` | >=0.40.0 (already in pyproject.toml) | Direct Anthropic API calls | Already installed; Haiku model available; `AsyncAnthropic` supports `asyncio.wait_for` cleanly |
+| `redis.asyncio` | already in stack | Write `job:{id}:docs` hash, emit SSE via `publish_event` | Pre-existing pattern established by ScreenshotService |
+| `structlog` | already in stack | Structured logging for failure diagnostics | Project-wide logging standard |
+
+### Supporting
+| Library | Version | Purpose | When to Use |
+|---------|---------|---------|-------------|
+| `asyncio` | stdlib | `asyncio.create_task()`, `asyncio.wait_for()`, `asyncio.sleep()` | Task isolation + timeout enforcement |
+| `re` | stdlib | Post-generation content safety filter (regex strips code fences, CLI patterns) | Applied before each section is written to Redis |
+| `json` | stdlib | Parse Claude's JSON response `{overview, features, getting_started, faq}` | Same `_parse_json_response` approach as rest of codebase |
+
+### Alternatives Considered
+| Instead of | Could Use | Tradeoff |
+|------------|-----------|----------|
+| Direct `anthropic.AsyncAnthropic` | `create_tracked_llm` (LangChain wrapper) | LangChain adds DB+Redis token tracking — undesirable for doc gen which should bypass the user's main LLM quota and is a background service call |
+| `asyncio.create_task()` in `execute_build` | Inline `await` in `execute_build` | Inline await blocks the build pipeline — violates DOCS-08. `create_task()` is the STATE.md locked pattern |
+| One-call JSON output | Streaming with section markers | Streaming adds complexity; JSON output is simpler, matches existing pattern, and sections still arrive fast enough for progressive write |
+
+**Installation:** No new packages required. `anthropic>=0.40.0` is already declared in `pyproject.toml`.
+
+## Architecture Patterns
+
+### Recommended Project Structure
+```
+backend/app/services/
+├── doc_generation_service.py   # New file — Phase 35
+├── screenshot_service.py       # Reference pattern (Phase 34)
+├── generation_service.py       # Injects asyncio.create_task() call here
+
+backend/tests/services/
+├── test_doc_generation_service.py  # New test file — Phase 35
+├── test_screenshot_service.py      # Reference test pattern (Phase 34)
+```
+
+### Pattern 1: Fire-and-Forget via asyncio.create_task()
+
+**What:** `execute_build()` spawns the doc generation task with `asyncio.create_task()` immediately after the SCAFFOLD→CODE transition. The task runs concurrently with CODE/DEPS/CHECKS stages. The task result is never awaited.
+
+**When to use:** Any side-effect that must not delay or fail the build critical path.
+
+**Insertion point in `execute_build()`** (between SCAFFOLD and CODE transitions, ~line 103):
+```python
+# After: await state_machine.transition(job_id, JobStatus.SCAFFOLD, ...)
+# Before: await state_machine.transition(job_id, JobStatus.CODE, ...)
+
+# DOCS-03: Start doc generation as background task after scaffold completes
+settings = get_settings()
+if settings.docs_generation_enabled:
+    doc_task = asyncio.create_task(
+        _doc_generation_service.generate(
+            job_id=job_id,
+            spec=job_data.get("goal", ""),
+            working_files=agent_state.get("working_files", {}),
+            redis=_redis,
+        )
+    )
+    # Never await doc_task — it runs concurrently and handles its own errors
+```
+
+Note: `working_files` is not available at SCAFFOLD stage (it's set after `runner.run()`). The task should be launched with the spec (`goal`) and optionally the scaffolded state. Realistically, the working_files manifest is only available after CODE. **Decision required for planner:** Launch with spec-only at SCAFFOLD, OR launch with working_files after CODE (slightly later but richer context). The CONTEXT.md says "start at scaffold.completed" — use spec + job_data at SCAFFOLD, not working_files. The service infers from spec alone for the initial trigger.
+
+### Pattern 2: DocGenerationService class structure (mirrors ScreenshotService)
+
+```python
+class DocGenerationService:
+    """
+    Public API:
+        generate(job_id, spec, working_files, redis) -> None
+
+    Never raises. All failures logged as warnings, _status set to failed/partial.
+    """
+
+    async def generate(
+        self,
+        job_id: str,
+        spec: str,
+        working_files: dict,
+        redis,
+    ) -> None:
+        """Entry point — called via asyncio.create_task(). Never raises."""
+        try:
+            await redis.hset(f"job:{job_id}:docs", "_status", "generating")
+            raw = await self._call_claude(spec, working_files)
+            sections = self._parse_sections(raw)
+            await self._write_sections(job_id, sections, redis)
+        except Exception as exc:
+            logger.warning("doc_generation_failed", job_id=job_id, error=str(exc))
+            try:
+                await redis.hset(f"job:{job_id}:docs", "_status", "failed")
+            except Exception:
+                pass
+```
+
+### Pattern 3: Progressive Redis writes with SSE per section
+
+After parsing the JSON response, write sections in order (overview first) and emit an SSE event per write:
+
+```python
+SECTION_ORDER = ["overview", "features", "getting_started", "faq"]
+
+async def _write_sections(self, job_id: str, sections: dict, redis) -> None:
+    state_machine = JobStateMachine(redis)
+    written_count = 0
+    for key in SECTION_ORDER:
+        content = sections.get(key)
+        if content and isinstance(content, str):
+            safe_content = self._apply_safety_filter(content)
+            await redis.hset(f"job:{job_id}:docs", key, safe_content)
+            await state_machine.publish_event(
+                job_id,
+                {
+                    "type": SSEEventType.DOCUMENTATION_UPDATED,
+                    "section": key,
+                },
+            )
+            written_count += 1
+
+    final_status = "complete" if written_count == 4 else "partial" if written_count > 0 else "failed"
+    await redis.hset(f"job:{job_id}:docs", "_status", final_status)
+```
+
+### Pattern 4: Direct Anthropic API call with timeout + one retry
+
+```python
+DOC_GEN_TIMEOUT_SECONDS = 30.0
+DOC_GEN_MODEL = "claude-3-5-haiku-20241022"
+DOC_GEN_MAX_TOKENS = 1500  # 4 sections × ~375 tokens each
+
+async def _call_claude_with_retry(self, prompt_messages: list) -> dict:
+    """One retry with 2.5s backoff. Raises on second failure."""
+    for attempt in range(2):
+        try:
+            client = anthropic.AsyncAnthropic(api_key=get_settings().anthropic_api_key)
+            response = await asyncio.wait_for(
+                client.messages.create(
+                    model=DOC_GEN_MODEL,
+                    max_tokens=DOC_GEN_MAX_TOKENS,
+                    messages=prompt_messages,
+                    system=SYSTEM_PROMPT,
+                ),
+                timeout=DOC_GEN_TIMEOUT_SECONDS,
+            )
+            raw_text = response.content[0].text
+            return json.loads(_strip_json_fences(raw_text))
+        except (RateLimitError, APITimeoutError, asyncio.TimeoutError) as exc:
+            if attempt == 0:
+                await asyncio.sleep(2.5)
+                continue
+            raise
+    raise RuntimeError("doc_generation_exhausted_retries")
+```
+
+### Pattern 5: Content safety filter (regex layer)
+
+```python
+import re
+
+# Patterns that indicate internal/technical content leaking through
+_SAFETY_PATTERNS = [
+    (re.compile(r"```[\s\S]*?```", re.DOTALL), ""),          # Strip code blocks
+    (re.compile(r"`[^`]+`"), ""),                              # Strip inline code
+    (re.compile(r"^\s*[$>]\s+.+$", re.MULTILINE), ""),        # Strip shell prompts
+    (re.compile(r"/(home|usr|var|tmp|app|src)/\S+"), ""),     # Strip Unix paths
+    (re.compile(r"[A-Z][a-z]+\.(py|ts|js|tsx|jsx|json)\b"), ""),  # Strip filenames
+    (re.compile(r"\b(React|Next\.js|FastAPI|PostgreSQL|Redis|Node\.js|Django|Flask|Vue|Angular|TypeScript)\b"), ""),
+]
+
+def _apply_safety_filter(self, content: str) -> str:
+    for pattern, replacement in _SAFETY_PATTERNS:
+        content = pattern.sub(replacement, content)
+    return content.strip()
+```
+
+### Anti-Patterns to Avoid
+
+- **Awaiting the task inline:** `await asyncio.create_task(...)` defeats the purpose — blocks the build pipeline. Always fire-and-forget.
+- **Raising from generate():** Any uncaught exception in the task will be logged by asyncio as an unhandled task exception. Wrap everything in try/except.
+- **Using `create_tracked_llm` (LangChain):** This routes through the user's token quota system and requires DB+Redis write for every call. Use `anthropic.AsyncAnthropic` directly.
+- **Using `asyncio.shield()` around the task:** The task must be cancellable when the worker shuts down. No shield.
+- **Writing all sections at once with `hset(..., mapping=...):`** This prevents progressive display. Write one key at a time, emit one SSE event per write.
+- **Using `job_id`-namespaced client instances:** Create the `AsyncAnthropic` client per call or as a module-level singleton. Avoid per-instance state that could leak between jobs.
+
+## Don't Hand-Roll
+
+| Problem | Don't Build | Use Instead | Why |
+|---------|-------------|-------------|-----|
+| Timeout on async API call | Custom polling loop | `asyncio.wait_for(coroutine, timeout=30)` | Built-in, composable, raises `asyncio.TimeoutError` that can be caught |
+| JSON fence stripping | New parser | `_strip_json_fences()` from `app.agent.llm_helpers` | Already tested, handles all Claude output variants |
+| SSE event publishing | Direct `redis.publish()` call | `JobStateMachine.publish_event()` | Adds timestamp, adds job_id automatically — consistent envelope |
+| Haiku model string | Hardcode guessed string | Use `"claude-3-5-haiku-20241022"` (verified in installed SDK `types/model.py`) | The installed anthropic SDK (`>=0.40.0`) includes `claude-3-5-haiku-20241022` and `claude-haiku-4-5-20251001` as valid model literals |
+
+**Key insight:** The `JobStateMachine.publish_event()` method already exists and is used by ScreenshotService. `DocGenerationService` reuses the same method and the same `SSEEventType.DOCUMENTATION_UPDATED` constant (already defined in `state_machine.py`).
+
+## Common Pitfalls
+
+### Pitfall 1: Task launched before working_files are available at SCAFFOLD stage
+**What goes wrong:** The task is triggered at SCAFFOLD.completed but `working_files` from `runner.run()` won't exist until after the CODE stage. If the service tries to summarize file routes/components, there's nothing to summarize yet.
+**Why it happens:** DOCS-03 says "start at scaffold.completed" but the file manifest comes from the LLM code generation that happens in the CODE stage.
+**How to avoid:** Launch the task with `spec` (the `goal` string) only at SCAFFOLD time. The spec has enough information for Claude to infer features. If you want working_files context, you'd need to launch after CODE — but that loses the timing advantage. **Recommended:** Launch at SCAFFOLD with spec-only. Claude's instructions say "when spec is vague, infer from route/component structure" — that applies to a future improvement.
+**Warning signs:** Task triggered after CODE stage transition means founders may not see docs until 80%+ of build time has elapsed.
+
+### Pitfall 2: Haiku model string mismatch
+**What goes wrong:** Using an incorrect model string (e.g., `"claude-haiku-3"`, `"claude-3-haiku"`) causes the Anthropic API to return a 400 or 404 error on every call.
+**Why it happens:** Haiku model identifiers have changed across generations.
+**How to avoid:** Use `"claude-3-5-haiku-20241022"` — this string appears in the installed `anthropic>=0.40.0` SDK's `types/model.py` and `types/model_param.py`. Also valid: `"claude-haiku-4-5-20251001"` (newer). Stick with `claude-3-5-haiku-20241022` unless there's a specific reason to upgrade.
+**Warning signs:** `anthropic.BadRequestError: 400 model not found`.
+
+### Pitfall 3: JSON parse failure from Claude
+**What goes wrong:** Claude occasionally wraps JSON output in markdown fences (` ```json ... ``` `) or adds a prefix sentence. `json.loads()` fails.
+**Why it happens:** Even with explicit prompting, models sometimes deviate.
+**How to avoid:** Always pass raw text through `_strip_json_fences()` before `json.loads()`. This function already exists in `app/agent/llm_helpers.py` and handles the common cases.
+**Warning signs:** `json.JSONDecodeError` in logs for `doc_generation_parse_failed`.
+
+### Pitfall 4: asyncio.create_task() task exceptions silently dropped
+**What goes wrong:** An unhandled exception inside a `create_task()` coroutine is logged by asyncio as `Task exception was never retrieved` and then silently dropped. It doesn't propagate to the caller.
+**Why it happens:** `asyncio.create_task()` creates a detached task. Python logs the exception when the task is garbage-collected.
+**How to avoid:** Wrap the entire `generate()` coroutine body in `try/except Exception`. This is already the pattern in ScreenshotService. Never let any exception escape the top-level `generate()` method.
+**Warning signs:** `Task exception was never retrieved` in logs followed by a traceback.
+
+### Pitfall 5: Content safety filter over-stripping
+**What goes wrong:** Regex patterns for content safety accidentally strip legitimate product feature descriptions (e.g., a product called "CodeFlow" has "code" in the name, or the product description mentions "file storage" which triggers a path pattern).
+**Why it happens:** Broad regex patterns for paths/filenames can match false positives in natural language.
+**How to avoid:** Keep patterns specific (match known framework names explicitly, match paths with Unix path separators, match code fences exactly). Test the filter independently with real Claude output samples.
+**Warning signs:** Sections return empty strings after filtering, or `_status` = `partial` when all four sections were generated.
+
+### Pitfall 6: Redis write racing with build completion
+**What goes wrong:** The doc generation task writes `_status: complete` to the docs hash after the job has already transitioned to READY/FAILED. This is fine for the data, but the SSE event may arrive after the frontend has already navigated away from the build page.
+**Why it happens:** The background task runs concurrently with the build and may finish after the job terminates.
+**How to avoid:** This is by design and acceptable. The REST endpoint `GET /api/generation/{job_id}/docs` (already implemented in Phase 33 scaffolding) allows the frontend to poll post-build. The SSE event is best-effort. No fix needed — just document the behavior.
+
+## Code Examples
+
+### Calling the Anthropic API directly (no LangChain)
+```python
+# Source: anthropic SDK AsyncAnthropic.messages.create() — verified in .venv
+import anthropic
+import asyncio
+import json
+
+from app.core.config import get_settings
+from app.agent.llm_helpers import _strip_json_fences
+
+async def call_haiku(prompt: str, system: str) -> dict:
+    settings = get_settings()
+    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+    response = await asyncio.wait_for(
+        client.messages.create(
+            model="claude-3-5-haiku-20241022",
+            max_tokens=1500,
+            system=system,
+            messages=[{"role": "user", "content": prompt}],
+        ),
+        timeout=30.0,
+    )
+    raw = response.content[0].text
+    return json.loads(_strip_json_fences(raw))
+```
+
+### Publishing SSE event via existing JobStateMachine
+```python
+# Source: app/queue/state_machine.py — publish_event() and SSEEventType
+from app.queue.state_machine import JobStateMachine, SSEEventType
+
+state_machine = JobStateMachine(redis)
+await state_machine.publish_event(
+    job_id,
+    {
+        "type": SSEEventType.DOCUMENTATION_UPDATED,
+        "section": "overview",  # Which section just landed
+    },
+)
+```
+
+### Writing a section progressively to Redis
+```python
+# Redis hash key pattern: job:{id}:docs
+# Verified: generation.py already reads this hash via hgetall (DocsResponse schema)
+await redis.hset(f"job:{job_id}:docs", "overview", safe_content)
+await redis.hset(f"job:{job_id}:docs", "_status", "generating")  # or "complete"/"partial"/"failed"
+```
+
+### Launching the task from execute_build()
+```python
+# Source: app/services/generation_service.py — execute_build() pattern
+# Inject after SCAFFOLD transition, before CODE transition (~line 92-103)
+import asyncio
+from app.core.config import get_settings
+
+# After scaffold state is created, before runner.run():
+settings = get_settings()
+if settings.docs_generation_enabled:
+    asyncio.create_task(
+        doc_generation_service.generate(
+            job_id=job_id,
+            spec=job_data.get("goal", ""),
+            redis=_redis,
+        )
+    )
+```
+
+### Prompt structure (system + user message)
+```python
+SYSTEM_PROMPT = """You are writing end-user product documentation for a new app.
+Your audience is the app's end users — not the founder or developer.
+
+Write as if a friendly team member is explaining the app to a first-time user.
+Use "you" and "your" throughout. Warm, direct, clear.
+
+DO:
+- Use the product's actual name throughout
+- Write for non-technical users in plain English
+- Keep Getting Started to 3 steps maximum
+- Make FAQ questions feel like what a curious new user would actually ask
+
+DO NOT:
+- Include code blocks, code snippets, or backtick formatting
+- Mention framework names: React, Next.js, FastAPI, PostgreSQL, Redis, Node.js, Django, etc.
+- Include terminal commands, CLI instructions, or deployment steps
+- Reference internal file names, database tables, or API endpoints
+- Use developer terms: "model", "schema", "endpoint", "environment variable"
+
+Return ONLY valid JSON with this exact structure:
+{
+  "overview": "1-2 paragraphs — product pitch for landing page hero",
+  "features": "markdown bullet list — **Bold Feature Name**: one sentence description",
+  "getting_started": "3 numbered steps for first-time user onboarding",
+  "faq": "3-5 Q&A pairs as markdown headers and paragraphs"
+}
+
+Example output for a task management app named "TaskFlow":
+{
+  "overview": "Welcome to TaskFlow! TaskFlow helps you and your team stay organized...",
+  "features": "**Smart Task Lists**: Organize your work into focused lists...",
+  "getting_started": "1. **Sign up** — Create your free TaskFlow account...",
+  "faq": "### How do I invite my team?\n\nInviting teammates is easy..."
+}"""
+```
+
+## State of the Art
+
+| Old Approach | Current Approach | When Changed | Impact |
+|--------------|------------------|--------------|--------|
+| Streaming response parsing (section markers) | Single JSON response, sequential key extraction | Decided in CONTEXT.md | Simpler, deterministic, no marker-splitting fragility |
+| LangChain `ChatAnthropic` for all LLM calls | Direct `anthropic.AsyncAnthropic` for background services | Phase 35 design | Background service avoids polluting user quota tracking |
+| Polling for doc sections from frontend | SSE event per section + REST fallback | Phase 35/36 split | Real-time with graceful fallback for late-arriving sections |
+
+**Model note:** `claude-3-5-haiku-20241022` is the production Haiku model in the current SDK. `claude-haiku-4-5-20251001` is also available if a newer model is preferred — but CONTEXT.md says "Haiku model" without specifying which generation. Haiku 3.5 is the better-tested option. The STATE.md note says `claude-sonnet-4-20250514` for doc generation, but CONTEXT.md (which locks decisions) says Haiku. CONTEXT.md takes precedence.
+
+## Open Questions
+
+1. **Exact timing of working_files for spec summarization**
+   - What we know: `working_files` dict is only populated after `runner.run()` (CODE stage), not at SCAFFOLD stage
+   - What's unclear: Should the task be launched at SCAFFOLD with spec-only, or after CODE with spec + file manifest?
+   - Recommendation: Launch at SCAFFOLD with spec-only. DOCS-03 requires starting "after scaffold stage completes." The spec provides sufficient context. Working_files can be a v2 enhancement.
+
+2. **Separate Anthropic API key for doc generation**
+   - What we know: STATE.md flags "Decide on separate Anthropic API key for doc generation (avoids rate limit contention with LangGraph pipeline)"
+   - What's unclear: Whether a second API key is available/configured in `cofounder/app` secrets
+   - Recommendation: Use `settings.anthropic_api_key` for now. Add `docs_anthropic_api_key: str = ""` to Settings with fallback to `anthropic_api_key` when empty. This future-proofs without requiring infra changes.
+
+3. **Regex safety filter false positive rate**
+   - What we know: The filter must strip code blocks, CLI commands, file paths, framework names
+   - What's unclear: Whether aggressive framework-name filtering (React, etc.) will accidentally strip "reactive" or similar words
+   - Recommendation: Use word-boundary regex (`\b(React|Next\.js|...)\b`) for framework names. Test with 3-5 representative Claude outputs in unit tests.
+
+## Validation Architecture
+
+### Test Framework
+| Property | Value |
+|----------|-------|
+| Framework | pytest 8.3.0 with pytest-asyncio 0.24.0 |
+| Config file | `pyproject.toml` — `asyncio_mode = "auto"`, `addopts = "--strict-markers"` |
+| Quick run command | `pytest backend/tests/services/test_doc_generation_service.py -x -v` |
+| Full suite command | `cd backend && pytest tests/ -x` |
+| Estimated runtime | ~3-8 seconds (all mocked, no real API calls) |
+
+### Phase Requirements → Test Map
+| Req ID | Behavior | Test Type | Automated Command | File Exists? |
+|--------|----------|-----------|-------------------|-------------|
+| DOCS-01 | Claude API call made with Haiku model and correct message structure | unit | `pytest tests/services/test_doc_generation_service.py::TestCallClaude -x` | Wave 0 gap |
+| DOCS-02 | Sections written in order (overview first), SSE event emitted per section | unit | `pytest tests/services/test_doc_generation_service.py::TestProgressiveWrite -x` | Wave 0 gap |
+| DOCS-03 | Task launched at SCAFFOLD stage via asyncio.create_task(), not awaited | unit | `pytest tests/services/test_doc_generation_service.py::TestTaskLaunch -x` | Wave 0 gap |
+| DOCS-07 | Safety filter strips code fences, CLI commands, framework names, file paths | unit | `pytest tests/services/test_doc_generation_service.py::TestSafetyFilter -x` | Wave 0 gap |
+| DOCS-08 | generate() never raises; RateLimitError, TimeoutError, JSONDecodeError all return None | unit | `pytest tests/services/test_doc_generation_service.py::TestFailurePaths -x` | Wave 0 gap |
+
+### Nyquist Sampling Rate
+- **Minimum sample interval:** After every committed task → run: `pytest backend/tests/services/test_doc_generation_service.py -x`
+- **Full suite trigger:** Before merging final task of any plan wave
+- **Phase-complete gate:** Full suite green before `/gsd:verify-work` runs
+- **Estimated feedback latency per task:** ~3-5 seconds
+
+### Wave 0 Gaps (must be created before implementation)
+- [ ] `tests/services/test_doc_generation_service.py` — covers DOCS-01, DOCS-02, DOCS-03, DOCS-07, DOCS-08
+
+*(No framework install gap — pytest + pytest-asyncio already installed and configured)*
+
+## Sources
+
+### Primary (HIGH confidence)
+- Codebase: `/Users/vladcortex/co-founder/backend/app/services/screenshot_service.py` — structural pattern for non-fatal async service with circuit-like behavior
+- Codebase: `/Users/vladcortex/co-founder/backend/app/queue/state_machine.py` — `SSEEventType.DOCUMENTATION_UPDATED` already defined; `publish_event()` already implemented
+- Codebase: `/Users/vladcortex/co-founder/backend/app/api/routes/generation.py` — `DocsResponse` schema and `GET /{job_id}/docs` endpoint already implemented; reads `job:{id}:docs` hash
+- Codebase: `/Users/vladcortex/co-founder/backend/app/core/config.py` — `docs_generation_enabled: bool = True` feature flag already present
+- Codebase: `/Users/vladcortex/co-founder/backend/app/agent/llm_helpers.py` — `_strip_json_fences()` available for reuse
+- Codebase: `.venv/lib/python3.12/site-packages/anthropic/types/model.py` — verified `"claude-3-5-haiku-20241022"` and `"claude-haiku-4-5-20251001"` as valid model strings
+- Codebase: Verified `anthropic.AsyncAnthropic().messages.create()` signature with `model`, `max_tokens`, `system`, `messages`, `timeout` parameters
+- Codebase: Verified `RateLimitError`, `APITimeoutError`, `OverloadedError` importable from `anthropic._exceptions`
+
+### Secondary (MEDIUM confidence)
+- CONTEXT.md decisions — defines locked choices for model (Haiku), output format (JSON), sections, prompt structure, and failure behavior
+
+### Tertiary (LOW confidence)
+- Regex pattern specifics for content safety filter — patterns are reasonable but need validation with real Claude output samples in tests
+
+## Metadata
+
+**Confidence breakdown:**
+- Standard stack: HIGH — anthropic SDK already installed and verified; AsyncAnthropic API shape confirmed via Python inspection
+- Architecture: HIGH — mirrors ScreenshotService pattern exactly; `asyncio.create_task()` as STATE.md locked decision; Redis key structure confirmed in generation.py
+- Pitfalls: HIGH — pitfalls derived from actual code patterns (task exception swallowing, JSON fence stripping) that have caused issues in prior phases
+- Content safety filter: MEDIUM — regex patterns are reasonable but final patterns need testing with real model outputs
+
+**Research date:** 2026-02-24
+**Valid until:** 2026-03-26 (stable domain — Anthropic API and asyncio patterns are stable)
