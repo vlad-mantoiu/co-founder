@@ -7,6 +7,37 @@ from redis.asyncio import Redis
 
 from app.queue.schemas import TIER_ITERATION_DEPTH, JobStatus
 
+# ──────────────────────────────────────────────────────────────────────────────
+# SSE Event Types (Phase 33: INFRA-03)
+#
+# Published to job:{id}:events Redis Pub/Sub channel.
+# Flat envelope with 'type' discriminator for backward compatibility.
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+class SSEEventType:
+    """Event type constants for the job:{id}:events Pub/Sub channel."""
+
+    BUILD_STAGE_STARTED = "build.stage.started"
+    BUILD_STAGE_COMPLETED = "build.stage.completed"
+    SNAPSHOT_UPDATED = "snapshot.updated"
+    DOCUMENTATION_UPDATED = "documentation.updated"
+
+
+# Human-readable stage labels for SSE events
+# Mirrors the STAGE_LABELS in generation.py but defined here to avoid circular imports
+STAGE_LABELS: dict[str, str] = {
+    "queued": "Queued...",
+    "starting": "Starting...",
+    "scaffold": "Scaffolding workspace...",
+    "code": "Writing code...",
+    "deps": "Installing dependencies...",
+    "checks": "Running checks...",
+    "ready": "Build complete!",
+    "failed": "Build failed",
+    "scheduled": "Scheduled",
+}
+
 
 class JobStateMachine:
     """Manages job state transitions with validation."""
@@ -88,13 +119,16 @@ class JobStateMachine:
             pipe.hset(f"job:{job_id}", "updated_at", now.isoformat())
             await pipe.execute()
 
-        # Publish status change for SSE
+        # Publish status change for SSE with typed event envelope
         await self.redis.publish(
             f"job:{job_id}:events",
             json.dumps(
                 {
+                    "type": SSEEventType.BUILD_STAGE_STARTED,
                     "job_id": job_id,
                     "status": new_status.value,
+                    "stage": new_status.value,
+                    "stage_label": STAGE_LABELS.get(new_status.value, new_status.value),
                     "message": message,
                     "timestamp": now.isoformat(),
                 }
@@ -102,6 +136,25 @@ class JobStateMachine:
         )
 
         return True
+
+    async def publish_event(self, job_id: str, event: dict) -> None:
+        """Publish a typed event to the job's SSE channel.
+
+        Used by ScreenshotService and DocGenerationService to emit
+        snapshot.updated and documentation.updated events.
+
+        Args:
+            job_id: Job identifier
+            event: Dict with 'type' field and event-specific data.
+                   Timestamp is added automatically if not present.
+        """
+        if "timestamp" not in event:
+            event["timestamp"] = datetime.now(UTC).isoformat()
+        event["job_id"] = job_id
+        await self.redis.publish(
+            f"job:{job_id}:events",
+            json.dumps(event),
+        )
 
     async def get_status(self, job_id: str) -> JobStatus | None:
         """Get current status of a job.
