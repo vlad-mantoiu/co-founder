@@ -104,13 +104,11 @@ class TestValidate:
         assert "file_too_small" in reason
 
     def test_rejects_solid_white_image(self) -> None:
-        """Solid white 100x100 PNG has stddev=0 — must be rejected as blank."""
+        """Solid white PNG has stddev=0 — must be rejected as blank (uniform_pixels)."""
         service = ScreenshotService()
-        png_bytes = make_solid_png(color=(255, 255, 255), size=(200, 200))
-        # Ensure it's above 5KB threshold (solid PNG compresses heavily, use larger size)
-        # If it compresses below 5KB, make it larger
-        if len(png_bytes) < MIN_FILE_SIZE_BYTES:
-            png_bytes = make_solid_png(color=(255, 255, 255), size=(500, 500))
+        # 1000x1000 solid PNG is ~5.1KB — just above 5KB threshold, triggers stddev check
+        png_bytes = make_solid_png(color=(255, 255, 255), size=(1000, 1000))
+        assert len(png_bytes) >= MIN_FILE_SIZE_BYTES, "Test PNG too small — increase size"
         valid, reason = service.validate(png_bytes)
         assert not valid
         assert "uniform_pixels" in reason
@@ -118,9 +116,8 @@ class TestValidate:
     def test_rejects_solid_color_low_stddev(self) -> None:
         """Solid gray image must fail the color variance check."""
         service = ScreenshotService()
-        png_bytes = make_solid_png(color=(128, 128, 128), size=(500, 500))
-        if len(png_bytes) < MIN_FILE_SIZE_BYTES:
-            png_bytes = make_solid_png(color=(128, 128, 128), size=(1000, 1000))
+        png_bytes = make_solid_png(color=(128, 128, 128), size=(1000, 1000))
+        assert len(png_bytes) >= MIN_FILE_SIZE_BYTES, "Test PNG too small — increase size"
         valid, reason = service.validate(png_bytes)
         assert not valid
         assert "uniform_pixels" in reason
@@ -388,9 +385,10 @@ class TestCaptureFailurePaths:
         """asyncio.wait_for timeout is non-fatal — returns None."""
         with (
             patch("app.services.screenshot_service.get_settings") as mock_settings,
-            patch("asyncio.wait_for", side_effect=asyncio.TimeoutError()),
+            patch.object(ScreenshotService, "_capture_with_retry", new_callable=AsyncMock) as mock_retry,
         ):
             mock_settings.return_value.screenshot_enabled = True
+            mock_retry.side_effect = TimeoutError()
 
             service = ScreenshotService()
             result = await service.capture("https://example.com", "job-1", "checks")
@@ -400,9 +398,10 @@ class TestCaptureFailurePaths:
         """Timeout increments circuit breaker counter."""
         with (
             patch("app.services.screenshot_service.get_settings") as mock_settings,
-            patch("asyncio.wait_for", side_effect=asyncio.TimeoutError()),
+            patch.object(ScreenshotService, "_capture_with_retry", new_callable=AsyncMock) as mock_retry,
         ):
             mock_settings.return_value.screenshot_enabled = True
+            mock_retry.side_effect = TimeoutError()
 
             service = ScreenshotService()
             await service.capture("https://example.com", "job-1", "checks")
@@ -433,10 +432,8 @@ class TestCaptureBlankRetry:
 
     async def test_blank_then_valid_returns_cloudfront_url(self) -> None:
         """First capture blank, retry returns valid PNG -> CloudFront URL."""
-        blank_png_bytes = make_solid_png(color=(255, 255, 255), size=(500, 500))
-        # Ensure blank image is over file size threshold
-        while len(blank_png_bytes) < MIN_FILE_SIZE_BYTES:
-            blank_png_bytes = make_solid_png(color=(255, 255, 255), size=(1000, 1000))
+        blank_png_bytes = make_solid_png(color=(255, 255, 255), size=(1000, 1000))
+        assert len(blank_png_bytes) >= MIN_FILE_SIZE_BYTES, "Blank PNG too small — increase size"
 
         valid_png = make_noise_png(size=(300, 300))
         cloudfront_url = "https://dXXXX.cloudfront.net/screenshots/job-1/checks.png"
@@ -461,9 +458,8 @@ class TestCaptureBlankRetry:
 
     async def test_blank_then_blank_returns_none(self) -> None:
         """Both captures blank -> returns None (final discard)."""
-        blank_png_bytes = make_solid_png(color=(255, 255, 255), size=(500, 500))
-        while len(blank_png_bytes) < MIN_FILE_SIZE_BYTES:
-            blank_png_bytes = make_solid_png(color=(255, 255, 255), size=(1000, 1000))
+        blank_png_bytes = make_solid_png(color=(255, 255, 255), size=(1000, 1000))
+        assert len(blank_png_bytes) >= MIN_FILE_SIZE_BYTES, "Blank PNG too small — increase size"
 
         with (
             patch("app.services.screenshot_service.get_settings") as mock_settings,
@@ -479,9 +475,8 @@ class TestCaptureBlankRetry:
 
     async def test_blank_retry_waits_2_seconds(self) -> None:
         """Blank page retry uses asyncio.sleep with 2-second delay."""
-        blank_png_bytes = make_solid_png(color=(255, 255, 255), size=(500, 500))
-        while len(blank_png_bytes) < MIN_FILE_SIZE_BYTES:
-            blank_png_bytes = make_solid_png(color=(255, 255, 255), size=(1000, 1000))
+        blank_png_bytes = make_solid_png(color=(255, 255, 255), size=(1000, 1000))
+        assert len(blank_png_bytes) >= MIN_FILE_SIZE_BYTES, "Blank PNG too small — increase size"
 
         with (
             patch("app.services.screenshot_service.get_settings") as mock_settings,
@@ -619,11 +614,7 @@ class TestUpload:
             service = ScreenshotService()
             await service.upload(png_bytes, "job-abc", "ready")
 
-            # Verify the S3 key embedded in the URL
-            # The URL should contain the correct path
-            result_url = f"https://d123.cloudfront.net/screenshots/job-abc/ready.png"
-            # We check the call args for to_thread
-            # The URL returned should embed the key
+            # Verify to_thread was called — URL structure verified in test_upload_constructs_correct_cloudfront_url
             assert mock_to_thread.called
 
     async def test_upload_s3_failure_returns_none(self) -> None:
