@@ -179,7 +179,7 @@
   3. Setting `SCREENSHOT_ENABLED=false` in ECS task environment disables screenshot capture without requiring a code deploy
   4. `GET /api/generation/{job_id}/status` response includes a `snapshot_url` field (null initially) — confirming the API contract exists before services write to it
   5. The new SSE event type names (`build.stage.started`, `build.stage.completed`, `snapshot.updated`, `documentation.updated`) are documented in Settings and accepted by the existing pub/sub channel structure
-**Plans:** 3 plans
+**Plans:** 2/3 plans executed
 Plans:
 - [ ] 33-01-PLAN.md — ScreenshotsStack CDK (S3 + CloudFront OAC) + ComputeStack IAM/env wiring (INFRA-01, INFRA-02)
 - [ ] 33-02-PLAN.md — Settings feature flags + GenerationStatusResponse extension + /docs endpoint (INFRA-04, INFRA-05)
@@ -295,7 +295,7 @@ Plans:
 | 30. Frontend Build UX | v0.5 | 3/3 | Complete | 2026-02-22 |
 | 31. Preview Iframe | v0.5 | 4/4 | Complete | 2026-02-22 |
 | 32. Sandbox Snapshot Lifecycle | v0.5 | 4/4 | Complete | 2026-02-22 |
-| 33. Infrastructure & Configuration | v0.6 | 0/3 | Planned | - |
+| 33. Infrastructure & Configuration | 2/3 | In Progress|  | - |
 | 34. ScreenshotService | v0.6 | 0/TBD | Not started | - |
 | 35. DocGenerationService | v0.6 | 0/TBD | Not started | - |
 | 36. GenerationService Wiring & API Routes | v0.6 | 0/TBD | Not started | - |

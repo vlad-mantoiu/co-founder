@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** v0.6 Live Build Experience — Phase 33 ready to plan
+**Current focus:** v0.6 Live Build Experience — Phase 33 in progress (Plan 02 of N complete)
 
 ## Current Position
 
 Phase: 33 of 39 (Infrastructure & Configuration)
-Plan: —
-Status: Ready to plan
-Last activity: 2026-02-23 — v0.6 roadmap created (Phases 33-39), 47 requirements mapped
+Plan: 02 complete
+Status: In progress
+Last activity: 2026-02-23 — Phase 33 Plan 02 complete: Settings feature flags + /docs endpoint contract
 
-Progress: [░░░░░░░░░░] 0% (v0.6 not started)
+Progress: [█░░░░░░░░░] ~3% (v0.6 in progress — 2 plans shipped)
 
 ## Performance Metrics
 
@@ -56,6 +56,12 @@ Key v0.6 decisions (locked in research):
 - Three-panel layout: `grid-cols-[280px_1fr_320px]` at `xl:` (1280px+), graceful fallback below
 - `min-h-0` required on all scrollable panel divs (CSS grid child height expansion pitfall)
 
+Key v0.6 decisions (from Phase 33 Plan 02):
+- Feature flags default True — screenshot_enabled and docs_generation_enabled on by default; empty bucket/domain strings are safe no-ops until CDK deploys
+- docs_ready computed via hkeys check on job:{job_id}:docs hash — avoids dedicated boolean field in main job hash
+- DocsResponse returns all four sections at once; ungenerated sections are null — no partial polling or snapshot history
+- snapshot_url read directly from job:{job_id} Redis hash — Phase 34 ScreenshotService writes it there
+
 ### Pending Todos
 
 - [ ] Verify workflow_run gate: push a commit with a failing test and confirm deploy.yml does NOT trigger
@@ -73,8 +79,8 @@ None blocking Phase 33. Two items to resolve before Phase 34:
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: v0.6 roadmap created — 47/47 requirements mapped across Phases 33-39
-Resume: `/gsd:plan-phase 33`
+Stopped at: Completed 33-02-PLAN.md — Settings feature flags + GenerationStatusResponse + /docs endpoint contract
+Resume: `/gsd:execute-phase 33` (continue with plan 03)
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*

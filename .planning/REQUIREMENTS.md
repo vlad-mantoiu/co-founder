@@ -12,8 +12,8 @@ Requirements for v0.6 Live Build Experience. Each maps to roadmap phases.
 - [ ] **INFRA-01**: S3 bucket (cofounder-screenshots) provisioned via CDK with CloudFront OAC and immutable cache headers
 - [ ] **INFRA-02**: ECS task role has PutObject permission on screenshots bucket
 - [ ] **INFRA-03**: SSE event stream emits typed events (build.stage.started/completed, snapshot.updated, documentation.updated)
-- [ ] **INFRA-04**: screenshot_enabled feature flag in Settings toggles screenshot capture without redeployment
-- [ ] **INFRA-05**: Settings include screenshots_bucket and screenshots_cloudfront_domain environment variables
+- [x] **INFRA-04**: screenshot_enabled feature flag in Settings toggles screenshot capture without redeployment
+- [x] **INFRA-05**: Settings include screenshots_bucket and screenshots_cloudfront_domain environment variables
 
 ### Build Narration
 
@@ -121,8 +121,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFRA-01 | Phase 33 | Pending |
 | INFRA-02 | Phase 33 | Pending |
 | INFRA-03 | Phase 33 | Pending |
-| INFRA-04 | Phase 33 | Pending |
-| INFRA-05 | Phase 33 | Pending |
+| INFRA-04 | Phase 33 | Complete |
+| INFRA-05 | Phase 33 | Complete |
 | SNAP-01 | Phase 34 | Pending |
 | SNAP-02 | Phase 34 | Pending |
 | SNAP-06 | Phase 34 | Pending |
