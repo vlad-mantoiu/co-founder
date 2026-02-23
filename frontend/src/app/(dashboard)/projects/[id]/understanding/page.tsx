@@ -137,8 +137,20 @@ export default function ProjectUnderstandingPage() {
 
         // 2. Route based on project state (most advanced phase first)
         if (status.has_execution_plan) {
-          // Plan already selected — show plan_selected or redirect to build
-          setUiPhase("plan_selected");
+          // Execution plan artifact exists — but verify a plan was actually SELECTED
+          // (JSONB mutation bug could mean selected_option_id was never persisted)
+          const selRes = await apiFetch(
+            `/api/plans/${projectId}/selected`,
+            getToken,
+          );
+          if (selRes.ok) {
+            // Plan genuinely selected — show plan_selected
+            setUiPhase("plan_selected");
+            return;
+          }
+          // Artifact exists but no selection — fall through to plan_selection
+          setUiPhase("plan_selection");
+          generatePlans(projectId);
           return;
         }
 
