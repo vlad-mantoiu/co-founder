@@ -75,6 +75,8 @@ class GenerationStatusResponse(BaseModel):
     debug_id: str | None = None
     sandbox_expires_at: str | None = None
     sandbox_paused: bool = False
+    snapshot_url: str | None = None    # null until first screenshot uploaded (Phase 34 writes this)
+    docs_ready: bool = False           # True when at least one docs section exists in Redis
 
 
 class CancelGenerationResponse(BaseModel):
@@ -112,6 +114,15 @@ class SnapshotResponse(BaseModel):
 
     job_id: str
     paused: bool
+
+
+class DocsResponse(BaseModel):
+    """Response for GET /api/generation/{job_id}/docs."""
+
+    overview: str | None = None
+    features: str | None = None
+    getting_started: str | None = None
+    faq: str | None = None
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -292,6 +303,12 @@ async def get_generation_status(
     # Redis stores boolean as string — convert to bool
     sandbox_paused = job_data.get("sandbox_paused", "false") == "true"
 
+    # Screenshot URL (written by Phase 34 ScreenshotService)
+    snapshot_url = job_data.get("snapshot_url")
+    # Check if any docs sections exist (written by Phase 35 DocGenerationService)
+    docs_keys = await redis.hkeys(f"job:{job_id}:docs")
+    docs_ready = len(docs_keys) > 0
+
     # Compute sandbox expiry: updated_at + 3600s when status is ready
     sandbox_expires_at: str | None = None
     if status == JobStatus.READY.value:
@@ -314,6 +331,8 @@ async def get_generation_status(
         debug_id=debug_id,
         sandbox_expires_at=sandbox_expires_at,
         sandbox_paused=sandbox_paused,
+        snapshot_url=snapshot_url,
+        docs_ready=docs_ready,
     )
 
 
@@ -642,6 +661,32 @@ async def snapshot_sandbox(
         await _mark_sandbox_paused_in_postgres(job_id)
 
     return SnapshotResponse(job_id=job_id, paused=True)
+
+
+@router.get("/{job_id}/docs", response_model=DocsResponse)
+async def get_generation_docs(
+    job_id: str,
+    user: ClerkUser = Depends(require_auth),
+    redis=Depends(get_redis),
+) -> DocsResponse:
+    """Return generated documentation sections for a build.
+
+    Sections not yet generated are null. Phase 35 (DocGenerationService)
+    writes to the job:{job_id}:docs Redis hash; this endpoint reads it.
+    """
+    state_machine = JobStateMachine(redis)
+    job_data = await state_machine.get_job(job_id)
+
+    if not job_data or job_data.get("user_id") != user.user_id:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    docs_data = await redis.hgetall(f"job:{job_id}:docs")
+    return DocsResponse(
+        overview=docs_data.get("overview"),
+        features=docs_data.get("features"),
+        getting_started=docs_data.get("getting_started"),
+        faq=docs_data.get("faq"),
+    )
 
 
 # ──────────────────────────────────────────────────────────────────────────────

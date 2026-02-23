@@ -630,3 +630,111 @@ def test_sandbox_expires_at_none_when_not_ready(api_client: TestClient, fake_red
     )
 
     app.dependency_overrides.clear()
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Test 11: snapshot_url and docs_ready in status response (INFRA-04, INFRA-05)
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def test_get_generation_status_includes_snapshot_url(api_client: TestClient, fake_redis, user_a):
+    """INFRA-04: GET /api/generation/{job_id}/status includes snapshot_url from Redis and docs_ready=False when no docs hash."""
+    project_id = str(uuid.uuid4())
+    job_id = f"test-snapshot-url-{uuid.uuid4().hex[:8]}"
+    cloudfront_url = "https://d1example.cloudfront.net/screenshots/job-abc-1.png"
+
+    # Create a READY job with snapshot_url set in the Redis hash
+    _setup_job_in_state(fake_redis, job_id, user_a.user_id, project_id, JobStatus.READY)
+    state_machine = JobStateMachine(fake_redis)
+    asyncio.run(fake_redis.hset(f"job:{job_id}", "snapshot_url", cloudfront_url))
+
+    app: FastAPI = api_client.app
+    app.dependency_overrides[require_auth] = override_auth(user_a)
+    app.dependency_overrides[get_redis] = lambda: fake_redis
+
+    response = api_client.get(f"/api/generation/{job_id}/status")
+
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.json()}"
+    data = response.json()
+    assert data["snapshot_url"] == cloudfront_url, (
+        f"Expected snapshot_url={cloudfront_url!r}, got {data.get('snapshot_url')!r}"
+    )
+    assert data["docs_ready"] is False, (
+        f"Expected docs_ready=False (no docs hash written), got {data.get('docs_ready')}"
+    )
+
+    app.dependency_overrides.clear()
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Test 12: /docs endpoint returns null sections when no docs hash written (INFRA-05)
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def test_docs_endpoint_returns_null_sections(api_client: TestClient, fake_redis, user_a):
+    """INFRA-05: GET /api/generation/{job_id}/docs returns 200 with all sections null when no docs hash exists."""
+    project_id = str(uuid.uuid4())
+    job_id = f"test-docs-null-{uuid.uuid4().hex[:8]}"
+
+    _setup_job_in_state(fake_redis, job_id, user_a.user_id, project_id, JobStatus.READY)
+
+    app: FastAPI = api_client.app
+    app.dependency_overrides[require_auth] = override_auth(user_a)
+    app.dependency_overrides[get_redis] = lambda: fake_redis
+
+    response = api_client.get(f"/api/generation/{job_id}/docs")
+
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.json()}"
+    data = response.json()
+    assert data["overview"] is None, f"Expected overview=None, got {data['overview']!r}"
+    assert data["features"] is None, f"Expected features=None, got {data['features']!r}"
+    assert data["getting_started"] is None, f"Expected getting_started=None, got {data['getting_started']!r}"
+    assert data["faq"] is None, f"Expected faq=None, got {data['faq']!r}"
+
+    app.dependency_overrides.clear()
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Test 13: /docs endpoint returns partial sections when some docs are written (INFRA-05)
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def test_docs_endpoint_returns_partial_sections(api_client: TestClient, fake_redis, user_a):
+    """INFRA-05: GET /api/generation/{job_id}/docs returns written sections and null for unwritten ones."""
+    project_id = str(uuid.uuid4())
+    job_id = f"test-docs-partial-{uuid.uuid4().hex[:8]}"
+    overview_text = "This app helps founders track their tasks efficiently."
+    features_text = "- Task management\n- Priority queuing\n- Team collaboration"
+
+    _setup_job_in_state(fake_redis, job_id, user_a.user_id, project_id, JobStatus.READY)
+    # Write only overview and features to the docs hash (simulates Phase 35 partial write)
+    asyncio.run(
+        fake_redis.hset(
+            f"job:{job_id}:docs",
+            mapping={
+                "overview": overview_text,
+                "features": features_text,
+            },
+        )
+    )
+
+    app: FastAPI = api_client.app
+    app.dependency_overrides[require_auth] = override_auth(user_a)
+    app.dependency_overrides[get_redis] = lambda: fake_redis
+
+    response = api_client.get(f"/api/generation/{job_id}/docs")
+
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.json()}"
+    data = response.json()
+    assert data["overview"] == overview_text, (
+        f"Expected overview={overview_text!r}, got {data['overview']!r}"
+    )
+    assert data["features"] == features_text, (
+        f"Expected features={features_text!r}, got {data['features']!r}"
+    )
+    assert data["getting_started"] is None, (
+        f"Expected getting_started=None (not written), got {data['getting_started']!r}"
+    )
+    assert data["faq"] is None, f"Expected faq=None (not written), got {data['faq']!r}"
+
+    app.dependency_overrides.clear()
