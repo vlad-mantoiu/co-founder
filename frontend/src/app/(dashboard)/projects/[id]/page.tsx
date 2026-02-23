@@ -12,6 +12,7 @@ import {
   Clock,
   ArrowRight,
   CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api";
@@ -146,6 +147,38 @@ export default function ProjectOverviewPage() {
           Created {new Date(project.created_at).toLocaleDateString()}
         </p>
       </div>
+
+      {/* Decision Required banner */}
+      {project.has_pending_gate && (
+        <Link href={`/projects/${params.id}/understanding`}>
+          <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/15 transition-colors cursor-pointer">
+            <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0" />
+            <div className="flex-1">
+              <h3 className="font-semibold text-amber-400 text-sm">Decision Required</h3>
+              <p className="text-xs text-amber-400/70 mt-0.5">
+                A decision gate is waiting for your input to continue.
+              </p>
+            </div>
+            <ArrowRight className="w-4 h-4 text-amber-400 flex-shrink-0" />
+          </div>
+        </Link>
+      )}
+
+      {/* Brief ready banner */}
+      {project.has_brief && !project.has_pending_gate && !project.has_execution_plan && (
+        <Link href={`/projects/${params.id}/understanding`}>
+          <div className="flex items-center gap-3 p-4 rounded-xl bg-brand/10 border border-brand/20 hover:bg-brand/15 transition-colors cursor-pointer">
+            <CheckCircle2 className="w-5 h-5 text-brand flex-shrink-0" />
+            <div className="flex-1">
+              <h3 className="font-semibold text-brand text-sm">Brief Ready — Review & Decide</h3>
+              <p className="text-xs text-brand/70 mt-0.5">
+                Your idea brief is ready. Review it and make your decision to continue.
+              </p>
+            </div>
+            <ArrowRight className="w-4 h-4 text-brand flex-shrink-0" />
+          </div>
+        </Link>
+      )}
 
       {/* Journey stages */}
       <div className="space-y-3">

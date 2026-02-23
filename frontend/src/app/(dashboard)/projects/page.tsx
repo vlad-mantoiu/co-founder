@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FolderOpen, ArrowRight, Plus } from "lucide-react";
+import { FolderOpen, ArrowRight, Plus, AlertCircle } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { GlassCard } from "@/components/ui/glass-card";
 
@@ -243,8 +243,20 @@ export default function ProjectsPage() {
               <GlassCard
                 key={project.id}
                 variant="strong"
-                className="group hover:ring-1 hover:ring-brand/30 transition-all h-full"
+                className={`group hover:ring-1 hover:ring-brand/30 transition-all h-full ${project.has_pending_gate ? "ring-1 ring-amber-500/30" : ""}`}
               >
+                {/* Decision Required banner */}
+                {project.has_pending_gate && (
+                  <Link
+                    href={`/projects/${project.id}/understanding`}
+                    className="flex items-center gap-2 px-4 py-2.5 -mx-6 -mt-6 mb-4 rounded-t-2xl bg-amber-500/10 border-b border-amber-500/20 text-amber-400 hover:bg-amber-500/15 transition-colors"
+                  >
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    <span className="text-xs font-medium">Decision Required — Make your choice to continue</span>
+                    <ArrowRight className="w-3.5 h-3.5 ml-auto flex-shrink-0" />
+                  </Link>
+                )}
+
                 {/* Name + state badge */}
                 <div className="flex items-start justify-between gap-3">
                   <h3 className="font-display font-semibold text-white group-hover:text-brand transition-colors">
