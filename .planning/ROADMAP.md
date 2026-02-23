@@ -300,7 +300,7 @@ Plans:
 | 31. Preview Iframe | v0.5 | 4/4 | Complete | 2026-02-22 |
 | 32. Sandbox Snapshot Lifecycle | v0.5 | 4/4 | Complete | 2026-02-22 |
 | 33. Infrastructure & Configuration | 2/3 | Complete    | 2026-02-23 | - |
-| 34. ScreenshotService | 3/3 | Complete   | 2026-02-23 | - |
+| 34. ScreenshotService | 3/3 | Complete    | 2026-02-23 | - |
 | 35. DocGenerationService | v0.6 | 0/TBD | Not started | - |
 | 36. GenerationService Wiring & API Routes | v0.6 | 0/TBD | Not started | - |
 | 37. Frontend Hooks | v0.6 | 0/TBD | Not started | - |
