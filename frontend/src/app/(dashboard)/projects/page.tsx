@@ -129,40 +129,18 @@ export default function ProjectsPage() {
     async function fetchProjects() {
       try {
         setError(null);
-
-        let token: string | null = null;
-        try {
-          token = await getToken();
-        } catch (tokenErr) {
-          console.error("[projects] getToken threw:", tokenErr);
-          setError("Auth token error — please sign out and back in.");
-          return;
-        }
-
-        if (!token) {
-          console.warn("[projects] getToken returned null after auth loaded");
-          setError("Session expired — please refresh the page.");
-          return;
-        }
-
-        const url = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/projects`;
-        const res = await fetch(url, {
-          headers: { Authorization: `Bearer ${token}` },
-          redirect: "follow",
-        });
-
+        const res = await apiFetch("/api/projects", getToken);
         if (res.ok) {
           const data = await res.json();
           setProjects(Array.isArray(data) ? data : []);
         } else {
           const text = await res.text().catch(() => "");
-          console.error(`[projects] ${res.status} ${res.url}`, text);
+          console.error(`[projects] fetch failed: ${res.status}`, text);
           setError(`Failed to load projects (${res.status})`);
         }
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.error("[projects] fetch threw:", msg, err);
-        setError(`Network error: ${msg}`);
+        console.error("[projects] network error:", err);
+        setError("Unable to reach the server. Please try again.");
       } finally {
         setLoaded(true);
       }

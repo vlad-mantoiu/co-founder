@@ -28,5 +28,6 @@ export async function apiFetch(
   return fetch(`${API_BASE}${path}`, {
     ...options,
     headers,
+    cache: "no-store",
   });
 }
