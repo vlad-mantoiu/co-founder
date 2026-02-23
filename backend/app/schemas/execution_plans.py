@@ -23,14 +23,14 @@ class ExecutionOption(BaseModel):
     scope_coverage: int = Field(..., ge=0, le=100, description="Percentage of full idea scope (0-100)")
 
     # Tradeoffs
-    pros: list[str] = Field(..., min_length=2, max_length=5)
-    cons: list[str] = Field(..., min_length=2, max_length=5)
-    technical_approach: str = Field(..., description="High-level technical strategy")
-    tradeoffs: list[str] = Field(..., description="Key tradeoffs made in this plan")
+    pros: list[str] = Field(default_factory=list, max_length=5)
+    cons: list[str] = Field(default_factory=list, max_length=5)
+    technical_approach: str = Field("", description="High-level technical strategy")
+    tradeoffs: list[str] = Field(default_factory=list, description="Key tradeoffs made in this plan")
 
     # Decision console fields (DCSN-02)
-    engineering_impact: str = Field(..., description="Impact on engineering team/velocity")
-    cost_note: str = Field(..., description="Cost implications and budget guidance")
+    engineering_impact: str = Field("", description="Impact on engineering team/velocity")
+    cost_note: str = Field("", description="Cost implications and budget guidance")
 
 
 class ExecutionPlanOptions(BaseModel):
