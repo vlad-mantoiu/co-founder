@@ -386,7 +386,7 @@ export default function ProjectUnderstandingPage() {
               brief={state.brief}
               onEditSection={editBriefSection}
               onReInterview={reInterview}
-              onProceedToDecision={() => setUiPhase("generating")}
+              onProceedToDecision={handleOpenGate}
               artifactId={state.artifactId || ""}
               version={state.briefVersion}
               projectId={projectId}

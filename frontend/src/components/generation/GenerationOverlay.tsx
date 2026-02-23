@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, CheckCircle2, XCircle, Sparkles } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Sparkles, X } from "lucide-react";
 import { useGenerationStatus } from "@/hooks/useGenerationStatus";
 
 interface GenerationOverlayProps {
@@ -128,6 +128,15 @@ export function GenerationOverlay({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.4, ease: "easeOut" }}
       >
+        {/* Close button */}
+        <button
+          onClick={onComplete}
+          className="absolute top-4 right-4 p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+          aria-label="Close"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
         {/* Icon */}
         <div className="flex justify-center mb-6">
           <div className="relative">
