@@ -209,6 +209,7 @@ async def require_build_subscription(user: ClerkUser = Depends(require_auth)) ->
     """FastAPI dependency that requires an active subscription for build starts.
 
     Returns a structured HTTP 402 response when subscription is missing.
+    Bypass order: DB is_admin → Clerk JWT admin → Stripe status → manual plan tier.
     """
     from app.db.base import get_session_factory
     from app.db.models.user_settings import UserSettings
@@ -222,12 +223,7 @@ async def require_build_subscription(user: ClerkUser = Depends(require_auth)) ->
         )
         settings = result.scalar_one_or_none()
 
-        # Admins bypass subscription check (DB flag or Clerk JWT metadata)
-        public_metadata = user.claims.get("public_metadata", {})
-        if (settings and settings.is_admin) or public_metadata.get("admin") is True:
-            return user
-
-        if settings is None or settings.stripe_subscription_status not in ("active", "trialing"):
+        if settings is None:
             raise HTTPException(
                 status_code=402,
                 detail={
@@ -236,6 +232,33 @@ async def require_build_subscription(user: ClerkUser = Depends(require_auth)) ->
                     "upgrade_url": "/billing",
                 },
             )
+
+        # Admins bypass subscription check
+        if settings.is_admin:
+            return user
+
+        # Clerk JWT admin metadata bypass
+        public_metadata = user.claims.get("public_metadata", {})
+        if public_metadata.get("admin") is True:
+            return user
+
+        # Active Stripe subscription
+        if settings.stripe_subscription_status in ("active", "trialing"):
+            return user
+
+        # Admin-provisioned plan tier (plan_tier_id > 1 means manually upgraded)
+        await session.refresh(settings, ["plan_tier"])
+        if settings.plan_tier and settings.plan_tier.slug != "bootstrapper":
+            return user
+
+        raise HTTPException(
+            status_code=402,
+            detail={
+                "code": "subscription_required",
+                "message": "Active subscription required to start builds.",
+                "upgrade_url": "/billing",
+            },
+        )
 
     return user
 
