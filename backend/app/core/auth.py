@@ -191,8 +191,9 @@ async def require_subscription(user: ClerkUser = Depends(require_auth)) -> Clerk
         )
         settings = result.scalar_one_or_none()
 
-        # Admins bypass subscription check
-        if settings and settings.is_admin:
+        # Admins bypass subscription check (DB flag or Clerk JWT metadata)
+        public_metadata = user.claims.get("public_metadata", {})
+        if (settings and settings.is_admin) or public_metadata.get("admin") is True:
             return user
 
         if settings is None or settings.stripe_subscription_status not in ("active", "trialing"):
@@ -221,8 +222,9 @@ async def require_build_subscription(user: ClerkUser = Depends(require_auth)) ->
         )
         settings = result.scalar_one_or_none()
 
-        # Admins bypass subscription check
-        if settings and settings.is_admin:
+        # Admins bypass subscription check (DB flag or Clerk JWT metadata)
+        public_metadata = user.claims.get("public_metadata", {})
+        if (settings and settings.is_admin) or public_metadata.get("admin") is True:
             return user
 
         if settings is None or settings.stripe_subscription_status not in ("active", "trialing"):
