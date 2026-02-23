@@ -194,7 +194,7 @@ Plans:
   2. The screenshot is served via the CloudFront URL with the correct immutable cache headers — not a presigned S3 URL
   3. A screenshot smaller than 5KB is discarded (not uploaded) and the service logs a warning — blank pages do not pollute the snapshot history
   4. If Playwright crashes, the network is unreachable, or S3 upload fails, the build job continues to READY state — the failure is logged as a warning only
-**Plans:** 3 plans (2 complete, 1 gap closure)
+**Plans:** 3/3 plans complete
 Plans:
 - [x] 34-01-PLAN.md — TDD ScreenshotService: validate, circuit breaker, capture orchestration, upload, Redis persist (SNAP-01, SNAP-02, SNAP-06, SNAP-07)
 - [x] 34-02-PLAN.md — Dockerfile Playwright headless-shell + pyproject.toml dependencies (SNAP-01, SNAP-02)
@@ -300,7 +300,7 @@ Plans:
 | 31. Preview Iframe | v0.5 | 4/4 | Complete | 2026-02-22 |
 | 32. Sandbox Snapshot Lifecycle | v0.5 | 4/4 | Complete | 2026-02-22 |
 | 33. Infrastructure & Configuration | 2/3 | Complete    | 2026-02-23 | - |
-| 34. ScreenshotService | 2/3 | Gap closure   | 2026-02-24 | - |
+| 34. ScreenshotService | 3/3 | Complete   | 2026-02-23 | - |
 | 35. DocGenerationService | v0.6 | 0/TBD | Not started | - |
 | 36. GenerationService Wiring & API Routes | v0.6 | 0/TBD | Not started | - |
 | 37. Frontend Hooks | v0.6 | 0/TBD | Not started | - |

@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** v0.6 Live Build Experience — Phase 34 in progress (Plan 01 of N complete)
+**Current focus:** v0.6 Live Build Experience — Phase 34 in progress (Plan 03 of N complete)
 
 ## Current Position
 
 Phase: 34 of 39 (ScreenshotService)
-Plan: 02 complete
+Plan: 03 complete
 Status: In progress
-Last activity: 2026-02-24 — Phase 34 Plan 02 complete: Playwright Chromium headless-shell + Pillow in Docker image
+Last activity: 2026-02-24 — Phase 34 Plan 03 complete: CacheControl immutable header on S3 screenshot upload
 
-Progress: [█░░░░░░░░░] ~4% (v0.6 in progress — 3 plans shipped)
+Progress: [█░░░░░░░░░] ~4% (v0.6 in progress — 4 plans shipped)
 
 ## Performance Metrics
 
@@ -31,6 +31,7 @@ Progress: [█░░░░░░░░░] ~4% (v0.6 in progress — 3 plans shi
 | v0.3 Marketing Separation | 4 | 9 | 2 days (2026-02-19 to 2026-02-20) |
 | v0.4 Marketing Speed & SEO | 7 | 21 | 3 days (2026-02-20 to 2026-02-22) |
 | v0.5 Sandbox Integration | 5 | 15 | 1 day (2026-02-22) |
+| v0.6 Phase 34 Plan 03 | 1 plan | 1 task | 2 files | ~1min |
 
 ## Accumulated Context
 
@@ -76,6 +77,7 @@ Key v0.6 decisions (from Phase 33 Plan 02):
 - [Phase 34-screenshotservice]: CAPTURE_STAGES = frozenset({'checks','ready'}) — skip scaffold/code/deps (server not live)
 - [Phase 34-screenshotservice]: MIN_CHANNEL_STDDEV=8.0 — empirical; calibrate from production logs
 - [Phase 34-screenshotservice]: playwright>=1.58.0 added to pyproject.toml — ScreenshotService dependency
+- [Phase 34-screenshotservice]: CacheControl='max-age=31536000, immutable' safe on content-addressed S3 keys (job_id/stage.png never overwritten)
 
 ### Pending Todos
 
@@ -93,8 +95,8 @@ None blocking Phase 34 Plan 02.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 34-02-PLAN.md — Playwright Chromium headless-shell + Pillow in Docker
-Resume: `/gsd:execute-phase 34` (continue with plan 03)
+Stopped at: Completed 34-03-PLAN.md — CacheControl immutable header on S3 upload
+Resume: `/gsd:execute-phase 34` (continue with plan 04)
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
