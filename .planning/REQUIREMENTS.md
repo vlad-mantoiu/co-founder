@@ -118,13 +118,59 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (populated by roadmapper) | | |
+| INFRA-01 | Phase 33 | Pending |
+| INFRA-02 | Phase 33 | Pending |
+| INFRA-03 | Phase 33 | Pending |
+| INFRA-04 | Phase 33 | Pending |
+| INFRA-05 | Phase 33 | Pending |
+| SNAP-01 | Phase 34 | Pending |
+| SNAP-02 | Phase 34 | Pending |
+| SNAP-06 | Phase 34 | Pending |
+| SNAP-07 | Phase 34 | Pending |
+| DOCS-01 | Phase 35 | Pending |
+| DOCS-02 | Phase 35 | Pending |
+| DOCS-03 | Phase 35 | Pending |
+| DOCS-07 | Phase 35 | Pending |
+| DOCS-08 | Phase 35 | Pending |
+| NARR-02 | Phase 36 | Pending |
+| NARR-04 | Phase 36 | Pending |
+| NARR-08 | Phase 36 | Pending |
+| SNAP-03 | Phase 36 | Pending |
+| DOCS-09 | Phase 36 | Pending |
+| REAS-01 | Phase 37 | Pending |
+| REAS-02 | Phase 37 | Pending |
+| REAS-06 | Phase 37 | Pending |
+| SNAP-04 | Phase 37 | Pending |
+| SNAP-05 | Phase 37 | Pending |
+| NARR-01 | Phase 38 | Pending |
+| NARR-03 | Phase 38 | Pending |
+| NARR-05 | Phase 38 | Pending |
+| NARR-06 | Phase 38 | Pending |
+| NARR-07 | Phase 38 | Pending |
+| DOCS-04 | Phase 38 | Pending |
+| DOCS-05 | Phase 38 | Pending |
+| DOCS-06 | Phase 38 | Pending |
+| REAS-03 | Phase 38 | Pending |
+| REAS-04 | Phase 38 | Pending |
+| REAS-05 | Phase 38 | Pending |
+| REAS-07 | Phase 38 | Pending |
+| LAYOUT-03 | Phase 38 | Pending |
+| LAYOUT-01 | Phase 39 | Pending |
+| LAYOUT-02 | Phase 39 | Pending |
+| LAYOUT-04 | Phase 39 | Pending |
+| COMP-01 | Phase 39 | Pending |
+| COMP-02 | Phase 39 | Pending |
+| COMP-03 | Phase 39 | Pending |
+| COMP-04 | Phase 39 | Pending |
+| COMP-05 | Phase 39 | Pending |
+| COMP-06 | Phase 39 | Pending |
+| COMP-07 | Phase 39 | Pending |
 
 **Coverage:**
 - v0.6 requirements: 47 total
-- Mapped to phases: 0
-- Unmapped: 47
+- Mapped to phases: 47
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-23*
-*Last updated: 2026-02-23 after initial definition*
+*Last updated: 2026-02-23 — traceability populated for Phases 33-39*
