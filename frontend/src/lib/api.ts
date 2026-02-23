@@ -25,9 +25,12 @@ export async function apiFetch(
     headers.set("Content-Type", "application/json");
   }
 
-  return fetch(`${API_BASE}${path}`, {
+  // Cache-bust to prevent browsers from reusing stale 307 redirects
+  const separator = path.includes("?") ? "&" : "?";
+  const url = `${API_BASE}${path}${separator}_t=${Date.now()}`;
+
+  return fetch(url, {
     ...options,
     headers,
-    cache: "no-store",
   });
 }
