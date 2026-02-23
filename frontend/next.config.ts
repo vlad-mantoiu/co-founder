@@ -1,8 +1,19 @@
 import type { NextConfig } from "next";
 
+const BACKEND_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   output: "standalone",
+  async rewrites() {
+    return [
+      {
+        source: "/backend/:path*",
+        destination: `${BACKEND_URL}/:path*`,
+      },
+    ];
+  },
   async redirects() {
     return [
       { source: "/pricing", destination: "https://getinsourced.ai/pricing", permanent: true, basePath: false },

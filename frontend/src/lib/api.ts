@@ -1,14 +1,10 @@
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
 type GetTokenFn = () => Promise<string | null>;
 
 /**
  * Authenticated fetch wrapper that injects a Clerk Bearer token.
  *
- * @param path  - API path (e.g. "/api/agent/chat/stream")
- * @param getToken - `getToken` from Clerk's `useAuth()` hook
- * @param options  - Standard `RequestInit` overrides
+ * Requests are proxied through Next.js rewrites (/backend/:path* → backend)
+ * to avoid CORS. The path should start with /api/ (e.g. "/api/projects").
  */
 export async function apiFetch(
   path: string,
@@ -25,9 +21,9 @@ export async function apiFetch(
     headers.set("Content-Type", "application/json");
   }
 
-  // Cache-bust to prevent browsers from reusing stale 307 redirects
-  const separator = path.includes("?") ? "&" : "?";
-  const url = `${API_BASE}${path}${separator}_t=${Date.now()}`;
+  // Route through Next.js rewrite proxy to avoid CORS
+  // /api/projects → /backend/api/projects → (rewrite) → backend:8000/api/projects
+  const url = `/backend${path}`;
 
   return fetch(url, {
     ...options,
