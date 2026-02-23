@@ -56,6 +56,12 @@ Key v0.6 decisions (locked in research):
 - Three-panel layout: `grid-cols-[280px_1fr_320px]` at `xl:` (1280px+), graceful fallback below
 - `min-h-0` required on all scrollable panel divs (CSS grid child height expansion pitfall)
 
+Key v0.6 decisions (from Phase 33 Plan 01):
+- Default CloudFront domain (dXXXX.cloudfront.net) for screenshots — no custom subdomain, no Route53 alias
+- brotli disabled + compress=false on CloudFront screenshots behavior — PNG is already compressed binary
+- Optional props (screenshotsBucket?, screenshotsCloudFrontDomain?) on ComputeStackProps — safe deploy before ScreenshotsStack exists
+- grantPut(taskRole) only (not grantReadWrite) — least privilege; CloudFront + OAC handles reads
+
 Key v0.6 decisions (from Phase 33 Plan 02):
 - Feature flags default True — screenshot_enabled and docs_generation_enabled on by default; empty bucket/domain strings are safe no-ops until CDK deploys
 - docs_ready computed via hkeys check on job:{job_id}:docs hash — avoids dedicated boolean field in main job hash
