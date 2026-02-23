@@ -1,904 +1,747 @@
 # Architecture Research
 
-**Domain:** E2B Sandbox Build Pipeline + Preview Embedding — AI Co-Founder SaaS (v0.5 milestone)
-**Researched:** 2026-02-22
-**Confidence:** HIGH — all findings verified against actual codebase source and E2B SDK v2.13.2 installed at `.venv/`
+**Domain:** Live Build Experience integration — v0.6 milestone on existing AI Co-Founder SaaS
+**Researched:** 2026-02-23
+**Confidence:** HIGH — based on direct codebase inspection of all integration points
 
 ---
 
 ## System Overview
 
-This document maps integration of E2B sandbox lifecycle, build log streaming, preview iframe, and snapshot features into the existing FastAPI + LangGraph + Next.js architecture. All component names, file paths, and code patterns are grounded in the actual codebase at `/Users/vladcortex/co-founder/`.
+### Current Build Flow (as-shipped)
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         FRONTEND (Next.js 14)                        │
-│                                                                     │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────────┐  │
-│  │ BuildPage    │  │ useBuildProg │  │  PreviewPane (NEW)        │  │
-│  │ /build?job=  │  │ ress (polls  │  │  <iframe> direct embed   │  │
-│  │ (EXISTS)     │  │ 5s, EXISTS)  │  │  (NEW)                   │  │
-│  └──────┬───────┘  └──────┬───────┘  └──────────────────────────┘  │
-│         │                 │                          ▲              │
-│  ┌──────▼───────────────────────────────────────────┘              │
-│  │  useBuildLogs (NEW) — SSE reader                                  │
-│  │  BuildLogPanel (NEW) — scrolling terminal display                 │
-│  └──────────────────────────────────────────────────────────────────┘
-│           │ apiFetch (authenticated)                                 │
-│           │ GET /api/generation/{id}/status   (EXISTS)              │
-│           │ GET /api/generation/{id}/logs/stream  (NEW, SSE)        │
-└───────────┼─────────────────────────────────────────────────────────┘
-            │
-┌───────────┼─────────────────────────────────────────────────────────┐
-│           │        FASTAPI BACKEND (port 8000)                       │
-│  ┌────────▼────────────────────────────────────────────────────┐   │
-│  │  Existing Routes                                             │   │
-│  │  POST /api/generation/start         (EXISTS)                 │   │
-│  │  GET  /api/generation/{id}/status   (EXISTS — extend)        │   │
-│  │  POST /api/generation/{id}/cancel   (EXISTS)                 │   │
-│  │                                                              │   │
-│  │  New Routes                                                  │   │
-│  │  GET  /api/generation/{id}/logs/stream  (NEW — SSE)          │   │
-│  │  POST /api/generation/{id}/snapshot     (NEW)                │   │
-│  └──────────────────────────────────┬───────────────────────────┘  │
-│                                     │                               │
-│  ┌──────────────────────────────────▼───────────────────────────┐  │
-│  │  GenerationService.execute_build()         (EXISTS — extend)  │  │
-│  │                                                               │  │
-│  │  Existing pipeline:                                           │  │
-│  │  STARTING → SCAFFOLD → CODE → DEPS → CHECKS → (READY)        │  │
-│  │                                                               │  │
-│  │  New additions:                                               │  │
-│  │  + _stream_build_logs_to_redis()  — during DEPS/CHECKS        │  │
-│  │  + _wait_for_dev_server()         — before preview_url        │  │
-│  │  + _pause_sandbox_after_build()   — after READY               │  │
-│  └──────────────────────────────────┬───────────────────────────┘  │
-│                                     │                               │
-│  ┌──────────────────────────────────▼───────────────────────────┐  │
-│  │  JobStateMachine                  (EXISTS)                    │  │
-│  │  Redis hash:    job:{id}          status, preview_url, ...    │  │
-│  │  Redis pub/sub: job:{id}:events   status transitions          │  │
-│  │  Redis Stream:  job:{id}:logs     build log lines (NEW)       │  │
-│  └──────────────────────────────────┬───────────────────────────┘  │
-│                                     │                               │
-│  ┌──────────────────────────────────▼───────────────────────────┐  │
-│  │  E2BSandboxRuntime               (EXISTS — extend)            │  │
-│  │  .start() .connect() .stop()     (EXISTS)                     │  │
-│  │  .write_file() .run_command()    (EXISTS)                     │  │
-│  │  .run_background()               (EXISTS — dev server launch) │  │
-│  │  + .stream_command()             (NEW — on_stdout callback)   │  │
-│  │  + .snapshot()                   (NEW — beta_pause wrapper)   │  │
-│  └──────────────────────────────────┬───────────────────────────┘  │
-└───────────────────────────────────────────────────────────────────┘
-                                      │
-┌─────────────────────────────────────▼─────────────────────────────┐
-│                     E2B Cloud (external)                            │
-│                                                                     │
-│  Sandbox VM: {sandbox_id}.e2b.app                                   │
-│  /home/user/project/   ← generated files written here              │
-│  Dev server on :3000   ← npm run dev / python -m uvicorn           │
-│  Preview URL: https://3000-{sandbox_id}.e2b.app                    │
-│    (confirmed from E2B SDK connection_config.py:                   │
-│     get_host() returns "{port}-{sandbox_id}.{sandbox_domain}")     │
-│  Snapshot:    beta_pause() → paused state (reconnectable via       │
-│               connect(), preserves filesystem, kills processes)     │
-└────────────────────────────────────────────────────────────────────┘
+Browser (Next.js)
+  |
+  +-- useBuildProgress --> GET /api/generation/{job_id}/status   (5s poll)
+  +-- useBuildLogs    --> GET /api/jobs/{job_id}/logs/stream     (SSE)
+                              |
+                        FastAPI (ECS Fargate)
+                              |
+                        BackgroundTask --> process_next_job()
+                              |
+                        GenerationService.execute_build()
+                        +-- runner.run()          <- LangGraph (CODE stage)
+                        +-- sandbox.start()       <- E2B create
+                        +-- sandbox.write_file()  <- write generated files
+                        +-- sandbox.start_dev_server() <- npm install + run dev
+                        +-- returns preview_url
+                              |
+                        Redis (job:{id} hash + job:{id}:logs stream)
+                              |
+                        Postgres (jobs table -- terminal state persist)
+```
+
+### Proposed v0.6 Build Flow (new data paths highlighted)
+
+```
+Browser (Next.js) -- NEW: Three-panel layout
+  |
+  +-- useBuildProgress   --> GET /api/generation/{job_id}/status  (5s poll, unchanged)
+  +-- useBuildEvents     --> GET /api/jobs/{job_id}/events/stream (NEW SSE endpoint)
+  |     receives: build.stage.started, build.stage.completed,
+  |               snapshot.updated, documentation.updated
+  +-- useDocGeneration   --> GET /api/jobs/{job_id}/docs          (NEW REST poll)
+        Panel left: ActivityFeed (narrated agent events)
+        Panel center: LiveSnapshot (S3/CloudFront img, updates per stage)
+        Panel right: DocPanel (progressive documentation)
+                              |
+                        FastAPI (ECS Fargate)
+                              |
+                        GenerationService.execute_build()  <- MODIFIED
+                        |   (screenshots + doc gen wired in at stage boundaries)
+                        |
+                        +-- After start_dev_server() returns:
+                        |   +-- capture_screenshot(preview_url) -> bytes (Playwright)
+                        |   +-- upload_to_s3(bytes)             -> S3 key
+                        |   +-- redis.hset(job:id, snapshot_url, cf_url)
+                        |   +-- publish SSE event: snapshot.updated
+                        |
+                        +-- After CODE stage (asyncio.create_task):
+                        |   +-- anthropic.messages.create()  <- direct Anthropic SDK
+                        |   +-- writes doc sections to Redis hash
+                        |   +-- publishes SSE event: documentation.updated
+                        |
+                        +-- (existing) sandbox.start_dev_server() --> preview_url
+                              |
+                        Redis
+                        +-- job:{id}:logs         (existing Redis Stream -- unchanged)
+                        +-- job:{id}              (existing hash -- add snapshot_url, doc fields)
+                        +-- job:{id}:events       (existing Pub/Sub channel -- new event types)
+                        +-- job:{id}:docs         (NEW hash -- doc sections)
+                              |
+                        S3 (screenshots bucket -- NEW)
+                        +-- build-screenshots/{job_id}/{stage}.png
+                              |
+                        CloudFront (new distribution or new behavior on existing)
 ```
 
 ---
 
-## Component Responsibilities
+## Component Boundaries
 
-### Existing Components — Change Summary
+### Existing Components -- Unchanged
 
-| Component | File | Status | Change Required |
-|-----------|------|--------|----------------|
-| `E2BSandboxRuntime` | `backend/app/sandbox/e2b_runtime.py` | Extend | Add `stream_command()` and `snapshot()` methods |
-| `GenerationService` | `backend/app/services/generation_service.py` | Extend | Add 3 private helpers; fix hardcoded port 8080; wire dev server launch |
-| `JobStateMachine` | `backend/app/queue/state_machine.py` | No change | Log lines written via `get_redis()` directly from GenerationService helpers |
-| `worker.process_next_job` | `backend/app/queue/worker.py` | Extend | Add `traffic_access_token` and `sandbox_paused` to `_persist_job_to_postgres()` |
-| `GET /api/generation/{id}/status` | `backend/app/api/routes/generation.py` | Extend | Add `traffic_access_token` field to `GenerationStatusResponse` |
-| `useBuildProgress` | `frontend/src/hooks/useBuildProgress.ts` | Extend | Add `trafficAccessToken: string | null` to `BuildProgressState` |
-| `BuildPage` | `frontend/src/app/(dashboard)/projects/[id]/build/page.tsx` | Extend | Add `BuildLogPanel` during build; add `PreviewPane` on success |
-| `BuildSummary` | `frontend/src/components/build/BuildSummary.tsx` | Extend | Accept `previewUrl` and render `PreviewPane` below success card |
+| Component | File | What It Does |
+|-----------|------|--------------|
+| `GenerationService` | `backend/app/services/generation_service.py` | Orchestrates build pipeline stages |
+| `E2BSandboxRuntime` | `backend/app/sandbox/e2b_runtime.py` | Wraps E2B AsyncSandbox API |
+| `LogStreamer` | `backend/app/services/log_streamer.py` | Writes log lines to Redis Stream |
+| `JobStateMachine` | `backend/app/queue/state_machine.py` | State transitions + Redis Pub/Sub events |
+| `worker.py` | `backend/app/queue/worker.py` | Dequeues + calls GenerationService |
+| `useBuildProgress` | `frontend/src/hooks/useBuildProgress.ts` | 5s poll of /status endpoint |
+| `useBuildLogs` | `frontend/src/hooks/useBuildLogs.ts` | SSE consumer for log stream |
+| `BuildProgressBar` | `frontend/src/components/build/BuildProgressBar.tsx` | Stage progress indicator |
+| `BuildLogPanel` | `frontend/src/components/build/BuildLogPanel.tsx` | Collapsed technical log panel |
 
-### New Components
+### New Backend Components
 
-| Component | File | Responsibility |
-|-----------|------|---------------|
-| `GET /api/generation/{id}/logs/stream` | `backend/app/api/routes/generation.py` | SSE endpoint — reads from Redis Stream `job:{id}:logs`, streams line-by-line to client |
-| `POST /api/generation/{id}/snapshot` | `backend/app/api/routes/generation.py` | Trigger `sandbox.beta_pause()` on a READY job's sandbox; update `Job.sandbox_paused` |
-| `useBuildLogs` | `frontend/src/hooks/useBuildLogs.ts` | Fetch-based SSE reader (not native `EventSource` — Clerk JWT requires custom header); accumulates log lines |
-| `BuildLogPanel` | `frontend/src/components/build/BuildLogPanel.tsx` | Scrolling terminal-style log display during build; hidden after terminal state |
-| `PreviewPane` | `frontend/src/components/build/PreviewPane.tsx` | Renders `<iframe src={previewUrl}>` with graceful fallback to new-tab link if iframe CSP blocked |
+| Component | File (to create) | Responsibility |
+|-----------|------------------|---------------|
+| `ScreenshotService` | `backend/app/services/screenshot_service.py` | Playwright screenshot of preview URL, S3 upload via boto3 |
+| `DocGenerationService` | `backend/app/services/doc_generation_service.py` | Direct Anthropic SDK calls for end-user docs, writes to Redis |
+| `build_events` route | `backend/app/api/routes/build_events.py` | NEW SSE endpoint for typed build events (Pub/Sub subscriber) |
+| `docs` route | `backend/app/api/routes/docs.py` | GET /api/jobs/{id}/docs -- reads job:{id}:docs Redis hash |
 
----
+### Modified Backend Components
 
-## Data Flow: Full Build Pipeline (LLM → Sandbox → Preview URL)
+| Component | What Changes |
+|-----------|-------------|
+| `GenerationService.execute_build()` | Add screenshot capture + doc gen calls at stage boundaries (after CODE and after start_dev_server) |
+| `GenerationService.execute_iteration_build()` | Same screenshot hook after start_dev_server |
+| `Settings` (`config.py`) | New env vars: `screenshot_bucket`, `screenshot_cloudfront_domain`, `screenshot_enabled` |
+| `Job` model (`job.py`) | Add column: `snapshot_url TEXT` nullable |
+| Alembic migration | New migration for snapshot_url column |
+| `compute-stack.ts` (CDK) | New S3 bucket + CloudFront behavior/distribution, task role PutObject grant |
 
-```
-POST /api/generation/start
-  │
-  ├─ Verify project ownership (Postgres)
-  ├─ Create job in Redis HASH (QUEUED)
-  ├─ Enqueue to Redis sorted set
-  └─ background_tasks.add_task(process_next_job, redis=redis)
-       │
-       └─ worker.process_next_job()
-            │
-            └─ GenerationService.execute_build(job_id, job_data, state_machine)
-                 │
-                 ├─ transition(STARTING)
-                 │
-                 ├─ transition(SCAFFOLD)
-                 │     └─ create_initial_state(user_id, project_id, goal, session_id=job_id)
-                 │
-                 ├─ transition(CODE)
-                 │     └─ runner.run(agent_state)
-                 │           └─ LangGraph graph:
-                 │                Architect → plan: list[PlanStep]
-                 │                Coder → working_files: dict[str, FileChange]
-                 │                Executor → E2B (per-node sandbox, ephemeral)
-                 │                Debugger → fix loops (max_retries=5)
-                 │                Reviewer → approve/reject
-                 │                GitManager → (gate, not committed yet)
-                 │           └─ final_state.working_files = {path: FileChange}
-                 │                [NOTE: FileChange.new_content — not "content"]
-                 │
-                 ├─ transition(DEPS)
-                 │     ├─ sandbox.start()              ← E2B creates VM
-                 │     ├─ sandbox._sandbox.set_timeout(3600)
-                 │     ├─ write all working_files to /home/user/project/
-                 │     └─ _stream_build_logs_to_redis(sandbox, job_id,
-                 │             "npm install", workspace_path)   [NEW]
-                 │             ↳ on_stdout/stderr → XADD job:{id}:logs
-                 │
-                 ├─ transition(CHECKS)
-                 │     ├─ _stream_build_logs_to_redis(sandbox, job_id,
-                 │     │       "npm run build", workspace_path)   [NEW]
-                 │     ├─ sandbox.run_background("npm run dev",
-                 │     │       cwd=workspace_path)   ← dev server PID stored
-                 │     └─ _wait_for_dev_server(sandbox, port=3000)   [NEW]
-                 │             ↳ curl http://localhost:3000 loop with backoff
-                 │
-                 ├─ host = sandbox._sandbox.get_host(3000)
-                 │   preview_url = f"https://{host}"
-                 │     → "https://3000-{sandbox_id}.e2b.app"  [confirmed format]
-                 │   sandbox_id = sandbox._sandbox.sandbox_id
-                 │   traffic_access_token = sandbox._sandbox.traffic_access_token
-                 │     → None for default public sandboxes
-                 │
-                 ├─ _handle_mvp_built_transition(...)   [EXISTS — non-fatal hook]
-                 │
-                 ├─ _pause_sandbox_after_build(sandbox)   [NEW — post-build hook]
-                 │     └─ sandbox.snapshot()  → sandbox.beta_pause()
-                 │          Dev server dies on pause (processes killed)
-                 │          Filesystem preserved (working_files remain)
-                 │
-                 └─ return {
-                       sandbox_id, preview_url, build_version,
-                       workspace_path,
-                       traffic_access_token   [NEW field]
-                       sandbox_paused: True   [NEW field]
-                    }
-                       │
-                       └─ worker: transition(READY, message=JSON{preview_url})
-                       └─ worker: _persist_job_to_postgres(build_result=...)
-                                  ← also persists traffic_access_token, sandbox_paused
-```
+### New Frontend Components
+
+| Component | File (to create) | Responsibility |
+|-----------|------------------|---------------|
+| `ActivityFeed` | `frontend/src/components/build/ActivityFeed.tsx` | Left panel: narrated agent events, 2/5min reassurance |
+| `LiveSnapshot` | `frontend/src/components/build/LiveSnapshot.tsx` | Center panel: screenshot img updating per stage |
+| `DocPanel` | `frontend/src/components/build/DocPanel.tsx` | Right panel: progressive doc sections with skeleton |
+| `useBuildEvents` | `frontend/src/hooks/useBuildEvents.ts` | SSE consumer for new events endpoint |
+| `useDocGeneration` | `frontend/src/hooks/useDocGeneration.ts` | REST fetch triggered by documentation.updated event |
+
+### Modified Frontend Components
+
+| Component | What Changes |
+|-----------|-------------|
+| `BuildPage` (`projects/[id]/build/page.tsx`) | Three-panel layout during build, existing success/failure states preserved |
 
 ---
 
-## Data Flow: Build Log Streaming (Sandbox → Frontend)
+## Integration Points -- The Five Questions
+
+### 1. E2B Screenshot Capture: Timing and Location in Worker Flow
+
+**Constraint established by codebase inspection:** `AsyncSandbox` from `e2b_code_interpreter` has no screenshot method (confirmed by `dir()` inspection of installed package). The E2B Desktop sandbox (`e2b-desktop`) has `screenshot()` but uses a graphical desktop environment -- not the code interpreter sandbox this project uses.
+
+**Approach: Worker-side Playwright (MEDIUM confidence)**
+
+Run Playwright in the ECS worker container against the public preview URL. This approach:
+- Requires no in-sandbox tooling changes
+- Preview URL is HTTP-accessible from the ECS network (E2B preview URLs are public HTTPS)
+- Playwright is a Python package fitting the existing Python stack
+- Adds ~150MB (Chromium) to the Docker image
+- Needs `playwright install chromium --with-deps` in Dockerfile
+
+```python
+# In ScreenshotService.capture(preview_url: str) -> bytes
+from playwright.async_api import async_playwright
+import asyncio
+
+async def capture_screenshot(preview_url: str) -> bytes:
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        page = await browser.new_page(viewport={"width": 1280, "height": 800})
+        await page.goto(preview_url, wait_until="networkidle", timeout=30000)
+        await asyncio.sleep(2)  # Let animations settle
+        screenshot = await page.screenshot(type="png")
+        await browser.close()
+        return screenshot
+```
+
+**Timing in GenerationService.execute_build() -- insertion point after line 150 (start_dev_server returns):**
 
 ```
-E2B sandbox stdout/stderr (during npm install / npm run build)
-  │
-  │  [E2BSandboxRuntime.stream_command() — NEW]
-  │  on_stdout callback fires per output line
-  │  (callback runs in thread pool via run_in_executor — must be thread-safe)
-  ↓
-asyncio.run_coroutine_threadsafe(
-    redis.xadd(f"job:{job_id}:logs", {line, stream, ts}),
-    loop
+# EXISTING PIPELINE STAGES (unchanged):
+STARTING -> SCAFFOLD -> CODE -> DEPS -> CHECKS -> (worker handles READY)
+
+# NEW: Screenshot capture inserted between dev server ready and build result:
+step 5b: start_dev_server() returns preview_url    <- EXISTING (line 150)
+step 5c: capture_screenshot(preview_url)            <- NEW (ScreenshotService)
+step 5d: upload to S3, get CloudFront URL           <- NEW (ScreenshotService)
+step 5e: write snapshot_url to Redis hash           <- NEW
+step 5f: publish SSE event: snapshot.updated        <- NEW
+step 6:  compute build result fields                <- EXISTING
+```
+
+Same insertion point in `execute_iteration_build()` -- after `start_dev_server()` at line 384.
+
+**Non-fatal wrapper (follows `_archive_logs_to_s3` pattern):**
+
+```python
+snapshot_url = None
+try:
+    if settings.screenshot_enabled:
+        image_bytes = await screenshot_service.capture_screenshot(preview_url)
+        snapshot_url = await screenshot_service.upload(job_id, "ready", image_bytes)
+        await _redis.hset(f"job:{job_id}", mapping={"snapshot_url": snapshot_url})
+except Exception:
+    logger.warning("screenshot_failed", job_id=job_id, exc_info=True)
+```
+
+---
+
+### 2. S3 Upload from Worker Process for Screenshots
+
+**Existing S3 usage in codebase:** `worker.py` already uses `boto3.client("s3")` for log archival (`_archive_logs_to_s3`). The boto3 pattern, IAM role, and error handling approach are all established.
+
+**New bucket:** `cofounder-screenshots` (separate from `getinsourced-marketing`). Different access model: no public website hosting, OAC from CloudFront, immutable cache.
+
+**Upload pattern (follows existing `_archive_logs_to_s3`):**
+
+```python
+# In ScreenshotService
+import asyncio
+import boto3
+
+async def upload(self, job_id: str, stage: str, image_bytes: bytes) -> str:
+    """Upload PNG to S3. Returns CloudFront URL. Non-fatal by convention (caller catches)."""
+    key = f"screenshots/{job_id}/{stage}.png"
+    # boto3 is synchronous -- run in thread to not block event loop
+    await asyncio.to_thread(
+        self._s3_client.put_object,
+        Bucket=self.settings.screenshot_bucket,
+        Key=key,
+        Body=image_bytes,
+        ContentType="image/png",
+        CacheControl="public, max-age=31536000, immutable",
+    )
+    return f"https://{self.settings.screenshot_cloudfront_domain}/{key}"
+```
+
+**IAM addition in `compute-stack.ts`:**
+
+```typescript
+// New S3 bucket for screenshots
+const screenshotsBucket = new s3.Bucket(this, 'ScreenshotsBucket', {
+    bucketName: 'cofounder-screenshots',
+    blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+    removalPolicy: cdk.RemovalPolicy.RETAIN,
+});
+screenshotsBucket.grantPut(taskRole);
+```
+
+**CloudFront:** Add an `/screenshots/*` behavior to a new (or existing) CloudFront distribution backed by the screenshots bucket with OAC, immutable cache headers, no CSP restrictions.
+
+**Redis persistence:**
+
+```python
+await redis.hset(f"job:{job_id}", mapping={"snapshot_url": cloudfront_url})
+```
+
+The `snapshot_url` value is served to the frontend via the existing `/api/generation/{job_id}/status` endpoint (add `snapshot_url` field to `GenerationStatusResponse`) or via the new `/api/jobs/{job_id}/docs` endpoint.
+
+---
+
+### 3. Separate Claude API Call for Doc Generation
+
+**Trigger:** Doc generation fires **after CODE stage completes** (LangGraph pipeline returns `working_files`) using `asyncio.create_task()`. This gives ~120s of free concurrency while npm install and dev server startup run. A Claude Sonnet call completes in 10-30s -- well within this window.
+
+**Service location:** `DocGenerationService` in `backend/app/services/doc_generation_service.py`. Called from `GenerationService.execute_build()`. Not a separate microservice or FastAPI BackgroundTask -- stays inside the worker async context.
+
+**Anthropic client:** Second instance using the same `settings.anthropic_api_key`. Uses `claude-sonnet-4-20250514` (lighter than Opus, sufficient for doc generation). Separate from the LangGraph-internal Claude calls.
+
+**Integration in execute_build():**
+
+```python
+# After CODE stage (step 3), before DEPS/sandbox (step 4):
+doc_task = asyncio.create_task(
+    doc_service.generate_docs(job_id=job_id, goal=job_data.get("goal", ""),
+                              working_files=working_files, redis=_redis)
 )
-  │
-  │  Redis Stream: job:{id}:logs
-  │  XADD with maxlen=2000 (circular buffer, last 2000 lines retained)
-  ↓
-SSE endpoint: GET /api/generation/{id}/logs/stream
-  │
-  │  XREAD BLOCK 1000 streams job:{id}:logs {last_id}
-  │  Yields: "data: {line, stream, ts}\n\n"
-  │  Terminates when job status is READY or FAILED
-  ↓
-frontend: useBuildLogs(jobId, getToken)
-  │  fetch() + ReadableStreamDefaultReader (NOT native EventSource)
-  │  Reason: Clerk JWT must be in Authorization header; EventSource cannot do this
-  │  Pattern: identical to existing useAgentStream.ts
-  ↓
-BuildLogPanel component
-  │  Append lines to list, auto-scroll to bottom
-  └─ Collapses/hides when build reaches terminal state
+streamer._phase = "install"  # Continue to DEPS as before
+
+# ... sandbox work: start(), write_file(), start_dev_server() (~120s) ...
+
+# Before returning, give doc gen a brief window to finish if not done:
+try:
+    await asyncio.wait_for(asyncio.shield(doc_task), timeout=30.0)
+except (asyncio.TimeoutError, Exception):
+    logger.warning("doc_generation_incomplete", job_id=job_id)
+    # Build still completes -- docs just may not be ready yet
+```
+
+**Doc generation writes to Redis:**
+
+```python
+# job:{id}:docs hash structure
+{
+    "status": "generating" | "ready",
+    "overview": "Plain-English description of the app",
+    "features": '["Feature 1", "Feature 2"]',   # JSON-encoded list
+    "getting_started": "How to use the app...",
+    "tech_note": "Built with Next.js...",         # optional
+}
+```
+
+**Safety guardrails:** The prompt must instruct Claude to produce only founder-facing narrative -- no file paths, no stack traces, no internal module names, no database schema details. The `DocGenerationService` must filter `working_files` to only pass a file list (not file contents) to limit context size and prevent secret exposure.
+
+---
+
+### 4. New SSE Event Types Alongside Existing Log Stream
+
+**Why a second SSE endpoint, not adding to existing log stream:**
+
+The existing `GET /api/jobs/{job_id}/logs/stream` reads from the Redis Stream (`XREAD`) and emits only `event: log` (log lines) and `event: done`. The `useBuildLogs` frontend hook parses `LogLine` objects from these. Mixing typed events into this stream would break the existing consumer.
+
+The new build events flow on Redis Pub/Sub (`SUBSCRIBE`), which already exists as `job:{job_id}:events` channel -- `JobStateMachine.transition()` already publishes to it. The new endpoint subscribes to this same channel.
+
+**New endpoint: `GET /api/jobs/{job_id}/events/stream`**
+
+```python
+# backend/app/api/routes/build_events.py
+@router.get("/{job_id}/events/stream")
+async def stream_build_events(
+    job_id: str,
+    request: Request,
+    user: ClerkUser = Depends(require_auth),
+    redis = Depends(get_redis),
+):
+    job_data = await state_machine.get_job(job_id)
+    if not job_data or job_data.get("user_id") != user.user_id:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    async def event_generator():
+        async with redis.pubsub() as pubsub:
+            await pubsub.subscribe(f"job:{job_id}:events")
+            last_heartbeat = time.monotonic()
+            async for message in pubsub.listen():
+                if await request.is_disconnected():
+                    return
+                now = time.monotonic()
+                if now - last_heartbeat >= 20:
+                    yield "event: heartbeat\ndata: {}\n\n"
+                    last_heartbeat = now
+                if message["type"] != "message":
+                    continue
+                data = json.loads(message["data"])
+                event_type = data.get("type", "build.stage.changed")
+                yield f"event: {event_type}\ndata: {json.dumps(data)}\n\n"
+                if data.get("status") in ("ready", "failed"):
+                    yield f"event: done\ndata: {json.dumps({'status': data['status']})}\n\n"
+                    return
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+```
+
+**Backward-compatible Pub/Sub payload extension:**
+
+`JobStateMachine.transition()` currently publishes `{job_id, status, message, timestamp}`. Add `type` field:
+
+```python
+# In JobStateMachine.transition() -- extend payload, not replace
+await self.redis.publish(
+    f"job:{job_id}:events",
+    json.dumps({
+        "type": "build.stage.changed",     # NEW -- existing consumers ignore unknown fields
+        "job_id": job_id,
+        "status": new_status.value,        # EXISTING
+        "message": message,                # EXISTING
+        "timestamp": now.isoformat(),      # EXISTING
+    })
+)
+```
+
+**Additional events published by new services:**
+
+```python
+# In ScreenshotService after successful S3 upload:
+await redis.publish(f"job:{job_id}:events", json.dumps({
+    "type": "snapshot.updated",
+    "job_id": job_id,
+    "snapshot_url": cloudfront_url,
+    "timestamp": datetime.now(UTC).isoformat(),
+}))
+
+# In DocGenerationService after writing to Redis:
+await redis.publish(f"job:{job_id}:events", json.dumps({
+    "type": "documentation.updated",
+    "job_id": job_id,
+    "timestamp": datetime.now(UTC).isoformat(),
+}))
+```
+
+**Event type taxonomy:**
+
+| Event Type | Emitter | Payload |
+|-----------|---------|---------|
+| `build.stage.changed` | `JobStateMachine.transition()` | `{status, message, timestamp}` |
+| `snapshot.updated` | `ScreenshotService` | `{snapshot_url}` |
+| `documentation.updated` | `DocGenerationService` | `{}` (frontend fetches docs on receipt) |
+| `heartbeat` | SSE generator loop | `{}` |
+| `done` | SSE generator when terminal | `{status: "ready"|"failed"}` |
+
+**Late-join handling for `useBuildEvents`:**
+
+Pub/Sub is fire-and-forget -- late joiners miss past events. The hook must bootstrap from REST on connect:
+
+```typescript
+// useBuildEvents initialization
+useEffect(() => {
+    // 1. Immediately fetch current state (snapshot_url, doc status)
+    fetchCurrentState();
+    // 2. Then open SSE for future updates
+    connectSSE();
+}, [jobId]);
 ```
 
 ---
 
-## Data Flow: Preview URL → Iframe Embedding
+### 5. Three-Panel Frontend Layout Replacing Current Build Page
+
+**Current page:** `frontend/src/app/(dashboard)/projects/[id]/build/page.tsx`
+Single narrow column during build: spinner + progress bar + collapsed log panel.
+Wide layout on success: `BuildSummary` + `PreviewPane`.
+
+**New page:** Three-panel during build, same success/failure states unchanged.
+
+**Layout grid:**
 
 ```
-Build completes:
-  preview_url = "https://3000-{sandbox_id}.e2b.app"
-  traffic_access_token = None  (default — public sandbox)
+Active build state (>= 1024px):
++------------------+------------------------+------------------+
+|   ActivityFeed   |      LiveSnapshot      |     DocPanel     |
+|   (1fr, ~25%)    |      (2fr, ~50%)       |   (1fr, ~25%)    |
+|                  |                        |                  |
+| Narrated events  | <img> screenshot       | Doc sections     |
+| Agent narration  | (BrowserChrome frame)  | Overview         |
+| 2/5min messages  | Skeleton if no shot    | Features list    |
+| Collapsed logs   | Stage label below      | Getting started  |
++------------------+------------------------+------------------+
 
-Decision: Use direct iframe embedding (v0.5 — simplest path)
-
-Why it works:
-  E2B sandboxes are publicly traffic-accessible by default.
-  The current E2BSandboxRuntime.start() does NOT pass allowPublicTraffic=False,
-  so sandboxes are created with public access enabled.
-  traffic_access_token = None confirms this (only set when restricted).
-  Browser can access preview_url directly — no auth header needed.
-
-⚠ Caveat: E2B sandbox may set X-Frame-Options or CSP headers blocking iframe.
-  PreviewPane must handle this gracefully with an error fallback.
-
-Frontend:
-  <PreviewPane previewUrl={previewUrl} />
-    │
-    ├─ [happy path] <iframe src={previewUrl} ... />
-    │     sandbox="allow-scripts allow-same-origin allow-forms"
-    │     title="App Preview"
-    │
-    └─ [iframe blocked — onError or CSP violation]
-         → Fallback: "Open Preview" link button (new tab)
-         → Same UX as current BuildSummary "Open Preview" button
-
-Future restricted mode (NOT for v0.5):
-  GET /api/generation/{id}/preview-token
-    → returns {preview_url, traffic_access_token}
-  Next.js API route /api/proxy/sandbox
-    → injects "e2b-traffic-access-token" header
-    → <iframe src="/api/proxy/sandbox?sandbox_id=...&port=3000" />
+Success state: unchanged (full-width BuildSummary + PreviewPane)
+Failure state: unchanged (full-width BuildFailureCard)
+Mobile (< 1024px): stacked column, snapshot top, activity middle, docs collapsed
 ```
+
+**`BuildPage` modifications:**
+
+The page orchestrates three new hooks alongside the two existing ones:
+
+```typescript
+// Existing (unchanged):
+const { status, label, previewUrl, isTerminal, ... } = useBuildProgress(jobId, getToken);
+const { lines, isConnected, autoFixAttempt, loadEarlier } = useBuildLogs(jobId, getToken);
+
+// New:
+const { snapshotUrl, events } = useBuildEvents(jobId, getToken);
+const { docs, isGenerating } = useDocGeneration(jobId, getToken);
+```
+
+**`ActivityFeed` component:**
+
+Receives `events: BuildEvent[]` and `autoFixAttempt`. Converts stage names to calm narration:
+
+```
+build.stage.changed (code)     -> "Writing your application code..."
+build.stage.changed (deps)     -> "Installing dependencies..."
+build.stage.changed (checks)   -> "Running health checks..."
+snapshot.updated               -> "First look at your app is ready"
+documentation.updated          -> "Documentation generated"
+auto-fix signal (from logs)    -> "Noticed an issue -- fixing automatically..."
+```
+
+Includes elapsed-time based reassurance banners:
+- 2min mark: "Complex apps can take a few minutes -- hang tight"
+- 5min mark: "Almost there -- finalizing your build"
+
+Includes collapsible "Technical details" section containing the existing `BuildLogPanel`.
+
+**`LiveSnapshot` component:**
+
+```typescript
+interface LiveSnapshotProps {
+  snapshotUrl: string | null;
+  stage: string;
+}
+// Renders BrowserChrome (existing component) wrapping:
+// - <img src={snapshotUrl}> when available (fade-in via AnimatePresence)
+// - Skeleton placeholder with shimmer when snapshotUrl is null
+// - Stage label ("Building..." / "Ready") below the frame
+```
+
+**`DocPanel` component:**
+
+```typescript
+interface DocPanelProps {
+  docs: DocSections | null;
+  isGenerating: boolean;
+}
+// Renders overview, features[], getting_started sections
+// Skeleton placeholders while isGenerating=true
+// "Download Documentation" button (Markdown export, reuses existing export pattern)
+```
+
+**Completion state:** When `status === "ready"`, the three-panel collapses and the page shows the existing `BuildSummary + PreviewPane` layout, now enriched with a link to download generated documentation.
 
 ---
 
-## Data Flow: Sandbox Pause / Snapshot (Cost Control)
+## Data Flow Changes
 
-```
-execute_build() completes → build_result dict assembled
-  │
-  └─ _pause_sandbox_after_build(sandbox, job_id)   [NEW — called before return]
-       │
-       ├─ sandbox.snapshot()   → sandbox._sandbox.beta_pause()
-       │    E2B API: POST /sandboxes/{id}/pause
-       │    Effect: VM frozen, billing paused
-       │    Preserves: filesystem, installed packages, /home/user/project/
-       │    Kills:    running processes (dev server dies)
-       │
-       └─ return {sandbox_paused: True}
+### New Redis Keys
 
-On next iteration build:
-  execute_iteration_build(job_data={previous_sandbox_id: ...})
-    │
-    └─ sandbox.connect(previous_sandbox_id)   [EXISTS]
-         E2B API: POST /sandboxes/{id}/connect
-         Effect: VM resumed from paused state
-         Then: re-launch dev server
-               sandbox.run_background("npm run dev", cwd=workspace_path)
-               _wait_for_dev_server(sandbox, port=3000)
+| Key | Type | Fields | TTL |
+|-----|------|--------|-----|
+| `job:{id}:docs` | Hash | `status`, `overview`, `features`, `getting_started`, `tech_note` | 24h |
+| `job:{id}` | Hash | Add: `snapshot_url` field | Existing (no change) |
 
-On iteration build when previous sandbox expired (E2B sandbox TTL exceeded):
-  sandbox.connect() raises SandboxError
-    │
-    └─ [EXISTS fallback] sandbox = None → sandbox.start() fresh
-         Full rebuild from scratch (already handled in execute_iteration_build)
-```
+### New Postgres Column (Job table migration required)
 
----
+| Column | Type | Purpose |
+|--------|------|---------|
+| `snapshot_url` | TEXT nullable | CloudFront URL of screenshot for build history display |
 
-## New vs Modified Components (Explicit Map)
+### New API Routes
 
-### New Backend
+| Route | Method | Auth | Purpose |
+|-------|--------|------|---------|
+| `/api/jobs/{id}/events/stream` | GET | require_auth | SSE: typed build events from Pub/Sub |
+| `/api/jobs/{id}/docs` | GET | require_auth | REST: current doc sections from `job:{id}:docs` |
 
-```
-backend/app/sandbox/e2b_runtime.py
-  + async def stream_command(command, on_line, timeout, cwd) -> dict
-      Wraps commands.run(on_stdout=..., on_stderr=...) via run_in_executor
-      on_stdout/stderr callbacks use run_coroutine_threadsafe for thread safety
-  + async def snapshot() -> str
-      Wraps sandbox.beta_pause() via run_in_executor
-      Returns sandbox_id for confirmation
+`GenerationStatusResponse` extended with `snapshot_url: str | None = None` field.
 
-backend/app/services/generation_service.py
-  + async def _stream_build_logs_to_redis(sandbox, job_id, command, cwd) -> dict
-      Calls sandbox.stream_command(); publishes each line to Redis Stream
-  + async def _wait_for_dev_server(sandbox, port, max_retries=30) -> bool
-      Polls localhost:{port} via curl inside sandbox; exponential backoff
-  + async def _pause_sandbox_after_build(sandbox, job_id) -> None
-      Calls sandbox.snapshot(); non-fatal (logs warning if fails)
+### New Settings (Environment Variables)
 
-backend/app/api/routes/generation.py
-  + GET  /{job_id}/logs/stream    SSE endpoint — XREAD BLOCK from Redis Stream
-  + POST /{job_id}/snapshot       Manual trigger for sandbox pause (idempotent)
-```
-
-### New Frontend
-
-```
-frontend/src/hooks/useBuildLogs.ts
-  Custom hook: fetch-based SSE reader using apiFetch pattern
-  Accumulates {line, stream, ts} entries in array
-  Stops on {done: true} event or connection error
-
-frontend/src/components/build/BuildLogPanel.tsx
-  Renders log lines in scrolling terminal-style div
-  Auto-scrolls to bottom on new line
-  Collapses when isTerminal=true
-
-frontend/src/components/build/PreviewPane.tsx
-  Renders <iframe> for previewUrl
-  Graceful fallback: if onError fires → show "Open in New Tab" link
-```
-
-### Modified Backend
-
-```
-backend/app/db/models/job.py
-  + sandbox_paused = Column(Boolean, nullable=False, default=False)
-  + traffic_access_token = Column(String(255), nullable=True)
-
-backend/app/api/routes/generation.py
-  GenerationStatusResponse
-  + traffic_access_token: str | None = None
-
-backend/app/services/generation_service.py
-  execute_build() return dict
-  + traffic_access_token field
-  + sandbox_paused: True field
-  execute_build() body — Phase DEPS/CHECKS
-  + replace run_command() with _stream_build_logs_to_redis()
-  + add dev server launch (run_background) + _wait_for_dev_server()
-  + fix port: 8080 → 3000 (Next.js) or detect from project metadata
-  + add _pause_sandbox_after_build() call before return
-
-backend/app/queue/worker.py
-  _persist_job_to_postgres()
-  + persist traffic_access_token from build_result
-  + persist sandbox_paused from build_result
-```
-
-### Modified Frontend
-
-```
-frontend/src/hooks/useBuildProgress.ts
-  BuildProgressState interface
-  + trafficAccessToken: string | null
-  Parsing of GenerationStatusResponse
-  + map data.traffic_access_token → state.trafficAccessToken
-
-frontend/src/app/(dashboard)/projects/[id]/build/page.tsx
-  + Import and render BuildLogPanel (shown during build phases)
-  + Import and render PreviewPane in success state
-  + Pass jobId to useBuildLogs hook
-
-frontend/src/components/build/BuildSummary.tsx
-  + Accept optional previewPane slot or render PreviewPane internally
-```
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `screenshot_bucket` | `""` | S3 bucket name for screenshots |
+| `screenshot_cloudfront_domain` | `""` | CloudFront domain serving screenshots |
+| `screenshot_enabled` | `False` | Feature flag (False until infra deployed) |
 
 ---
 
-## Recommended Project Structure (Additions Only)
+## Build Order (Dependency-Ordered)
 
-```
-backend/app/
-├── sandbox/
-│   └── e2b_runtime.py           ← MODIFY: +stream_command, +snapshot
-├── services/
-│   └── generation_service.py    ← MODIFY: +3 private helpers, fix port
-├── api/routes/
-│   └── generation.py            ← MODIFY: +2 endpoints, extend status response
-└── db/models/
-    └── job.py                   ← MODIFY: +2 columns
+Dependencies flow: CDK infrastructure --> backend services --> backend API routes --> frontend hooks --> frontend components --> page assembly.
 
-frontend/src/
-├── hooks/
-│   ├── useBuildProgress.ts      ← MODIFY: +trafficAccessToken field
-│   └── useBuildLogs.ts          ← NEW
-└── components/build/
-    ├── BuildLogPanel.tsx         ← NEW
-    └── PreviewPane.tsx           ← NEW
-```
+### Phase A: Infrastructure (unblocks all backend)
+1. CDK: new S3 bucket + CloudFront distribution/behavior for screenshots
+2. CDK: ECS task role `PutObject` grant on screenshots bucket
+3. Settings: add `screenshot_bucket`, `screenshot_cloudfront_domain`, `screenshot_enabled`
+4. Alembic migration: `snapshot_url` column on jobs table
+
+### Phase B: Backend Services (parallel, both depend on A)
+5. `ScreenshotService` -- Playwright capture + S3 upload, non-fatal, asyncio.to_thread for boto3
+6. `DocGenerationService` -- Anthropic SDK, Redis hash writes, non-fatal, 24h TTL
+
+### Phase C: Wire Services into GenerationService (depends on B)
+7. Wire `ScreenshotService` into `execute_build()` and `execute_iteration_build()` (after start_dev_server)
+8. Wire `DocGenerationService` into `execute_build()` (asyncio.create_task after CODE stage)
+9. Extend `JobStateMachine.transition()` with `type` field in Pub/Sub payload
+
+### Phase D: New API Routes (depends on C)
+10. `build_events.py` route: SSE endpoint subscribing to `job:{id}:events` Pub/Sub
+11. `docs.py` route: REST endpoint reading `job:{id}:docs` Redis hash
+12. Extend `GenerationStatusResponse` with `snapshot_url` field
+
+### Phase E: Frontend Hooks (depends on D)
+13. `useBuildEvents` -- SSE consumer, dispatches typed events, bootstraps from REST on connect
+14. `useDocGeneration` -- fetches from `/api/jobs/{id}/docs`, triggered by `documentation.updated` event
+
+### Phase F: Frontend Components (depends on E, parallel)
+15. `ActivityFeed` -- narrated events from useBuildEvents, elapsed-time reassurance
+16. `LiveSnapshot` -- snapshot_url from useBuildEvents, BrowserChrome wrapper, skeleton
+17. `DocPanel` -- docs from useDocGeneration, sections, download button
+
+### Phase G: Page Assembly (depends on F)
+18. `BuildPage` refactor -- three-panel grid during build, existing success/failure states unchanged
 
 ---
 
 ## Architectural Patterns
 
-### Pattern 1: Thread-Safe Redis Streaming from E2B on_stdout Callback
+### Pattern 1: Non-Fatal Side Effects
 
-**What:** E2B SDK's `commands.run(on_stdout=callback)` fires the callback from a thread pool executor (synchronous context). Coroutines cannot be called directly from threads. Use `asyncio.run_coroutine_threadsafe()` to schedule Redis writes onto the event loop.
+All three new pipeline hooks (screenshot, doc gen, SSE event publish) must be non-fatal. A screenshot timeout, Claude rate limit, or S3 connectivity error must never fail the build.
 
-**When to use:** Any time you need to publish async results from a synchronous callback that runs in a thread pool.
-
-**Trade-offs:** Adds coordination overhead; the `loop` reference must be captured before entering the executor. Safe and correct; existing `run_in_executor` pattern in the codebase already requires this discipline.
-
-**Example:**
 ```python
-# In E2BSandboxRuntime (new method)
-async def stream_command(
-    self,
-    command: str,
-    on_line: Callable[[str, str], Awaitable[None]],  # (line, stream_type) -> Awaitable
-    timeout: int = 300,
-    cwd: str | None = None,
-) -> dict:
-    """Run command with streaming output callbacks."""
-    if not self._sandbox:
-        raise SandboxError("Sandbox not started")
-
-    loop = asyncio.get_event_loop()
-    collected_stdout: list[str] = []
-    collected_stderr: list[str] = []
-
-    def sync_on_stdout(output) -> None:
-        collected_stdout.append(output.line)
-        asyncio.run_coroutine_threadsafe(
-            on_line(output.line, "stdout"), loop
-        )
-
-    def sync_on_stderr(output) -> None:
-        collected_stderr.append(output.line)
-        asyncio.run_coroutine_threadsafe(
-            on_line(output.line, "stderr"), loop
-        )
-
-    work_dir = cwd if cwd else "/home/user"
-    if not work_dir.startswith("/"):
-        work_dir = f"/home/user/{work_dir}"
-
-    result = await loop.run_in_executor(
-        None,
-        lambda: self._sandbox.commands.run(
-            command,
-            on_stdout=sync_on_stdout,
-            on_stderr=sync_on_stderr,
-            timeout=timeout,
-            cwd=work_dir,
-        ),
-    )
-    return {
-        "stdout": "\n".join(collected_stdout),
-        "stderr": "\n".join(collected_stderr),
-        "exit_code": result.exit_code,
-    }
+# Follow the pattern of _archive_logs_to_s3 and _handle_mvp_built_transition
+try:
+    snapshot_url = await screenshot_service.capture_and_upload(preview_url, job_id)
+    await redis.hset(f"job:{job_id}", mapping={"snapshot_url": snapshot_url})
+    await redis.publish(f"job:{job_id}:events", json.dumps({
+        "type": "snapshot.updated", "snapshot_url": snapshot_url, ...
+    }))
+except Exception:
+    logger.warning("screenshot_failed", job_id=job_id, exc_info=True)
+    # Build continues -- snapshot_url stays None
 ```
 
-### Pattern 2: Redis Stream as Durable, Ordered Build Log Buffer
+### Pattern 2: Parallel Async Doc Generation
 
-**What:** Each build log line is written to a Redis Stream (`XADD job:{id}:logs`) during sandbox command execution. The SSE endpoint reads with `XREAD BLOCK` from a `last_id` cursor — if the client disconnects and reconnects, it replays from where it left off.
+Doc generation hides latency behind sandbox work using `asyncio.create_task()`. The npm install + dev server startup window (~60-120s) is longer than a Claude Sonnet call (~10-30s).
 
-**When to use:** Any time you need log streaming that survives brief client disconnects without re-running the build command.
-
-**Trade-offs:**
-- Redis Streams provide ordering guarantee and O(1) append — correct for this use case
-- Alternative (pub/sub): messages lost on reconnect — wrong for build logs
-- `maxlen=2000` caps memory usage; last 2000 lines always available
-- Redis Stream keys do not expire automatically — set a 24h TTL after terminal state
-
-**Example:**
 ```python
-# In GenerationService (new private helper)
-async def _stream_build_logs_to_redis(
-    self, sandbox, job_id: str, command: str, cwd: str
-) -> dict:
-    from app.db.redis import get_redis
-    import time
-    redis = get_redis()
+# Start doc gen before expensive sandbox operations
+doc_task = asyncio.create_task(doc_service.generate_docs(...))
 
-    async def publish_line(line: str, stream_type: str) -> None:
-        await redis.xadd(
-            f"job:{job_id}:logs",
-            {"line": line, "stream": stream_type, "ts": str(time.time())},
-            maxlen=2000,
-        )
+# Sandbox work: start(), file writes, npm install, start_dev_server (~60-120s)
+# ...
 
-    return await sandbox.stream_command(command, publish_line, cwd=cwd)
-
-# SSE endpoint (new route in generation.py)
-@router.get("/{job_id}/logs/stream")
-async def stream_build_logs(
-    job_id: str,
-    user: ClerkUser = Depends(require_auth),
-    redis=Depends(get_redis),
-):
-    state_machine = JobStateMachine(redis)
-    job_data = await state_machine.get_job(job_id)
-    if not job_data or job_data.get("user_id") != user.user_id:
-        raise HTTPException(status_code=404, detail="Job not found")
-
-    async def generate():
-        last_id = "0"  # start from beginning of stream
-        stream_key = f"job:{job_id}:logs"
-        while True:
-            results = await redis.xread(
-                {stream_key: last_id}, count=50, block=1000
-            )
-            if results:
-                for _, messages in results:
-                    for msg_id, fields in messages:
-                        last_id = msg_id
-                        yield f"data: {json.dumps(fields)}\n\n"
-
-            status = await state_machine.get_status(job_id)
-            if status in (JobStatus.READY, JobStatus.FAILED):
-                yield 'data: {"done": true}\n\n'
-                # Set TTL on log stream after job completes
-                await redis.expire(stream_key, 86400)  # 24h
-                break
-
-    return StreamingResponse(
-        generate(),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
-    )
+# Before returning, give remaining time for doc gen to finish
+try:
+    await asyncio.wait_for(asyncio.shield(doc_task), timeout=30.0)
+except (asyncio.TimeoutError, Exception):
+    logger.warning("doc_generation_incomplete", job_id=job_id)
+    # Acceptable -- frontend handles the "generating" state
 ```
 
-### Pattern 3: Fetch-Based SSE Consumer (Not Native EventSource)
+### Pattern 3: Late-Join SSE with REST Bootstrap
 
-**What:** The frontend consumes SSE using `fetch()` + `ReadableStreamDefaultReader` rather than the browser's native `EventSource` API.
+Pub/Sub is fire-and-forget. The `useBuildEvents` hook handles page refresh by bootstrapping from REST before opening SSE:
 
-**When to use:** Any time an SSE endpoint requires an `Authorization` header (Clerk JWT). Native `EventSource` does not support custom headers.
-
-**Trade-offs:** Slightly more code than `EventSource`. Already the established pattern in this codebase — `useAgentStream.ts` uses identical approach.
-
-**Example:**
 ```typescript
-// frontend/src/hooks/useBuildLogs.ts (new hook)
-"use client";
-
-import { useState, useEffect, useRef } from "react";
-import { apiFetch } from "@/lib/api";
-
-export interface LogLine {
-  line: string;
-  stream: "stdout" | "stderr";
-  ts: string;
-}
-
-export function useBuildLogs(
-  jobId: string | null,
-  getToken: () => Promise<string | null>
-) {
-  const [lines, setLines] = useState<LogLine[]>([]);
-  const [done, setDone] = useState(false);
-  const readerRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
-
-  useEffect(() => {
-    if (!jobId) return;
-
-    let active = true;
-
-    (async () => {
-      const res = await apiFetch(
-        `/api/generation/${jobId}/logs/stream`,
-        getToken
-      );
-      if (!res.ok || !res.body) return;
-
-      const reader = res.body.getReader();
-      readerRef.current = reader;
-      const decoder = new TextDecoder();
-
-      while (active) {
-        const { done: streamDone, value } = await reader.read();
-        if (streamDone) break;
-
-        const chunk = decoder.decode(value);
-        for (const raw of chunk.split("\n")) {
-          if (!raw.startsWith("data: ")) continue;
-          try {
-            const event = JSON.parse(raw.slice(6));
-            if (event.done) { setDone(true); break; }
-            if (event.line) {
-              setLines(prev => [...prev, event as LogLine]);
-            }
-          } catch { /* ignore parse errors */ }
-        }
-      }
-    })();
-
-    return () => {
-      active = false;
-      readerRef.current?.cancel();
-    };
-  }, [jobId, getToken]);
-
-  return { lines, done };
-}
+useEffect(() => {
+    async function init() {
+        // Step 1: fetch current state to hydrate panels immediately
+        const [statusRes, docsRes] = await Promise.all([
+            apiFetch(`/api/generation/${jobId}/status`, getToken),
+            apiFetch(`/api/jobs/${jobId}/docs`, getToken),
+        ]);
+        const status = await statusRes.json();
+        const docs = await docsRes.json();
+        setSnapshotUrl(status.snapshot_url ?? null);
+        setDocs(docs);
+        // Step 2: then open SSE for future updates
+        connectSSE();
+    }
+    init();
+}, [jobId]);
 ```
 
-### Pattern 4: Direct Iframe Embedding (v0.5 — No Auth Proxy)
+### Pattern 4: Typed SSE Event Dispatch in Frontend
 
-**What:** Embed the E2B sandbox preview URL directly in an `<iframe>`. Works because E2B sandboxes default to public traffic access. The `traffic_access_token` field is persisted for future use but not required for this default configuration.
+`useBuildEvents` dispatches to separate state slices by event type so components only re-render on their data:
 
-**When to use:** v0.5 MVP. Ship fast. Revisit with proxy only if E2B CSP headers block iframe embedding.
-
-**Trade-offs:**
-- Direct embed is zero infrastructure overhead
-- E2B may return `X-Frame-Options: DENY` or `Content-Security-Policy: frame-ancestors 'none'` — must detect and fallback gracefully
-- `PreviewPane` handles both paths; no breaking change if E2B policy changes
-
-**Example:**
-```tsx
-// frontend/src/components/build/PreviewPane.tsx
-"use client";
-
-import { useState } from "react";
-import { ExternalLink } from "lucide-react";
-
-interface PreviewPaneProps {
-  previewUrl: string;
-  className?: string;
-}
-
-export function PreviewPane({ previewUrl, className }: PreviewPaneProps) {
-  const [blocked, setBlocked] = useState(false);
-
-  if (blocked) {
-    return (
-      <div className="flex items-center justify-center h-40 rounded-xl border border-white/10 bg-white/5">
-        <a
-          href={previewUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 text-brand hover:text-brand-light text-sm"
-        >
-          <ExternalLink className="w-4 h-4" />
-          Open Preview in New Tab
-        </a>
-      </div>
-    );
-  }
-
-  return (
-    <iframe
-      src={previewUrl}
-      className={`w-full h-[600px] rounded-xl border border-white/10 ${className ?? ""}`}
-      sandbox="allow-scripts allow-same-origin allow-forms"
-      title="App Preview"
-      onError={() => setBlocked(true)}
-    />
-  );
+```typescript
+function handleEvent(eventType: string, data: BuildEvent) {
+    switch (eventType) {
+        case "build.stage.changed":
+            dispatch({ type: "ADD_ACTIVITY", event: data });
+            break;
+        case "snapshot.updated":
+            setSnapshotUrl(data.snapshot_url);
+            break;
+        case "documentation.updated":
+            // Trigger REST fetch rather than embedding docs in event payload
+            triggerDocRefetch();
+            break;
+        case "done":
+            setIsDone(true);
+            break;
+    }
 }
 ```
 
 ---
 
-## Database Schema Changes
+## Anti-Patterns to Avoid
 
-### `jobs` table additions (`backend/app/db/models/job.py`)
+### Anti-Pattern 1: Mixing Typed Events into the Log Stream
 
-```python
-# ADD to Job model:
-sandbox_paused = Column(Boolean, nullable=False, default=False)
-# True when beta_pause() succeeded. Used by execute_iteration_build:
-# connect() if paused; start() fresh if not paused or connection fails.
+**What people do:** Embed `snapshot.updated` events as structured log lines in the existing `job:{id}:logs` Redis Stream.
 
-traffic_access_token = Column(String(255), nullable=True)
-# E2B traffic_access_token for restricted sandbox access.
-# None for public sandboxes (current default).
-# Persisted for future restricted-mode support without schema change.
-```
+**Why it's wrong:** `useBuildLogs` only handles `event: log` SSE events as `LogLine` objects. The `BuildLogPanel` renders raw text -- event payloads appear as noise. Breaks existing consumer without any fallback.
 
-Migration SQL:
-```sql
-ALTER TABLE jobs ADD COLUMN sandbox_paused BOOLEAN NOT NULL DEFAULT FALSE;
-ALTER TABLE jobs ADD COLUMN traffic_access_token VARCHAR(255);
-```
+**Do this instead:** New `job:{id}:events` Pub/Sub channel with new SSE endpoint at `/api/jobs/{id}/events/stream`. Keep log stream for human-readable lines only.
 
-### Redis schema additions (no migration needed — append-only)
+### Anti-Pattern 2: In-Sandbox Screenshot Tooling
 
-```
-# Existing keys (unchanged)
-job:{id}            HASH    status, preview_url, sandbox_id, user_id, ...
-job:{id}:events     CHANNEL Redis pub/sub for SSE status events (existing)
+**What people do:** Run `npm install puppeteer` inside the user's generated project sandbox, then execute a screenshot script.
 
-# New key
-job:{id}:logs       STREAM  {line: str, stream: "stdout"|"stderr", ts: str}
-                             maxlen=2000 (circular, XADD maxlen applied)
-                             TTL: 24h (set via EXPIRE after terminal state)
-```
+**Why it's wrong:** Pollutes the user's generated project with dev tooling. Adds 200-500MB to sandbox. Chromium install is 30-60s. May conflict with the generated project's own dependencies.
 
----
+**Do this instead:** Worker-process Playwright against the public preview URL. The ECS container takes the screenshot externally against the public HTTPS URL.
 
-## API Endpoint Additions
+### Anti-Pattern 3: Blocking Build on Doc Generation
 
-### `GET /api/generation/{job_id}/logs/stream`
+**What people do:** `await doc_service.generate_docs(...)` inline in `execute_build()`, after CODE stage, before DEPS.
 
-```
-Auth:     require_auth (Clerk JWT)
-Response: text/event-stream
-Events:   {line, stream, ts} — one per log line
-          {done: true} — terminal event when job reaches READY or FAILED
-Purpose:  Stream build log lines from Redis Stream to frontend SSE consumer
-Behavior: XREAD BLOCK 1000ms; replays from beginning (last_id="0") on connect
-          Client can reconnect and receive all buffered lines (up to maxlen=2000)
-Notes:    Terminate on both READY and FAILED. Set 24h TTL on stream after done.
-```
+**Why it's wrong:** Adds 10-30s to the critical build path before sandbox work starts. Founders wait visibly longer.
 
-### `POST /api/generation/{job_id}/snapshot`
+**Do this instead:** `asyncio.create_task()` -- doc gen runs concurrently with npm install. The build is never blocked.
 
-```
-Auth:     require_auth (Clerk JWT)
-Request:  {} (no body)
-Response: {sandbox_id: str, status: "paused" | "already_paused"}
-Purpose:  Manually trigger sandbox pause. GenerationService calls this automatically
-          post-build, but expose as API for manual retry if auto-pause fails.
-Behavior: Verify job is READY; read sandbox_id from Job record; call sandbox.beta_pause()
-          Update Job.sandbox_paused=True in Postgres
-Notes:    409 if job is not READY. 404 if job not found or sandbox_id missing.
-          Idempotent — 409 from E2B (already paused) is handled as success.
-```
+### Anti-Pattern 4: Storing Full Docs in Postgres
+
+**What people do:** Store full generated documentation as a JSONB column in the jobs table.
+
+**Why it's wrong:** Docs are transient build artifacts (expire with sandbox, 24h relevance). Postgres is for the permanent audit trail. Large JSONB payloads slow down the jobs table queries.
+
+**Do this instead:** Redis hash `job:{id}:docs` with 24h TTL. Postgres only gets a short `snapshot_url` TEXT field for build history.
+
+### Anti-Pattern 5: Continuous Poll for Doc Sections
+
+**What people do:** `useDocGeneration` polls `/api/jobs/{id}/docs` every 5 seconds during build.
+
+**Why it's wrong:** Adds 12 unnecessary API calls over a 60s build, most of which return `"status": "generating"`. No user-visible benefit.
+
+**Do this instead:** Event-triggered fetch -- `useDocGeneration` only fetches when `useBuildEvents` emits `documentation.updated`. Zero wasted calls.
 
 ---
 
-## Suggested Build Order (Phase Dependencies)
+## Integration Points Summary
 
-### Phase 1: Build Log Streaming (Backend Only)
+### External Services
 
-**Why first:** Unblocks visibility during real sandbox builds. No frontend changes required yet — logs flow to Redis regardless.
+| Service | Integration Pattern | Notes |
+|---------|---------------------|-------|
+| E2B AsyncSandbox | Unchanged -- existing `run_command()` / `start_dev_server()` | No native screenshot method; screenshots taken from worker process |
+| Playwright (worker-side) | New Python dependency, runs in ECS container headless | Add to Dockerfile: `playwright install chromium --with-deps` |
+| Anthropic SDK | Second `AsyncAnthropic` instance with Sonnet model for doc gen | Separate from LangGraph agent calls; use asyncio.create_task |
+| S3 (new `cofounder-screenshots` bucket) | `boto3.client("s3")` via `asyncio.to_thread` in ScreenshotService | Follows `_archive_logs_to_s3` non-fatal pattern |
+| CloudFront | New distribution or behavior serving screenshots bucket | OAC origin, immutable cache, no Clerk auth |
+| Redis Pub/Sub | Existing `job:{id}:events` channel extended with new event types | Backward-compatible: add `type` field, existing consumers check `status` field |
 
-1. Add `stream_command()` to `E2BSandboxRuntime`
-2. Add `_stream_build_logs_to_redis()` helper to `GenerationService`
-3. Wire into `execute_build()` — replace `run_command("echo 'health-check-ok'")` with real `npm install` + `npm run build` calls using streaming helper
-4. Add `GET /api/generation/{id}/logs/stream` SSE endpoint
-5. Add `job:{id}:logs` Redis Stream schema (no migration — just use `xadd`)
+### Internal Boundaries
 
-**No dependencies.** Can start immediately.
-
-**Verification:** Run a real build; verify Redis Stream fills; hit SSE endpoint manually with curl.
-
-### Phase 2: Dev Server Launch + Valid Preview URL
-
-**Why second:** Without a live dev server, `preview_url` 404s in the browser. This is the gating blocker for iframe embedding.
-
-1. Add `_wait_for_dev_server()` helper to `GenerationService`
-2. Add `sandbox.run_background("npm run dev", cwd=workspace_path)` to `execute_build()` CHECKS phase
-3. Fix hardcoded port: `sandbox.get_host(8080)` → `sandbox.get_host(3000)` (Next.js) or parameterized from project metadata
-4. Add `sandbox_paused` and `traffic_access_token` columns to `Job` model + write migration
-5. Add `_pause_sandbox_after_build()` helper; wire into `execute_build()` return path
-6. Add `traffic_access_token` to `GenerationStatusResponse` and `_persist_job_to_postgres()`
-
-**Depends on Phase 1** (streaming helpers reused for dep install / build output).
-
-**Verification:** Successful build returns `preview_url` that loads in browser tab.
-
-### Phase 3: Frontend Log Panel
-
-**Why third:** Requires SSE endpoint from Phase 1 and a real build to show meaningful output.
-
-1. Add `useBuildLogs` hook
-2. Add `BuildLogPanel` component
-3. Integrate into `BuildPage` — show `BuildLogPanel` during build, hide after terminal state
-
-**Depends on Phase 1.**
-
-### Phase 4: Preview Iframe Embedding
-
-**Why fourth:** Requires live dev server from Phase 2 producing a real `preview_url`.
-
-1. Add `PreviewPane` component (iframe + fallback)
-2. Add `trafficAccessToken` to `useBuildProgress` state
-3. Update `useBuildProgress` to parse `traffic_access_token` from status response
-4. Integrate `PreviewPane` into `BuildPage` success state
-5. Wire `PreviewPane` into or below `BuildSummary`
-
-**Depends on Phase 2.**
-
-### Phase 5: Snapshot / Cost Control Verification
-
-**Why fifth:** The snapshot call is wired in Phase 2, but requires E2E testing with reconnect to confirm paused sandbox resumes correctly in `execute_iteration_build()`.
-
-1. Verify `execute_iteration_build()` correctly relaunches dev server after reconnect
-2. Add `POST /api/generation/{id}/snapshot` endpoint for manual retry
-3. Integration test: complete build → pause → iteration build reconnects and serves updated preview
-
-**Depends on Phase 2.**
-
----
-
-## Integration Points: Existing → New
-
-| Boundary | Pattern | Critical Note |
-|----------|---------|--------------|
-| `runner.run()` → `working_files` | `FileChange` TypedDict | Key is `new_content`, NOT `content`. Current `execute_build()` uses `file_change.get("content", "")` at line 109 — this is a pre-existing bug. Fix in Phase 2 when testing E2E. |
-| `E2BSandboxRuntime` → E2B SDK | `run_in_executor` (sync-in-async) | All E2B SDK calls must remain in `run_in_executor`. Never call sync E2B methods directly in async functions. |
-| `on_stdout` callback → Redis | `run_coroutine_threadsafe` | Callback runs in thread pool; must schedule async work back onto the event loop. Cannot `await` inside callback. |
-| `useBuildLogs` → SSE endpoint | `apiFetch` (not `EventSource`) | Clerk JWT required in Authorization header. Native `EventSource` cannot set headers. Use `fetch()` + `ReadableStreamDefaultReader` — identical to `useAgentStream.ts`. |
-| `GenerationService` → Redis | `get_redis()` inside helper | Do not store Redis client on service instance; call `get_redis()` per-request inside helpers. |
-| `execute_build()` → `sandbox.get_host()` | Port parameterization | Must detect or receive the port number; cannot hardcode 8080. Architect node should emit dev server start command; GenerationService extracts port from it. Fallback: 3000 for TS, 8000 for Python. |
-
----
-
-## Anti-Patterns
-
-### Anti-Pattern 1: Blocking the Event Loop with Synchronous E2B Calls
-
-**What people do:** Call `self._sandbox.commands.run(...)` directly inside an `async` function.
-
-**Why it's wrong:** E2B Python SDK v2.x is synchronous under the hood. Direct calls block the asyncio event loop, freezing all other requests being served by FastAPI.
-
-**Do this instead:** All E2B calls go through `await loop.run_in_executor(None, lambda: ...)`. This pattern is already established in `E2BSandboxRuntime` — maintain it for every new method.
-
-### Anti-Pattern 2: Using Native `EventSource` for Authenticated SSE
-
-**What people do:** `new EventSource('/api/generation/{id}/logs/stream')` — native browser API.
-
-**Why it's wrong:** `EventSource` cannot set custom headers. The Clerk JWT (`Authorization: Bearer ...`) required by `require_auth` cannot be attached. Requests arrive unauthenticated and receive 401.
-
-**Do this instead:** Use `fetch()` + `ReadableStreamDefaultReader`. The existing `useAgentStream.ts` hook demonstrates the exact correct pattern. Copy it.
-
-### Anti-Pattern 3: Hardcoding Port 8080 in preview_url
-
-**What people do:** Copy `sandbox.get_host(8080)` from the existing `execute_build()` code (line 118 of `generation_service.py`).
-
-**Why it's wrong:** Generated Next.js applications serve on port 3000 by default. Port 8080 produces a preview URL that loads a connection refused page.
-
-**Do this instead:** Detect the dev server port from generated project metadata (e.g., parse `package.json` scripts). Default: 3000 for TypeScript/Next.js projects, 8000 for FastAPI/Python.
-
-### Anti-Pattern 4: Using Pub/Sub Instead of Redis Stream for Build Logs
-
-**What people do:** `PUBLISH job:{id}:logs {line}` in the callback; `SUBSCRIBE` in the SSE endpoint.
-
-**Why it's wrong:** Redis pub/sub is fire-and-forget. Messages published before the SSE client subscribes are permanently lost. A user who opens the build page mid-build misses all previous output.
-
-**Do this instead:** Redis Streams (XADD/XREAD). The client reads from `last_id="0"` (start of stream) on connect and replays all buffered lines. The SSE endpoint advances `last_id` as it reads.
-
-### Anti-Pattern 5: Not Handling beta_pause() Failures Gracefully
-
-**What people do:** Let `_pause_sandbox_after_build()` raise and propagate, causing the build result to appear as FAILED even though the code generation and file write succeeded.
-
-**Why it's wrong:** `beta_pause()` is labeled BETA in E2B SDK v2.13.2. It can fail without the build being invalid. The preview URL is already live and correct — only the cost-saving optimization failed.
-
-**Do this instead:** Wrap `_pause_sandbox_after_build()` in try/except; log warning on failure; return `sandbox_paused: False` in `build_result`. The sandbox will expire via its timeout TTL (3600s set in `set_timeout()`). This pattern already exists in `GenerationService._handle_mvp_built_transition()` — use it as the model.
-
----
-
-## Scaling Considerations
-
-| Scale | Architecture Adjustment |
-|-------|------------------------|
-| 0-10 active builds | Current architecture: FastAPI BackgroundTasks + Redis queue. Adequate. |
-| 10-50 concurrent builds | SSE connections to `/logs/stream` keep one HTTP connection open per active build. Monitor ECS ALB connection limits. Redis Stream maxlen=2000 prevents memory growth. |
-| 50+ concurrent | Consider dedicated worker process (separate from FastAPI) for sandbox execution. SSE connections pile up against ALB idle timeout (default 60s — increase to 300s). |
-| Sandbox cost at any scale | `beta_pause()` after every READY build is mandatory. Without it, idle E2B sandboxes continue billing indefinitely at ~$0.07-0.10/CPU-hour. At 50 builds/day with 1h sandbox lifetime, ~$3.50-5.00/day wasted without pausing. |
+| Boundary | Communication | Notes |
+|----------|---------------|-------|
+| `GenerationService` + `ScreenshotService` | Direct async call inside execute_build(), non-fatal try/except | Feature-flagged via `settings.screenshot_enabled` |
+| `GenerationService` + `DocGenerationService` | `asyncio.create_task()` -- fire and shield | Non-fatal; timeout with warning |
+| `ScreenshotService` + S3 | `boto3` via `asyncio.to_thread()` | boto3 is synchronous; must not block event loop |
+| `useBuildEvents` + `/events/stream` | SSE via `apiFetch` + ReadableStream reader | Same auth pattern as `useBuildLogs` |
+| `useBuildEvents` triggers `useDocGeneration` | `documentation.updated` event triggers REST fetch | No continuous poll |
+| `BuildPage` + all hooks | Props drilling down to panels | Three panel components receive minimal typed props |
 
 ---
 
 ## Sources
 
-### PRIMARY (HIGH confidence — verified directly from codebase)
-
-- `backend/app/sandbox/e2b_runtime.py` — E2B SDK usage patterns, async-in-executor wrapping, `connect()` method
-- `backend/app/services/generation_service.py` — `execute_build()` pipeline, `execute_iteration_build()` reconnect path, `_handle_mvp_built_transition()` non-fatal hook pattern
-- `backend/app/queue/worker.py` — `_persist_job_to_postgres()` signature, `build_result` dict shape
-- `backend/app/queue/state_machine.py` — Redis hash structure, pub/sub event format
-- `backend/app/api/routes/generation.py` — existing endpoints, `GenerationStatusResponse` schema
-- `backend/app/agent/state.py` — `CoFounderState.working_files`, `FileChange.new_content` key (line 27)
-- `frontend/src/hooks/useBuildProgress.ts` — polling pattern, `BuildProgressState` interface, authenticated fetch via `apiFetch`
-- `frontend/src/hooks/useAgentStream.ts` — fetch-based SSE pattern with `ReadableStreamDefaultReader` (confirmed: no `EventSource`)
-- `frontend/src/app/(dashboard)/projects/[id]/build/page.tsx` — build page structure, existing components
-- E2B SDK: `.venv/lib/python3.12/site-packages/e2b/sandbox_async/main.py` — `beta_pause()`, `connect()`, `create()`, `traffic_access_token` property, `set_timeout()`
-- E2B SDK: `.venv/lib/python3.12/site-packages/e2b/connection_config.py` — `get_host()` returns `"{port}-{sandbox_id}.{sandbox_domain}"` (confirmed URL format)
-- E2B SDK: `.venv/lib/python3.12/site-packages/e2b/sandbox_async/commands/command.py` — `on_stdout`, `on_stderr` callbacks confirmed in `commands.run()` signature
-
-### SECONDARY (MEDIUM confidence — verified via official docs fetch)
-
-- E2B docs `https://e2b.dev/docs/sandbox/internet-access` (fetched 2026-02-22) — confirms public URL format `https://{port}-{sandbox_id}.e2b.app`, `e2b-traffic-access-token` header requirement, public-by-default behavior
+- Direct codebase inspection (HIGH confidence):
+  - `backend/app/services/generation_service.py` -- pipeline stages, insertion points
+  - `backend/app/sandbox/e2b_runtime.py` -- E2B API surface, confirmed no screenshot
+  - `backend/app/services/log_streamer.py` -- Redis Stream write pattern
+  - `backend/app/queue/worker.py` -- existing S3 upload pattern (`_archive_logs_to_s3`)
+  - `backend/app/queue/state_machine.py` -- Pub/Sub payload, transition pattern
+  - `backend/app/api/routes/logs.py` -- existing SSE pattern, xread vs pubsub
+  - `backend/app/api/routes/generation.py` -- status endpoint, response schema
+  - `backend/app/core/config.py` -- Settings pattern for new env vars
+  - `backend/app/db/models/job.py` -- existing columns, migration pattern
+  - `frontend/src/hooks/useBuildProgress.ts` -- 5s poll pattern
+  - `frontend/src/hooks/useBuildLogs.ts` -- SSE consumer pattern (ReadableStream)
+  - `frontend/src/app/(dashboard)/projects/[id]/build/page.tsx` -- existing three-state layout
+  - `infra/lib/compute-stack.ts` -- ECS task role, IAM pattern for S3 grants
+  - `infra/lib/marketing-stack.ts` -- S3 + CloudFront CDK pattern to follow
+- E2B AsyncSandbox screenshot: confirmed no method by `dir()` inspection of installed `e2b_code_interpreter` package
+- E2B Desktop screenshot: [E2B SDK Reference](https://e2b.dev/docs/sdk-reference/desktop-js-sdk/v1.1.1/sandbox) -- Desktop only, not code interpreter
+- Playwright Python in ECS: MEDIUM confidence -- standard headless Chromium Docker pattern
 
 ---
 
-*Architecture research for: E2B sandbox build pipeline, build log streaming, preview iframe, snapshot integration*
-*Researched: 2026-02-22*
-*Confidence: HIGH — direct codebase analysis + E2B SDK v2.13.2 source inspection + official docs verification*
+*Architecture research for: v0.6 Live Build Experience -- integration with existing AI Co-Founder SaaS*
+*Researched: 2026-02-23*

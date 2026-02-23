@@ -1,563 +1,422 @@
-# Stack Research: E2B Sandbox Build Pipeline
+# Stack Research
 
-**Domain:** End-to-end sandbox build pipeline — E2B lifecycle, build streaming, iframe preview
-**Milestone:** v0.5 — founder's idea to running full-stack app in embedded iframe
-**Researched:** 2026-02-22
-**Confidence:** HIGH (verified against installed e2b 2.13.2 SDK source + E2B official docs)
+**Domain:** Live build experience additions to existing AI Co-Founder SaaS (v0.6)
+**Milestone:** v0.6 Live Build Experience — three-panel build page, E2B screenshots, progressive docs, extended SSE
+**Researched:** 2026-02-23
+**Confidence:** HIGH (all critical decisions verified against official docs and existing codebase)
 
 ---
 
 ## Scope
 
-This document covers **additions and changes only**. The existing stack is validated:
+This document covers **only new additions and changes** for v0.6. The previous STACK.md for v0.5 (E2B lifecycle, iframe embedding, SSE, Redis Streams) remains valid — do not re-research those areas.
 
-| Already In Codebase | Location | Status |
-|--------------------|----------|--------|
-| `e2b>=1.0.0` (installed: 2.13.2) | `pyproject.toml` | Version constraint stale — update |
-| `e2b-code-interpreter>=1.0.0` (installed: 2.4.1) | `pyproject.toml` | Version constraint stale — update |
-| `E2BSandboxRuntime` class | `backend/app/sandbox/e2b_runtime.py` | Sync SDK wrapped in `run_in_executor` — migrate to async |
-| FastAPI `StreamingResponse` SSE | `backend/app/api/routes/agent.py` | Pattern proven — reuse for log streaming |
-| `JobStateMachine` + Redis pub/sub | `backend/app/queue/` | Already stores `sandbox_id` in job hash |
-| `useBuildProgress` polling hook | `frontend/src/hooks/useBuildProgress.ts` | 5s `setInterval` + `apiFetch` — extend for log stream |
+**Validated existing capabilities (DO NOT re-add):**
 
-Research question: **What changes and additions enable (1) E2B sandbox lifecycle with snapshot/on-demand, (2) streaming build output, (3) iframe embedding, (4) full-stack app execution inside sandbox?**
-
----
-
-## Recommended Stack
-
-### Core Technologies
-
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| `e2b` | `>=2.13.3` | Sandbox lifecycle — `AsyncSandbox.create`, `connect`, `beta_pause`, `kill`, `get_host` | Native async class eliminates current `run_in_executor` hacks; verified from installed SDK source |
-| `e2b-code-interpreter` | `>=2.4.1` | Retained for code cell execution (existing) | Tighten version lower bound; not used for build pipeline commands |
-| `sse-starlette` | `>=2.1.0` | SSE endpoint for streaming build log lines to browser | Cleaner than raw `StreamingResponse`; handles `Last-Event-ID` for reconnect; proper flush on ASGI |
-
-### Supporting Libraries
-
-| Library | Version | Purpose | When to Use |
-|---------|---------|---------|-------------|
-| Redis Streams (built into `redis>=5.2.0`) | — | Buffer build log lines for SSE fan-out; multiple consumers, replay support | Use `XADD`/`XREAD` — no new library required, Redis already installed |
-| Built-in `EventSource` (browser) | — | Frontend SSE client for log streaming | Use in new `useBuildLogs` hook — no npm package needed |
-| Built-in `<iframe>` (HTML) | — | Embed sandbox preview URL | Direct `<iframe src="...">` — no React wrapper library needed |
-
-### Development Tools
-
-| Tool | Purpose | Notes |
-|------|---------|-------|
-| `e2b` CLI (optional) | Build and deploy custom E2B templates | `npm install -g @e2b/cli` — only needed if building custom template in later phase |
+| Capability | Package | Status |
+|------------|---------|--------|
+| FastAPI `StreamingResponse` SSE | `fastapi>=0.115.0` | Production — `logs.py` event_generator pattern |
+| Redis Streams (`xadd`/`xread`/`xrevrange`) | `redis>=5.2.0` | Production — `log_streamer.py`, `logs.py` |
+| E2B `AsyncSandbox` (commands, files, run_command) | `e2b-code-interpreter>=1.0.0` | Production — `e2b_runtime.py` |
+| Anthropic SDK (sync + async) | `anthropic>=0.40.0` | Production — LangGraph agent nodes |
+| `langchain-anthropic` / LangGraph | `langchain-anthropic>=0.3.0`, `langgraph>=0.2.0` | Production — agent pipeline |
+| `boto3` (sync S3, CloudWatch) | `boto3>=1.35.0` | Production — `cloudwatch.py`; S3 bucket config key exists but is not wired yet |
+| `structlog` | `structlog>=25.0.0` | Production — structured logging |
+| Tailwind CSS v4 grid utilities | `tailwindcss>=4.0.0` | Production — existing build page layout |
+| Framer Motion v12 | `framer-motion>=12.34.0` | Production — `AnimatePresence` on build page |
+| shadcn/ui components | Inline in `components/ui/` | Production — `GlassCard`, `AlertDialog`, etc. |
+| `fetch()` + `ReadableStreamDefaultReader` (SSE client) | Browser native | Production — `useBuildLogs.ts` |
+| `next/image` | Next.js 15 built-in | Available — needs CloudFront domain added to `next.config.js` |
 
 ---
 
-## E2B SDK API Reference
+## What's New for v0.6
 
-**Source:** Verified against installed SDK at `/Users/vladcortex/.pyenv/versions/3.12.4/lib/python3.12/site-packages/e2b/`
+Five capabilities are new:
 
-### Critical Migration: Sync to Async
-
-The current `E2BSandboxRuntime` imports from `e2b_code_interpreter` and uses sync `Sandbox` wrapped in `run_in_executor`. The correct approach:
-
-```python
-# CURRENT (wrong — uses sync class in thread pool)
-from e2b_code_interpreter import Sandbox
-loop = asyncio.get_event_loop()
-self._sandbox = await loop.run_in_executor(None, Sandbox.create)
-
-# CORRECT — AsyncSandbox is native async, same API surface
-from e2b import AsyncSandbox
-self._sandbox = await AsyncSandbox.create(template="base", timeout=3600)
-```
-
-`asyncio.get_event_loop()` is deprecated in Python 3.12 and triggers warnings. The `run_in_executor` pattern blocks a thread pool thread for sandbox API calls which can last 5-15 seconds.
-
-### Sandbox Lifecycle — Verified Methods
-
-```python
-from e2b import AsyncSandbox
-
-# CREATE — standard lifecycle (sandbox killed after timeout)
-sandbox = await AsyncSandbox.create(
-    template="base",
-    timeout=3600,              # max 3600s (Hobby) / 86400s (Pro); default is 300s
-    metadata={"job_id": job_id, "project_id": project_id},
-    envs={"NODE_ENV": "development"},
-    secure=False,              # REQUIRED for iframe embed — see Security section
-)
-sandbox_id = sandbox.sandbox_id  # persist this in Redis job hash
-
-# CREATE with AUTO-PAUSE (BETA — for snapshot+on-demand pattern)
-sandbox = await AsyncSandbox.beta_create(
-    template="base",
-    timeout=3600,
-    auto_pause=True,           # pauses instead of kills on timeout expiry
-    secure=False,
-    metadata={"job_id": job_id},
-)
-
-# CONNECT — reconnects; automatically resumes paused sandbox
-sandbox = await AsyncSandbox.connect(sandbox_id, timeout=600)
-
-# PAUSE MANUALLY (BETA)
-await sandbox.beta_pause()    # returns None; sandbox_id remains valid
-
-# KILL — explicit cleanup
-killed = await sandbox.kill()  # returns bool
-
-# CHECK STATUS
-alive = await sandbox.is_running()
-
-# EXTEND TIMEOUT — while founder is actively viewing preview
-await sandbox.set_timeout(3600)  # seconds from now; can only extend, not reduce below current remaining
-
-# GET PREVIEW URL
-host = sandbox.get_host(3000)     # returns "3000-{sandbox_id}.e2b.app"
-preview_url = f"https://{host}"   # "https://3000-abc123xyz.e2b.app"
-```
-
-**Method source verification:**
-- `beta_create`, `beta_pause`, `connect` — confirmed in `AsyncSandbox` class source
-- `get_host` — returns `f"{port}-{sandbox_id}.{sandbox_domain}"` where `sandbox_domain` defaults to `"e2b.app"`
-- `set_timeout` — docstring confirms: "can extend or reduce... maximum 24 hours (Pro) / 1 hour (Hobby)"
-
-### Snapshot + On-Demand Pattern
-
-Recommended lifecycle for the AI Co-Founder build pipeline:
-
-```
-Phase 1 — BUILD:
-  AsyncSandbox.beta_create(auto_pause=True, timeout=3600)
-  → write files → install deps → start servers
-  → store (sandbox_id, preview_url) in Redis job hash
-  → transition job to READY
-
-  Sandbox stays alive for up to 1 hour (Hobby) / 24 hours (Pro).
-  If no activity, auto-pauses instead of killing.
-
-Phase 2 — PREVIEW (on-demand):
-  AsyncSandbox.connect(sandbox_id)
-  → automatically resumes if paused
-  → servers restart via start_cmd in custom template (see Templates section)
-  → founder opens preview URL in iframe
-
-Phase 3 — CLEANUP:
-  AsyncSandbox.kill(sandbox_id)
-  → triggered by: job cancelled, new build started, or TTL exceeded
-```
-
-### Build Output Streaming — Verified API
-
-The current `run_command()` implementation returns only after command completes, discarding live output. The SDK supports streaming callbacks on `commands.run()`:
-
-```python
-async def run_with_log_stream(
-    sandbox: AsyncSandbox,
-    cmd: str,
-    job_id: str,
-    redis,
-    cwd: str = "/home/user",
-) -> dict:
-    """Run command and stream stdout/stderr to Redis Streams for SSE fan-out."""
-    lines: list[str] = []
-
-    async def on_stdout(output):
-        # output.text is the line content (verified from AsyncCommandHandle source)
-        line = output.text if hasattr(output, "text") else str(output)
-        lines.append(line)
-        await redis.xadd(
-            f"build_log:{job_id}",
-            {"line": line, "stream": "stdout"},
-            maxlen=5000,  # cap log size
-        )
-
-    async def on_stderr(output):
-        line = output.text if hasattr(output, "text") else str(output)
-        lines.append(f"[stderr] {line}")
-        await redis.xadd(
-            f"build_log:{job_id}",
-            {"line": line, "stream": "stderr"},
-            maxlen=5000,
-        )
-
-    result = await sandbox.commands.run(
-        cmd,
-        cwd=cwd,
-        on_stdout=on_stdout,
-        on_stderr=on_stderr,
-        timeout=0,              # 0 = no connection timeout; use for long-running installs
-    )
-    return {"stdout": "\n".join(lines), "exit_code": result.exit_code}
-```
-
-**Verified from:** `Commands.run()` overload signatures in `sandbox_async/commands/command.py`:
-- `on_stdout: Optional[OutputHandler[Stdout]]` — called with each stdout chunk
-- `on_stderr: Optional[OutputHandler[Stderr]]` — called with each stderr chunk
-- `background=False` (default) — waits for completion, returns `CommandResult`
+1. **E2B screenshot capture** — run Playwright inside the E2B sandbox to screenshot the live dev server
+2. **S3 screenshot storage + CloudFront serving** — upload PNG from backend, serve via existing CloudFront setup
+3. **Separate Claude API calls for doc generation** — single-shot Anthropic messages, not LangGraph
+4. **Extended SSE event stream** — new event types (`stage`, `snapshot`, `doc`) on the existing Redis Stream
+5. **Three-panel build page layout** — CSS Grid restructure, no new frontend packages
 
 ---
 
-## Iframe Embedding Architecture
+## Recommended Stack Additions
 
-### The Security Constraint (Critical)
+### Backend — New Python Dependencies
 
-E2B sandboxes have two traffic modes:
+**Net new dependency: `playwright>=1.58.0` only.**
 
-| Mode | Parameter | Iframe Compatible? | Notes |
-|------|-----------|--------------------|-------|
-| Public | `secure=False` | YES | URL accessible without auth header |
-| Secure (default) | `secure=True` | NO | Requires `e2b-traffic-access-token` header on every request |
+| Package | Version | Purpose | Why Needed |
+|---------|---------|---------|-----------|
+| `playwright` | `>=1.58.0` | Headless Chromium screenshot capture inside E2B sandbox | E2B `AsyncSandbox` (code-interpreter SDK) has **no built-in screenshot API** — verified against official E2B SDK reference. Visual capture requires a headless browser. Playwright is installed *inside the sandbox* at runtime via `run_command("pip install playwright && playwright install chromium --with-deps")`, not on the ECS Fargate host |
 
-**Why secure sandboxes cannot be iframed:**
-Browser `<iframe src="...">` cannot attach custom HTTP headers. The `e2b-traffic-access-token` header required by secure sandboxes is not settable via the `src` attribute. There is no cookie-based or query-param alternative documented by E2B.
+**Packages NOT added (already present, adequacy verified):**
 
-**Verified from:**
-- SDK source: `traffic_access_token` property on `SandboxBase` — `Token required for accessing sandbox via proxy`
-- E2B docs: "When `allowPublicTraffic` is set to `false`, all requests to the sandbox's public URLs must include the `e2b-traffic-access-token` header"
-- URL format: `{port}-{sandbox_id}.e2b.app` — 20-char random ID, unguessable
+| Package | Already In pyproject.toml | Why Not Adding Separately |
+|---------|--------------------------|--------------------------|
+| `aioboto3` | No — but not needed | S3 uploads are infrequent (one PNG per build stage, ~6 times per build), not concurrent. `asyncio.get_running_loop().run_in_executor(None, boto3_put_object)` with existing sync `boto3` is 3 lines of code and zero new packages. Performance difference is negligible for this use case |
+| `anthropic` async client | `anthropic>=0.40.0` already present | `anthropic.AsyncAnthropic` is already available in the installed package — no version bump needed |
+| `sse-starlette` | Not required | The existing `StreamingResponse` + `event_generator()` pattern in `logs.py` is already in production. New event types extend the same stream with no library changes needed |
 
-**Decision: Use `secure=False` for preview sandboxes.**
+---
 
-The content being previewed (founder's MVP prototype) is not sensitive. The sandbox ID is a 20-character random identifier — enumeration is infeasible. This is the correct trade-off for the MVP.
+### Backend — New Configuration Keys
 
-### Next.js Config — Required CSP Change
+No new packages. New env vars added to `Settings` class in `config.py`:
 
-Without this, browsers silently block the iframe:
+| Config Key | Type | Default | Purpose |
+|-----------|------|---------|---------|
+| `screenshots_bucket` | `str` | `""` | S3 bucket for screenshot storage. If empty, screenshot capture is skipped gracefully (non-fatal) |
+| `screenshots_cloudfront_domain` | `str` | `""` | CloudFront distribution domain serving the screenshots bucket (e.g., `d1abc.cloudfront.net`) |
+| `doc_generation_model` | `str` | `"claude-sonnet-4-20250514"` | Claude model ID for doc generation calls. Separate from architect/coder/reviewer models — intentionally cheaper |
 
-```typescript
-// frontend/next.config.ts — REQUIRED addition
-const nextConfig: NextConfig = {
-  reactStrictMode: true,
-  output: "standalone",
-  async headers() {
-    return [
-      {
-        source: "/(.*)",
-        headers: [
-          {
-            key: "Content-Security-Policy",
-            // Allow E2B sandbox preview URLs in iframes
-            value: "frame-src https://*.e2b.app;",
-          },
-        ],
-      },
-    ];
-  },
-  // ... existing redirects
-};
+---
+
+### Backend — New SSE Event Types (No New Packages or Redis Keys)
+
+The existing `job:{job_id}:logs` Redis Stream is extended with new `source` field values. The existing `event_generator()` in `logs.py` routes by `source` to emit the correct SSE `event:` type.
+
+**Existing events (unchanged):**
+
+| SSE Event | Source Value | When |
+|-----------|-------------|------|
+| `event: log` | `stdout`, `stderr`, `system` | Build command output (existing) |
+| `event: done` | — | Job reaches READY or FAILED (existing) |
+| `event: heartbeat` | — | Every 20s to prevent ALB idle timeout (existing) |
+
+**New events:**
+
+| SSE Event | Source Value in Redis | Payload Shape | When Emitted |
+|-----------|----------------------|---------------|--------------|
+| `event: stage` | `"stage"` | `{stage: string, narration: string, ts: string}` | Worker transitions job status (SCAFFOLD, CODE, DEPS, CHECKS) — written via `LogStreamer.write_event()` |
+| `event: snapshot` | `"snapshot"` | `{url: string, stage: string, ts: string}` | After Playwright screenshot uploaded to S3 and CloudFront URL generated |
+| `event: doc` | `"doc"` | `{section: string, content: string, ts: string}` | After Claude doc-generation call returns for a stage |
+
+**Implementation:** All three new event types write to the same `job:{job_id}:logs` Redis Stream via `LogStreamer.write_event(text, source="snapshot")`. The `event_generator()` in `logs.py` reads the `source` field and emits the matching SSE event type:
+
+```python
+# In logs.py event_generator() — extend the existing dispatch:
+source = line.get("source", "stdout")
+event_type = {
+    "snapshot": "snapshot",
+    "doc": "doc",
+    "stage": "stage",
+}.get(source, "log")
+yield f"event: {event_type}\ndata: {json.dumps(line)}\n\n"
 ```
 
-### Frontend Component — Zero New Dependencies
+---
 
-```tsx
-// frontend/src/components/build/SandboxPreview.tsx
-"use client";
+### Frontend — No New npm Packages
 
-interface SandboxPreviewProps {
-  previewUrl: string;
-  className?: string;
-}
+All v0.6 frontend capabilities are covered by existing packages:
 
-export function SandboxPreview({ previewUrl, className }: SandboxPreviewProps) {
-  return (
-    <iframe
-      src={previewUrl}
-      sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-      allow="clipboard-read; clipboard-write"
-      className={`w-full h-full border-0 rounded-xl bg-obsidian-light ${className}`}
-      title="App Preview"
-      loading="lazy"
-    />
-  );
+| Capability | Existing Package | How to Use |
+|-----------|-----------------|------------|
+| Three-panel responsive layout | `tailwindcss>=4.0.0` | `grid grid-cols-1 lg:grid-cols-[280px_1fr_320px] h-[calc(100vh-64px)]` |
+| Panel animation / crossfade | `framer-motion>=12.34.0` | `AnimatePresence` + `motion.div` — already on build page |
+| Extended SSE event parsing | Browser native `ReadableStreamDefaultReader` | Extend `useBuildLogs.ts` with `source === "snapshot"` and `source === "doc"` branches |
+| Screenshot display | `next/image` (Next.js 15 built-in) | `<Image>` for CloudFront-served screenshots. Add CloudFront domain to `next.config.js` |
+| Reassurance timing (2min/5min) | Browser native `Date.now()` / `useRef` | Track build start time in `useBuildProgress.ts`, return elapsed seconds |
+| Completion state (launch button, download docs) | `lucide-react>=0.400.0` (existing), `sonner>=2.0.7` (existing) | Existing icon set and toast library |
+
+**One config change required (not a dependency):**
+
+```javascript
+// frontend/next.config.js — add CloudFront domain for next/image
+images: {
+  remotePatterns: [
+    { hostname: "d1abc.cloudfront.net" }  // replace with actual domain
+  ]
 }
 ```
 
-**`sandbox` attribute note:** `allow-same-origin` is required for the app inside the iframe to make fetch calls to its own origin (the E2B backend API at port 8001). Without it, the sandboxed iframe's `fetch` calls will be blocked.
-
 ---
 
-## Build Log Streaming Architecture
+## Complete Dependency Delta
 
-### Redis Streams as Log Buffer
-
-Use `XADD`/`XREAD` on the existing Redis connection — no new infrastructure:
-
-```
-build command runs
-  → on_stdout/on_stderr callbacks
-    → XADD build_log:{job_id} {line: "...", stream: "stdout"}
-      → SSE endpoint XREAD blocks for new entries
-        → yields SSE event to browser
-          → useBuildLogs hook appends to UI
-```
-
-Redis Streams are ideal because:
-1. **Persistence** — if browser disconnects and reconnects, replay from `Last-Event-ID`
-2. **Fan-out** — multiple browser tabs can read the same stream
-3. **Already installed** — `redis>=5.2.0` is in `pyproject.toml`
-4. **`maxlen` cap** — prevent unbounded memory with `XADD ... MAXLEN 5000`
-
-### Backend SSE Endpoint
-
-```python
-# backend/app/api/routes/generation.py — new endpoint
-import json
-from fastapi.responses import StreamingResponse
-
-@router.get("/{job_id}/logs")
-async def stream_build_logs(
-    job_id: str,
-    token: str,              # Clerk JWT as query param (EventSource can't set headers)
-    last_id: str = "0",     # client sends last received msg ID for reconnect
-    user: ClerkUser = Depends(require_auth_from_token),  # validate token param
-    redis=Depends(get_redis),
-):
-    """SSE stream of build log lines. Terminates when job reaches terminal state."""
-    job_data = await JobStateMachine(redis).get_job(job_id)
-    if not job_data or job_data.get("user_id") != user.user_id:
-        raise HTTPException(status_code=404, detail="Job not found")
-
-    async def event_generator():
-        cursor = last_id
-        while True:
-            # XREAD blocks up to 2s for new entries
-            entries = await redis.xread(
-                {f"build_log:{job_id}": cursor},
-                block=2000,
-                count=50,
-            )
-            if entries:
-                for _stream_name, messages in entries:
-                    for msg_id, fields in messages:
-                        # msg_id is bytes in redis-py
-                        cursor = msg_id.decode() if isinstance(msg_id, bytes) else msg_id
-                        line = (fields.get(b"line") or fields.get("line") or b"").decode()
-                        stream = (fields.get(b"stream") or fields.get("stream") or b"stdout").decode()
-                        yield (
-                            f"id: {cursor}\n"
-                            f"data: {json.dumps({'line': line, 'stream': stream})}\n\n"
-                        )
-
-            # Check terminal state after each batch
-            status = await redis.hget(f"job:{job_id}", "status")
-            status_str = status.decode() if isinstance(status, bytes) else (status or "")
-            if status_str in ("ready", "failed"):
-                yield f"data: {json.dumps({'done': True, 'status': status_str})}\n\n"
-                break
-
-    return StreamingResponse(
-        event_generator(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",   # Prevent nginx buffering
-            "Connection": "keep-alive",
-        },
-    )
-```
-
-### Frontend Hook — Native EventSource
-
-```typescript
-// frontend/src/hooks/useBuildLogs.ts
-"use client";
-
-import { useState, useEffect } from "react";
-
-interface LogLine {
-  line: string;
-  stream: "stdout" | "stderr";
-}
-
-export function useBuildLogs(
-  jobId: string | null,
-  getToken: () => Promise<string | null>
-) {
-  const [logs, setLogs] = useState<LogLine[]>([]);
-  const [done, setDone] = useState(false);
-
-  useEffect(() => {
-    if (!jobId) return;
-    let es: EventSource | null = null;
-    let lastId = "0";
-
-    const connect = async () => {
-      const token = await getToken();
-      if (!token) return;
-
-      // EventSource cannot set Authorization headers — pass token as query param
-      // Backend validates the Clerk JWT from query param
-      es = new EventSource(
-        `/api/generation/${jobId}/logs?token=${encodeURIComponent(token)}&last_id=${lastId}`
-      );
-
-      es.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        if (data.done) {
-          setDone(true);
-          es?.close();
-          return;
-        }
-        if (data.line !== undefined) {
-          setLogs((prev) => [...prev, { line: data.line, stream: data.stream ?? "stdout" }]);
-        }
-        if (event.lastEventId) lastId = event.lastEventId;
-      };
-
-      es.onerror = () => {
-        es?.close();
-        // Reconnect after 3s on transient error (Last-Event-ID sent automatically)
-        setTimeout(connect, 3000);
-      };
-    };
-
-    connect();
-    return () => es?.close();
-  }, [jobId, getToken]);
-
-  return { logs, done };
-}
-```
-
-**Auth note for SSE:** `EventSource` is a browser primitive that does not support custom headers. The accepted pattern is to pass the auth token as a query parameter. The backend validates it via `require_auth_from_token` — a variant of the existing `require_auth` dependency that reads from `?token=` instead of `Authorization: Bearer`. The Clerk JWT validation logic in `backend/app/core/auth.py` is reused.
-
----
-
-## Full-Stack App Execution
-
-### Template Strategy
-
-The default E2B `"base"` template is Ubuntu with only `curl`, `wget`, `git`. Node.js, npm, Python are NOT pre-installed.
-
-**Option A — Runtime install (recommended for MVP):**
-Install Node.js 20 as the first build step. Slow (60-90s) but zero template maintenance overhead:
-
-```python
-# First command in build pipeline after sandbox create
-result = await sandbox.commands.run(
-    "curl -fsSL https://deb.nodesource.com/setup_20.x | bash - "
-    "&& apt-get install -y nodejs python3 python3-pip",
-    timeout=120,
-    cwd="/home/user",
-    on_stdout=log_callback,
-)
-```
-
-**Option B — Custom E2B template (recommended for phase 2):**
-A custom template reduces cold start from ~90s to ~5s. After MVP validates the flow, build a custom template:
-
-```dockerfile
-# e2b-template/Dockerfile
-FROM e2bdev/base:latest
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y nodejs python3 python3-pip build-essential \
-    && npm install -g pnpm tsx \
-    && pip install fastapi uvicorn httpx
-```
-
-Deploy with: `e2b template build -c "npm start"` — yields a template ID to use instead of `"base"`.
-
-### Running Frontend + Backend Simultaneously
-
-```python
-async def start_fullstack_app(sandbox: AsyncSandbox, job_id: str, redis) -> dict[str, str]:
-    """Start frontend (port 3000) and backend (port 8001) as background processes."""
-
-    # Start backend first (frontend may depend on it)
-    backend_handle = await sandbox.commands.run(
-        "python -m uvicorn main:app --host 0.0.0.0 --port 8001",
-        cwd="/home/user/app/backend",
-        background=True,
-        on_stdout=lambda o: redis.xadd(f"build_log:{job_id}", {"line": o.text, "stream": "stdout"}),
-    )
-
-    # Start frontend dev server
-    frontend_handle = await sandbox.commands.run(
-        "npm run dev -- --port 3000 --hostname 0.0.0.0",
-        cwd="/home/user/app/frontend",
-        background=True,
-        on_stdout=lambda o: redis.xadd(f"build_log:{job_id}", {"line": o.text, "stream": "stdout"}),
-    )
-
-    # Build preview URLs
-    frontend_url = f"https://{sandbox.get_host(3000)}"
-    backend_url = f"https://{sandbox.get_host(8001)}"
-
-    # Store in Redis job hash for status endpoint
-    await redis.hset(f"job:{job_id}", mapping={
-        "preview_url": frontend_url,
-        "api_url": backend_url,
-        "sandbox_id": sandbox.sandbox_id,
-    })
-
-    return {"frontend_url": frontend_url, "backend_url": backend_url}
-```
-
-**Port conventions:**
-- 3000 — Next.js / Vite / React dev server (standard default)
-- 8001 — Python FastAPI / Express backend (avoids conflict with E2B envd on port 49983)
-
-**"Ready" detection:** After starting background processes, poll the preview URL with `httpx.AsyncClient` until 200 OK or timeout (30s). This prevents the iframe from loading before the server is up.
-
-```python
-import httpx
-
-async def wait_for_server(url: str, timeout_s: int = 30) -> bool:
-    async with httpx.AsyncClient() as client:
-        for _ in range(timeout_s):
-            try:
-                r = await client.get(url, timeout=1.0)
-                if r.status_code < 500:
-                    return True
-            except Exception:
-                pass
-            await asyncio.sleep(1)
-    return False
-```
-
----
-
-## Installation
-
-### Backend `pyproject.toml` Changes
+### pyproject.toml
 
 ```toml
-dependencies = [
-    # Update version lower bounds (existing deps with stale constraints):
-    "e2b>=2.13.3",                  # was >=1.0.0 — AsyncSandbox, beta_pause/create
-    "e2b-code-interpreter>=2.4.1",  # was >=1.0.0 — tighten to match installed version
+# ADD to [project] dependencies:
+"playwright>=1.58.0",
 
-    # New addition:
-    "sse-starlette>=2.1.0",         # SSE endpoint for build log streaming
-
-    # Existing — already correct:
-    "httpx>=0.28.0",                # used in wait_for_server health check polling
-    "redis>=5.2.0",                 # Redis Streams (XADD/XREAD) — no new library
-]
+# EXISTING — no changes needed:
+# "e2b-code-interpreter>=1.0.0",   # AsyncSandbox — already there
+# "anthropic>=0.40.0",              # AsyncAnthropic for doc gen — already there
+# "boto3>=1.35.0",                  # S3 upload via run_in_executor — already there
+# "redis>=5.2.0",                   # Redis Streams for new event types — already there
+# "fastapi>=0.115.0",               # StreamingResponse SSE — already there
+# "structlog>=25.0.0",              # Logging — already there
 ```
 
-### Frontend — Zero New npm Packages
+### frontend/package.json
 
-All new frontend capabilities use browser primitives:
-- `<iframe src="...">` — native HTML
-- `EventSource` — native browser API (ES2015, 96%+ browser support)
-
-The only frontend file change is `next.config.ts` for CSP `frame-src`.
+```json
+// NO CHANGES — all capabilities covered by existing packages
+```
 
 ---
 
-## Alternatives Considered
+## Integration Points
 
-| Recommended | Alternative | Why Not |
-|-------------|-------------|---------|
-| `AsyncSandbox` (native async) | Current sync `Sandbox` + `run_in_executor` | `asyncio.get_event_loop()` deprecated in Python 3.12; thread pool blocks on 5-15s API calls; streaming callbacks unavailable in sync path |
-| `secure=False` for iframe embed | Backend proxy (FastAPI `httpx` reverse proxy) | Proxy must handle WebSocket upgrades for HMR (hot module reload); adds latency; adds infra to manage. Sandbox ID is 20-char random — unguessable without auth |
-| `secure=False` for iframe embed | Cookie-based auth on E2B URL | E2B does not support cookie-based auth for traffic access; header-only |
-| Redis Streams (`XADD`/`XREAD`) | Write build logs to PostgreSQL | Redis already in use; Postgres for real-time log lines adds write overhead and is not designed for streaming reads |
-| `sse-starlette` | Raw `StreamingResponse` (current pattern) | `sse-starlette` handles `Last-Event-ID` parsing, proper ASGI flush, and correct SSE framing. Current raw approach in `agent.py` works but is fragile |
-| Clerk JWT as `?token=` query param for SSE auth | WebSocket with auth handshake | `EventSource` cannot set `Authorization` header; query param is the accepted industry workaround; does not require adding `websockets` package |
-| `beta_create(auto_pause=True)` | Standard `create()` + kill after build | `auto_pause` keeps sandbox state alive between build and preview; founder can view preview hours after build without a rebuild |
-| Runtime Node.js install (MVP) | Custom E2B template | Custom template is phase 2 after flow is validated; runtime install keeps the milestone scope tight |
-| Port 8001 for backend API | Port 8000 | Port 8000 is the FastAPI app server port on ECS — avoids any confusion if ports are ever shared or forwarded |
+### 1. E2B Screenshot Capture
+
+**Pattern:** Install Playwright inside the E2B sandbox via `run_command()`, then execute a Python screenshot script that captures the running dev server URL and writes the PNG to the sandbox filesystem. Read the bytes back with `files.read()`.
+
+```python
+# Step 1: Install Playwright inside sandbox (once per build session, after npm install)
+await runtime.run_command(
+    "pip install playwright==1.58.0 && playwright install chromium --with-deps",
+    timeout=120,
+    cwd="/home/user",
+)
+
+# Step 2: Screenshot script injected as a Python one-liner
+screenshot_script = (
+    "import asyncio; from playwright.async_api import async_playwright; "
+    "async def s(): "
+    "  async with async_playwright() as p: "
+    "    b = await p.chromium.launch(args=['--no-sandbox','--disable-dev-shm-usage']); "
+    "    pg = await b.new_page(); "
+    "    await pg.goto('http://localhost:3000', wait_until='networkidle', timeout=30000); "
+    "    await pg.screenshot(path='/home/user/screenshot.png', full_page=False); "
+    "    await b.close(); "
+    "asyncio.run(s())"
+)
+await runtime.run_command(f"python3 -c \"{screenshot_script}\"", timeout=30)
+
+# Step 3: Read PNG bytes back from sandbox
+png_bytes_str = await runtime.read_file("/home/user/screenshot.png")
+# read_file returns str — but for binary we need bytes via files.read() directly
+# Use sandbox._sandbox.files.read("/home/user/screenshot.png") to get bytes
+```
+
+**Why this approach:**
+- E2B `AsyncSandbox` (code-interpreter SDK) has no visual capture methods — confirmed against SDK reference at `e2b.dev/docs/sdk-reference/python-sdk/v2.2.4/sandbox_async` and `e2b.dev/docs/sdk-reference/code-interpreter-python-sdk/v1.0.1/sandbox`
+- E2B sandboxes run Ubuntu Linux, which supports headless Chromium without a display server. `--no-sandbox --disable-dev-shm-usage` flags are required in containerized Linux environments
+- Playwright 1.58.0 (released Jan 30, 2026) supports Ubuntu 22.04/24.04 on x86-64, matching E2B's base image
+- The sandbox already has the dev server running at port 3000 (or 5173 for Vite) — the screenshot URL targets localhost inside the sandbox, not the public E2B URL
+
+**Why not E2B Desktop sandbox:** Requires a different E2B template (`e2b-desktop` package), different billing tier, and different API. Current production `AsyncSandbox` is kept. The founder only needs a PNG of the web app — not interactive computer use. Desktop sandbox adds ~$0.10/min overhead.
+
+**Why not Puppeteer (Node.js):** Both Playwright and Puppeteer work in E2B's Linux sandbox. Python chosen because the screenshot script is injected as a Python string from the Python backend. Eliminates Node.js version management inside the sandbox.
+
+---
+
+### 2. S3 Screenshot Storage + CloudFront Serving
+
+**Pattern:** Upload PNG bytes with sync `boto3` wrapped in `asyncio.run_in_executor()`. Return a CloudFront URL for the SSE `snapshot` event payload.
+
+```python
+import asyncio
+import boto3
+from app.core.config import get_settings
+
+async def upload_screenshot_to_s3(
+    png_bytes: bytes,
+    job_id: str,
+    stage: str,
+) -> str | None:
+    """Upload screenshot PNG to S3. Returns CloudFront URL, or None if bucket not configured."""
+    settings = get_settings()
+    if not settings.screenshots_bucket:
+        return None  # Non-fatal — screenshot feature disabled if bucket not configured
+
+    key = f"screenshots/{job_id}/{stage}.png"
+    loop = asyncio.get_running_loop()
+
+    def _put() -> None:
+        s3 = boto3.client("s3", region_name="us-east-1")
+        s3.put_object(
+            Bucket=settings.screenshots_bucket,
+            Key=key,
+            Body=png_bytes,
+            ContentType="image/png",
+            CacheControl="public, max-age=31536000, immutable",
+        )
+
+    await loop.run_in_executor(None, _put)
+    return f"https://{settings.screenshots_cloudfront_domain}/{key}"
+```
+
+**S3 + CloudFront setup:**
+- New S3 bucket (or `screenshots/` prefix in existing bucket) with private access
+- CloudFront distribution with OAC pointing to the bucket — same pattern as existing marketing site images
+- Screenshots are immutable once taken — `CacheControl: immutable` with 1-year TTL
+- No CloudFront signed URLs needed: screenshots show the founder's own app, not sensitive secrets. Obscurity via job_id path prefix is sufficient
+
+**Why `run_in_executor` not `aioboto3`:**
+- Upload frequency: 6 screenshots per build, non-concurrent
+- `run_in_executor` is idiomatic for occasional sync IO in async Python
+- Zero new dependencies vs. `aioboto3` which has a different session management API and would need `aioboto3>=13.3.0` + `types-aioboto3` for type hints
+
+---
+
+### 3. Separate Claude API Calls for Documentation Generation
+
+**Pattern:** Direct `anthropic.AsyncAnthropic` call (not LangGraph) from within the generation worker, after each successful build stage. Model is Sonnet (cheaper than Opus used by Architect/Reviewer).
+
+```python
+import anthropic
+from app.core.config import get_settings
+
+async def generate_stage_documentation(
+    stage: str,
+    build_summary: str,
+    project_description: str,
+) -> str:
+    """Generate plain-English founder documentation for a build stage."""
+    settings = get_settings()
+    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+
+    message = await client.messages.create(
+        model=settings.doc_generation_model,  # "claude-sonnet-4-20250514"
+        max_tokens=600,
+        messages=[{
+            "role": "user",
+            "content": (
+                f"You are building '{project_description}'. "
+                f"You just completed the '{stage}' stage. "
+                f"Write 2-3 sentences for the non-technical founder explaining what was just built. "
+                f"Be calm, specific, and jargon-free. No raw code, no error messages. "
+                f"Technical context: {build_summary[:500]}"
+            ),
+        }],
+    )
+    return message.content[0].text
+```
+
+**Why direct Anthropic SDK, not LangGraph:**
+- LangGraph is for multi-step agent orchestration with tool use, memory, and graph traversal
+- Doc generation is a single-shot stateless call — one prompt in, one response out
+- LangGraph would add ~200ms graph initialization overhead, checkpointing, and retry complexity for what is fundamentally `client.messages.create()`
+- The `anthropic.AsyncAnthropic` client is already available in `anthropic>=0.40.0` — no new import paths
+
+**Model choice:** `claude-sonnet-4-20250514` — same as Coder/Debugger. Sonnet is ~5x cheaper than Opus and adequate for this structured, short-form generation task. Architect/Reviewer use Opus because those tasks require deeper reasoning about architecture and code quality.
+
+**Token budget:** 600 max tokens = 2-3 sentences for the founder. Strict limit prevents verbose output that would overflow the right panel.
+
+---
+
+### 4. Extended SSE Stream — Frontend Integration
+
+**Current `useBuildLogs.ts` handles:** `event: log`, `event: done`, `event: heartbeat`.
+
+**New branches to add:**
+
+```typescript
+// In useBuildLogs.ts connectSSE() — add after the existing "log" event handler:
+
+if (eventType === "snapshot") {
+  let snapshotData: { url: string; stage: string; ts: string };
+  try {
+    snapshotData = JSON.parse(dataStr);
+  } catch {
+    continue;
+  }
+  setState((s) => ({ ...s, latestSnapshot: snapshotData.url, snapshotStage: snapshotData.stage }));
+}
+
+if (eventType === "doc") {
+  let docData: { section: string; content: string; ts: string };
+  try {
+    docData = JSON.parse(dataStr);
+  } catch {
+    continue;
+  }
+  setState((s) => ({
+    ...s,
+    docSections: [...s.docSections, { section: docData.section, content: docData.content }],
+  }));
+}
+
+if (eventType === "stage") {
+  let stageData: { stage: string; narration: string; ts: string };
+  try {
+    stageData = JSON.parse(dataStr);
+  } catch {
+    continue;
+  }
+  setState((s) => ({ ...s, currentStageNarration: stageData.narration }));
+}
+```
+
+**New state fields added to `BuildLogsState`:**
+
+```typescript
+interface BuildLogsState {
+  // Existing fields — unchanged:
+  lines: LogLine[];
+  isConnected: boolean;
+  isDone: boolean;
+  doneStatus: "ready" | "failed" | null;
+  hasEarlierLines: boolean;
+  oldestId: string | null;
+  autoFixAttempt: number | null;
+
+  // New fields for v0.6:
+  latestSnapshot: string | null;       // CloudFront URL of latest E2B screenshot
+  snapshotStage: string | null;        // Which build stage the snapshot is from
+  docSections: DocSection[];           // Progressive documentation sections
+  currentStageNarration: string | null; // Human-readable current stage narration
+}
+```
+
+---
+
+### 5. Three-Panel Build Page Layout
+
+**Pattern:** CSS Grid with Tailwind v4 utility classes. Fixed-width side panels with fluid center.
+
+```tsx
+// frontend/src/app/(dashboard)/projects/[id]/build/page.tsx
+// Replace current narrow max-w-xl centered layout with three-panel layout
+
+{/* Three-panel — collapses to single column on < lg screens */}
+<div className="grid grid-cols-1 lg:grid-cols-[280px_1fr_320px] h-[calc(100vh-64px)] overflow-hidden">
+
+  {/* Left panel: Activity feed (human-readable narration + sanitized log lines) */}
+  <aside className="border-r border-white/[0.06] overflow-y-auto p-4 hidden lg:block">
+    <ActivityFeed
+      lines={logLines}
+      narration={currentStageNarration}
+      autoFixAttempt={autoFixAttempt}
+    />
+  </aside>
+
+  {/* Center panel: Live E2B screenshot */}
+  <main className="overflow-hidden flex flex-col min-h-0">
+    <SnapshotViewer
+      snapshotUrl={latestSnapshot}
+      stage={snapshotStage}
+      isBuilding={isBuilding}
+    />
+    {/* Mobile: show progress bar below snapshot */}
+    <div className="lg:hidden px-4 pb-4">
+      <BuildProgressBar stageIndex={stageIndex} totalStages={totalStages} label={label} />
+    </div>
+  </main>
+
+  {/* Right panel: Auto-generated documentation */}
+  <aside className="border-l border-white/[0.06] overflow-y-auto p-4 hidden lg:block">
+    <DocPanel sections={docSections} isBuilding={isBuilding} />
+  </aside>
+
+</div>
+```
+
+**Responsive behavior:**
+- Desktop (`>= lg`, 1024px): All three panels visible
+- Mobile (`< lg`): Single column, left/right panels hidden with `hidden lg:block`
+- The center snapshot panel is always visible (the primary visual element)
+
+**Column widths rationale:**
+- Left (280px): Enough for log line text at 12-13px, fits ~40 characters per line
+- Center (1fr): Fluid, takes remaining space for the screenshot preview
+- Right (320px): Enough for 2-3 sentence doc sections with comfortable reading width
 
 ---
 
@@ -565,133 +424,84 @@ The only frontend file change is `next.config.ts` for CSP `frame-src`.
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| `websockets` library | One-directional log streaming; WebSocket is bidirectional | SSE via `sse-starlette` |
-| Any npm SSE client library (`eventsource`, `@microsoft/fetch-event-source`) | `EventSource` is native browser API with 96%+ support; no polyfill needed for the target user base | Native `EventSource` |
-| React iframe wrapper libraries | Adds no value over `<iframe>` with tailwind classes | Raw `<iframe>` element |
-| Backend proxy for E2B preview | Added latency, complexity, WebSocket handling; sandbox ID unguessable | Direct `secure=False` sandbox URLs |
-| `e2b-code-interpreter` for build commands | That package is for Jupyter REPL with rich output capture; build pipeline is shell commands | `AsyncSandbox.commands.run()` with callbacks |
-| Celery or RQ | Adds broker process, over-engineered for current scale | Existing Redis queue + `BackgroundTasks` |
-| Docker management (`docker-py`) | E2B IS the container layer; don't add local Docker | E2B SDK |
-| `playwright` for preview screenshot | Overcomplicated; live iframe is the preview | `<iframe>` element |
+| `aioboto3` | S3 uploads are infrequent and non-concurrent — `run_in_executor` is sufficient | `asyncio.run_in_executor(None, boto3_put_object)` with existing `boto3` |
+| `e2b-desktop` package | Requires different E2B template, different billing — overkill for PNG screenshot | `playwright` installed inside existing `AsyncSandbox` via `run_command` |
+| `sse-starlette` | Redundant — existing `StreamingResponse` + `event_generator()` in `logs.py` is already in production | Extend existing `event_generator()` dispatch by `source` field |
+| `react-query` / `swr` | Heavy state management for data already flowing via SSE hooks | Extend existing `useBuildLogs.ts` with new state slices |
+| WebSockets | ALB 15s idle kill applies to WebSockets too; existing fetch-based SSE with heartbeats already works | Extend existing fetch() + ReadableStreamDefaultReader SSE pattern |
+| `puppeteer` / Node.js screenshot in sandbox | Cross-runtime complexity (Python backend + Node.js subprocess in sandbox) | `playwright` Python SDK (same runtime as backend) |
+| `sharp` or image processing libraries | Screenshots are raw PNG — no resizing or optimization needed before S3 upload | `boto3.put_object(Body=png_bytes, ContentType="image/png")` directly |
+| `react-resizable-panels` | Three-panel layout is fixed-width, not user-resizable — no drag handles needed | Tailwind v4 `grid-cols-[280px_1fr_320px]` |
+| CloudFront signed URLs for screenshots | Screenshots show the founder's own app, not secrets. Extra complexity with key pair management not justified | Public CloudFront URLs with `screenshots/{job_id}/` key prefix for obscurity |
 
 ---
 
-## E2B Pricing and Limits
+## Installation
 
-**Source:** https://e2b.dev/pricing — verified Feb 2026
+### Backend
 
-| Plan | Monthly | Max Sandbox Lifetime | Concurrent Sandboxes |
-|------|---------|---------------------|---------------------|
-| Hobby (Free) | $0 + usage | **1 hour** | 20 |
-| Pro | $150 + usage | **24 hours** | 100 |
+```bash
+# From /backend directory — add playwright to pyproject.toml then:
+pip install playwright>=1.58.0
 
-**Compute costs (usage-based, per second):**
-- Default sandbox (2 vCPU, 512 MB): ~$0.000028/s = **~$0.10/hour**
-- A 30-min build + 2-hour preview = ~$0.15 per build session
+# IMPORTANT: Playwright browser binaries are NOT installed on the ECS Fargate host.
+# They are installed INSIDE each E2B sandbox at runtime via run_command:
+#   "pip install playwright==1.58.0 && playwright install chromium --with-deps"
+# This runs in the sandbox (Ubuntu Linux), not on the host.
+# The host only needs the playwright Python package for import resolution.
+```
 
-**Cost controls:**
-- `auto_pause=True` — paused sandboxes do NOT accrue compute charges
-- `XADD ... MAXLEN 5000` — cap Redis log stream memory
-- Kill sandbox when job is cancelled (already implemented in `generation.py`)
+### Frontend
 
-**Critical limit for this milestone:** Hobby plan max lifetime is 1 hour. If a build takes 45 min and the founder wants to view preview 2 hours later, the sandbox will have been killed. **Pro plan is required for the `auto_pause` pattern to persist previews across sessions.** Design the system to gracefully handle expired sandboxes — return a "rebuild needed" state rather than a broken iframe.
+```bash
+# No new packages. Config change only:
+# 1. Add CloudFront domain to next.config.js images.remotePatterns
+# 2. No other changes to package.json
+```
 
 ---
 
-## Integration Points with Existing Code
+## Alternatives Considered
 
-### 1. `E2BSandboxRuntime` (primary change)
-
-**File:** `backend/app/sandbox/e2b_runtime.py`
-
-Change `from e2b_code_interpreter import Sandbox` to `from e2b import AsyncSandbox`.
-Remove all `loop.run_in_executor(None, lambda: ...)` wrappers.
-Add `on_stdout`/`on_stderr` parameters to `run_command()` for log streaming.
-Pass `secure=False` in `start()` and `connect()`.
-
-The public method signatures remain identical — callers (`executor_node`) require no changes to method calls.
-
-### 2. `executor_node` (minor extension)
-
-**File:** `backend/app/agent/nodes/executor.py`
-
-Pass `job_id` and `redis` down into `E2BSandboxRuntime` calls to enable log streaming.
-After build succeeds, call `sandbox.get_host(3000)` and persist `preview_url` in Redis job hash.
-Do NOT kill the sandbox — return `sandbox_id` for the worker to store.
-
-### 3. `worker.py` (sandbox lifecycle ownership)
-
-**File:** `backend/app/queue/worker.py`
-
-After `GenerationService.execute_build()` completes successfully:
-- Store `sandbox_id` in Redis job hash
-- Store `preview_url` in Redis job hash (worker already handles `preview_url` and `build_version`)
-- Do NOT kill sandbox on READY — let `auto_pause` handle idle timeout
-
-On build failure or cancel:
-- Kill sandbox via `AsyncSandbox.connect(sandbox_id).then(.kill())`
-
-### 4. `generation.py` routes (new endpoint)
-
-**File:** `backend/app/api/routes/generation.py`
-
-Add `GET /{job_id}/logs` SSE endpoint. Existing `GET /{job_id}/status` already returns `preview_url` — no change needed.
-
-Add `require_auth_from_token` dependency that reads Clerk JWT from `?token=` query param instead of `Authorization` header (for `EventSource` compatibility).
-
-### 5. `next.config.ts` (CSP — required)
-
-**File:** `frontend/next.config.ts`
-
-Add `frame-src https://*.e2b.app` to Content-Security-Policy headers. Without this, the iframe will be silently blocked.
-
-### 6. `BuildSummary.tsx` (new iframe panel)
-
-**File:** `frontend/src/components/build/BuildSummary.tsx`
-
-Add `SandboxPreview` component below the existing success card. Keep the "Open Preview" external link. The iframe is the primary UX; the link is the fallback for iframe blockers.
+| Recommended | Alternative | Why Not |
+|-------------|-------------|---------|
+| Playwright (Python) in E2B sandbox via `run_command` | E2B Desktop sandbox (`e2b-desktop`) | Desktop needs a different E2B template (Xfce desktop), different Python package, different API, and significantly higher compute cost. Current `AsyncSandbox` is already in production |
+| `boto3` + `run_in_executor` | `aioboto3` | Avoids new dependency. 6 screenshots per build, non-concurrent. `run_in_executor` is idiomatic for occasional sync IO |
+| Direct `anthropic.AsyncAnthropic` for doc gen | LangGraph subgraph | Doc gen is a single-shot call with no tool use, memory, or graph traversal. LangGraph adds 200ms initialization overhead and checkpointing for zero benefit |
+| Extend existing Redis Stream with new `source` values | Second Redis Stream (`job:{job_id}:events`) | Single stream preserves ordering between log lines and snapshot events. Frontend already connects to one SSE stream. Two streams = two SSE connections = doubled ALB connections |
+| Tailwind v4 CSS Grid (existing) | `react-resizable-panels` | Layout is fixed — no drag handles needed. Tailwind grid is zero-dependency |
+| `next/image` (existing Next.js built-in) | Third-party image component | `next/image` already in use, handles lazy loading and `remotePatterns` allowlisting |
 
 ---
 
 ## Version Compatibility
 
-| Package | Version | Compatible With | Notes |
-|---------|---------|-----------------|-------|
-| `e2b>=2.13.3` | 2.x | Python `>=3.12` | Import as `from e2b import AsyncSandbox`; the sync `Sandbox` class is in `e2b.sandbox_sync.main` |
-| `e2b-code-interpreter>=2.4.1` | 2.x | `e2b>=2.0.0` | Both must be on 2.x series for compatible internal APIs |
-| `sse-starlette>=2.1.0` | 2.x or 3.x | FastAPI `>=0.115.0`, Starlette `>=0.41.0` | v3.x latest; API stable across 2.x/3.x; use `>=2.1.0,<4.0` for safety |
-| Redis Streams | `redis>=5.2.0` (installed) | Python redis client | `XADD`/`XREAD` supported in redis-py 4.x+ |
-
----
-
-## Confidence Assessment
-
-| Area | Level | Source |
-|------|-------|--------|
-| E2B AsyncSandbox API | HIGH | Verified from installed SDK source (`e2b` 2.13.2) |
-| `get_host()` URL format | HIGH | Verified from `ConnectionConfig.get_host()` source |
-| `secure=False` / traffic_access_token | HIGH | Verified from SDK model docstring + E2B docs |
-| `commands.run(on_stdout=...)` streaming | HIGH | Verified from `Commands.run()` overload signatures |
-| `beta_create(auto_pause=True)` / `beta_pause()` | HIGH | Verified from `AsyncSandbox.beta_create` source |
-| Redis Streams for log buffering | HIGH | Redis docs + existing `redis>=5.2.0` usage |
-| E2B pricing | MEDIUM | E2B pricing page Feb 2026 — may change |
-| Custom template build process | MEDIUM | E2B docs — `e2b.toml` format not fully verified |
-| Full-stack app port behavior | MEDIUM | Derived from URL format logic; no explicit E2B multi-port docs found |
+| Package | Version Constraint | Python / Node | Notes |
+|---------|-------------------|---------------|-------|
+| `playwright` (host) | `>=1.58.0` | Python 3.12 | Installed on ECS Fargate host for Python imports only |
+| `playwright` (sandbox) | `==1.58.0` pin | Ubuntu 22.04/24.04 x86-64 | Installed inside E2B sandbox at runtime via `pip install`; pin exact version for determinism |
+| `anthropic` | `>=0.40.0` (existing) | Python 3.12 | `AsyncAnthropic` already available in installed version |
+| `boto3` | `>=1.35.0` (existing) | Python 3.12 | `put_object` used for screenshot upload |
+| `tailwindcss` | `>=4.0.0` (existing) | Node.js 22 | `grid-cols-[...]` arbitrary value syntax supported in v4 |
 
 ---
 
 ## Sources
 
-- E2B SDK installed source — `e2b` 2.13.2 — `AsyncSandbox`, `Sandbox`, `Commands`, `ConnectionConfig`, `SandboxBase` classes — HIGH confidence
-- `pip index versions e2b` — latest 2.13.3 — HIGH confidence
-- `pip index versions sse-starlette` — latest 3.2.0 — HIGH confidence
-- E2B internet access docs (https://e2b.mintlify.app/docs/sandbox/internet-access.md) — URL format `{port}-{id}.e2b.app`, `allowPublicTraffic` — HIGH confidence
-- E2B secured access docs (https://e2b.mintlify.app/docs/sandbox/secured-access.md) — `X-Access-Token` header requirement — HIGH confidence
-- E2B pricing (https://e2b.dev/pricing) — compute costs, plan limits — MEDIUM confidence
-- E2B Next.js template example (https://e2b.mintlify.app/docs/template/examples/nextjs.md) — `waitForURL` pattern — MEDIUM confidence
-- Existing codebase analysis — `E2BSandboxRuntime`, `generation.py`, `useBuildProgress.ts`, `next.config.ts` — HIGH confidence
+- E2B Python SDK reference v2.2.4 (`e2b.dev/docs/sdk-reference/python-sdk/v2.2.4/sandbox_async`) — `AsyncSandbox` has no screenshot methods — **HIGH confidence** (official docs)
+- E2B Code Interpreter Python SDK reference v1.0.1 (`e2b.dev/docs/sdk-reference/code-interpreter-python-sdk/v1.0.1/sandbox`) — confirmed no screenshot API in code-interpreter sandbox — **HIGH confidence** (official docs)
+- Playwright Python PyPI — v1.58.0 released Jan 30, 2026; Ubuntu 22.04/24.04 x86-64 supported — **HIGH confidence** (PyPI)
+- Playwright Python docs (`playwright.dev/python/docs/intro`) — headless Chromium supported on Linux — **HIGH confidence** (official docs)
+- `playwright.dev/python/docs/release-notes` — v1.58.0 is latest as of research date — **HIGH confidence** (official changelog)
+- Existing `backend/app/api/routes/logs.py` — SSE pattern with named events (`log`, `done`, `heartbeat`) in production — **HIGH confidence** (code review)
+- Existing `backend/app/sandbox/e2b_runtime.py` — `run_command` available for arbitrary shell execution in sandbox; `files.read()` returns str/bytes — **HIGH confidence** (code review)
+- Existing `backend/pyproject.toml` — `boto3>=1.35.0`, `anthropic>=0.40.0` confirmed present — **HIGH confidence** (code review)
+- Existing `frontend/package.json` — Tailwind v4, Framer Motion v12, Next.js 15 confirmed; `next/image` available — **HIGH confidence** (code review)
+- Existing `frontend/src/hooks/useBuildLogs.ts` — SSE client handles named events; state extension pattern clear — **HIGH confidence** (code review)
+- aioboto3 PyPI — v13.3.0 available; rejected for this use case — **MEDIUM confidence** (PyPI, not verified against changelog)
 
 ---
 
-*Stack research for: E2B sandbox build pipeline — lifecycle management, streaming, iframe embedding*
-*Researched: 2026-02-22*
+*Stack research for: v0.6 Live Build Experience — screenshot capture, S3 storage, progressive docs, extended SSE, three-panel layout*
+*Researched: 2026-02-23*
+*Supersedes: v0.5 STACK.md entries for E2B lifecycle, iframe, and SSE — those remain valid*

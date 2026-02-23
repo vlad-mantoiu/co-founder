@@ -1,149 +1,272 @@
 # Feature Research
 
-**Domain:** Sandbox build pipeline — live preview embedding, build progress streaming, snapshot lifecycle, auto-retry with debugger agent
-**Researched:** 2026-02-22
-**Confidence:** HIGH (codebase read + E2B SDK verified + competitive landscape surveyed)
+**Domain:** Live AI build experience — non-technical founder watching an AI agent build their MVP in real time
+**Researched:** 2026-02-23
+**Confidence:** HIGH (existing codebase fully inspected; UX patterns sourced from NN/g, Smashing Magazine, Lovable/v0/Bolt competitive analysis; E2B SDK verified)
 
 ---
 
-## Context: What Already Exists vs. What Is New
+## Context: What Already Exists
 
-This milestone is additive. The codebase already ships a substantial build pipeline. Understanding the boundary is essential for accurate complexity ratings.
-
-### Already Built (DO NOT REBUILD)
+Before mapping new features, the current build page already ships the following. Do not rebuild these.
 
 | Component | Location | Status |
 |-----------|----------|--------|
-| E2B sandbox runtime (start, connect, write_file, run_command, run_background, kill) | `backend/app/sandbox/e2b_runtime.py` | COMPLETE |
-| GenerationService (execute_build, execute_iteration_build, sandbox reconnect, preview_url via get_host(8080)) | `backend/app/services/generation_service.py` | COMPLETE |
-| LangGraph build graph (Architect → Coder → Executor → Debugger → Reviewer → GitManager) | `backend/app/agent/graph.py` | COMPLETE |
-| Debugger agent node (error analysis, fix proposal, retry_count/max_retries check) | `backend/app/agent/nodes/debugger.py` | COMPLETE |
-| Job state machine (QUEUED → STARTING → SCAFFOLD → CODE → DEPS → CHECKS → READY/FAILED) | `backend/app/queue/state_machine.py` | COMPLETE |
-| SSE job stream endpoint (Redis pub/sub → FastAPI StreamingResponse) | `backend/app/queue/` | COMPLETE |
-| Job model (sandbox_id, preview_url, build_version, workspace_path, debug_id) | `backend/app/db/models/job.py` | COMPLETE |
-| BuildProgressBar (4-stage stepper with glow animations) | `frontend/src/components/build/BuildProgressBar.tsx` | COMPLETE |
-| Build page (building/success/failure states, cancel, useBuildProgress hook) | `frontend/src/app/(dashboard)/projects/[id]/build/page.tsx` | COMPLETE |
-| BuildSummary (success card with "Open Preview" external link) | `frontend/src/components/build/BuildSummary.tsx` | COMPLETE |
-| BuildFailureCard (error display with debug_id, retry link) | `frontend/src/components/build/BuildFailureCard.tsx` | COMPLETE |
+| `BuildProgressBar` — 6-stage stepper (queued → starting → scaffold → code → deps → checks → ready) | `frontend/src/components/build/BuildProgressBar.tsx` | COMPLETE |
+| `BuildLogPanel` — collapsed "Technical details" toggle with raw SSE log streaming | `frontend/src/components/build/BuildLogPanel.tsx` | COMPLETE |
+| `AutoFixBanner` — shows debugger retry attempt number | `frontend/src/components/build/AutoFixBanner.tsx` | COMPLETE |
+| `BuildSummary` + `PreviewPane` — iframe at completion with sandbox pause/resume/expiry UX | `frontend/src/components/build/BuildSummary.tsx`, `PreviewPane.tsx` | COMPLETE |
+| `BuildFailureCard` — error summary + debug_id + retry CTA | `frontend/src/components/build/BuildFailureCard.tsx` | COMPLETE |
+| `useBuildProgress` — polling every 5s via `/api/generation/{job_id}/status` | `frontend/src/hooks/useBuildProgress.ts` | COMPLETE |
+| `useBuildLogs` — SSE ReadableStream for raw log lines (stdout/stderr/system) | `frontend/src/hooks/useBuildLogs.ts` | COMPLETE |
+| SSE stream at `/api/generation/{job_id}/logs` | `backend/app/queue/` | COMPLETE |
+| Confetti on success, cancel button with AlertDialog | `build/page.tsx` | COMPLETE |
 
-### Gap: What This Milestone Adds
-
-The existing `BuildSummary` opens the preview in a new tab via an external link. The existing `BuildProgressBar` shows high-level stepper stages but has no raw log output. The `E2BSandboxRuntime` lacks the `beta_pause()` call for cost-saving snapshot lifecycle. The `Debugger` agent retries internally but never surfaces plain-English explanations to the frontend — the user sees only the final FAILED state.
+The v0.6 milestone adds a **three-panel layout** replacing the current narrow single-column view. The five research domains below cover only what is new.
 
 ---
 
 ## Feature Landscape
 
-### Table Stakes (Users Expect These)
+### Feature Domain 1: Real-Time Build Narration (Human-Readable Agent Activity)
 
-Features in this domain that AI code generation products (Bolt, Lovable, Replit Agent, v0) all provide. Missing these creates an immediate sense of an incomplete product.
+#### Table Stakes
 
-| Feature | Why Expected | Complexity | Depends On (Existing) | Notes |
-|---------|--------------|------------|----------------------|-------|
-| **In-page preview iframe** | Bolt/Lovable/Replit all show the running app inside the product — users never expect to leave the tab to see their app | MEDIUM | `preview_url` in `Job` model (already stored), `BuildSummary` component | Requires iframe with correct sandbox attributes; E2B preview URLs are same-origin-safe via `https://{port}-{sandbox_id}.e2b.app` format |
-| **Build stage labels in plain English** | Non-technical founders need "Writing your code" not "CODE" or "DEPS" | LOW | `BuildProgressBar` (already has STEPPER_DISPLAY_NAMES) | Already largely done; gap is that stage labels do not match user mental model perfectly. LOW effort to refine copy |
-| **Build duration / time elapsed** | Users staring at a spinner want to know how long it has been | LOW | `useBuildProgress` hook, `BuildProgressBar` | Elapsed timer displaying "Building for 2m 34s" shown during active build |
-| **Auto-retry on failure with visible count** | Users expect the system to try harder before giving up | MEDIUM | `debugger.py` (retries internally), `JobStateMachine` (FAILED state) | The Debugger already retries up to `max_retries=5`. The gap: frontend does not show "Attempt 2 of 5 — fixing error..." — it just shows spinner until final result |
-| **Plain-English failure explanation** | Non-technical founders cannot parse "ModuleNotFoundError: No module named 'fastapi'" | MEDIUM | `debugger.py`, `_friendly_message()` in `generation_service.py`, `BuildFailureCard` | Failure messages must be translated before display. `_friendly_message()` is a thin utility today; needs to cover more error patterns |
-| **Cancel in-progress build** | Users who triggered a bad prompt need an escape hatch | LOW | Build page (already has cancel button + AlertDialog + `/api/generation/{jobId}/cancel` endpoint) | Already exists |
-| **Preview URL copy-to-clipboard** | Users want to share their running app | LOW | `BuildSummary` (has external link button) | One-line addition next to "Open Preview" button |
+| Feature | Why Expected | Complexity | Dependency on Existing |
+|---------|--------------|------------|------------------------|
+| Human-readable stage sentences | "Setting up your project structure" not "scaffold" — non-technical founders cannot parse technical stage names | LOW | Extends `STAGE_LABELS` in `useBuildProgress.ts`; new narration text added to SSE payload |
+| Visible current action description | NN/g (HIGH confidence): without per-step descriptions, users assume crash after ~10s of spinner | LOW | New SSE event field: `narration.text`, shown prominently above activity feed |
+| Chronological activity feed | Smashing Magazine 2026 / aiuxpatterns.com (MEDIUM confidence): agentic UX requires an audit trail of agent steps — audit trail is what makes an agent credible vs opaque | MEDIUM | Replaces collapsed `BuildLogPanel` as the primary visible element during build; log panel moves to inner "Advanced" toggle |
+| Jargon-free language | Target user is non-technical — "Writing your authentication flow" not "Running eslint --fix on auth.ts:47" | LOW | Claude prompt wrapping narration generation |
+| Per-stage completion confirmation | Users need an explicit "Stage X done" signal — ambiguity during multi-minute stages causes anxiety (NN/g verified) | LOW | SSE `build.stage.completed` event (new event type) |
 
-### Differentiators (Competitive Advantage)
+#### Differentiators
 
-Features that set this product apart from Bolt/Lovable for the non-technical founder persona.
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| Narration generated by Claude (not template strings) | Dynamic, idea-specific narration ("Building your Stripe checkout for SaaS billing") vs generic ("Implementing payment module") — makes founders feel the AI understands their specific product | MEDIUM | Separate Claude API call per stage; result stored in Redis, emitted via SSE `narration.updated` event; ~100-200 tokens per narration line |
+| "What's happening right now" one-liner | Single prominent sentence above activity feed showing live action; updates when each narration event arrives — more scannable than reading a list | LOW | Derived from latest `narration.updated` SSE event; no additional backend work beyond narration generation |
+| Agent persona voice | Narration in first-person co-founder voice: "I'm setting up your database schema so your data is organized from day one" rather than passive system log | LOW | Prompt engineering only; no infra change |
+| Per-stage time estimate | "This stage typically takes 2 minutes" displayed at stage start — sets expectations, directly reduces anxiety at the point it is highest | LOW | Static lookup table keyed on stage name; no LLM call needed |
 
-| Feature | Value Proposition | Complexity | Depends On (Existing) | Notes |
-|---------|-------------------|------------|----------------------|-------|
-| **Expandable raw build log** | Technical founders and curious users want to see what the LLM wrote, commands run, and outputs. Non-technical founders skip it. Both served by collapsible panel | MEDIUM | SSE stream (existing), `BuildProgressBar` | Raw stdout/stderr lines from each stage gate, shown behind an expandable "Technical details" chevron. Does NOT require separate stream — parse existing SSE events that carry `message` payloads |
-| **Debugger retry progress shown to user** | "We found an issue and are automatically fixing it" builds trust vs. silent spinner for 10 extra minutes | MEDIUM | `debugger.py` (publishes `status_message` like "Debug analysis complete (attempt 2/5)"), `JobStateMachine`, SSE stream | State machine already publishes `status_message` during debugger cycles. Frontend needs to detect debugger-phase events and surface them differently (yellow warning tone, "Auto-fixing..." label vs. normal blue building tone) |
-| **Sandbox snapshot on build complete** | Cost efficiency: pause the E2B sandbox after build instead of keeping it live 24/7. Reconnect on demand when founder returns | HIGH | `E2BSandboxRuntime.connect()` (exists), `E2BSandboxRuntime` (needs `beta_pause()` call), `Job.sandbox_id` (persisted) | E2B SDK has `beta_pause()` (beta feature, confirmed in v2.1.0 SDK docs). Pause after READY. On next iteration job, use existing `execute_iteration_build()` which already calls `sandbox.connect(previous_sandbox_id)`. Known bug: multi-resume file persistence issue |
-| **Preview freshness indicator** | Sandbox previews can expire (E2B max 24h timeout). Show "Preview expires in 2h" so founders know to re-build before a demo | MEDIUM | `Job.preview_url`, `Job.completed_at` (both in DB) | Calculate expiry from `completed_at + timeout`. Display countdown badge on `BuildSummary`. On expiry, show "Preview expired — rebuild to continue" |
-| **Build history list** | Founders want to see past builds, compare versions, open old previews | MEDIUM | `Job` model (full history in Postgres), project-scoped routes | List view: build_version, timestamp, status, preview_url. Enables A/B comparison of iterations. Query existing `jobs` table filtered by project |
-| **Preview device frame toggle** | Show the running app as mobile vs. desktop — appeals to non-technical founders thinking about their product's UX | LOW | iframe (new) | CSS-only: change iframe width/height with Tailwind transition. No backend changes. Bolt and Lovable both do this |
+#### Anti-Features
 
-### Anti-Features (Commonly Requested, Often Problematic)
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| Raw error traces in narration feed | Founders want full transparency | Exposes internal file paths, stack traces, and any secrets in environment variables — security + UX problem for non-technical audience | Show sanitized "Something unexpected happened — auto-fix is running" with debug_id reference only |
+| Real-time token streaming in activity feed | Feels alive and fast | Creates cognitive chaos — founder reads incomplete sentences that overwrite themselves; no useful information density from partial tokens | Emit complete narration sentences only, not streaming tokens |
+| Per-file-change events in activity feed | Maximum transparency | LangGraph writes hundreds of files — one event per file floods the feed with meaningless noise | Aggregate: one narration event per agent stage transition only |
 
-| Feature | Why Requested | Why Problematic | Better Approach |
-|---------|---------------|-----------------|-----------------|
-| **Live code editor inside sandbox** | Founders see Bolt's file tree editor and ask for it | Bolt's editor requires full WebContainer or VSCode server, 10x the infrastructure complexity. E2B is not designed for interactive editing | Expose "Request a change" flow via natural language (change_request to iteration build). This is the existing architecture |
-| **Streaming token-by-token LLM output** | Feels fast and impressive | LLM output mid-generation is meaningless to non-technical founders and creates UI thrash. Also, the current architecture runs LLM inside the LangGraph runner which is not exposed to SSE mid-execution | Stage-level progress (existing) + Debugger retry visibility (differentiator above) serves the need without complexity |
-| **Multiple simultaneous build previews** | Power users want to A/B two versions | E2B cost multiplies linearly per live sandbox. Queue/capacity model already limits per-user concurrency | Build history list (differentiator above) + version compare is the right UX |
-| **Terminal / shell access inside preview** | Developers want shell in sandbox | Fundamentally changes trust model (user could install malware, exfiltrate data). E2B provides this capability technically but it is a security and cost risk | This product targets non-technical founders — shell access is explicitly out of scope |
-| **Download generated code as zip** | Founders want to own the code | The concern is valid (code ownership), but zip download is high complexity (need to archive E2B filesystem) and distracts from the core "running app" experience | Link to GitHub integration (already in `backend/app/integrations/github.py`) as the code ownership story |
-| **Real-time collaborative preview** | Multiple people viewing the same iframe | Sandbox is single-user; collaborative viewing via shared URL already works since E2B preview URLs are public HTTPS links | The `preview_url` is already shareable. Document this, do not build special infra |
+---
+
+### Feature Domain 2: Live Screenshot / Preview Updates During Build
+
+#### Table Stakes
+
+| Feature | Why Expected | Complexity | Dependency on Existing |
+|---------|--------------|------------|------------------------|
+| At least one preview screenshot before build completes | Lovable, v0, Bolt all show a live preview pane — founders expect something visual during build, not just text for 4-5 minutes | HIGH | Requires new: Playwright-in-sandbox or E2B Desktop; S3 upload path; SSE `snapshot.updated` event; frontend image display in center panel |
+| Screenshot stored in S3, served via CloudFront | Screenshots must survive browser refresh and be available in the completion state | MEDIUM | Existing S3 + CloudFront infrastructure; new bucket path `/snapshots/{job_id}/stage-{name}.png` |
+| Frontend receives SSE event when snapshot is ready | Founder sees screenshot appear in center panel when captured — not polling | LOW | New SSE event `snapshot.updated` with `{ url, stage, captured_at }` |
+| Loading/placeholder state in center panel | Panel must not show an empty box while first screenshot is being captured (can take 30-60s) | LOW | Skeleton shimmer in center panel until first `snapshot.updated` event arrives |
+
+#### Differentiators
+
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| Screenshot per completed stage (not just final) | Shows the product evolving — scaffold stage can show a placeholder or directory confirmation, code stage shows first rendered UI, deps stage shows styled app — founder sees tangible progression | HIGH | One screenshot after each `stage.completed` event; 4-5 screenshots total per build; crossfade between them |
+| Crossfade animation between snapshots | Smooth visual evolution feels premium vs jarring jump cut between screenshots | LOW | CSS `transition: opacity 0.4s` on `<img>` src change |
+| Screenshot captured from running dev server | Actual browser render of the app at `localhost:3000` rather than a terminal output — shows real UI that the founder will preview | HIGH | Playwright installed inside E2B sandbox during scaffold stage; `page.screenshot()` after `localhost:3000` is live; upload bytes to S3 |
+| Fallback to terminal screenshot if Playwright fails | Build must never block on screenshot failure | LOW | Try Playwright `page.screenshot()`; on exception, use `scrot` of the terminal output; upload whichever succeeds; if both fail, skip and continue build |
+
+#### Anti-Features
+
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| Live video stream of sandbox desktop | Maximum transparency | E2B Desktop screenshot API returns `bytearray` per call — not a video stream; streaming video would require WebRTC or WebSocket video frames which is a separate infrastructure problem disproportionate to the value | Periodic screenshots at stage completion events only |
+| Screenshot every N seconds (time-based) | Shows constant activity | Most seconds nothing visually changes — creates noise, wastes S3 writes, adds polling complexity | Trigger on `stage.completed` event only; one midpoint screenshot for stages estimated >90 seconds |
+| Founder clicking into sandbox via VNC/remote desktop | Power user transparency | Destroys the "your engineering team is building it" framing; non-technical founders will panic seeing a terminal; security risk | Keep sandbox opaque during build; iframe preview only after completion |
+
+**Implementation decision (HIGH confidence):** E2B provides two sandbox types. The standard `e2b` sandbox (currently in use) runs code but has no display. The `e2b-desktop` sandbox provides Xfce desktop with Xvfb and supports `desktop.screenshot()` returning `bytearray`. Switching to `e2b-desktop` would require changing sandbox type and rebuilding the sandbox init. The lower-risk alternative: install Playwright (`pip install playwright && playwright install chromium`) inside the existing standard E2B sandbox during the scaffold stage, and call Playwright as a subprocess to screenshot `localhost:3000` after the dev server is confirmed live. This preserves the existing sandbox type and lifecycle.
+
+---
+
+### Feature Domain 3: Auto-Generated End-User Documentation During Build
+
+#### Table Stakes
+
+| Feature | Why Expected | Complexity | Dependency on Existing |
+|---------|--------------|------------|------------------------|
+| "How to use your app" guide generated by build completion | Founders expect a tangible deliverable they can share with first users — a completion state with only a preview URL and no docs feels incomplete | MEDIUM | New Claude API call using Idea Brief + build metadata; result stored as new artifact type |
+| Documentation visible in right panel during/after build | Three-panel layout (specified in milestone) — right panel must show content during and after build | LOW | New SSE event `documentation.updated` with Markdown content; frontend renders with `react-markdown` |
+| Progressive generation — sections appear as Claude writes them | Non-technical founders need instant gratification — waiting for a full doc before showing anything converts wait time into frustration | MEDIUM | Stream Claude response into SSE `documentation.updated` events; emit one event per section completed |
+| Content is founder-safe — no code, no CLI commands | Target user is non-technical — "Click Settings > Billing > Add Card" not `curl -X POST /api/payments` | LOW | Claude prompt constraint; adversarial prompt test cases needed |
+
+#### Differentiators
+
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| Documentation generated in parallel with build, not after | Founder reads docs while the build is still running — converts dead wait time into productive reading time; doc is ready the moment build completes | MEDIUM | Trigger doc generation from Idea Brief data at `scaffold.completed` event (Idea Brief exists before build starts; no code needed to generate user docs) |
+| Downloadable PDF at completion | Matches existing artifact export pattern (WeasyPrint already in stack); founders want a tangible file to share with advisors or investors | MEDIUM | Re-use existing WeasyPrint PDF pipeline; new document type "End-User Guide" |
+| Sections appear in order: Overview → Features → Getting Started → FAQ | Progressive disclosure — overview arrives in ~15s, full doc completes as build finishes | LOW | Claude structured output with section delimiters; emit SSE event per section |
+| Documentation tied to specific build version | If founder rebuilds, they get a new doc version — prevents stale docs from mismatching current app | LOW | Store with `build_version` field; existing versioning pattern from artifact pipeline applies |
+
+#### Anti-Features
+
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| Technical architecture docs for founders | Seems comprehensive | Non-technical founders cannot use architecture docs; adds cognitive overload; Architecture artifact already exists for technical advisors | Keep Architecture artifact separate (already exists in artifact pipeline); End-User Guide is strictly user-facing "how to use your app" |
+| Editable docs during active generation | Founders want to customize from the start | Editing a streaming document creates race conditions and confusing UX when Claude overwrites edits | Allow editing only after build completes and documentation is finalized |
+| API reference docs | Completeness | Generated MVP has no public API in v0.6 scope; out of scope per PROJECT.md | Defer to future milestone when GitHub push and public APIs are added |
+
+---
+
+### Feature Domain 4: Long-Build Reassurance Patterns
+
+#### Table Stakes
+
+| Feature | Why Expected | Complexity | Dependency on Existing |
+|---------|--------------|------------|------------------------|
+| Time elapsed counter | NN/g (HIGH confidence): users need to know a process has not frozen — elapsed time is minimum viable reassurance for any operation >10 seconds | LOW | `Date.now()` minus `buildStartedAt` from first SSE event; display as "3m 42s elapsed" |
+| Per-stage time estimate | NN/g: "percent-done or time remaining" required for operations >10 seconds; stage durations are known from historical data | LOW | Static lookup: scaffold ~30s, code ~3-5 min, deps ~1-2 min; display "~2 min remaining" at stage start |
+| Progress animation that is not just a spinner | Static spinner is the weakest possible reassurance — something that visually changes over time maintains engagement | LOW | Animated progress pulse on current stage in stage bar; rotating tip in activity feed |
+| 2-minute threshold message | NN/g (HIGH confidence): 2 minutes is the threshold where users begin to abandon if given no explanation | LOW | Frontend timer: if any stage exceeds 120s without a new SSE event, emit "Taking longer than expected — this means your app has more moving parts than average" into the activity feed |
+| Tab-focus re-fetch on return | Already implemented in `useBuildProgress` — must be preserved in the new layout | ALREADY EXISTS | No change needed; `visibilitychange` handler in existing hook |
+
+#### Differentiators
+
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| 5-minute threshold escalation | At 5 minutes founders are genuinely anxious — move from passive text reassurance to proactive offer | MEDIUM | Frontend timer: at 300s show modal "This build is taking extra time. Want us to email you when it's ready?" — triggers `POST /api/generation/{job_id}/notify` endpoint |
+| Rotating "while you wait" insights | Shows the AI is building something meaningful — "Your app will have 3 API endpoints and 5 database tables" drawn from Idea Brief data | LOW | Extract key numbers from Idea Brief at build start; pre-generate 4-5 fact strings; rotate every 30s in activity feed |
+| Active agent role display | At each stage, show which agent is active: "Architect is planning your database schema", "Coder is writing your authentication" — humanizes the multi-agent pipeline | LOW | Map stage name to agent name in a static frontend lookup; no backend change |
+| Completion time displayed in success state | NN/g: success dialogs should show elapsed time — "Built in 4m 23s" — helps founders calibrate expectations for future builds | LOW | Track first SSE event timestamp to terminal state timestamp; display in `BuildSummary` |
+
+#### Anti-Features
+
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| Progress bar percentage | Seems informative | LLM-based build duration is non-deterministic — a "25%" bar that sits for 3 minutes is worse than no percentage; creates false expectations that erode trust when wrong | Use stage-based progress (6 discrete stages) rather than a fake cumulative percentage |
+| Exact ETA ("Your build will be ready in X minutes") | Founders want certainty | LLM code gen is non-deterministic; any specific ETA will be wrong ~50% of the time; being wrong erodes trust faster than not promising | Use ranges: "~2-4 minutes remaining for this stage" |
+| Auto-redirect when build completes | Feels responsive | Destroys the reveal moment — completion is the emotional peak of the experience; founder should see it presented, not be jarred by a redirect | Present polished completion state in place; never auto-redirect |
+
+---
+
+### Feature Domain 5: Build Completion States
+
+#### Table Stakes
+
+| Feature | Why Expected | Complexity | Dependency on Existing |
+|---------|--------------|------------|------------------------|
+| "Your MVP is ready" hero moment | Completion is the emotional peak of the founder experience — must feel like a celebration, not just a status label change | LOW | Extend existing confetti + `BuildSummary`; add hero copy and visual treatment |
+| Live preview iframe | Already exists in `PreviewPane` — its absence would be a regression | ALREADY EXISTS | `PreviewPane` with sandbox pause/resume already shipped |
+| "Open in new tab" prominent link | Founders want to share the preview URL immediately | LOW | Already in `BuildSummary`; confirm it is prominent and above the fold |
+| Download docs button | Founders expect a tangible file to keep and share | MEDIUM | Links to generated End-User Guide PDF; requires Documentation feature (Domain 3) above |
+| "What's next" CTA | Founders do not know what to do after build — need a clear next step | LOW | Prominent card: "Deploy your app" linking to `/projects/{id}/deploy` |
+| Build version label | Sets context for future iterations — founder knows this is "v0.1" and more versions can follow | LOW | `buildVersion` field already in `useBuildProgress` state; display in completion header |
+
+#### Differentiators
+
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| Summary stats card | Quantified achievement: "Built in 4m 23s, 3 pages, 5 API endpoints" — founder can share this as social proof | LOW | Elapsed time from build timestamps; page/endpoint counts from build metadata if available; static fallback if not |
+| Latest screenshot shown in center panel on completion | Three-panel layout persists into completion state — center panel shows the last captured screenshot; transitions to full iframe on demand | LOW | Layout state toggle: `building` vs `complete` renders different center panel content |
+| Three-panel layout collapses gracefully on completion | After build, left panel shows full activity log (not live feed), center shows screenshot or iframe, right shows finalized docs | MEDIUM | Layout state machine: `idle` | `building` | `complete` — each with different panel content |
+| Completion state persists on page refresh | Founder should share the URL and see the same completion state; no re-build required | LOW | Already implemented: `status=ready` is a terminal state detected by polling; no additional work needed |
+
+#### Anti-Features
+
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| Auto-start iteration on completion | Reduces friction | Iteration requires Gate 2 (Solidification Gate) — bypassing it skips scope creep detection, a core product value | Show "Ready to iterate?" CTA that leads to Gate 2 flow |
+| GitHub push on completion | Power user request | Out of scope per PROJECT.md; GitHub integration is a separate future milestone | Show a "Coming soon" badge on a stub "Push to GitHub" button |
+| Deploy to production on completion | Founders want a live app immediately | Production deployment is the Deploy Readiness stage — premature deploy skips important assessments | Link to Deploy Readiness flow, not direct prod deploy |
 
 ---
 
 ## Feature Dependencies
 
 ```
-[Preview iframe embedding]
-    └──requires──> [preview_url stored in Job model] (ALREADY EXISTS)
-    └──requires──> [Build success state on build page] (ALREADY EXISTS)
-    └──enhances──> [Device frame toggle] (LOW effort add-on)
-    └──enhances──> [Preview freshness indicator] (needs expiry timestamp)
+[Extended SSE Event Stream]
+    └──required by──> [1. Build Narration] (narration.updated event)
+    └──required by──> [2. Live Screenshots] (snapshot.updated event)
+    └──required by──> [3. Auto-Generated Documentation] (documentation.updated event)
+    └──required by──> [4. Long-Build Reassurance] (build.stage.started/completed with timestamps)
+    └──note: ALL new features share this single infrastructure dependency
 
-[Expandable raw build log]
-    └──requires──> [SSE stream with message payloads] (ALREADY EXISTS)
-    └──requires──> [Frontend log buffer in useBuildProgress hook] (NEW — accumulate events)
+[Three-Panel Layout Component]
+    └──required by──> [Milestone deliverable]
+    └──content from──> [1. Build Narration] (left panel)
+    └──content from──> [2. Live Screenshots] (center panel)
+    └──content from──> [3. Auto-Generated Documentation] (right panel)
+    └──replaces──> Existing single-column narrow build view
 
-[Debugger retry progress shown to user]
-    └──requires──> [Debugger agent retry loop] (ALREADY EXISTS in debugger.py)
-    └──requires──> [status_message published via SSE] (ALREADY EXISTS)
-    └──requires──> [Frontend detection of "debugger phase" SSE events] (NEW)
-    └──enhances──> [Plain-English failure explanation] (richer error copy)
+[2. Live Screenshots]
+    └──requires──> Playwright installed inside E2B sandbox (scaffold stage)
+    └──requires──> Post-stage screenshot trigger in LangGraph runner or GenerationService
+    └──requires──> S3 upload utility (bytes → S3 key → CloudFront URL)
+    └──requires──> SSE snapshot.updated event emission
 
-[Sandbox snapshot lifecycle]
-    └──requires──> [E2BSandboxRuntime] (ALREADY EXISTS)
-    └──requires──> [sandbox_id persisted in Job] (ALREADY EXISTS)
-    └──requires──> [beta_pause() call after READY] (NEW — one method call in GenerationService)
-    └──requires──> [Sandbox.connect() on iteration] (ALREADY EXISTS in execute_iteration_build)
-    └──conflicts──> [Preview freshness indicator] (paused sandbox = no live preview;
-                    indicator must distinguish "live" vs "paused")
+[3. Auto-Generated Documentation]
+    └──trigger──> scaffold.completed SSE event (Idea Brief available from this point)
+    └──requires──> Claude API call for doc streaming (separate from narration calls)
+    └──requires──> documentation.updated SSE event emission per section
+    └──enables──> [5. Completion States: Download docs button]
 
-[Build history list]
-    └──requires──> [Job model with build_version, preview_url] (ALREADY EXISTS)
-    └──requires──> [GET /api/projects/{id}/jobs endpoint] (NEW)
-    └──enhances──> [Sandbox snapshot lifecycle] (re-open old preview = re-connect old sandbox)
+[1. Build Narration]
+    └──requires──> Claude API call per stage transition (narration.updated event)
+    └──enhances──> [4. Long-Build Reassurance] (narration IS the primary reassurance mechanism)
 
-[Preview freshness indicator]
-    └──requires──> [Job.completed_at] (ALREADY EXISTS)
-    └──requires──> [Sandbox timeout value] (from E2B set_timeout call, currently hardcoded 3600s)
+[4. Long-Build Reassurance]
+    └──requires──> build start timestamp (in first SSE event)
+    └──requires──> per-stage expected durations (static frontend lookup)
+    └──5min threshold──> new backend endpoint POST /api/generation/{job_id}/notify
+
+[5. Build Completion States]
+    └──requires──> [2. Live Screenshots] latest screenshot for center panel
+    └──requires──> [3. Auto-Generated Documentation] for download docs button
+    └──requires──> [4. Long-Build Reassurance] completion time for stats card
 ```
 
 ### Dependency Notes
 
-- **Preview iframe requires no backend changes**: `preview_url` already stored, `BuildSummary` just needs an `<iframe>` added alongside the "Open Preview" button.
-- **Expandable raw log requires frontend accumulation**: The SSE stream already fires `message` events per stage transition. Need to buffer all received messages in `useBuildProgress` and expose them as a log array.
-- **Snapshot lifecycle is isolated**: Adding `beta_pause()` is a 3-line addition to `GenerationService.execute_build()` after the READY transition. Low risk, isolated change.
-- **Debugger retry visibility conflicts with current UX**: The build page currently transitions directly from "Building" stepper to final "READY" or "FAILED" state. Surfacing intermediate debugger states requires a new UX state — "Auto-fixing" — between "building" and "failed/success".
+- **Extended SSE stream is the single critical infrastructure dependency.** All four new feature domains emit new event types. This must be implemented first. The existing SSE endpoint at `/api/generation/{job_id}/logs` delivers raw log lines — new typed events (`build.stage.started`, `build.stage.completed`, `narration.updated`, `snapshot.updated`, `documentation.updated`) must be added alongside or on a parallel stream.
+
+- **Screenshots require Playwright-in-sandbox, not E2B Desktop.** The current build uses standard E2B sandbox (no display). The pragmatic approach: install Playwright during scaffold stage and call it as a subprocess to screenshot `localhost:3000` once the dev server is live. This preserves the existing sandbox type, lifecycle, and all existing `E2BSandboxRuntime` code.
+
+- **Documentation generation starts at scaffold.completed, not at build completion.** The Idea Brief exists before the build starts. Documentation does not require the generated code — it describes how to use the app based on the brief. Starting at `scaffold.completed` means the right panel has partial content while the code stage (longest stage) runs. This is the key UX win: founders read docs while building, not after.
+
+- **Left panel replaces (not supplements) the existing `BuildLogPanel`.** Raw logs move to an "Advanced" collapsible within the activity feed panel. The feed itself shows narration events. This avoids two competing log UIs.
+
+- **Three-panel layout has a completion state variant.** During build: left=live feed, center=latest screenshot, right=progressive docs. After completion: left=full activity history, center=screenshot transitioning to iframe, right=finalized docs with download button.
 
 ---
 
-## MVP Definition
+## MVP Definition (v0.6 scope)
 
-This milestone's MVP is: founder clicks "Build" → sees build progress → app appears in an embedded iframe → on failure, sees plain-English explanation with auto-retry count.
+### Launch With
 
-### Launch With (v0.5 MVP)
+- [ ] Extended SSE event stream — `narration.updated`, `snapshot.updated`, `documentation.updated`, `build.stage.started`, `build.stage.completed` — this is the foundation; implement first
+- [ ] Three-panel layout component replacing current narrow single-column view
+- [ ] Human-readable narration via Claude API per stage transition — complete sentences in activity feed, no streaming tokens
+- [ ] Live screenshot after each stage completion — Playwright-in-sandbox, upload to S3, emit `snapshot.updated` SSE event
+- [ ] Progressive end-user documentation starting at `scaffold.completed` — streamed into right panel as sections complete
+- [ ] 2-minute threshold reassurance message in activity feed
+- [ ] 5-minute threshold email notification offer (modal, not automatic email)
+- [ ] Polished completion state: hero moment, elapsed time stats, download docs button, "what's next" deploy CTA
+- [ ] Safety guardrails: narration strips internal paths and error traces; debug_id shown, not raw stack traces
 
-- [ ] **Preview iframe in BuildSummary** — core promise of the milestone. Replace "Open Preview" external link with an `<iframe src={previewUrl}>` inside the success card. Keep "Open Preview" as secondary link for full-screen access. Complexity: LOW.
-- [ ] **Elapsed build timer** — show "Building for 2m 34s..." during active build stages. One `useEffect` timer in `useBuildProgress`. Complexity: LOW.
-- [ ] **Debugger retry visibility** — when SSE `status_message` contains "Debug analysis complete (attempt N/M)", surface a distinct "Auto-fixing..." UI state in the build page. Non-technical copy: "Found an issue — automatically fixing (attempt 2 of 5)". Complexity: MEDIUM.
-- [ ] **Richer plain-English failure messages** — expand `_friendly_message()` in `generation_service.py` to cover common error categories (missing env var, npm install failure, port conflict, OOM). The `BuildFailureCard` already renders the message — just improve the content. Complexity: LOW.
-- [ ] **Sandbox beta_pause() after READY** — add `await sandbox._sandbox.beta_pause()` (or async equivalent via executor) after the READY transition in `execute_build()` and `execute_iteration_build()`. This immediately reduces E2B cost for idle sandboxes. Complexity: LOW (one method call, but needs error handling since `beta_pause` is in beta and non-fatal on failure).
+### Add After Validation (v0.6.x)
 
-### Add After Validation (v0.5.x)
-
-- [ ] **Expandable raw build log** — collapsible "Technical details" panel showing all SSE event messages in chronological order. Accumulate in `useBuildProgress` hook. Trigger: first user support ticket about "what is it doing?".
-- [ ] **Preview freshness indicator** — countdown to sandbox expiry on `BuildSummary`. Trigger: first user complaint about "preview stopped working".
-- [ ] **Device frame toggle** — mobile/desktop viewport toggle on the iframe. Complexity: LOW. Trigger: founder UX testing feedback.
-- [ ] **Preview URL copy-to-clipboard** — one-line addition. Trigger: first user asking "how do I share this?".
+- [ ] Changelog generation for v0.2+ iteration builds — only useful once the iteration cycle is built
+- [ ] Per-build stats (page count, endpoint count) in completion summary — requires structured output from LangGraph runner
+- [ ] Email notification backend endpoint — low priority if typical build stays under 5 minutes
 
 ### Future Consideration (v2+)
 
-- [ ] **Build history list** — past builds with version selector and preview links. Trigger: product-market fit signal that founders are iterating frequently and need version comparison.
-- [ ] **GitHub code export** — link generated code to GitHub repo. Foundation exists (`backend/app/integrations/github.py`). Trigger: user research showing code ownership is a blocker to conversion.
-- [ ] **Sandbox hot-reload on code change** — file watcher triggering sandbox refresh after iteration build. Very high complexity. Defer until iteration UX is validated.
+- [ ] Build history browsable list with version diff
+- [ ] Shareable build completion permalink with screenshot embed and stats
+- [ ] Video recording of build process (requires E2B Desktop sandbox type switch)
 
 ---
 
@@ -151,109 +274,48 @@ This milestone's MVP is: founder clicks "Build" → sees build progress → app 
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| Preview iframe | HIGH | LOW | P1 |
-| Elapsed build timer | MEDIUM | LOW | P1 |
-| Debugger retry visibility | HIGH | MEDIUM | P1 |
-| Richer failure messages | HIGH | LOW | P1 |
-| Sandbox beta_pause after READY | MEDIUM (cost, not UX) | LOW | P1 |
-| Expandable raw build log | MEDIUM | MEDIUM | P2 |
-| Preview freshness indicator | MEDIUM | MEDIUM | P2 |
-| Device frame toggle | LOW | LOW | P2 |
-| Preview URL copy | LOW | LOW | P2 |
-| Build history list | MEDIUM | MEDIUM | P3 |
-| GitHub code export | HIGH | HIGH | P3 |
-
-**Priority key:**
-- P1: Must have for v0.5 launch
-- P2: Should have, add when possible (v0.5.x)
-- P3: Nice to have, future (v2+)
+| Extended SSE event stream (infra) | HIGH | MEDIUM | P1 — blocks all other new features |
+| Three-panel layout | HIGH | MEDIUM | P1 — milestone visual deliverable |
+| Human-readable narration (activity feed) | HIGH | MEDIUM | P1 — core experience, replaces raw log |
+| Live screenshots | HIGH | HIGH | P1 — visual proof of building |
+| Progressive documentation | HIGH | MEDIUM | P1 — tangible founder deliverable |
+| Long-build reassurance (2min/5min thresholds) | HIGH | LOW | P1 — safety net for slow builds |
+| Polished completion state | HIGH | LOW | P1 — emotional peak moment |
+| Changelog generation | MEDIUM | MEDIUM | P2 — only after iteration cycle built |
+| Build stats summary card | MEDIUM | LOW | P2 — nice-to-have |
+| Email notification for long builds | MEDIUM | MEDIUM | P3 — only if builds regularly exceed 5min |
 
 ---
 
 ## Competitor Feature Analysis
 
-| Feature | Bolt.new | Lovable | Replit Agent | v0 | Our Approach |
-|---------|----------|---------|--------------|-----|--------------|
-| Preview delivery | WebContainer in-browser (no separate sandbox) | Fly.io MicroVM, shown in split-pane iframe | Replit container, iframe embed | Vercel deploy + preview URL | E2B sandbox, `get_host(8080)` URL, iframe embed |
-| Build progress UX | Real-time file diff stream + terminal output | Stage indicators + "Lovable is thinking..." | Agent activity log, expandable | Silent spinner → deploy link | 4-stage stepper (EXISTS) + debugger retry visibility (NEW) |
-| Auto-retry on failure | Silent automatic retry, shows updated diff | Retry prompt visible, manual trigger required | Agent retries autonomously, shows "trying a different approach" | N/A (static generation) | Debugger node retries up to max_retries (EXISTS), surface to UI (NEW) |
-| Failure UX | "Failed to apply changes" with diff context | "Something went wrong" + ask to retry in chat | Agent explains failure in plain English, asks to try again | N/A | `BuildFailureCard` with debug_id (EXISTS), richer error copy (NEW) |
-| Preview frame | Split-pane: code editor left, browser right | Bottom panel or standalone iframe tab | Embedded webview, phone/desktop toggle | Vercel link only | Single-focus iframe (NEW), optional device toggle (P2) |
-| Sandbox snapshot/cost | WebContainer is stateless in-browser (no cost after tab close) | Fly.io container lifecycle managed internally | Replit keeps container hot (cost always running) | No persistent sandbox | E2B beta_pause after READY (NEW) |
-| Preview sharing | Public URL via StackBlitz embed | Public URL, shareable | Public repl URL | Vercel preview URL | E2B URL is public HTTPS — already shareable without new features |
+| Feature | Lovable (v2.0) | v0 (Vercel) | Bolt.new | Our Approach |
+|---------|----------------|-------------|----------|--------------|
+| Live preview during generation | Right panel iframe updates in real-time as code is written | Instant component preview (static generation) | Split view with live preview pane | Screenshots per stage; full iframe in completion state — E2B sandbox URL not stable mid-build |
+| Agent activity feed | Chat-driven; shows diff preview before applying changes | None — loading state only | None — spinner only | Explicit activity feed with Claude narration, left panel |
+| Human-readable narration | Minimal — shows file names being modified | None | None | Full narration by Claude per stage — differentiator |
+| Documentation generation | None | None | None | Progressive End-User Guide from Idea Brief — differentiator |
+| Long-build reassurance | No explicit patterns | No explicit patterns | No explicit patterns | 2min/5min thresholds + per-stage time estimates — differentiator |
+| Completion state | Preview URL + share button | Component copy/paste only | Preview URL + deploy CTA | Hero moment + stats card + docs download + deploy CTA |
 
----
-
-## Implementation Notes by Feature
-
-### Preview iframe (P1)
-
-E2B preview URLs follow the pattern `https://{port}-{sandbox_id}.e2b.app`. These are proper HTTPS origins served by E2B's infrastructure. Since they are a different origin from our app (`cofounder.getinsourced.ai`), the iframe must NOT include `sandbox="allow-scripts allow-same-origin"` together (that combination allows the iframe to escape its sandbox by removing the attribute). Safe pattern:
-
-```tsx
-<iframe
-  src={previewUrl}
-  title="App Preview"
-  allow="clipboard-read; clipboard-write"
-  className="w-full h-[500px] rounded-xl border border-white/10"
-/>
-// No sandbox attribute needed — E2B URLs are trusted HTTPS origins on a distinct domain
-// Add sandbox attribute only if embedding untrusted or unknown origins
-```
-
-The E2B preview URL is live only while the sandbox is running. If `beta_pause()` is called, the URL returns 502/503. Frontend must handle iframe load errors gracefully (show "Preview paused — rebuild to continue" overlay).
-
-### Debugger Retry Visibility (P1)
-
-The existing `JobStateMachine.transition()` publishes SSE events for every state change, including the label/message. The `debugger.py` node already returns `status_message` like `"Debug analysis complete (attempt 2/5)"`. The SSE stream carries this message. The gap is the frontend `useBuildProgress` hook not surfacing a distinct "debugger" phase.
-
-Approach: detect `status_message` containing `"attempt"` or `"debug"` (case-insensitive) to enter an intermediate `isDebugging` flag in the hook. The build page renders a third visual state:
-
-```
-[ Building ] → [ Auto-fixing (attempt 2 of 5) ] → [ Building ] → [ Ready ]
-                ↑ yellow/amber tone, wrench icon, "Found an issue — automatically fixing"
-```
-
-This requires NO backend changes. Frontend-only.
-
-### Sandbox Snapshot (P1, backend-only)
-
-In `GenerationService.execute_build()`, after the READY transition succeeds:
-
-```python
-# After await state_machine.transition(job_id, JobStatus.READY, ...)
-try:
-    loop = asyncio.get_event_loop()
-    await loop.run_in_executor(None, sandbox._sandbox.beta_pause)
-    logger.info("sandbox_paused", job_id=job_id, sandbox_id=sandbox_id)
-except Exception:
-    logger.warning("sandbox_pause_failed", job_id=job_id, exc_info=True)
-    # Non-fatal: sandbox stays live, costs more, but build result is correct
-```
-
-E2B's `beta_pause()` persists the VM state (filesystem + running processes snapshot). The `sandbox_id` already in `Job.sandbox_id` is used by `execute_iteration_build()` to reconnect via `Sandbox.connect(sandbox_id)` — this automatically resumes a paused sandbox.
-
-Known risk: E2B GitHub issue #884 — multi-resume file persistence may fail after the 2nd+ resume. Mitigation: on `execute_iteration_build()`, if `sandbox.connect()` fails or health-check fails, fall back to full sandbox rebuild (this fallback already exists in `execute_iteration_build()`).
-
-### E2B Sandbox Timeout Considerations
-
-Current code sets `sandbox._sandbox.set_timeout(3600)` (1 hour) in both `execute_build()` and `execute_iteration_build()`. E2B max is 24 hours on Pro tier, 1 hour on Hobby tier. After `beta_pause()`, the timeout counter pauses too — paused sandboxes do not consume the live timeout budget. This is the core cost-saving mechanism: sandbox is only live during active use, not idle between sessions.
+**Key observation:** Lovable, v0, and Bolt all target developers or semi-technical users who can parse file diffs and code. None generate human-readable narration or end-user documentation. These are genuine differentiators for a non-technical founder audience.
 
 ---
 
 ## Sources
 
-- E2B SDK Reference Python AsyncSandbox v2.1.0: https://e2b.dev/docs/sdk-reference/python-sdk/v2.1.0/sandbox_async — methods confirmed: `create`, `connect`, `kill`, `beta_pause`, `set_timeout`, `commands.run` with `on_stdout`/`on_stderr`
-- E2B GitHub Issue #884: https://github.com/e2b-dev/E2B/issues/884 — multi-resume file persistence bug (MEDIUM confidence, may be fixed in newer SDK versions)
-- E2B Fragments repo: https://github.com/e2b-dev/fragments — open-source reference for embedding E2B previews
-- Bolt.new: WebContainer in-browser technology, no separate sandbox cost model
-- Lovable build UX: Fly.io + Firecracker MicroVMs, iframe preview in split-pane
-- Replit Agent (2025): https://blog.replit.com/agent-on-any-framework — agent shows activity log, plain-English failure explanations
-- iframe security MDN + Mozilla Discourse: avoid `sandbox="allow-scripts allow-same-origin"` combination
-- Codebase direct reads (HIGH confidence): `e2b_runtime.py`, `generation_service.py`, `debugger.py`, `graph.py`, `state.py`, `worker.py`, `job.py`, `BuildProgressBar.tsx`, `BuildSummary.tsx`, `build/page.tsx`
+- [Designing for Agentic AI: Practical UX Patterns — Smashing Magazine (Feb 2026)](https://www.smashingmagazine.com/2026/02/designing-agentic-ai-practical-ux-patterns/) — explainable rationale, confidence signal, action audit patterns
+- [Designing for Long Waits and Interruptions — NN/g](https://www.nngroup.com/articles/designing-for-waits-and-interruptions/) — time thresholds (10s, 2min), progress indicator requirements, completion dialog content
+- [Response Time Limits — Jakob Nielsen, NN/g](https://www.nngroup.com/articles/response-times-3-important-limits/) — 10-second rule, elapsed time requirement
+- [Secrets of Agentic UX — UX Magazine](https://uxmag.com/articles/secrets-of-agentic-ux-emerging-design-patterns-for-human-interaction-with-ai-agents) — multi-agent transparency, step visibility pattern
+- [Agentic AI Design Patterns — agentic-design.ai](https://agentic-design.ai/patterns/ui-ux-patterns) — real-time agent activity visualization
+- [What is Lovable AI — UI Bakery](https://uibakery.io/blog/what-is-lovable-ai) — competitor live preview UX analysis
+- [E2B Desktop Python SDK Reference](https://e2b.dev/docs/sdk-reference/desktop-python-sdk/v2.0.1/sandbox) — `screenshot()` API, `bytearray` return format (HIGH confidence, verified)
+- [E2B Desktop DeepWiki](https://deepwiki.com/e2b-dev/desktop/4-python-sdk) — `open()` URL method, `scrot` implementation detail, Xvfb display (MEDIUM confidence)
+- [Playwright Screenshot Guide — ZenRows (2026)](https://www.zenrows.com/blog/playwright-screenshot) — `page.screenshot()` API confirmed current
+- Existing codebase direct reads (HIGH confidence): `frontend/src/app/(dashboard)/projects/[id]/build/page.tsx`, `frontend/src/hooks/useBuildProgress.ts`, `frontend/src/hooks/useBuildLogs.ts`, `frontend/src/components/build/BuildLogPanel.tsx`, `frontend/src/components/build/BuildSummary.tsx`
 
 ---
 
-*Feature research for: Sandbox build pipeline, preview embedding, build progress UX, snapshot lifecycle, auto-retry*
-*Researched: 2026-02-22*
-*Milestone: v0.5 — end-to-end sandbox build pipeline*
+*Feature research for: v0.6 Live Build Experience — AI Co-Founder SaaS*
+*Researched: 2026-02-23*
