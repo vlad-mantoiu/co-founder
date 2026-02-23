@@ -5,7 +5,7 @@ from uuid import UUID
 from anthropic._exceptions import OverloadedError
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
-from sqlalchemy import select
+from sqlalchemy import and_, exists, select
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.agent.llm_helpers import enqueue_failed_request
@@ -14,6 +14,8 @@ from app.agent.runner_fake import RunnerFake
 from app.core.auth import ClerkUser, require_auth
 from app.db.base import get_session_factory
 from app.db.models.artifact import Artifact
+from app.db.models.decision_gate import DecisionGate
+from app.db.models.understanding_session import UnderstandingSession
 from app.schemas.artifacts import ArtifactType
 from app.schemas.understanding import (
     EditAnswerRequest,
@@ -131,6 +133,99 @@ async def _background_generate_e2e_artifacts(
                         artifact_type.value,
                         str(e),
                     )
+
+
+@router.get("/by-project/{project_id}")
+async def get_understanding_status(
+    project_id: str,
+    user: ClerkUser = Depends(require_auth),
+):
+    """Get understanding state for a project — used by frontend to resume correctly.
+
+    Returns the understanding session ID, its status, and project-level flags
+    so the frontend can route to the correct phase (interview, brief, gate, plan).
+    """
+    session_factory = get_session_factory()
+    async with session_factory() as db:
+        pid = UUID(project_id)
+
+        # Find the latest understanding session for this project
+        result = await db.execute(
+            select(UnderstandingSession)
+            .where(
+                UnderstandingSession.project_id == pid,
+                UnderstandingSession.clerk_user_id == user.user_id,
+            )
+            .order_by(UnderstandingSession.created_at.desc())
+            .limit(1)
+        )
+        session = result.scalar_one_or_none()
+
+        # Check project flags
+        has_brief = (
+            await db.execute(
+                select(
+                    exists().where(
+                        and_(
+                            Artifact.project_id == pid,
+                            Artifact.artifact_type == "idea_brief",
+                        )
+                    )
+                )
+            )
+        ).scalar() or False
+
+        has_execution_plan = (
+            await db.execute(
+                select(
+                    exists().where(
+                        and_(
+                            Artifact.project_id == pid,
+                            Artifact.artifact_type == "execution_plan",
+                        )
+                    )
+                )
+            )
+        ).scalar() or False
+
+        has_pending_gate = (
+            await db.execute(
+                select(
+                    exists().where(
+                        and_(
+                            DecisionGate.project_id == pid,
+                            DecisionGate.status == "pending",
+                        )
+                    )
+                )
+            )
+        ).scalar() or False
+
+        gate_decision = None
+        if not has_pending_gate:
+            gate_result = await db.execute(
+                select(DecisionGate.decision)
+                .where(
+                    DecisionGate.project_id == pid,
+                    DecisionGate.status == "decided",
+                )
+                .order_by(DecisionGate.decided_at.desc())
+                .limit(1)
+            )
+            row = gate_result.scalar_one_or_none()
+            if row:
+                gate_decision = row
+
+        return {
+            "session_id": str(session.id) if session else None,
+            "session_status": session.status if session else None,
+            "current_question_index": session.current_question_index if session else None,
+            "total_questions": session.total_questions if session else None,
+            "has_brief": has_brief,
+            "has_execution_plan": has_execution_plan,
+            "has_pending_gate": has_pending_gate,
+            "gate_decision": gate_decision,
+        }
 
 
 @router.post("/start", response_model=StartUnderstandingResponse)
@@ -521,13 +616,48 @@ async def get_session_state(
     """
     session_factory = get_session_factory()
     service = UnderstandingService(runner, session_factory)
-    session = await service.get_session(user.user_id, session_id)
+    understanding = await service.get_session(user.user_id, session_id)
 
-    return {
-        "id": str(session.id),
-        "status": session.status,
-        "current_question_index": session.current_question_index,
-        "total_questions": session.total_questions,
-        "questions": [UnderstandingQuestion(**q).model_dump() for q in session.questions],
-        "answers": session.answers,
+    response: dict = {
+        "id": str(understanding.id),
+        "status": understanding.status,
+        "current_question_index": understanding.current_question_index,
+        "total_questions": understanding.total_questions,
+        "questions": [UnderstandingQuestion(**q).model_dump() for q in understanding.questions],
+        "answers": understanding.answers,
+        "brief": None,
+        "artifact_id": None,
+        "version": 0,
     }
+
+    # If session is completed, include the brief so frontend can resume at viewing_brief
+    if understanding.status == "completed" and understanding.project_id:
+        try:
+            brief_result = await service.get_brief(user.user_id, str(understanding.project_id))
+            response["brief"] = brief_result["brief"]
+            response["artifact_id"] = brief_result["artifact_id"]
+            response["version"] = brief_result["version"]
+        except HTTPException:
+            pass  # Brief may not exist yet
+
+    # Build answered_questions list for frontend hook hydration
+    answered = []
+    questions_list = understanding.questions or []
+    answers_dict = understanding.answers or {}
+    for q in questions_list:
+        q_id = q.get("id", "")
+        if q_id in answers_dict:
+            answered.append({
+                "question": UnderstandingQuestion(**q).model_dump(),
+                "answer": answers_dict[q_id],
+            })
+    response["answered_questions"] = answered
+
+    # Include current question for in-progress sessions
+    if understanding.status == "in_progress" and understanding.current_question_index < len(questions_list):
+        current_q = questions_list[understanding.current_question_index]
+        response["current_question"] = UnderstandingQuestion(**current_q).model_dump()
+    else:
+        response["current_question"] = None
+
+    return response

@@ -50,6 +50,7 @@ export default function ProjectUnderstandingPage() {
   const {
     state,
     startInterview,
+    resumeSession,
     submitAnswer,
     editAnswer,
     navigateBack,
@@ -75,31 +76,11 @@ export default function ProjectUnderstandingPage() {
   // onboarding session ID — from query param or auto-resolved from project
   const sessionIdFromUrl = searchParams.get("sessionId");
   const [resolvedSessionId, setResolvedSessionId] = useState<string | null>(sessionIdFromUrl);
-  const lookupDone = useRef(false);
-
-  // Auto-resolve onboarding session ID from project if not in URL
-  useEffect(() => {
-    if (sessionIdFromUrl || lookupDone.current || !projectId) return;
-    lookupDone.current = true;
-
-    async function lookupSession() {
-      try {
-        const res = await apiFetch(`/api/onboarding/by-project/${projectId}`, getToken);
-        if (res.ok) {
-          const data = await res.json();
-          setResolvedSessionId(data.id);
-        }
-      } catch {
-        // No onboarding session found for this project
-      }
-    }
-    lookupSession();
-  }, [sessionIdFromUrl, getToken, projectId]);
-
-  const onboardingSessionId = resolvedSessionId;
+  const initDone = useRef(false);
 
   // Local UI phase tracking
   const [uiPhase, setUiPhase] = useState<
+    | "loading"
     | "interview"
     | "gate_open"
     | "plan_selection"
@@ -107,7 +88,7 @@ export default function ProjectUnderstandingPage() {
     | "parked"
     | "generating"
     | "walkthrough"
-  >("interview");
+  >("loading");
 
   // Walkthrough steps — defined once, uses projectId
   const walkthroughSteps: WalkthroughStep[] = [
@@ -134,12 +115,104 @@ export default function ProjectUnderstandingPage() {
     },
   ];
 
+  // On mount: check project understanding state and route to correct phase
   useEffect(() => {
-    // Auto-start interview if onboarding session ID provided
-    if (onboardingSessionId && state.phase === "idle") {
-      startInterview(onboardingSessionId);
+    if (initDone.current || !projectId) return;
+    initDone.current = true;
+
+    async function initFromProjectState() {
+      try {
+        // 1. Fetch understanding status for this project
+        const statusRes = await apiFetch(
+          `/api/understanding/by-project/${projectId}`,
+          getToken,
+        );
+        if (!statusRes.ok) {
+          // Fallback: resolve onboarding session and start fresh
+          await fallbackStartInterview();
+          return;
+        }
+
+        const status = await statusRes.json();
+
+        // 2. Route based on project state (most advanced phase first)
+        if (status.has_execution_plan) {
+          // Plan already selected — show plan_selected or redirect to build
+          setUiPhase("plan_selected");
+          return;
+        }
+
+        if (status.gate_decision === "proceed" && !status.has_execution_plan) {
+          // Gate decided "proceed" but no plan yet — go to plan selection
+          setUiPhase("plan_selection");
+          generatePlans(projectId);
+          return;
+        }
+
+        if (status.gate_decision === "park") {
+          setUiPhase("parked");
+          return;
+        }
+
+        if (status.has_pending_gate) {
+          // Gate is open — show it
+          setUiPhase("gate_open");
+          await openGate(projectId);
+          return;
+        }
+
+        if (status.has_brief && status.session_id) {
+          // Brief exists — resume session (backend now returns brief data)
+          setUiPhase("interview");
+          await resumeSession(status.session_id);
+          return;
+        }
+
+        if (status.session_id && status.session_status === "in_progress") {
+          // Interview in progress — resume it
+          setUiPhase("interview");
+          await resumeSession(status.session_id);
+          return;
+        }
+
+        // No session exists — start fresh
+        await fallbackStartInterview();
+      } catch {
+        await fallbackStartInterview();
+      }
     }
-  }, [onboardingSessionId, state.phase, startInterview]);
+
+    async function fallbackStartInterview() {
+      // Resolve onboarding session ID and start interview
+      const onbSessionId = sessionIdFromUrl || await resolveOnboardingSession();
+      if (onbSessionId) {
+        setResolvedSessionId(onbSessionId);
+        setUiPhase("interview");
+        startInterview(onbSessionId);
+      } else {
+        setUiPhase("interview");
+      }
+    }
+
+    async function resolveOnboardingSession(): Promise<string | null> {
+      try {
+        const res = await apiFetch(
+          `/api/onboarding/by-project/${projectId}`,
+          getToken,
+        );
+        if (res.ok) {
+          const data = await res.json();
+          return data.id;
+        }
+      } catch {
+        // No onboarding session found
+      }
+      return null;
+    }
+
+    initFromProjectState();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]);
 
   const handleSubmitAnswer = async (answer: string) => {
     if (state.phase === "editing_answer" && state.currentQuestion) {
@@ -207,8 +280,19 @@ export default function ProjectUnderstandingPage() {
 
       {/* Phase-based rendering */}
       <div className="flex-1 flex items-center justify-center px-6 py-12">
+        {/* LOADING: Initial state check in progress */}
+        {uiPhase === "loading" && (
+          <div className="max-w-2xl w-full space-y-6">
+            <div className="space-y-4 animate-pulse">
+              <div className="h-8 bg-white/10 rounded w-3/4" />
+              <div className="h-6 bg-white/10 rounded w-1/2" />
+              <div className="h-24 bg-white/10 rounded" />
+            </div>
+          </div>
+        )}
+
         {/* IDLE without session: Guard — show message with link to onboarding */}
-        {state.phase === "idle" && !onboardingSessionId && (
+        {uiPhase !== "loading" && state.phase === "idle" && !resolvedSessionId && (
           <div className="max-w-2xl w-full text-center space-y-6">
             <h1 className="text-4xl font-display font-bold text-white">
               Understanding Interview
@@ -395,16 +479,23 @@ export default function ProjectUnderstandingPage() {
                 Execution Plan Selected
               </h2>
               <p className="text-muted-foreground">
-                Your execution path has been saved. You can now continue to your dashboard to
-                track progress.
+                Your execution path has been saved. Continue to the build phase to start building.
               </p>
             </div>
-            <button
-              onClick={() => router.push("/dashboard")}
-              className="px-6 py-3 bg-brand hover:bg-brand/90 text-white font-semibold rounded-xl transition-colors shadow-glow"
-            >
-              Continue to Dashboard
-            </button>
+            <div className="flex items-center justify-center gap-4">
+              <button
+                onClick={() => router.push(`/projects/${projectId}/build`)}
+                className="px-6 py-3 bg-brand hover:bg-brand/90 text-white font-semibold rounded-xl transition-colors shadow-glow"
+              >
+                Continue to Build
+              </button>
+              <button
+                onClick={() => router.push(`/projects/${projectId}`)}
+                className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-medium rounded-xl transition-colors"
+              >
+                Project Overview
+              </button>
+            </div>
           </div>
         )}
 
