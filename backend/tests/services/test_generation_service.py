@@ -456,6 +456,4 @@ def test_coder_prompt_requires_package_json():
     from app.agent.nodes.coder import CODER_SYSTEM_PROMPT
 
     prompt_lower = CODER_SYSTEM_PROMPT.lower()
-    assert "package.json" in prompt_lower, (
-        "Coder prompt must mention package.json to ensure web projects include it"
-    )
+    assert "package.json" in prompt_lower, "Coder prompt must mention package.json to ensure web projects include it"

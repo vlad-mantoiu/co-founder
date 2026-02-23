@@ -640,17 +640,11 @@ def _validate_working_files(working_files: dict) -> None:
     Raises:
         SandboxError: If required scaffolding files are missing.
     """
-    has_js_ts = any(
-        any(path.endswith(ext) for ext in _JS_TS_EXTENSIONS)
-        for path in working_files
-    )
+    has_js_ts = any(any(path.endswith(ext) for ext in _JS_TS_EXTENSIONS) for path in working_files)
     if not has_js_ts:
         return
 
-    has_package_json = any(
-        path == "package.json" or path.endswith("/package.json")
-        for path in working_files
-    )
+    has_package_json = any(path == "package.json" or path.endswith("/package.json") for path in working_files)
     if not has_package_json:
         raise SandboxError(
             "LLM did not generate package.json but produced JS/TS files. "
