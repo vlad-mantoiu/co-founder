@@ -5,6 +5,7 @@ TDD coverage:
 - test_execute_build_failure_sets_failed: runner failure → FAILED transition + debug_id on exception
 - test_get_next_build_version_first_build: no prior builds → "build_v0_1"
 - test_get_next_build_version_increment: prior "build_v0_2" → "build_v0_3"
+- test_execute_build_missing_package_json_raises: JS/TS working_files without package.json → clear error
 """
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -309,3 +310,152 @@ def test_detect_framework_fallback_scripts_start():
     cmd, port = E2BSandboxRuntime._detect_framework('{"scripts": {"start": "node index.js"}}')
     assert cmd == "npm start"
     assert port == 3000
+
+
+# ---------------------------------------------------------------------------
+# Test: missing package.json validation (root cause fix)
+# ---------------------------------------------------------------------------
+
+
+class _RunnerReturningFiles:
+    """Test runner that returns a fixed set of working_files."""
+
+    def __init__(self, working_files: dict):
+        self._working_files = working_files
+
+    async def run(self, state):
+        return {**state, "working_files": self._working_files, "is_complete": True, "retry_count": 0}
+
+
+async def test_execute_build_missing_package_json_raises():
+    """When runner produces JS/TS files but no package.json, build fails with actionable error."""
+    from app.agent.state import FileChange
+    from app.core.exceptions import SandboxError
+
+    job_id = "test-job-no-pkg-001"
+    state_machine, redis = await _make_state_machine()
+    job_data = await _create_queued_job(state_machine, job_id)
+
+    # Runner produces .tsx files but no package.json
+    working_files = {
+        "src/App.tsx": FileChange(
+            path="src/App.tsx",
+            original_content=None,
+            new_content="export default function App() { return <div>Hello</div>; }",
+            change_type="create",
+        ),
+        "src/index.ts": FileChange(
+            path="src/index.ts",
+            original_content=None,
+            new_content="import App from './App';",
+            change_type="create",
+        ),
+    }
+
+    runner = _RunnerReturningFiles(working_files)
+    fake_sandbox = FakeSandboxRuntime()
+    service = GenerationService(
+        runner=runner,
+        sandbox_runtime_factory=lambda: fake_sandbox,
+    )
+    service._get_next_build_version = AsyncMock(return_value="build_v0_1")
+
+    with pytest.raises(SandboxError, match="package.json"):
+        await service.execute_build(job_id, job_data, state_machine, redis=redis)
+
+
+async def test_execute_build_with_package_json_passes_validation():
+    """When runner produces JS/TS files WITH package.json, build proceeds normally."""
+    from app.agent.state import FileChange
+
+    job_id = "test-job-with-pkg-001"
+    state_machine, redis = await _make_state_machine()
+    job_data = await _create_queued_job(state_machine, job_id)
+
+    # Runner produces .tsx files AND package.json
+    working_files = {
+        "package.json": FileChange(
+            path="package.json",
+            original_content=None,
+            new_content='{"name": "test", "dependencies": {"react": "^18.0.0"}}',
+            change_type="create",
+        ),
+        "src/App.tsx": FileChange(
+            path="src/App.tsx",
+            original_content=None,
+            new_content="export default function App() { return <div>Hello</div>; }",
+            change_type="create",
+        ),
+    }
+
+    runner = _RunnerReturningFiles(working_files)
+    fake_sandbox = FakeSandboxRuntime()
+    service = GenerationService(
+        runner=runner,
+        sandbox_runtime_factory=lambda: fake_sandbox,
+    )
+    service._get_next_build_version = AsyncMock(return_value="build_v0_1")
+
+    result = await service.execute_build(job_id, job_data, state_machine, redis=redis)
+    assert result["sandbox_id"] == "fake-sandbox-001"
+    assert result["preview_url"] is not None
+
+
+async def test_execute_build_python_only_skips_package_json_check():
+    """When runner produces only Python files, package.json check is skipped."""
+    from app.agent.state import FileChange
+
+    job_id = "test-job-python-001"
+    state_machine, redis = await _make_state_machine()
+    job_data = await _create_queued_job(state_machine, job_id)
+
+    # Runner produces only Python files — no package.json needed
+    working_files = {
+        "main.py": FileChange(
+            path="main.py",
+            original_content=None,
+            new_content="print('hello')",
+            change_type="create",
+        ),
+    }
+
+    runner = _RunnerReturningFiles(working_files)
+    fake_sandbox = FakeSandboxRuntime()
+    service = GenerationService(
+        runner=runner,
+        sandbox_runtime_factory=lambda: fake_sandbox,
+    )
+    service._get_next_build_version = AsyncMock(return_value="build_v0_1")
+
+    result = await service.execute_build(job_id, job_data, state_machine, redis=redis)
+    assert result["sandbox_id"] == "fake-sandbox-001"
+
+
+# ---------------------------------------------------------------------------
+# Test: architect prompt requires package.json scaffolding
+# ---------------------------------------------------------------------------
+
+
+def test_architect_prompt_requires_package_json():
+    """Architect system prompt must instruct LLM to include package.json in step 0."""
+    from app.agent.nodes.architect import ARCHITECT_SYSTEM_PROMPT
+
+    prompt_lower = ARCHITECT_SYSTEM_PROMPT.lower()
+    assert "package.json" in prompt_lower, (
+        "Architect prompt must mention package.json to ensure scaffolding step includes it"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Test: coder prompt requires package.json for web projects
+# ---------------------------------------------------------------------------
+
+
+def test_coder_prompt_requires_package_json():
+    """Coder system prompt must instruct LLM to always generate package.json for web projects."""
+    from app.agent.nodes.coder import CODER_SYSTEM_PROMPT
+
+    prompt_lower = CODER_SYSTEM_PROMPT.lower()
+    assert "package.json" in prompt_lower, (
+        "Coder prompt must mention package.json to ensure web projects include it"
+    )

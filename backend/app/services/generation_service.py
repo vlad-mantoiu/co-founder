@@ -14,6 +14,7 @@ from sqlalchemy import select
 
 from app.agent.runner import Runner
 from app.agent.state import create_initial_state
+from app.core.exceptions import SandboxError
 from app.db.base import get_session_factory
 from app.db.redis import get_redis
 from app.metrics.cloudwatch import emit_business_event
@@ -110,6 +111,10 @@ class GenerationService:
             if retry_count > 0:
                 await streamer.write_event(f"--- Auto-fixing (attempt {retry_count} of {max_retries}) ---")
 
+            # Validate working_files before provisioning sandbox (fail fast)
+            working_files: dict = final_state.get("working_files", {})
+            _validate_working_files(working_files)
+
             # 4. DEPS — create E2B sandbox, write generated files
             await state_machine.transition(
                 job_id, JobStatus.DEPS, "Provisioning E2B sandbox and installing dependencies"
@@ -121,9 +126,6 @@ class GenerationService:
 
             # Extend sandbox lifetime so it survives the full build cycle
             await sandbox.set_timeout(3600)
-
-            # Write all generated files into sandbox
-            working_files: dict = final_state.get("working_files", {})
             workspace_path = "/home/user/project"
             for rel_path, file_change in working_files.items():
                 # FileChange is a TypedDict — content is in the 'new_content' key
@@ -307,6 +309,10 @@ class GenerationService:
             if retry_count > 0:
                 await streamer.write_event(f"--- Auto-fixing (attempt {retry_count} of {max_retries}) ---")
 
+            # Validate working_files before writing to sandbox (fail fast)
+            working_files: dict = final_state.get("working_files", {})
+            _validate_working_files(working_files)
+
             # 4. DEPS — write changed files to sandbox (patch mode for reconnected, full for fresh)
             await state_machine.transition(
                 job_id,
@@ -315,8 +321,6 @@ class GenerationService:
             )
             streamer._phase = "install"
             await streamer.write_event("--- Writing patched files to sandbox ---")
-
-            working_files: dict = final_state.get("working_files", {})
             workspace_path = "/home/user/project"
             for rel_path, file_change in working_files.items():
                 content = file_change.get("new_content", "") if isinstance(file_change, dict) else str(file_change)
@@ -622,6 +626,37 @@ class GenerationService:
             )
             session.add(iteration_event)
             await session.commit()
+
+
+_JS_TS_EXTENSIONS = {".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs"}
+
+
+def _validate_working_files(working_files: dict) -> None:
+    """Validate that working_files contain required scaffolding files.
+
+    For JS/TS projects: package.json must be present when any .js/.jsx/.ts/.tsx
+    file exists in working_files.  Without it, npm install will ENOENT.
+
+    Raises:
+        SandboxError: If required scaffolding files are missing.
+    """
+    has_js_ts = any(
+        any(path.endswith(ext) for ext in _JS_TS_EXTENSIONS)
+        for path in working_files
+    )
+    if not has_js_ts:
+        return
+
+    has_package_json = any(
+        path == "package.json" or path.endswith("/package.json")
+        for path in working_files
+    )
+    if not has_package_json:
+        raise SandboxError(
+            "LLM did not generate package.json but produced JS/TS files. "
+            "The build cannot proceed without package.json for dependency installation. "
+            "Try again — the AI should scaffold the project correctly on retry."
+        )
 
 
 class _NullStreamer:

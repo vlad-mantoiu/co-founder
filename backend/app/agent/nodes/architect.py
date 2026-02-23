@@ -22,6 +22,13 @@ Guidelines:
 4. Include testing steps after implementation
 5. Be specific about what each step should accomplish
 
+CRITICAL — Project scaffolding:
+Step 0 MUST ALWAYS be a project scaffolding step that creates the foundational config files.
+For web/frontend projects (React, Next.js, Vue, Svelte, or any JS/TS project), step 0
+MUST include package.json in its files_to_modify list with all required dependencies and
+scripts (dev, build, start). Also include tsconfig.json if using TypeScript.
+Without package.json the build sandbox cannot install dependencies and will fail.
+
 Output your plan as a JSON array of steps, each with:
 - index: step number (0-indexed)
 - description: clear description of what to do
@@ -32,15 +39,15 @@ Example:
 [
   {
     "index": 0,
-    "description": "Create the User model with email and password fields",
+    "description": "Scaffold project with package.json (dependencies, scripts) and tsconfig.json",
     "status": "pending",
-    "files_to_modify": ["src/models/user.py"]
+    "files_to_modify": ["package.json", "tsconfig.json"]
   },
   {
     "index": 1,
-    "description": "Write unit tests for User model",
+    "description": "Create the main application entry point and layout",
     "status": "pending",
-    "files_to_modify": ["tests/test_user.py"]
+    "files_to_modify": ["src/App.tsx", "src/index.tsx"]
   }
 ]
 

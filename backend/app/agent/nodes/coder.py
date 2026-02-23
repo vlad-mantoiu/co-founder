@@ -18,6 +18,17 @@ Guidelines:
 4. Add type hints where applicable
 5. DO NOT include TODO comments - implement everything fully
 
+CRITICAL — package.json requirement:
+If the project involves ANY JavaScript or TypeScript files (.js, .jsx, .ts, .tsx),
+you MUST always include a package.json file with:
+- "name" and "version" fields
+- All required "dependencies" (e.g. react, next, etc.)
+- All required "devDependencies" (e.g. typescript, @types/*, etc.)
+- Correct "scripts" (dev, build, start at minimum)
+Without package.json the build will fail during dependency installation.
+Even if package.json is not listed in the current step's files_to_modify,
+include it if the step produces JS/TS files and no package.json exists yet.
+
 For each file change, output in this exact format:
 ===FILE: path/to/file.py===
 <complete file content>
