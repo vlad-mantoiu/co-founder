@@ -206,9 +206,12 @@ class ExecutionPlanService:
                     detail=f"Option '{option_id}' not found in current plan set",
                 )
 
-            # Store selection in artifact
-            plan_artifact.current_content["selected_option_id"] = option_id
-            plan_artifact.current_content["selected_at"] = datetime.now(UTC).isoformat()
+            # Store selection in artifact — reassign dict to trigger SQLAlchemy
+            # JSONB mutation detection (in-place dict mutation is not tracked)
+            updated_content = {**plan_artifact.current_content}
+            updated_content["selected_option_id"] = option_id
+            updated_content["selected_at"] = datetime.now(UTC).isoformat()
+            plan_artifact.current_content = updated_content
             plan_artifact.updated_at = datetime.now(UTC)
             await session.commit()
 
