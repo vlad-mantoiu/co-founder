@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 34 of 39 (ScreenshotService)
-Plan: 01 complete
+Plan: 02 complete
 Status: In progress
-Last activity: 2026-02-24 — Phase 34 Plan 01 complete: ScreenshotService TDD — capture, validate, upload, persist
+Last activity: 2026-02-24 — Phase 34 Plan 02 complete: Playwright Chromium headless-shell + Pillow in Docker image
 
 Progress: [█░░░░░░░░░] ~4% (v0.6 in progress — 3 plans shipped)
 
@@ -62,6 +62,12 @@ Key v0.6 decisions (from Phase 33 Plan 01):
 - Optional props (screenshotsBucket?, screenshotsCloudFrontDomain?) on ComputeStackProps — safe deploy before ScreenshotsStack exists
 - grantPut(taskRole) only (not grantReadWrite) — least privilege; CloudFront + OAC handles reads
 
+Key v0.6 decisions (from Phase 34 Plan 02):
+- Pillow declared explicitly in pyproject.toml — not relying on weasyprint transitive dependency for version pinning
+- playwright install runs in production Docker stage only (not builder) — browser binaries are filesystem blobs, not Python packages
+- --only-shell flag used for playwright install — headless-shell sufficient for screenshot capture, saves ~200MB vs full Chrome for Testing
+- chmod -R 755 /ms-playwright placed before USER appuser — must run as root to set permissions before privilege drop
+
 Key v0.6 decisions (from Phase 33 Plan 02):
 - Feature flags default True — screenshot_enabled and docs_generation_enabled on by default; empty bucket/domain strings are safe no-ops until CDK deploys
 - docs_ready computed via hkeys check on job:{job_id}:docs hash — avoids dedicated boolean field in main job hash
@@ -87,8 +93,8 @@ None blocking Phase 34 Plan 02.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 34-01-PLAN.md — ScreenshotService TDD implementation
-Resume: `/gsd:execute-phase 34` (continue with plan 02)
+Stopped at: Completed 34-02-PLAN.md — Playwright Chromium headless-shell + Pillow in Docker
+Resume: `/gsd:execute-phase 34` (continue with plan 03)
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
