@@ -68,8 +68,8 @@ None blocking Phase 40.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: v0.7 roadmap created — 7 phases (40-46), 24/24 requirements mapped
-Resume: Run `/gsd:plan-phase 40` to begin LangGraph removal planning
+Stopped at: v0.7 milestone fully initialized — research complete, requirements defined, roadmap approved (7 phases, 24/24 requirements)
+Resume: `/gsd:discuss-phase 40` to capture context for LangGraph Removal + Protocol Extension
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
