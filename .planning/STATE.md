@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 ## Current Position
 
 Phase: 40 of 46 (LangGraph Removal + Protocol Extension)
-Plan: — (not yet planned)
-Status: Ready to plan
-Last activity: 2026-02-24 — v0.7 roadmap created (7 phases, 24/24 requirements mapped)
+Plan: 1 of 4 complete
+Status: In progress
+Last activity: 2026-02-24 — Plan 40-01 complete: Runner protocol extended with run_agent_loop, AutonomousRunner stub created
 
-Progress: [░░░░░░░░░░] 0% (v0.7 starting)
+Progress: [█░░░░░░░░░] 4% (v0.7: 1/24 plans done)
 
 ## Performance Metrics
 
@@ -47,6 +47,8 @@ Progress: [░░░░░░░░░░] 0% (v0.7 starting)
 - Per-error-signature retry state in PostgreSQL: `{project_id}:{error_type}:{error_hash}` — not global counter
 - E2B file sync to S3 after each phase commit — mitigates E2B Issue #884 (file loss on multi-resume)
 - NarrationService + DocGenerationService deleted only after AGNT-04/AGNT-05 deliver native replacements (Phase 44)
+- [40-01] AutonomousRunner raises NotImplementedError for all 14 Runner methods — Phase 41 replaces stubs with TAOR
+- [40-01] RunnerReal.run_agent_loop() also NotImplementedError — restores protocol compliance until Phase 41
 
 ### Key Research Flags (check before planning)
 
@@ -68,8 +70,8 @@ None blocking Phase 40.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: v0.7 milestone fully initialized — research complete, requirements defined, roadmap approved (7 phases, 24/24 requirements)
-Resume: `/gsd:discuss-phase 40` to capture context for LangGraph Removal + Protocol Extension
+Stopped at: Phase 40 Plan 01 complete — Runner protocol extended with run_agent_loop, AutonomousRunner stub created (40 tests green)
+Resume: `/gsd:execute-phase 40` to continue with Plan 40-02
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
