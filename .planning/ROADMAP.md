@@ -254,7 +254,12 @@
   2. The full pytest suite passes after removal — no test references LangGraph-specific state, no endpoint imports from deleted modules
   3. `AUTONOMOUS_AGENT=false` starts the server using the existing RunnerReal behavior; `AUTONOMOUS_AGENT=true` routes to AutonomousRunner (stub returning NotImplemented) without import errors
   4. `runner.run_agent_loop()` is defined in the Runner abstract protocol and `RunnerFake.run_agent_loop()` returns a deterministic stub response — TDD is possible before AutonomousRunner exists
-**Plans**: TBD
+**Plans:** 4 plans
+Plans:
+- [ ] 40-01-PLAN.md — TDD: Runner protocol extension + RunnerFake + AutonomousRunner stub (MIGR-03)
+- [ ] 40-02-PLAN.md — Standalone service extraction: NarrationService + DocGenerationService (MIGR-01)
+- [ ] 40-03-PLAN.md — LangGraph atomic removal: delete nodes/graph, rewrite RunnerReal + llm_config (MIGR-01)
+- [ ] 40-04-PLAN.md — Feature flag routing + frontend 501 banner (MIGR-02)
 
 ### Phase 41: Autonomous Runner Core (TAOR Loop)
 **Goal**: The AutonomousRunner executes the TAOR (Think-Act-Observe-Repeat) loop using the Anthropic tool-use API, consumes the Understanding Interview QnA and Idea Brief as input context, streams text deltas to the existing SSE channel, and has all loop safety guards in place from day one.
@@ -371,7 +376,7 @@
 | 37. Frontend Hooks | v0.6 | — | Abandoned | - |
 | 38. Panel Components | v0.6 | — | Abandoned | - |
 | 39. BuildPage Refactor & Completion State | v0.6 | — | Abandoned | - |
-| 40. LangGraph Removal + Protocol Extension | v0.7 | 0/TBD | Not started | - |
+| 40. LangGraph Removal + Protocol Extension | v0.7 | 0/4 | Planned | - |
 | 41. Autonomous Runner Core (TAOR Loop) | v0.7 | 0/TBD | Not started | - |
 | 42. E2B Tool Dispatcher | v0.7 | 0/TBD | Not started | - |
 | 43. Token Budget + Sleep/Wake Daemon | v0.7 | 0/TBD | Not started | - |
