@@ -127,6 +127,10 @@ Previous context:
         "git_branch": branch_name,
         "current_node": "architect",
         "status_message": f"Plan created with {len(plan)} steps",
+        # Initialize error-tracking fields so downstream nodes never see stale values
+        # from a previous run (matches the pattern used in reviewer_node on approval).
+        "active_errors": [],
+        "retry_count": 0,
         "messages": [
             {
                 "role": "assistant",

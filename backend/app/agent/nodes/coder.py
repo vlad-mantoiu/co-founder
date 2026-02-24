@@ -74,8 +74,43 @@ Existing working files:
     response = await llm.ainvoke(messages)
 
     # Parse file changes from response
-    working_files = dict(state["working_files"])
     new_files = _parse_file_changes(response.content)
+
+    # Guard: if the LLM returned no parseable ===FILE:=== blocks this is a
+    # silent failure — the coder produced no code.  Treat it as an error so
+    # the debugger can retry rather than letting an empty diff proceed to the
+    # executor and silently "pass".
+    if not new_files:
+        return {
+            "current_node": "coder",
+            "status_message": f"Coder produced no files for step {current_step['index'] + 1}",
+            "active_errors": [
+                {
+                    "step_index": state["current_step_index"],
+                    "error_type": "no_files_generated",
+                    "message": (
+                        "LLM response contained no ===FILE:=== blocks. "
+                        "The coder must output at least one file using the "
+                        "===FILE: path===...===END FILE=== format."
+                    ),
+                    "stdout": "",
+                    "stderr": response.content[:500],
+                    "file_path": None,
+                }
+            ],
+            "messages": [
+                {
+                    "role": "assistant",
+                    "content": (
+                        f"Coder returned no parseable files for: {current_step['description']}. "
+                        "Will retry."
+                    ),
+                    "node": "coder",
+                }
+            ],
+        }
+
+    working_files = dict(state["working_files"])
     working_files.update(new_files)
 
     # Mark current step as in progress

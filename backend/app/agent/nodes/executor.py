@@ -61,6 +61,13 @@ async def executor_node(state: CoFounderState) -> dict:
                     "status_message": f"Failed to write {len(errors)} files",
                     "last_tool_output": f"File write errors: {errors}",
                     "last_command_exit_code": 1,
+                    "messages": [
+                        {
+                            "role": "assistant",
+                            "content": f"Executor: failed to write {len(errors)} file(s) to sandbox.",
+                            "node": "executor",
+                        }
+                    ],
                 }
 
             # Install dependencies if needed
@@ -101,6 +108,13 @@ async def executor_node(state: CoFounderState) -> dict:
             "status_message": f"Sandbox error: {e}",
             "last_tool_output": str(e),
             "last_command_exit_code": 1,
+            "messages": [
+                {
+                    "role": "assistant",
+                    "content": f"Executor: sandbox error — {e}",
+                    "node": "executor",
+                }
+            ],
         }
 
 
@@ -254,6 +268,13 @@ async def _execute_locally(state: CoFounderState) -> dict:
             "status_message": f"Failed to write {len(errors)} files",
             "last_tool_output": f"File write errors: {errors}",
             "last_command_exit_code": 1,
+            "messages": [
+                {
+                    "role": "assistant",
+                    "content": f"Executor: failed to write {len(errors)} file(s) locally.",
+                    "node": "executor",
+                }
+            ],
         }
 
     # Run basic validation
@@ -286,6 +307,13 @@ async def _execute_locally(state: CoFounderState) -> dict:
                 "status_message": "Unsafe file path detected",
                 "last_tool_output": f"Path validation errors: {errors}",
                 "last_command_exit_code": 1,
+                "messages": [
+                    {
+                        "role": "assistant",
+                        "content": f"Executor: unsafe file path(s) detected — {len(errors)} error(s).",
+                        "node": "executor",
+                    }
+                ],
             }
         cmd = ["python", "-m", "py_compile"] + py_files
     else:
@@ -340,6 +368,13 @@ async def _execute_locally(state: CoFounderState) -> dict:
                     "stdout": "",
                     "stderr": str(e),
                     "file_path": None,
+                }
+            ],
+            "messages": [
+                {
+                    "role": "assistant",
+                    "content": f"Executor: local execution failed — {e}",
+                    "node": "executor",
                 }
             ],
         }
