@@ -1,11 +1,11 @@
-"""Tests for AutonomousRunner stub — verifies NotImplementedError behavior and protocol compliance.
+"""Tests for AutonomousRunner — verifies NotImplementedError on stub methods and protocol compliance.
 
 These tests confirm that AutonomousRunner:
 1. Satisfies the Runner protocol (isinstance check passes)
-2. Raises NotImplementedError for every protocol method
-3. Raises NotImplementedError for run_agent_loop (Phase 40 extension)
+2. Raises NotImplementedError for every pre-existing pipeline method (run, step, generate_*, etc.)
+3. run_agent_loop() is now implemented (Phase 41) — tested separately in test_taor_loop.py
 
-Phase 41 will replace these stubs with real implementations.
+Note: run_agent_loop() NotImplementedError tests removed in Phase 41 when the method was implemented.
 """
 
 import inspect
@@ -17,6 +17,9 @@ from app.agent.runner_autonomous import AutonomousRunner
 from app.agent.state import CoFounderState, create_initial_state
 
 pytestmark = pytest.mark.unit
+
+# Methods implemented in Phase 41 — not expected to raise NotImplementedError
+_IMPLEMENTED_METHODS = {"run_agent_loop"}
 
 
 def _minimal_state() -> CoFounderState:
@@ -31,24 +34,12 @@ def _minimal_state() -> CoFounderState:
 
 @pytest.mark.asyncio
 async def test_autonomous_runner_run_raises_not_implemented():
-    """AutonomousRunner.run() raises NotImplementedError — Phase 41 will implement this."""
+    """AutonomousRunner.run() raises NotImplementedError — pipeline method, not yet implemented."""
     runner = AutonomousRunner()
     state = _minimal_state()
 
     with pytest.raises(NotImplementedError) as exc_info:
         await runner.run(state)
-
-    assert "AutonomousRunner" in str(exc_info.value) or "not yet implemented" in str(exc_info.value).lower()
-
-
-@pytest.mark.asyncio
-async def test_autonomous_runner_run_agent_loop_raises_not_implemented():
-    """AutonomousRunner.run_agent_loop() raises NotImplementedError — Phase 40 extension stub."""
-    runner = AutonomousRunner()
-    context: dict = {"project_id": "test-123", "user_id": "user-1"}
-
-    with pytest.raises(NotImplementedError) as exc_info:
-        await runner.run_agent_loop(context)
 
     assert "AutonomousRunner" in str(exc_info.value) or "not yet implemented" in str(exc_info.value).lower()
 
@@ -60,8 +51,11 @@ def test_autonomous_runner_satisfies_protocol():
 
 
 @pytest.mark.asyncio
-async def test_autonomous_runner_all_methods_raise_not_implemented():
-    """Every Runner protocol method raises NotImplementedError when called on AutonomousRunner."""
+async def test_autonomous_runner_pipeline_methods_raise_not_implemented():
+    """All pre-existing pipeline protocol methods raise NotImplementedError.
+
+    run_agent_loop() is excluded — it was implemented in Phase 41 (see test_taor_loop.py).
+    """
     runner = AutonomousRunner()
     state = _minimal_state()
 
@@ -75,8 +69,11 @@ async def test_autonomous_runner_all_methods_raise_not_implemented():
     # Must have at least 13 methods (original 13 + run_agent_loop)
     assert len(protocol_methods) >= 14, f"Expected 14+ protocol methods, got {len(protocol_methods)}: {protocol_methods}"
 
-    # Every method must raise NotImplementedError
+    # Every stub method (excluding implemented ones) must raise NotImplementedError
     for method_name in protocol_methods:
+        if method_name in _IMPLEMENTED_METHODS:
+            continue  # Implemented in Phase 41 — tested in test_taor_loop.py
+
         method = getattr(runner, method_name, None)
         assert method is not None, f"AutonomousRunner missing method: {method_name}"
         assert callable(method), f"AutonomousRunner.{method_name} is not callable"
@@ -108,8 +105,6 @@ async def test_autonomous_runner_all_methods_raise_not_implemented():
             coro = method("idea", {}, "bootstrapper")
         elif method_name == "generate_app_architecture":
             coro = method("idea", {}, "bootstrapper")
-        elif method_name == "run_agent_loop":
-            coro = method({})
         else:
             # Unknown method — skip to avoid false failures on protocol extensions
             continue

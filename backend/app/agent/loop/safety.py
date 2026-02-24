@@ -38,6 +38,8 @@ class IterationGuard:
         self._count = 0
         # Sliding window of at most 10 fingerprints (oldest auto-evicted)
         self._window: collections.deque[str] = collections.deque(maxlen=10)
+        # Two-strike repetition flag: first RepetitionError steers; second terminates
+        self._had_repetition_warning: bool = False
 
     # ------------------------------------------------------------------
     # Iteration cap
