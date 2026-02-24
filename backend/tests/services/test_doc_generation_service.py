@@ -25,6 +25,7 @@ TDD coverage:
 - _call_claude_with_retry(): raises on second consecutive failure
 - _parse_sections(): extracts valid string sections, skips non-string values
 - _build_prompt(): returns system prompt string + messages list
+- test_doc_generation_service_standalone_mode: DocGenerationService() with no emitter returns sections via generate_sections()
 """
 
 import asyncio
@@ -61,6 +62,31 @@ class TestConstants:
 
     def test_max_tokens_is_1500(self) -> None:
         assert DOC_GEN_MAX_TOKENS == 1500
+
+
+# ---------------------------------------------------------------------------
+# Constructor — standalone mode
+# ---------------------------------------------------------------------------
+
+
+class TestDocGenerationServiceConstructor:
+    """DocGenerationService() instantiates without JobStateMachine dependency."""
+
+    def test_instantiates_with_no_args(self) -> None:
+        """DocGenerationService() with no args should succeed (standalone mode)."""
+        service = DocGenerationService()
+        assert service is not None
+
+    def test_event_emitter_defaults_to_none(self) -> None:
+        """Default event_emitter is None for standalone operation."""
+        service = DocGenerationService()
+        assert service._event_emitter is None
+
+    def test_instantiates_with_optional_emitter(self) -> None:
+        """DocGenerationService(emitter) wires up event emitter for SSE mode."""
+        mock_emitter = MagicMock()
+        service = DocGenerationService(event_emitter=mock_emitter)
+        assert service._event_emitter is mock_emitter
 
 
 # ---------------------------------------------------------------------------
@@ -521,7 +547,7 @@ class TestGenerateHappyPath:
             patch("app.services.doc_generation_service.get_settings") as mock_settings,
             patch.object(service, "_call_claude_with_retry", new_callable=AsyncMock) as mock_call,
             patch.object(service, "_parse_sections") as mock_parse,
-            patch("app.services.doc_generation_service.JobStateMachine") as mock_sm_cls,
+            patch("app.queue.state_machine.JobStateMachine") as mock_sm_cls,
         ):
             mock_settings.return_value.docs_generation_enabled = True
             mock_call.return_value = all_sections
@@ -553,7 +579,7 @@ class TestGenerateHappyPath:
             patch("app.services.doc_generation_service.get_settings") as mock_settings,
             patch.object(service, "_call_claude_with_retry", new_callable=AsyncMock) as mock_call,
             patch.object(service, "_parse_sections") as mock_parse,
-            patch("app.services.doc_generation_service.JobStateMachine") as mock_sm_cls,
+            patch("app.queue.state_machine.JobStateMachine") as mock_sm_cls,
         ):
             mock_settings.return_value.docs_generation_enabled = True
             mock_call.return_value = all_sections
@@ -583,7 +609,7 @@ class TestGenerateHappyPath:
             patch("app.services.doc_generation_service.get_settings") as mock_settings,
             patch.object(service, "_call_claude_with_retry", new_callable=AsyncMock) as mock_call,
             patch.object(service, "_parse_sections") as mock_parse,
-            patch("app.services.doc_generation_service.JobStateMachine") as mock_sm_cls,
+            patch("app.queue.state_machine.JobStateMachine") as mock_sm_cls,
         ):
             mock_settings.return_value.docs_generation_enabled = True
             mock_call.return_value = all_sections
@@ -626,7 +652,7 @@ class TestGenerateHappyPath:
             patch("app.services.doc_generation_service.get_settings") as mock_settings,
             patch.object(service, "_call_claude_with_retry", new_callable=AsyncMock) as mock_call,
             patch.object(service, "_parse_sections") as mock_parse,
-            patch("app.services.doc_generation_service.JobStateMachine") as mock_sm_cls,
+            patch("app.queue.state_machine.JobStateMachine") as mock_sm_cls,
         ):
             mock_settings.return_value.docs_generation_enabled = True
             mock_call.return_value = all_sections
@@ -654,7 +680,7 @@ class TestGenerateHappyPath:
             patch("app.services.doc_generation_service.get_settings") as mock_settings,
             patch.object(service, "_call_claude_with_retry", new_callable=AsyncMock) as mock_call,
             patch.object(service, "_parse_sections") as mock_parse,
-            patch("app.services.doc_generation_service.JobStateMachine") as mock_sm_cls,
+            patch("app.queue.state_machine.JobStateMachine") as mock_sm_cls,
         ):
             mock_settings.return_value.docs_generation_enabled = True
             mock_call.return_value = sections_with_tech
@@ -682,7 +708,7 @@ class TestGenerateHappyPath:
             patch("app.services.doc_generation_service.get_settings") as mock_settings,
             patch.object(service, "_call_claude_with_retry", new_callable=AsyncMock) as mock_call,
             patch.object(service, "_parse_sections") as mock_parse,
-            patch("app.services.doc_generation_service.JobStateMachine") as mock_sm_cls,
+            patch("app.queue.state_machine.JobStateMachine") as mock_sm_cls,
         ):
             mock_settings.return_value.docs_generation_enabled = True
             mock_call.return_value = all_sections
@@ -715,7 +741,7 @@ class TestGeneratePartialSuccess:
             patch("app.services.doc_generation_service.get_settings") as mock_settings,
             patch.object(service, "_call_claude_with_retry", new_callable=AsyncMock) as mock_call,
             patch.object(service, "_parse_sections") as mock_parse,
-            patch("app.services.doc_generation_service.JobStateMachine") as mock_sm_cls,
+            patch("app.queue.state_machine.JobStateMachine") as mock_sm_cls,
         ):
             mock_settings.return_value.docs_generation_enabled = True
             mock_call.return_value = partial_sections
@@ -739,7 +765,7 @@ class TestGeneratePartialSuccess:
             patch("app.services.doc_generation_service.get_settings") as mock_settings,
             patch.object(service, "_call_claude_with_retry", new_callable=AsyncMock) as mock_call,
             patch.object(service, "_parse_sections") as mock_parse,
-            patch("app.services.doc_generation_service.JobStateMachine") as mock_sm_cls,
+            patch("app.queue.state_machine.JobStateMachine") as mock_sm_cls,
         ):
             mock_settings.return_value.docs_generation_enabled = True
             mock_call.return_value = {}
@@ -866,7 +892,7 @@ class TestGenerateNeverRaises:
             patch("app.services.doc_generation_service.get_settings") as mock_settings,
             patch.object(service, "_call_claude_with_retry", new_callable=AsyncMock) as mock_call,
             patch.object(service, "_parse_sections") as mock_parse,
-            patch("app.services.doc_generation_service.JobStateMachine") as mock_sm_cls,
+            patch("app.queue.state_machine.JobStateMachine") as mock_sm_cls,
         ):
             mock_settings.return_value.docs_generation_enabled = True
             mock_call.return_value = all_sections
@@ -891,3 +917,117 @@ class TestGenerateNeverRaises:
             result = await service.generate("job-1", "spec", mock_redis)
             assert result is None
             mock_call.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Standalone mode — generate_sections()
+# ---------------------------------------------------------------------------
+
+
+class TestDocGenerationServiceStandaloneMode:
+    """DocGenerationService operates as standalone utility without Redis/SSE infrastructure."""
+
+    async def test_standalone_mode_returns_sections_dict(self) -> None:
+        """generate_sections() returns dict of section content without Redis/SSE."""
+        service = DocGenerationService()  # no event_emitter
+        expected_sections = {
+            "overview": "Welcome to your app!",
+            "features": "**Feature**: Description.",
+            "getting_started": "1. Sign up",
+            "faq": "### Q?\nAnswer.",
+        }
+
+        with (
+            patch.object(service, "_call_claude_with_retry", new_callable=AsyncMock) as mock_call,
+            patch.object(service, "_parse_sections") as mock_parse,
+        ):
+            mock_call.return_value = expected_sections
+            mock_parse.return_value = expected_sections
+
+            result = await service.generate_sections(spec="Build a task manager")
+
+            assert isinstance(result, dict)
+            assert "overview" in result
+
+    async def test_standalone_mode_no_redis_calls(self) -> None:
+        """generate_sections() does not call Redis."""
+        service = DocGenerationService()
+        mock_redis = AsyncMock()  # Should NOT be called
+
+        with (
+            patch.object(service, "_call_claude_with_retry", new_callable=AsyncMock) as mock_call,
+            patch.object(service, "_parse_sections") as mock_parse,
+        ):
+            sections = {"overview": "Overview.", "features": "Features.", "getting_started": "Steps.", "faq": "Q&A."}
+            mock_call.return_value = sections
+            mock_parse.return_value = sections
+
+            await service.generate_sections(spec="spec")
+
+            # No Redis calls in standalone mode
+            mock_redis.hset.assert_not_called()
+
+    async def test_standalone_mode_no_sse_calls(self) -> None:
+        """generate_sections() does not call JobStateMachine or publish_event."""
+        service = DocGenerationService()
+
+        with (
+            patch.object(service, "_call_claude_with_retry", new_callable=AsyncMock) as mock_call,
+            patch.object(service, "_parse_sections") as mock_parse,
+            patch("app.queue.state_machine.JobStateMachine") as mock_sm_cls,
+        ):
+            sections = {"overview": "Overview.", "features": "Features.", "getting_started": "Steps.", "faq": "Q&A."}
+            mock_call.return_value = sections
+            mock_parse.return_value = sections
+            mock_sm = AsyncMock()
+            mock_sm_cls.return_value = mock_sm
+
+            await service.generate_sections(spec="spec")
+
+            # No SSE emission in standalone mode
+            mock_sm.publish_event.assert_not_called()
+
+    async def test_standalone_mode_applies_safety_filter(self) -> None:
+        """generate_sections() applies safety filter to all section content."""
+        service = DocGenerationService()
+        raw_sections = {
+            "overview": "Built with React and FastAPI.",
+            "features": "Features.",
+            "getting_started": "Steps.",
+            "faq": "Q&A.",
+        }
+
+        with (
+            patch.object(service, "_call_claude_with_retry", new_callable=AsyncMock) as mock_call,
+            patch.object(service, "_parse_sections") as mock_parse,
+        ):
+            mock_call.return_value = raw_sections
+            mock_parse.return_value = raw_sections
+
+            result = await service.generate_sections(spec="spec")
+
+            # Safety filter applied — no framework names in result
+            assert "React" not in result.get("overview", "")
+            assert "FastAPI" not in result.get("overview", "")
+
+    async def test_standalone_mode_returns_empty_dict_on_failure(self) -> None:
+        """generate_sections() returns empty dict on any failure — never raises."""
+        service = DocGenerationService()
+
+        with patch.object(service, "_call_claude_with_retry", new_callable=AsyncMock) as mock_call:
+            mock_call.side_effect = RuntimeError("Catastrophic failure")
+
+            result = await service.generate_sections(spec="spec")
+
+            assert isinstance(result, dict)
+            assert result == {}
+
+    async def test_standalone_mode_never_raises(self) -> None:
+        """generate_sections() never raises — returns empty dict on any failure."""
+        service = DocGenerationService()
+
+        with patch.object(service, "_call_claude_with_retry", new_callable=AsyncMock) as mock_call:
+            mock_call.side_effect = Exception("Any failure")
+
+            result = await service.generate_sections(spec="spec")
+            assert isinstance(result, dict)

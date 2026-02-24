@@ -13,6 +13,7 @@ TDD coverage:
 - test_narration_safety_filter_preserves_clean_text: "We're building your dashboard" unchanged
 - test_narration_event_includes_agent_role: Each stage maps to correct role (Architect/Coder/Reviewer)
 - test_narration_event_includes_time_estimate: Each stage has time_estimate in event
+- test_narration_service_standalone_mode: NarrationService() with no emitter returns narration text via get_narration()
 """
 
 import asyncio
@@ -83,6 +84,31 @@ class TestNarrationConstants:
     def test_fallback_narrations_are_nonempty_strings(self) -> None:
         for stage, text in _FALLBACK_NARRATIONS.items():
             assert isinstance(text, str) and text.strip(), f"Stage {stage!r} fallback is empty or not a string"
+
+
+# ---------------------------------------------------------------------------
+# Constructor — standalone mode
+# ---------------------------------------------------------------------------
+
+
+class TestNarrationServiceConstructor:
+    """NarrationService() instantiates without JobStateMachine dependency."""
+
+    def test_instantiates_with_no_args(self) -> None:
+        """NarrationService() with no args should succeed (standalone mode)."""
+        service = NarrationService()
+        assert service is not None
+
+    def test_event_emitter_defaults_to_none(self) -> None:
+        """Default event_emitter is None for standalone operation."""
+        service = NarrationService()
+        assert service._event_emitter is None
+
+    def test_instantiates_with_optional_emitter(self) -> None:
+        """NarrationService(emitter) wires up event emitter for SSE mode."""
+        mock_emitter = MagicMock()
+        service = NarrationService(event_emitter=mock_emitter)
+        assert service._event_emitter is mock_emitter
 
 
 # ---------------------------------------------------------------------------
@@ -355,7 +381,7 @@ class TestNarrateHappyPath:
         with (
             patch.object(service, "_call_claude", new_callable=AsyncMock) as mock_call,
             patch("app.services.narration_service.asyncio.wait_for", new_callable=AsyncMock) as mock_wait,
-            patch("app.services.narration_service.JobStateMachine") as mock_sm_cls,
+            patch("app.queue.state_machine.JobStateMachine") as mock_sm_cls,
         ):
             mock_wait.return_value = narration_text
             mock_call.return_value = narration_text
@@ -395,7 +421,7 @@ class TestNarrateHappyPath:
             with (
                 patch.object(service, "_call_claude", new_callable=AsyncMock) as mock_call,
                 patch("app.services.narration_service.asyncio.wait_for", new_callable=AsyncMock) as mock_wait,
-                patch("app.services.narration_service.JobStateMachine") as mock_sm_cls,
+                patch("app.queue.state_machine.JobStateMachine") as mock_sm_cls,
             ):
                 mock_wait.return_value = "We're making progress."
                 mock_call.return_value = "We're making progress."
@@ -419,7 +445,7 @@ class TestNarrateHappyPath:
             with (
                 patch.object(service, "_call_claude", new_callable=AsyncMock) as mock_call,
                 patch("app.services.narration_service.asyncio.wait_for", new_callable=AsyncMock) as mock_wait,
-                patch("app.services.narration_service.JobStateMachine") as mock_sm_cls,
+                patch("app.queue.state_machine.JobStateMachine") as mock_sm_cls,
             ):
                 mock_wait.return_value = "We're making progress."
                 mock_call.return_value = "We're making progress."
@@ -441,7 +467,7 @@ class TestNarrateHappyPath:
         with (
             patch.object(service, "_call_claude", new_callable=AsyncMock) as mock_call,
             patch("app.services.narration_service.asyncio.wait_for", new_callable=AsyncMock) as mock_wait,
-            patch("app.services.narration_service.JobStateMachine") as mock_sm_cls,
+            patch("app.queue.state_machine.JobStateMachine") as mock_sm_cls,
         ):
             mock_wait.return_value = "We're making progress."
             mock_call.return_value = "We're making progress."
@@ -468,7 +494,7 @@ class TestNarrateSpecTruncation:
         with (
             patch.object(service, "_call_claude", new_callable=AsyncMock) as mock_call,
             patch("app.services.narration_service.asyncio.wait_for", new_callable=AsyncMock) as mock_wait,
-            patch("app.services.narration_service.JobStateMachine") as mock_sm_cls,
+            patch("app.queue.state_machine.JobStateMachine") as mock_sm_cls,
         ):
             mock_call.return_value = "We're making progress."
             mock_wait.return_value = "We're making progress."
@@ -490,7 +516,7 @@ class TestNarrateSpecTruncation:
         with (
             patch.object(service, "_call_claude", new_callable=AsyncMock) as mock_call,
             patch("app.services.narration_service.asyncio.wait_for", new_callable=AsyncMock) as mock_wait,
-            patch("app.services.narration_service.JobStateMachine") as mock_sm_cls,
+            patch("app.queue.state_machine.JobStateMachine") as mock_sm_cls,
         ):
             mock_call.return_value = "We're making progress."
             mock_wait.return_value = "We're making progress."
@@ -520,7 +546,7 @@ class TestNarrateFallback:
         with (
             patch.object(service, "_call_claude", new_callable=AsyncMock) as mock_call,
             patch("app.services.narration_service.asyncio.wait_for", new_callable=AsyncMock) as mock_wait,
-            patch("app.services.narration_service.JobStateMachine") as mock_sm_cls,
+            patch("app.queue.state_machine.JobStateMachine") as mock_sm_cls,
         ):
             mock_call.side_effect = Exception("Anthropic API error")
             mock_wait.side_effect = Exception("Anthropic API error")
@@ -546,7 +572,7 @@ class TestNarrateFallback:
         with (
             patch.object(service, "_call_claude", new_callable=AsyncMock) as mock_call,
             patch("app.services.narration_service.asyncio.wait_for", new_callable=AsyncMock) as mock_wait,
-            patch("app.services.narration_service.JobStateMachine") as mock_sm_cls,
+            patch("app.queue.state_machine.JobStateMachine") as mock_sm_cls,
         ):
             mock_call.side_effect = TimeoutError("Timed out")
             mock_wait.side_effect = TimeoutError("Timed out")
@@ -568,7 +594,7 @@ class TestNarrateFallback:
         with (
             patch.object(service, "_call_claude", new_callable=AsyncMock) as mock_call,
             patch("app.services.narration_service.asyncio.wait_for", new_callable=AsyncMock) as mock_wait,
-            patch("app.services.narration_service.JobStateMachine") as mock_sm_cls,
+            patch("app.queue.state_machine.JobStateMachine") as mock_sm_cls,
         ):
             mock_call.side_effect = Exception("API error")
             mock_wait.side_effect = Exception("API error")
@@ -598,7 +624,7 @@ class TestNarrateNeverRaises:
         with (
             patch.object(service, "_call_claude", new_callable=AsyncMock) as mock_call,
             patch("app.services.narration_service.asyncio.wait_for", new_callable=AsyncMock) as mock_wait,
-            patch("app.services.narration_service.JobStateMachine") as mock_sm_cls,
+            patch("app.queue.state_machine.JobStateMachine") as mock_sm_cls,
         ):
             mock_call.return_value = "We're making progress."
             mock_wait.return_value = "We're making progress."
@@ -617,7 +643,7 @@ class TestNarrateNeverRaises:
         with (
             patch.object(service, "_call_claude", new_callable=AsyncMock) as mock_call,
             patch("app.services.narration_service.asyncio.wait_for", new_callable=AsyncMock) as mock_wait,
-            patch("app.services.narration_service.JobStateMachine") as mock_sm_cls,
+            patch("app.queue.state_machine.JobStateMachine") as mock_sm_cls,
         ):
             mock_call.side_effect = Exception("Claude down")
             mock_wait.side_effect = Exception("Claude down")
@@ -636,7 +662,7 @@ class TestNarrateNeverRaises:
         with (
             patch.object(service, "_call_claude", new_callable=AsyncMock) as mock_call,
             patch("app.services.narration_service.asyncio.wait_for", new_callable=AsyncMock) as mock_wait,
-            patch("app.services.narration_service.JobStateMachine") as mock_sm_cls,
+            patch("app.queue.state_machine.JobStateMachine") as mock_sm_cls,
         ):
             mock_call.side_effect = RuntimeError("Completely unexpected")
             mock_wait.side_effect = RuntimeError("Completely unexpected")
@@ -665,7 +691,7 @@ class TestNarrateSafetyFilterApplied:
         with (
             patch.object(service, "_call_claude", new_callable=AsyncMock) as mock_call,
             patch("app.services.narration_service.asyncio.wait_for", new_callable=AsyncMock) as mock_wait,
-            patch("app.services.narration_service.JobStateMachine") as mock_sm_cls,
+            patch("app.queue.state_machine.JobStateMachine") as mock_sm_cls,
         ):
             mock_call.return_value = raw_narration
             mock_wait.return_value = raw_narration
@@ -687,7 +713,7 @@ class TestNarrateSafetyFilterApplied:
         with (
             patch.object(service, "_call_claude", new_callable=AsyncMock) as mock_call,
             patch("app.services.narration_service.asyncio.wait_for", new_callable=AsyncMock) as mock_wait,
-            patch("app.services.narration_service.JobStateMachine") as mock_sm_cls,
+            patch("app.queue.state_machine.JobStateMachine") as mock_sm_cls,
         ):
             mock_call.return_value = raw_narration
             mock_wait.return_value = raw_narration
@@ -699,6 +725,100 @@ class TestNarrateSafetyFilterApplied:
             event = mock_sm.publish_event.call_args[0][1]
             assert "React" not in event["narration"]
             assert "FastAPI" not in event["narration"]
+
+
+# ---------------------------------------------------------------------------
+# Standalone mode — get_narration()
+# ---------------------------------------------------------------------------
+
+
+class TestNarrationServiceStandaloneMode:
+    """NarrationService operates as standalone utility without SSE infrastructure."""
+
+    async def test_standalone_mode_returns_narration_string(self) -> None:
+        """get_narration() returns narration text without SSE side effects."""
+        service = NarrationService()  # no event_emitter
+        expected_text = "We're setting up your project structure."
+
+        with (
+            patch.object(service, "_call_claude", new_callable=AsyncMock) as mock_call,
+            patch("app.services.narration_service.asyncio.wait_for", new_callable=AsyncMock) as mock_wait,
+        ):
+            mock_call.return_value = expected_text
+            mock_wait.return_value = expected_text
+
+            result = await service.get_narration(stage="scaffold", spec="Build a task manager")
+
+            assert isinstance(result, str)
+            assert result == expected_text
+
+    async def test_standalone_mode_no_sse_calls(self) -> None:
+        """get_narration() does not call JobStateMachine or publish_event."""
+        service = NarrationService()
+
+        with (
+            patch.object(service, "_call_claude", new_callable=AsyncMock) as mock_call,
+            patch("app.services.narration_service.asyncio.wait_for", new_callable=AsyncMock) as mock_wait,
+            patch("app.queue.state_machine.JobStateMachine") as mock_sm_cls,
+        ):
+            mock_call.return_value = "We're making progress."
+            mock_wait.return_value = "We're making progress."
+            mock_sm = AsyncMock()
+            mock_sm_cls.return_value = mock_sm
+
+            await service.get_narration(stage="code", spec="spec")
+
+            # No SSE emission in standalone mode
+            mock_sm.publish_event.assert_not_called()
+
+    async def test_standalone_mode_fallback_on_error(self) -> None:
+        """get_narration() falls back gracefully on Claude error."""
+        service = NarrationService()
+        stage = "scaffold"
+
+        with (
+            patch.object(service, "_call_claude", new_callable=AsyncMock) as mock_call,
+            patch("app.services.narration_service.asyncio.wait_for", new_callable=AsyncMock) as mock_wait,
+        ):
+            mock_call.side_effect = Exception("API failure")
+            mock_wait.side_effect = Exception("API failure")
+
+            result = await service.get_narration(stage=stage, spec="spec")
+
+            # Falls back to _FALLBACK_NARRATIONS[stage]
+            assert isinstance(result, str)
+            assert result == _FALLBACK_NARRATIONS[stage]
+
+    async def test_standalone_mode_applies_safety_filter(self) -> None:
+        """get_narration() applies safety filter to Claude output."""
+        service = NarrationService()
+        raw_text = "We're building your React components."
+
+        with (
+            patch.object(service, "_call_claude", new_callable=AsyncMock) as mock_call,
+            patch("app.services.narration_service.asyncio.wait_for", new_callable=AsyncMock) as mock_wait,
+        ):
+            mock_call.return_value = raw_text
+            mock_wait.return_value = raw_text
+
+            result = await service.get_narration(stage="code", spec="spec")
+
+            assert "React" not in result
+
+    async def test_standalone_mode_never_raises(self) -> None:
+        """get_narration() never raises — returns fallback string on any failure."""
+        service = NarrationService()
+
+        with (
+            patch.object(service, "_call_claude", new_callable=AsyncMock) as mock_call,
+            patch("app.services.narration_service.asyncio.wait_for", new_callable=AsyncMock) as mock_wait,
+        ):
+            mock_call.side_effect = RuntimeError("Catastrophic failure")
+            mock_wait.side_effect = RuntimeError("Catastrophic failure")
+
+            result = await service.get_narration(stage="ready", spec="spec")
+            assert isinstance(result, str)
+            assert result  # non-empty fallback
 
 
 # ---------------------------------------------------------------------------
@@ -714,3 +834,9 @@ class TestModuleSingleton:
         from app.services.narration_service import _narration_service
 
         assert isinstance(_narration_service, NarrationService)
+
+    def test_singleton_is_standalone_mode(self) -> None:
+        """Module singleton has no event emitter — instantiated in standalone mode."""
+        from app.services.narration_service import _narration_service
+
+        assert _narration_service._event_emitter is None
