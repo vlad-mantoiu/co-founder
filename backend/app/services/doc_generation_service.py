@@ -89,8 +89,12 @@ _SAFETY_PATTERNS: list[tuple[re.Pattern, str]] = [
     (re.compile(r"`[^`\n]+`"), ""),
     # Shell prompts: lines starting with $ or > followed by a space and command
     (re.compile(r"^\s*[$>]\s+\S.*$", re.MULTILINE), ""),
-    # Unix paths: /home/, /usr/, /var/, /tmp/, /app/, /src/ followed by non-whitespace
-    (re.compile(r"/(home|usr|var|tmp|app|src)/\S+"), ""),
+    # Unix paths: /home/, /usr/, /var/, /tmp/, /app/, /src/, /workspace/ followed by non-whitespace
+    (re.compile(r"/(home|usr|var|tmp|app|src|workspace)/\S+"), ""),
+    # Stack trace boilerplate: lines containing "Traceback (most recent call last):", "raise Foo", or File "..." line N
+    (re.compile(r"^.*?(Traceback \(most recent call last\):|raise \w[\w.]*(?:\(.*?\))?|File \"[^\"]+\",\s*line \d+).*$", re.MULTILINE), ""),
+    # Secret-shaped strings: API keys (sk-ant-..., sk-proj-..., AKIA..., ghp_..., xoxb-...)
+    (re.compile(r"\b(sk-(?:ant|proj|live|test)-[a-zA-Z0-9_-]{10,}|AKIA[A-Z0-9]{16}|ghp_[a-zA-Z0-9]{36}|xoxb-[a-zA-Z0-9-]+)\b"), "[REDACTED]"),
     # PascalCase filenames: starts with uppercase, mixed case, known extensions
     (re.compile(r"\b[A-Z][a-zA-Z0-9]+\.(py|ts|js|tsx|jsx|json)\b"), ""),
     # Framework/library names (word boundaries prevent false positives like "reactive")
@@ -367,7 +371,9 @@ class DocGenerationService:
         - Triple backtick code blocks (including language tags)
         - Inline code (single backtick)
         - Shell prompts (lines starting with $ or > followed by a command)
-        - Unix paths (/home/, /usr/, /var/, /tmp/, /app/, /src/)
+        - Unix paths (/home/, /usr/, /var/, /tmp/, /app/, /src/, /workspace/)
+        - Stack trace boilerplate (Traceback, raise Foo, File "..." lines)
+        - Secret-shaped strings (sk-ant-..., AKIA..., ghp_...) — replaced with [REDACTED]
         - PascalCase filenames (.py, .ts, .js, .tsx, .jsx, .json)
         - Framework/library names with word boundaries (React, FastAPI, etc.)
 

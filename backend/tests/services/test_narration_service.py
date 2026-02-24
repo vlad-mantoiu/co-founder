@@ -130,6 +130,24 @@ class TestSafetyFilter:
         result = self.service._apply_safety_filter(text)
         assert "TypeScript" not in result
 
+    def test_strips_workspace_path(self) -> None:
+        """/workspace/... paths must be stripped (E2B sandbox build directory)."""
+        text = "We're updating /workspace/project/package.json with dependencies."
+        result = self.service._apply_safety_filter(text)
+        assert "/workspace/" not in result
+
+    def test_strips_stack_trace_text(self) -> None:
+        """'Traceback (most recent call last):' must be stripped from narration."""
+        text = "We found Traceback (most recent call last): in your build output."
+        result = self.service._apply_safety_filter(text)
+        assert "Traceback" not in result
+
+    def test_redacts_secret_shaped_strings(self) -> None:
+        """sk-ant-... API key shaped strings must be replaced with [REDACTED]."""
+        text = "We're using sk-ant-api03-abcdefghijklmnop for the API call."
+        result = self.service._apply_safety_filter(text)
+        assert "sk-ant-" not in result
+
     def test_preserves_clean_narration(self) -> None:
         """Plain narration text passes through unchanged."""
         text = "We're building your dashboard and team management pages."

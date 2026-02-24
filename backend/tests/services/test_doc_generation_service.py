@@ -190,6 +190,37 @@ class TestSafetyFilter:
         result = self.service._apply_safety_filter(content)
         assert "TypeScript" not in result
 
+    def test_strips_unix_workspace_path(self) -> None:
+        """/workspace/... paths must be stripped (E2B sandbox build directory)."""
+        content = "Check /workspace/project/src/main.py for details."
+        result = self.service._apply_safety_filter(content)
+        assert "/workspace/" not in result
+
+    def test_strips_stack_trace_header(self) -> None:
+        """'Traceback (most recent call last):' lines must be stripped."""
+        content = "Error: Traceback (most recent call last):\n  File \"/app/main.py\", line 42"
+        result = self.service._apply_safety_filter(content)
+        assert "Traceback" not in result
+
+    def test_strips_raise_statement(self) -> None:
+        """Lines containing 'raise SomeError' must be stripped."""
+        content = "We encountered raise RuntimeError in the build."
+        result = self.service._apply_safety_filter(content)
+        assert "raise RuntimeError" not in result
+
+    def test_redacts_anthropic_api_key(self) -> None:
+        """sk-ant-api03-... keys must be replaced with [REDACTED]."""
+        content = "Using key sk-ant-api03-abc123def456ghi789jkl012mno345 for generation."
+        result = self.service._apply_safety_filter(content)
+        assert "sk-ant-" not in result
+        assert "[REDACTED]" in result
+
+    def test_redacts_aws_access_key(self) -> None:
+        """AKIA... AWS access key IDs must be replaced with [REDACTED]."""
+        content = "Configured with AKIAIOSFODNN7EXAMPLE for S3 access."
+        result = self.service._apply_safety_filter(content)
+        assert "AKIA" not in result
+
     def test_preserves_reactive_word(self) -> None:
         """'reactive' must NOT be stripped (word boundary protection)."""
         content = "Your app is reactive and fast"
