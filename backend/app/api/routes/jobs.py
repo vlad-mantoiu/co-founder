@@ -1,9 +1,11 @@
 """Job queue API routes."""
 
+import asyncio
 import json
+import time
 import uuid
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -17,6 +19,8 @@ from app.queue.state_machine import IterationTracker, JobStateMachine
 from app.queue.usage import UsageTracker
 
 router = APIRouter()
+
+_EVENTS_HEARTBEAT_INTERVAL = 15  # seconds (ALB keepalive — locked decision)
 
 
 class SubmitJobRequest(BaseModel):
@@ -255,6 +259,98 @@ async def stream_job_status(
                     data = json.loads(message["data"])
                     if data.get("status") in ["ready", "failed"]:
                         break
+        finally:
+            await pubsub.unsubscribe(channel)
+            await pubsub.close()
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@router.get("/{job_id}/events/stream")
+async def stream_job_events(
+    job_id: str,
+    request: Request,
+    user: ClerkUser = Depends(require_auth),
+    redis=Depends(get_redis),
+):
+    """Stream typed build events via SSE with 15-second heartbeat keepalive.
+
+    Subscribes to job:{job_id}:events Redis Pub/Sub channel and passes through
+    all event types: build.stage.started, build.stage.completed, snapshot.updated,
+    documentation.updated.
+
+    Sends heartbeat events every 15 seconds to prevent ALB idle timeout (60s default).
+    Closes stream when job reaches terminal state (ready/failed).
+
+    If job is already terminal on connect, emits final status and closes immediately.
+
+    Args:
+        job_id: Job UUID
+        request: FastAPI Request (for disconnect detection)
+        user: Authenticated user from JWT
+        redis: Redis client (injected)
+
+    Returns:
+        StreamingResponse with text/event-stream
+
+    Raises:
+        HTTPException(404): If job not found or user mismatch
+    """
+    state_machine = JobStateMachine(redis)
+    job_data = await state_machine.get_job(job_id)
+
+    if not job_data or job_data.get("user_id") != user.user_id:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    async def event_generator():
+        # Check if already terminal — emit final status and close immediately
+        current_status = job_data.get("status")
+        if current_status in ("ready", "failed"):
+            yield f"data: {json.dumps({'type': 'build.stage.started', 'status': current_status, 'job_id': job_id})}\n\n"
+            return
+
+        pubsub = redis.pubsub()
+        channel = f"job:{job_id}:events"
+        await pubsub.subscribe(channel)
+        last_heartbeat = time.monotonic()
+
+        try:
+            while True:
+                if await request.is_disconnected():
+                    return
+
+                # 15-second heartbeat (ALB keepalive)
+                now = time.monotonic()
+                if now - last_heartbeat >= _EVENTS_HEARTBEAT_INTERVAL:
+                    yield "event: heartbeat\ndata: {}\n\n"
+                    last_heartbeat = now
+
+                # Non-blocking poll with 1-second timeout
+                try:
+                    message = await asyncio.wait_for(
+                        pubsub.get_message(ignore_subscribe_messages=True),
+                        timeout=1.0,
+                    )
+                except asyncio.TimeoutError:
+                    continue
+
+                if message and message["type"] == "message":
+                    yield f"data: {message['data']}\n\n"
+                    last_heartbeat = time.monotonic()  # Reset heartbeat on data
+                    try:
+                        data = json.loads(message["data"])
+                        if data.get("status") in ("ready", "failed"):
+                            return
+                    except (json.JSONDecodeError, TypeError):
+                        pass
         finally:
             await pubsub.unsubscribe(channel)
             await pubsub.close()

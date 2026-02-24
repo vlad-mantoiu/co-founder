@@ -184,20 +184,35 @@ def test_events_stream_terminal_failed_job(fake_redis, user_a):
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-def test_events_stream_returns_streaming_response(fake_redis, user_a):
-    """Non-terminal job: response must be text/event-stream with ALB-friendly headers."""
-    import asyncio
+@pytest.mark.asyncio
+async def test_events_stream_returns_streaming_response(fake_redis, user_a):
+    """Non-terminal job: endpoint must return StreamingResponse with text/event-stream headers.
+
+    Tests the StreamingResponse construction directly (not live streaming iteration)
+    to avoid blocking the test runner waiting for pubsub messages that never arrive.
+    """
+    from unittest.mock import AsyncMock, MagicMock
+
+    from fastapi.responses import StreamingResponse
+
+    from app.api.routes.jobs import stream_job_events
 
     job_id = f"test-events-active-{uuid.uuid4().hex[:8]}"
-    asyncio.run(_seed_job(fake_redis, job_id, _USER_A_ID, "scaffold"))
+    await _seed_job(fake_redis, job_id, _USER_A_ID, "scaffold")
 
-    app = _make_app(fake_redis, user_a)
+    # Mock Request.is_disconnected so it doesn't block
+    mock_request = MagicMock()
+    mock_request.is_disconnected = AsyncMock(return_value=False)
 
-    with TestClient(app) as client:
-        response = client.get(f"/jobs/{job_id}/events/stream")
+    response = await stream_job_events(
+        job_id=job_id,
+        request=mock_request,
+        user=user_a,
+        redis=fake_redis,
+    )
 
-    assert response.status_code == 200
-    assert "text/event-stream" in response.headers["content-type"]
+    assert isinstance(response, StreamingResponse)
+    assert response.media_type == "text/event-stream"
     assert response.headers.get("cache-control") == "no-cache"
     assert response.headers.get("connection") == "keep-alive"
     assert response.headers.get("x-accel-buffering") == "no"
