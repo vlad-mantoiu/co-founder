@@ -271,7 +271,11 @@ Plans:
   3. With `MAX_TOOL_CALLS` set to 5 in test config, a loop exceeding the cap terminates with a structured "iteration limit reached" escalation rather than running indefinitely
   4. Repeating the same tool call with the same arguments 3 times within a 10-call window triggers repetition detection — the loop halts and logs the repeated call signature
   5. Tool results exceeding 1000 tokens are middle-truncated before being appended to the message history — the first 500 and last 500 tokens are preserved with a `[N lines omitted]` marker
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 41-01-PLAN.md — TDD: IterationGuard safety guards + ToolDispatcher protocol + InMemoryToolDispatcher + tool definitions (AGNT-06)
+- [ ] 41-02-PLAN.md — TDD: System prompt builder with verbatim idea brief + QnA injection (AGNT-02)
+- [ ] 41-03-PLAN.md — TAOR loop implementation in AutonomousRunner.run_agent_loop() + streaming narration (AGNT-01, AGNT-02, AGNT-06)
 
 ### Phase 42: E2B Tool Dispatcher
 **Goal**: All 7 Claude Code-style tools (read_file, write_file, edit_file, bash, grep, glob, take_screenshot) are dispatched to the E2B sandbox by a typed tool dispatcher, and project files are synced to S3 after each agent phase commit to prevent data loss on sandbox resume.
@@ -377,7 +381,7 @@ Plans:
 | 38. Panel Components | v0.6 | — | Abandoned | - |
 | 39. BuildPage Refactor & Completion State | v0.6 | — | Abandoned | - |
 | 40. LangGraph Removal + Protocol Extension | v0.7 | Complete    | 2026-02-24 | 2026-02-24 |
-| 41. Autonomous Runner Core (TAOR Loop) | v0.7 | 0/TBD | Not started | - |
+| 41. Autonomous Runner Core (TAOR Loop) | v0.7 | 0/3 | Planned | - |
 | 42. E2B Tool Dispatcher | v0.7 | 0/TBD | Not started | - |
 | 43. Token Budget + Sleep/Wake Daemon | v0.7 | 0/TBD | Not started | - |
 | 44. Native Agent Capabilities | v0.7 | 0/TBD | Not started | - |
