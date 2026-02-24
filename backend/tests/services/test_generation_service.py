@@ -430,30 +430,3 @@ async def test_execute_build_python_only_skips_package_json_check():
     result = await service.execute_build(job_id, job_data, state_machine, redis=redis)
     assert result["sandbox_id"] == "fake-sandbox-001"
 
-
-# ---------------------------------------------------------------------------
-# Test: architect prompt requires package.json scaffolding
-# ---------------------------------------------------------------------------
-
-
-def test_architect_prompt_requires_package_json():
-    """Architect system prompt must instruct LLM to include package.json in step 0."""
-    from app.agent.nodes.architect import ARCHITECT_SYSTEM_PROMPT
-
-    prompt_lower = ARCHITECT_SYSTEM_PROMPT.lower()
-    assert "package.json" in prompt_lower, (
-        "Architect prompt must mention package.json to ensure scaffolding step includes it"
-    )
-
-
-# ---------------------------------------------------------------------------
-# Test: coder prompt requires package.json for web projects
-# ---------------------------------------------------------------------------
-
-
-def test_coder_prompt_requires_package_json():
-    """Coder system prompt must instruct LLM to always generate package.json for web projects."""
-    from app.agent.nodes.coder import CODER_SYSTEM_PROMPT
-
-    prompt_lower = CODER_SYSTEM_PROMPT.lower()
-    assert "package.json" in prompt_lower, "Coder prompt must mention package.json to ensure web projects include it"

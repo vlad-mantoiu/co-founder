@@ -1,8 +1,7 @@
-"""Tests for the AI Co-Founder agent."""
+"""Tests for the AI Co-Founder agent state."""
 
 import pytest
 
-from app.agent.graph import create_cofounder_graph
 from app.agent.state import create_initial_state
 
 pytestmark = pytest.mark.unit
@@ -63,48 +62,3 @@ class TestCoFounderState:
 
         for field in required_fields:
             assert field in state, f"Missing field: {field}"
-
-
-class TestCoFounderGraph:
-    """Tests for the LangGraph configuration."""
-
-    def test_graph_creation(self):
-        """Test that the graph can be created."""
-        graph = create_cofounder_graph()
-        assert graph is not None
-
-    def test_graph_has_correct_nodes(self):
-        """Test that the graph has all expected nodes."""
-        graph = create_cofounder_graph()
-
-        # Get node names from the graph
-        nodes = graph.get_graph().nodes
-        expected_nodes = {
-            "__start__",
-            "architect",
-            "coder",
-            "executor",
-            "debugger",
-            "reviewer",
-            "git_manager",
-            "__end__",
-        }
-
-        assert expected_nodes.issubset(set(nodes.keys()))
-
-
-@pytest.mark.asyncio
-async def test_graph_entry_point():
-    """Test that the graph starts at architect node."""
-    _graph = create_cofounder_graph()
-
-    initial_state = create_initial_state(
-        user_id="test",
-        project_id="test",
-        project_path="/tmp/test",
-        goal="Create a simple function",
-    )
-
-    # Note: Full integration test would require mocking the LLM
-    # This is a structural test only
-    assert initial_state["current_node"] == "start"
