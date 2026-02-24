@@ -226,7 +226,11 @@ Plans:
   4. `GET /api/jobs/{id}/docs` returns the current documentation sections from the Redis hash — empty object if generation has not started, partial object if in progress
   5. Narration text contains no stack traces, internal file paths (`/app/`, `/workspace/`), raw error messages, or secret-shaped strings — safety guardrails strip these before the narration is published
   6. The changelog section of docs compares build iterations when a v0.2+ iteration job runs — first builds receive an empty changelog
-**Plans:** TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 36-01-PLAN.md — TDD NarrationService: Claude Haiku stage narration with safety filter (NARR-02, NARR-04, NARR-08)
+- [ ] 36-02-PLAN.md — Wire NarrationService + ScreenshotService + changelog into build pipeline (SNAP-03, DOCS-09)
+- [ ] 36-03-PLAN.md — SSE typed events stream endpoint with heartbeat keepalive (SNAP-03, NARR-02)
 
 ### Phase 37: Frontend Hooks
 **Goal**: React hooks consume the new SSE and REST endpoints, maintain typed state for snapshot URL, documentation sections, and elapsed time, and recover correctly from SSE reconnections.
@@ -305,7 +309,7 @@ Plans:
 | 33. Infrastructure & Configuration | 2/3 | Complete    | 2026-02-23 | - |
 | 34. ScreenshotService | 3/3 | Complete    | 2026-02-23 | - |
 | 35. DocGenerationService | 2/2 | Complete    | 2026-02-24 | - |
-| 36. GenerationService Wiring & API Routes | v0.6 | 0/TBD | Not started | - |
+| 36. GenerationService Wiring & API Routes | v0.6 | 0/3 | Not started | - |
 | 37. Frontend Hooks | v0.6 | 0/TBD | Not started | - |
 | 38. Panel Components | v0.6 | 0/TBD | Not started | - |
 | 39. BuildPage Refactor & Completion State | v0.6 | 0/TBD | Not started | - |
