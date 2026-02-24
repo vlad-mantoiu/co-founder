@@ -1,98 +1,99 @@
 # Requirements: AI Co-Founder
 
-**Defined:** 2026-02-23
+**Defined:** 2026-02-24
 **Core Value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
 
-## v0.6 Requirements
+## v0.7 Requirements
 
-Requirements for v0.6 Live Build Experience. Each maps to roadmap phases.
+Requirements for v0.7 Autonomous Agent. Each maps to roadmap phases.
 
-### Infrastructure
+### Agent Core
+
+- [ ] **AGNT-01**: Agent executes a TAOR (Think-Act-Observe-Repeat) loop using Anthropic tool-use API, autonomously deciding next actions until build is complete or human input needed
+- [ ] **AGNT-02**: Agent consumes Understanding Interview QnA + Idea Brief as input context, using it to make autonomous product/architecture decisions
+- [ ] **AGNT-03**: Agent has 7 Claude Code-style tools operating inside E2B sandbox: read_file, write_file, edit_file, bash, grep, glob, take_screenshot
+- [ ] **AGNT-04**: Agent handles narration natively via narrate() tool — first-person co-founder voice describing what it's doing and why
+- [ ] **AGNT-05**: Agent handles documentation generation natively as part of its workflow — no separate DocGenerationService
+- [ ] **AGNT-06**: Agent loop has iteration cap (MAX_TOOL_CALLS), repetition detection, and context window management (middle-truncation of large tool results)
+- [ ] **AGNT-07**: Agent retries failed operations 3 times with different approaches per error signature before escalating to founder with structured context
+- [ ] **AGNT-08**: Agent escalation surfaces problem description, what was tried, and recommended action to founder via existing DecisionConsole pattern
+
+### Budget & Daemon
+
+- [ ] **BDGT-01**: Token budget daemon calculates daily allowance from remaining tokens and days until subscription renewal
+- [ ] **BDGT-02**: Agent transitions to "sleeping" state when daily token budget is consumed
+- [ ] **BDGT-03**: Agent wakes automatically when daily budget refreshes (next calendar day or subscription reset)
+- [ ] **BDGT-04**: Agent state persists across sleep/wake cycles — conversation history stored in PostgreSQL (AgentCheckpoint table)
+- [ ] **BDGT-05**: Model is configurable per subscription tier — Opus for premium, Sonnet for budget tiers
+- [ ] **BDGT-06**: Per-tool cost tracking records input/output tokens and cost per API call in Redis
+- [ ] **BDGT-07**: Cost runaway prevention — hard daily ceiling kills agent loop if budget exceeded by >10%
+
+### UI & Integration
+
+- [ ] **UIAG-01**: GSD phases created by agent appear on Kanban Timeline with live status (pending/in-progress/complete)
+- [ ] **UIAG-02**: Activity feed shows phase-level summaries by default ("Planning authentication system...", "Building login page...")
+- [ ] **UIAG-03**: Verbose toggle in activity feed reveals tool-level detail (individual file writes, bash commands, screenshots)
+- [ ] **UIAG-04**: Dashboard displays agent state: working, sleeping, waiting-for-input, error
+- [ ] **UIAG-05**: New SSE event types stream agent actions to frontend (agent.thinking, agent.tool.called, agent.sleeping, gsd.phase.started, gsd.phase.completed)
+
+### Cleanup & Migration
+
+- [ ] **MIGR-01**: LangGraph, LangChain deps atomically removed — all 6 node files, graph.py, NarrationService, DocGenerationService deleted
+- [ ] **MIGR-02**: Feature flag (AUTONOMOUS_AGENT env var) toggles between old RunnerReal and new AutonomousRunner during transition
+- [ ] **MIGR-03**: Runner protocol extended with run_agent_loop() — RunnerFake stubs it for TDD, AutonomousRunner implements it
+- [ ] **MIGR-04**: E2B sandbox file sync to S3 after each commit step — mitigates multi-resume file loss (E2B #884)
+
+## v0.6 Requirements (Partial — Phases 33-36 Shipped, 37-39 Abandoned)
+
+### Completed (Phases 33-36)
 
 - [x] **INFRA-01**: S3 bucket (cofounder-screenshots) provisioned via CDK with CloudFront OAC and immutable cache headers
 - [x] **INFRA-02**: ECS task role has PutObject permission on screenshots bucket
-- [ ] **INFRA-03**: SSE event stream emits typed events (build.stage.started/completed, snapshot.updated, documentation.updated)
 - [x] **INFRA-04**: screenshot_enabled feature flag in Settings toggles screenshot capture without redeployment
 - [x] **INFRA-05**: Settings include screenshots_bucket and screenshots_cloudfront_domain environment variables
-
-### Build Narration
-
-- [ ] **NARR-01**: User sees human-readable stage descriptions in activity feed (not raw stage names)
-- [x] **NARR-02**: Claude generates idea-specific narration per stage transition
-- [ ] **NARR-03**: Activity feed displays chronological agent activity with timestamps
-- [x] **NARR-04**: Narration uses first-person co-founder voice
-- [ ] **NARR-05**: Raw logs available under collapsed "Technical Details" section within activity feed
-- [ ] **NARR-06**: Per-stage time estimates displayed at stage start
-- [ ] **NARR-07**: Token usage per stage displayed in activity feed
-- [x] **NARR-08**: Safety guardrails strip internal paths, stack traces, and secrets from narration
-
-### Live Screenshots
-
 - [x] **SNAP-01**: Screenshot captured after each completed build stage via Playwright
 - [x] **SNAP-02**: Screenshots stored in S3 and served via CloudFront URL
-- [x] **SNAP-03**: SSE snapshot.updated event emitted when new screenshot is available
-- [ ] **SNAP-04**: Center panel displays latest screenshot with crossfade animation
-- [ ] **SNAP-05**: Skeleton placeholder shown before first screenshot arrives
 - [x] **SNAP-06**: Screenshots below 5KB discarded as likely blank
 - [x] **SNAP-07**: Screenshot failure is non-fatal — build continues if capture fails
-
-### Documentation Generation
-
 - [x] **DOCS-01**: End-user documentation generated by separate Claude API call during build
 - [x] **DOCS-02**: Sections appear progressively (Overview → Features → Getting Started → FAQ)
-- [x] **DOCS-03**: Documentation generation starts at scaffold.completed (founders read while building)
-- [ ] **DOCS-04**: Right panel renders documentation as Markdown with section fade-in
-- [ ] **DOCS-05**: Documentation downloadable as Markdown file at build completion
-- [ ] **DOCS-06**: Documentation downloadable as PDF via WeasyPrint at build completion
-- [x] **DOCS-07**: Documentation content is founder-safe — no code, CLI commands, or internal architecture
-- [x] **DOCS-08**: Documentation generation failure is non-fatal — build continues if doc gen fails
+- [x] **DOCS-03**: Documentation generation starts at scaffold.completed
+- [x] **DOCS-07**: Documentation content is founder-safe
+- [x] **DOCS-08**: Documentation generation failure is non-fatal
 - [x] **DOCS-09**: Changelog generated comparing build iterations
+- [x] **NARR-02**: Claude generates idea-specific narration per stage transition
+- [x] **NARR-04**: Narration uses first-person co-founder voice
+- [x] **NARR-08**: Safety guardrails strip internal paths, stack traces, and secrets from narration
+- [x] **SNAP-03**: SSE snapshot.updated event emitted when new screenshot is available
 
-### Long-Build Reassurance
+### Abandoned (Phases 37-39 — Deferred)
 
-- [ ] **REAS-01**: Elapsed time counter displayed during build
-- [ ] **REAS-02**: Per-stage time estimates shown at stage start
-- [ ] **REAS-03**: 2-minute threshold message if stage exceeds 120s without new events
-- [ ] **REAS-04**: 5-minute threshold modal offering email notification
-- [ ] **REAS-05**: Rotating "while you wait" insights from Idea Brief data every 30s
-- [ ] **REAS-06**: Active agent role displayed per stage
-- [ ] **REAS-07**: Completion time displayed in success state ("Built in 4m 23s")
+- INFRA-03, NARR-01, NARR-03, NARR-05, NARR-06, NARR-07
+- SNAP-04, SNAP-05, DOCS-04, DOCS-05, DOCS-06
+- REAS-01 through REAS-07, COMP-01 through COMP-07
+- LAYOUT-01 through LAYOUT-04
 
-### Build Completion
-
-- [ ] **COMP-01**: "Your MVP is ready" hero moment with celebration animation
-- [ ] **COMP-02**: Summary stats card showing elapsed time
-- [ ] **COMP-03**: Download documentation button in completion state
-- [ ] **COMP-04**: "What's next" deploy CTA linking to deploy flow
-- [ ] **COMP-05**: Three-panel layout collapses to completion layout
-- [ ] **COMP-06**: Build version label in completion header
-- [ ] **COMP-07**: Completion state persists on page refresh
-
-### Three-Panel Layout
-
-- [ ] **LAYOUT-01**: Three-panel build page: activity feed (left 280px), live snapshot (center flex), documentation (right 320px)
-- [ ] **LAYOUT-02**: Desktop layout at 1280px+ with graceful fallback below
-- [ ] **LAYOUT-03**: Independent panel scrolling with min-h-0 on grid children
-- [ ] **LAYOUT-04**: Layout state machine (idle | building | complete) with distinct panel content
+*Abandoned in favor of v0.7 autonomous agent architecture. UI features will be re-scoped against the new agent model in a future milestone.*
 
 ## Future Requirements
 
 Deferred to future release. Tracked but not in current roadmap.
 
-### Post-v0.6
+### Post-v0.7
 
-- **DOCS-10**: Editable documentation after build completes
-- **SNAP-08**: Time-lapse playback of build progression
-- **SNAP-09**: Snapshot comparison diff between iterations
-- **COMP-08**: Per-build stats card (page count, endpoint count) from structured LangGraph output
-- **COMP-09**: Shareable build completion permalink with screenshot embed
-- **REAS-08**: Email notification backend endpoint for builds exceeding 5 minutes
 - **ITER-01**: Founder can request changes to running app via text input
 - **ITER-02**: System generates diff, applies changes, rebuilds sandbox
 - **ITER-03**: Founder sees before/after comparison of changes
 - **ITER-04**: Build history with rollback to previous versions
 - **EXPORT-01**: Generated code pushed to GitHub repo owned by founder
 - **EXPORT-02**: Founder can download generated code as zip
+- **SNAP-08**: Time-lapse playback of build progression
+- **SNAP-09**: Snapshot comparison diff between iterations
+- **COMP-08**: Per-build stats card from structured agent output
+- **COMP-09**: Shareable build completion permalink with screenshot embed
+- **REAS-08**: Email notification backend endpoint for builds exceeding 5 minutes
+- **NOTIF-01**: Founder receives email/push when agent needs input
+- **NOTIF-02**: Founder receives notification when agent wakes from sleep
 
 ## Out of Scope
 
@@ -102,15 +103,14 @@ Explicitly excluded. Documented to prevent scope creep.
 |---------|--------|
 | Live video stream of sandbox desktop | Requires WebRTC/WebSocket video infrastructure — disproportionate to value |
 | Real-time token streaming in activity feed | Creates cognitive chaos — incomplete sentences overwriting themselves |
-| Per-file-change events in feed | LangGraph writes hundreds of files — floods feed with noise |
 | VNC/remote desktop into sandbox | Destroys "engineering team building for you" framing; security risk |
-| Time-based screenshot polling (every N seconds) | Most seconds nothing changes — wastes S3 writes, adds complexity |
 | Auto-redirect on build completion | Destroys the emotional reveal moment |
-| Auto-start iteration on completion | Bypasses Gate 2 scope creep detection |
 | GitHub push on completion | Out of scope per PROJECT.md — future milestone |
 | Production deploy on completion | Skips Deploy Readiness assessment stage |
-| API reference documentation | No public API in v0.6 scope |
-| Mobile-optimized three-panel layout | Desktop-only for v0.6; most founders use desktop |
+| Mobile-optimized layout | Desktop-first; most founders use desktop |
+| Multi-agent sub-delegation | Single agent is simpler; avoid sub-agent recursion pitfalls |
+| Real-time collaborative editing | Single-founder tool for now |
+| Custom E2B sandbox templates | Default templates sufficient for MVP builds |
 
 ## Traceability
 
@@ -118,59 +118,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INFRA-01 | Phase 33 | Complete |
-| INFRA-02 | Phase 33 | Complete |
-| INFRA-03 | Phase 33 | Pending |
-| INFRA-04 | Phase 33 | Complete |
-| INFRA-05 | Phase 33 | Complete |
-| SNAP-01 | Phase 34 | Complete |
-| SNAP-02 | Phase 34 | Complete |
-| SNAP-06 | Phase 34 | Complete |
-| SNAP-07 | Phase 34 | Complete |
-| DOCS-01 | Phase 35 | Complete |
-| DOCS-02 | Phase 35 | Complete |
-| DOCS-03 | Phase 35 | Complete |
-| DOCS-07 | Phase 35 | Complete |
-| DOCS-08 | Phase 35 | Complete |
-| NARR-02 | Phase 36 | Complete |
-| NARR-04 | Phase 36 | Complete |
-| NARR-08 | Phase 36 | Complete |
-| SNAP-03 | Phase 36 | Complete |
-| DOCS-09 | Phase 36 | Complete |
-| REAS-01 | Phase 37 | Pending |
-| REAS-02 | Phase 37 | Pending |
-| REAS-06 | Phase 37 | Pending |
-| SNAP-04 | Phase 37 | Pending |
-| SNAP-05 | Phase 37 | Pending |
-| NARR-01 | Phase 38 | Pending |
-| NARR-03 | Phase 38 | Pending |
-| NARR-05 | Phase 38 | Pending |
-| NARR-06 | Phase 38 | Pending |
-| NARR-07 | Phase 38 | Pending |
-| DOCS-04 | Phase 38 | Pending |
-| DOCS-05 | Phase 38 | Pending |
-| DOCS-06 | Phase 38 | Pending |
-| REAS-03 | Phase 38 | Pending |
-| REAS-04 | Phase 38 | Pending |
-| REAS-05 | Phase 38 | Pending |
-| REAS-07 | Phase 38 | Pending |
-| LAYOUT-03 | Phase 38 | Pending |
-| LAYOUT-01 | Phase 39 | Pending |
-| LAYOUT-02 | Phase 39 | Pending |
-| LAYOUT-04 | Phase 39 | Pending |
-| COMP-01 | Phase 39 | Pending |
-| COMP-02 | Phase 39 | Pending |
-| COMP-03 | Phase 39 | Pending |
-| COMP-04 | Phase 39 | Pending |
-| COMP-05 | Phase 39 | Pending |
-| COMP-06 | Phase 39 | Pending |
-| COMP-07 | Phase 39 | Pending |
+| (populated during roadmap creation) | | |
 
 **Coverage:**
-- v0.6 requirements: 47 total
-- Mapped to phases: 47
-- Unmapped: 0
+- v0.7 requirements: 24 total
+- Mapped to phases: 0
+- Unmapped: 24 ⚠️
 
 ---
-*Requirements defined: 2026-02-23*
-*Last updated: 2026-02-23 — traceability populated for Phases 33-39*
+*Requirements defined: 2026-02-24*
+*Last updated: 2026-02-24 — v0.7 requirements defined*
