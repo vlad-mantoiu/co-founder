@@ -1,7 +1,7 @@
-"""RunnerReal: Production implementation of the Runner protocol wrapping LangGraph.
+"""RunnerReal: Production implementation of the Runner protocol using direct Anthropic SDK.
 
-Implements all 10 Runner protocol methods with:
-- Real Claude LLM calls via create_tracked_llm()
+Implements all Runner protocol methods with:
+- Real Claude LLM calls via create_tracked_llm() (returns TrackedAnthropicClient)
 - Tenacity retry on 529 OverloadedError
 - Markdown fence stripping before JSON parsing
 - Co-founder "we" voice in all prompts
@@ -12,19 +12,8 @@ import json
 import time
 
 import structlog
-from langchain_core.messages import HumanMessage, SystemMessage
-from langgraph.checkpoint.memory import MemorySaver
 
-from app.agent.graph import create_cofounder_graph
 from app.agent.llm_helpers import _invoke_with_retry, _parse_json_response
-from app.agent.nodes import (
-    architect_node,
-    coder_node,
-    debugger_node,
-    executor_node,
-    git_manager_node,
-    reviewer_node,
-)
 from app.agent.state import CoFounderState
 from app.core.llm_config import create_tracked_llm
 from app.metrics.cloudwatch import emit_llm_latency
@@ -109,68 +98,31 @@ ARTIFACT_TIER_SECTIONS = {
 
 
 class RunnerReal:
-    """Production Runner implementation wrapping the LangGraph pipeline.
+    """Production Runner implementation using direct Anthropic SDK.
 
-    This class satisfies the Runner protocol and provides the bridge between
-    business logic and the LangGraph agent implementation.
+    This class satisfies the Runner protocol and makes direct API calls
+    via anthropic.AsyncAnthropic (no LangChain/LangGraph dependency).
     """
 
-    def __init__(self, checkpointer=None):
-        """Initialize the runner with optional checkpointer.
-
-        Args:
-            checkpointer: Optional LangGraph checkpointer (MemorySaver, PostgresSaver, etc.)
-                         Defaults to MemorySaver if not provided.
-        """
-        if checkpointer is None:
-            checkpointer = MemorySaver()
-        self.graph = create_cofounder_graph(checkpointer)
-        self._node_map = {
-            "architect": architect_node,
-            "coder": coder_node,
-            "executor": executor_node,
-            "debugger": debugger_node,
-            "reviewer": reviewer_node,
-            "git_manager": git_manager_node,
-        }
+    def __init__(self) -> None:
+        """Initialize the runner. No checkpointer needed — LangGraph removed."""
+        pass
 
     async def run(self, state: CoFounderState) -> CoFounderState:
-        """Execute the full pipeline (Architect -> Coder -> Executor -> Debugger -> Reviewer -> GitManager).
-
-        Args:
-            state: The initial state containing the user's goal and context
-
-        Returns:
-            The final state after the complete pipeline execution
-        """
-        config = {"configurable": {"thread_id": state.get("session_id") or "default"}}
-        result = await self.graph.ainvoke(state, config=config)
-        return result
-
-    async def step(self, state: CoFounderState, stage: str) -> CoFounderState:
-        """Execute a single named node from the pipeline.
-
-        Args:
-            state: The current state
-            stage: Node name (architect, coder, executor, debugger, reviewer, git_manager)
-
-        Returns:
-            The updated state after executing the single node
+        """Execute a build run. Not implemented — delegates to AutonomousRunner via feature flag.
 
         Raises:
-            ValueError: If stage name is invalid
+            NotImplementedError: Full TAOR implementation in Phase 41 via AutonomousRunner
         """
-        if stage not in self._node_map:
-            valid_stages = ", ".join(self._node_map.keys())
-            raise ValueError(f"Invalid stage '{stage}'. Valid stages: {valid_stages}")
+        raise NotImplementedError("RunnerReal.run() delegates to AutonomousRunner in Phase 41")
 
-        node_func = self._node_map[stage]
-        partial_update = await node_func(state)
+    async def step(self, state: CoFounderState, stage: str) -> CoFounderState:
+        """Execute a single pipeline stage. Not implemented — LangGraph pipeline removed.
 
-        # Merge the partial update into the state
-        # LangGraph nodes return dict updates, not full states
-        updated_state = {**state, **partial_update}
-        return updated_state
+        Raises:
+            NotImplementedError: Multi-node pipeline removed in Phase 40
+        """
+        raise NotImplementedError("RunnerReal.step() — LangGraph pipeline removed in Phase 40")
 
     async def generate_questions(self, context: dict) -> list[dict]:
         """Generate onboarding questions tailored to the user's idea context.
@@ -189,7 +141,7 @@ class RunnerReal:
         session_id = context.get("session_id", "default")
         idea_keywords = context.get("idea_keywords", "")
 
-        llm = await create_tracked_llm(user_id=user_id, role="architect", session_id=session_id)
+        client = await create_tracked_llm(user_id=user_id, role="architect", session_id=session_id)
 
         task_instructions = """Generate 5-7 questions that help us understand the founder's idea.
 
@@ -210,28 +162,31 @@ Return ONLY a JSON array of objects:
   }
 ]"""
 
-        system_msg = SystemMessage(content=COFOUNDER_SYSTEM.format(task_instructions=task_instructions))
-        human_msg = HumanMessage(
-            content=f"Generate onboarding questions for an idea with these keywords: {idea_keywords or 'general software product'}"
-        )
+        system = COFOUNDER_SYSTEM.format(task_instructions=task_instructions)
+        messages = [
+            {
+                "role": "user",
+                "content": f"Generate onboarding questions for an idea with these keywords: {idea_keywords or 'general software product'}",
+            }
+        ]
 
         t0 = time.perf_counter()
         try:
-            response = await _invoke_with_retry(llm, [system_msg, human_msg])
-            result = _parse_json_response(response.content)
+            content = await _invoke_with_retry(client, system, messages)
+            result = _parse_json_response(content)
         except json.JSONDecodeError:
             log.warning("json_parse_failed_retrying", user_id=user_id, session_id=session_id)
-            strict_system = SystemMessage(
-                content="IMPORTANT: Your response MUST be valid JSON only. "
+            strict_system = (
+                "IMPORTANT: Your response MUST be valid JSON only. "
                 "Do not include any explanation, markdown, or code fences. "
-                "Start your response with [ .\n\n" + system_msg.content
+                "Start your response with [ .\n\n" + system
             )
-            response = await _invoke_with_retry(llm, [strict_system, human_msg])
-            result = _parse_json_response(response.content)
+            content = await _invoke_with_retry(client, strict_system, messages)
+            result = _parse_json_response(content)
         await emit_llm_latency(
             method_name="generate_questions",
             duration_ms=(time.perf_counter() - t0) * 1000,
-            model=llm.model,
+            model=client.model,
         )
         return result
 
@@ -256,7 +211,7 @@ Return ONLY a JSON array of objects:
         # Filter out internal keys
         clean_answers = {k: v for k, v in answers.items() if not k.startswith("_")}
 
-        llm = await create_tracked_llm(user_id=user_id, role="architect", session_id=session_id)
+        client = await create_tracked_llm(user_id=user_id, role="architect", session_id=session_id)
 
         task_instructions = """Convert the founder's onboarding answers into a structured product brief.
 
@@ -277,26 +232,26 @@ Return ONLY a JSON object:
   "smallest_viable_experiment": "Minimal test to validate our idea"
 }"""
 
-        system_msg = SystemMessage(content=COFOUNDER_SYSTEM.format(task_instructions=task_instructions))
-        human_msg = HumanMessage(content=f"Generate a product brief from these onboarding answers: {clean_answers}")
+        system = COFOUNDER_SYSTEM.format(task_instructions=task_instructions)
+        messages = [{"role": "user", "content": f"Generate a product brief from these onboarding answers: {clean_answers}"}]
 
         t0 = time.perf_counter()
         try:
-            response = await _invoke_with_retry(llm, [system_msg, human_msg])
-            result = _parse_json_response(response.content)
+            content = await _invoke_with_retry(client, system, messages)
+            result = _parse_json_response(content)
         except json.JSONDecodeError:
             log.warning("json_parse_failed_retrying", user_id=user_id, session_id=session_id)
-            strict_system = SystemMessage(
-                content="IMPORTANT: Your response MUST be valid JSON only. "
+            strict_system = (
+                "IMPORTANT: Your response MUST be valid JSON only. "
                 "Do not include any explanation, markdown, or code fences. "
-                "Start your response with { .\n\n" + system_msg.content
+                "Start your response with { .\n\n" + system
             )
-            response = await _invoke_with_retry(llm, [strict_system, human_msg])
-            result = _parse_json_response(response.content)
+            content = await _invoke_with_retry(client, strict_system, messages)
+            result = _parse_json_response(content)
         await emit_llm_latency(
             method_name="generate_brief",
             duration_ms=(time.perf_counter() - t0) * 1000,
-            model=llm.model,
+            model=client.model,
         )
         return result
 
@@ -322,7 +277,7 @@ Return ONLY a JSON object:
         # Tier-based question count — use module-level constant
         question_count = QUESTION_COUNT_BY_TIER.get(tier, "6-8")
 
-        llm = await create_tracked_llm(user_id=user_id, role="architect", session_id=session_id)
+        client = await create_tracked_llm(user_id=user_id, role="architect", session_id=session_id)
 
         task_instructions = f"""Generate {question_count} understanding interview questions about the founder's idea.
 These go deeper than initial onboarding — probe market validation, competitive landscape,
@@ -344,26 +299,28 @@ Return ONLY a JSON array of objects:
 
 End the interview with a closing question like: "I have enough to build your brief. Want to add anything else before I do?\""""
 
-        system_msg = SystemMessage(content=COFOUNDER_SYSTEM.format(task_instructions=task_instructions))
-        human_msg = HumanMessage(content=f"Idea: {idea_text}\n\nOnboarding answers: {onboarding_answers}")
+        system = COFOUNDER_SYSTEM.format(task_instructions=task_instructions)
+        messages = [
+            {"role": "user", "content": f"Idea: {idea_text}\n\nOnboarding answers: {onboarding_answers}"}
+        ]
 
         t0 = time.perf_counter()
         try:
-            response = await _invoke_with_retry(llm, [system_msg, human_msg])
-            result = _parse_json_response(response.content)
+            content = await _invoke_with_retry(client, system, messages)
+            result = _parse_json_response(content)
         except json.JSONDecodeError:
             log.warning("json_parse_failed_retrying", user_id=user_id, session_id=session_id, tier=tier)
-            strict_system = SystemMessage(
-                content="IMPORTANT: Your response MUST be valid JSON only. "
+            strict_system = (
+                "IMPORTANT: Your response MUST be valid JSON only. "
                 "Do not include any explanation, markdown, or code fences. "
-                "Start your response with [ .\n\n" + system_msg.content
+                "Start your response with [ .\n\n" + system
             )
-            response = await _invoke_with_retry(llm, [strict_system, human_msg])
-            result = _parse_json_response(response.content)
+            content = await _invoke_with_retry(client, strict_system, messages)
+            result = _parse_json_response(content)
         await emit_llm_latency(
             method_name="generate_understanding_questions",
             duration_ms=(time.perf_counter() - t0) * 1000,
-            model=llm.model,
+            model=client.model,
         )
         return result
 
@@ -400,7 +357,7 @@ End the interview with a closing question like: "I have enough to build your bri
                 qa_pairs.append(f"Q: {qtext}\nA: {answer}")
         formatted_qa = "\n\n".join(qa_pairs)
 
-        llm = await create_tracked_llm(user_id=user_id, role="architect", session_id=session_id)
+        client = await create_tracked_llm(user_id=user_id, role="architect", session_id=session_id)
 
         task_instructions = f"""Generate a Rationalised Idea Brief from the founder's understanding interview.
 
@@ -441,26 +398,28 @@ For confidence_scores, assess each section as:
 - "moderate": Reasonable hypothesis but not yet validated with real data
 - "needs_depth": Vague or missing — the founder should revisit this section"""
 
-        system_msg = SystemMessage(content=COFOUNDER_SYSTEM.format(task_instructions=task_instructions))
-        human_msg = HumanMessage(content=f"Idea: {idea}\n\nUnderstanding interview answers:\n\n{formatted_qa}")
+        system = COFOUNDER_SYSTEM.format(task_instructions=task_instructions)
+        messages = [
+            {"role": "user", "content": f"Idea: {idea}\n\nUnderstanding interview answers:\n\n{formatted_qa}"}
+        ]
 
         t0 = time.perf_counter()
         try:
-            response = await _invoke_with_retry(llm, [system_msg, human_msg])
-            result = _parse_json_response(response.content)
+            content = await _invoke_with_retry(client, system, messages)
+            result = _parse_json_response(content)
         except json.JSONDecodeError:
             log.warning("json_parse_failed_retrying", user_id=user_id, session_id=session_id, tier=tier)
-            strict_system = SystemMessage(
-                content="IMPORTANT: Your response MUST be valid JSON only. "
+            strict_system = (
+                "IMPORTANT: Your response MUST be valid JSON only. "
                 "Do not include any explanation, markdown, or code fences. "
-                "Start your response with { .\n\n" + system_msg.content
+                "Start your response with { .\n\n" + system
             )
-            response = await _invoke_with_retry(llm, [strict_system, human_msg])
-            result = _parse_json_response(response.content)
+            content = await _invoke_with_retry(client, strict_system, messages)
+            result = _parse_json_response(content)
         await emit_llm_latency(
             method_name="generate_idea_brief",
             duration_ms=(time.perf_counter() - t0) * 1000,
-            model=llm.model,
+            model=client.model,
         )
         return result
 
@@ -496,7 +455,7 @@ For confidence_scores, assess each section as:
 
         remaining_str = "\n".join(f"[{i}] {q.get('text', '')}" for i, q in enumerate(remaining))
 
-        llm = await create_tracked_llm(user_id=user_id, role="architect", session_id=session_id)
+        client = await create_tracked_llm(user_id=user_id, role="architect", session_id=session_id)
 
         task_instructions = """The founder has edited an answer in their understanding interview.
 Review the remaining questions and determine if any are now irrelevant or if new questions are needed.
@@ -512,28 +471,31 @@ Return ONLY a JSON object:
 - preserve_indices: indices (0-based) of remaining questions to keep as-is
 - new_questions: optional array of 1-2 new questions based on the changed answer (use same question format)"""
 
-        system_msg = SystemMessage(content=COFOUNDER_SYSTEM.format(task_instructions=task_instructions))
-        human_msg = HumanMessage(
-            content=(f"Idea: {idea}\n\nAnswered questions:\n{answered_str}\n\nRemaining questions:\n{remaining_str}")
-        )
+        system = COFOUNDER_SYSTEM.format(task_instructions=task_instructions)
+        messages = [
+            {
+                "role": "user",
+                "content": f"Idea: {idea}\n\nAnswered questions:\n{answered_str}\n\nRemaining questions:\n{remaining_str}",
+            }
+        ]
 
         t0 = time.perf_counter()
         try:
-            response = await _invoke_with_retry(llm, [system_msg, human_msg])
-            result = _parse_json_response(response.content)
+            content = await _invoke_with_retry(client, system, messages)
+            result = _parse_json_response(content)
         except json.JSONDecodeError:
             log.warning("json_parse_failed_retrying", user_id=user_id, session_id=session_id)
-            strict_system = SystemMessage(
-                content="IMPORTANT: Your response MUST be valid JSON only. "
+            strict_system = (
+                "IMPORTANT: Your response MUST be valid JSON only. "
                 "Do not include any explanation, markdown, or code fences. "
-                "Start your response with { .\n\n" + system_msg.content
+                "Start your response with { .\n\n" + system
             )
-            response = await _invoke_with_retry(llm, [strict_system, human_msg])
-            result = _parse_json_response(response.content)
+            content = await _invoke_with_retry(client, strict_system, messages)
+            result = _parse_json_response(content)
         await emit_llm_latency(
             method_name="check_question_relevance",
             duration_ms=(time.perf_counter() - t0) * 1000,
-            model=llm.model,
+            model=client.model,
         )
         return result
 
@@ -550,7 +512,7 @@ Return ONLY a JSON object:
         Raises:
             RuntimeError: If LLM call fails after retries
         """
-        llm = await create_tracked_llm(user_id="system", role="architect", session_id="assessment")
+        client = await create_tracked_llm(user_id="system", role="architect", session_id="assessment")
 
         task_instructions = """Assess the confidence level of this Idea Brief section.
 
@@ -560,17 +522,17 @@ Return ONLY one of: "strong", "moderate", "needs_depth"
 - "moderate": Reasonable hypothesis, some supporting logic, but unvalidated
 - "needs_depth": Vague, generic, or missing critical detail"""
 
-        system_msg = SystemMessage(content=COFOUNDER_SYSTEM.format(task_instructions=task_instructions))
-        human_msg = HumanMessage(content=f"Section: {section_key}\n\nContent: {content}")
+        system = COFOUNDER_SYSTEM.format(task_instructions=task_instructions)
+        messages = [{"role": "user", "content": f"Section: {section_key}\n\nContent: {content}"}]
 
         t0 = time.perf_counter()
-        response = await _invoke_with_retry(llm, [system_msg, human_msg])
+        text = await _invoke_with_retry(client, system, messages)
         await emit_llm_latency(
             method_name="assess_section_confidence",
             duration_ms=(time.perf_counter() - t0) * 1000,
-            model=llm.model,
+            model=client.model,
         )
-        text = response.content.strip().lower()
+        text = text.strip().lower()
         for level in ("strong", "moderate", "needs_depth"):
             if level in text:
                 return level
@@ -605,7 +567,7 @@ Return ONLY one of: "strong", "moderate", "needs_depth"
         # Clean brief for prompt (remove internal keys)
         clean_brief = {k: v for k, v in brief.items() if not k.startswith("_")}
 
-        llm = await create_tracked_llm(user_id=user_id, role="architect", session_id=session_id)
+        client = await create_tracked_llm(user_id=user_id, role="architect", session_id=session_id)
 
         feedback_context = ""
         if feedback:
@@ -633,28 +595,31 @@ Return ONLY a JSON object:
 }}
 {feedback_context}"""
 
-        system_msg = SystemMessage(content=COFOUNDER_SYSTEM.format(task_instructions=task_instructions))
-        human_msg = HumanMessage(
-            content=f"Generate execution plan options from this Idea Brief:\n\n{json.dumps(clean_brief, indent=2)}"
-        )
+        system = COFOUNDER_SYSTEM.format(task_instructions=task_instructions)
+        messages = [
+            {
+                "role": "user",
+                "content": f"Generate execution plan options from this Idea Brief:\n\n{json.dumps(clean_brief, indent=2)}",
+            }
+        ]
 
         t0 = time.perf_counter()
         try:
-            response = await _invoke_with_retry(llm, [system_msg, human_msg])
-            result = _parse_json_response(response.content)
+            content = await _invoke_with_retry(client, system, messages)
+            result = _parse_json_response(content)
         except json.JSONDecodeError:
             log.warning("json_parse_failed_retrying", user_id=user_id, session_id=session_id, tier=tier)
-            strict_system = SystemMessage(
-                content="IMPORTANT: Your response MUST be valid JSON only. "
+            strict_system = (
+                "IMPORTANT: Your response MUST be valid JSON only. "
                 "Do not include any explanation, markdown, or code fences. "
-                "Start your response with { .\n\n" + system_msg.content
+                "Start your response with { .\n\n" + system
             )
-            response = await _invoke_with_retry(llm, [strict_system, human_msg])
-            result = _parse_json_response(response.content)
+            content = await _invoke_with_retry(client, strict_system, messages)
+            result = _parse_json_response(content)
         await emit_llm_latency(
             method_name="generate_execution_options",
             duration_ms=(time.perf_counter() - t0) * 1000,
-            model=llm.model,
+            model=client.model,
         )
         return result
 
@@ -684,7 +649,7 @@ Return ONLY a JSON object:
         # Clean answers for prompt
         clean_answers = {k: v for k, v in onboarding_answers.items() if not k.startswith("_")}
 
-        llm = await create_tracked_llm(user_id=user_id, role="architect", session_id=session_id)
+        client = await create_tracked_llm(user_id=user_id, role="architect", session_id=session_id)
 
         task_instructions = """Generate a strategy graph that visualizes the founder's go-to-market strategy.
 
@@ -728,32 +693,35 @@ Node status rules:
 
 Use "we" voice in descriptions."""
 
-        system_msg = SystemMessage(content=COFOUNDER_SYSTEM.format(task_instructions=task_instructions))
-        human_msg = HumanMessage(
-            content=(
-                f"Idea: {idea}\n\n"
-                f"Idea Brief:\n{json.dumps(clean_brief, indent=2)}\n\n"
-                f"Founder's Answers:\n{json.dumps(clean_answers, indent=2)}"
-            )
-        )
+        system = COFOUNDER_SYSTEM.format(task_instructions=task_instructions)
+        messages = [
+            {
+                "role": "user",
+                "content": (
+                    f"Idea: {idea}\n\n"
+                    f"Idea Brief:\n{json.dumps(clean_brief, indent=2)}\n\n"
+                    f"Founder's Answers:\n{json.dumps(clean_answers, indent=2)}"
+                ),
+            }
+        ]
 
         t0 = time.perf_counter()
         try:
-            response = await _invoke_with_retry(llm, [system_msg, human_msg])
-            result = _parse_json_response(response.content)
+            content = await _invoke_with_retry(client, system, messages)
+            result = _parse_json_response(content)
         except json.JSONDecodeError:
             log.warning("json_parse_failed_retrying", user_id=user_id, session_id=session_id)
-            strict_system = SystemMessage(
-                content="IMPORTANT: Your response MUST be valid JSON only. "
+            strict_system = (
+                "IMPORTANT: Your response MUST be valid JSON only. "
                 "Do not include any explanation, markdown, or code fences. "
-                "Start your response with { .\n\n" + system_msg.content
+                "Start your response with { .\n\n" + system
             )
-            response = await _invoke_with_retry(llm, [strict_system, human_msg])
-            result = _parse_json_response(response.content)
+            content = await _invoke_with_retry(client, strict_system, messages)
+            result = _parse_json_response(content)
         await emit_llm_latency(
             method_name="generate_strategy_graph",
             duration_ms=(time.perf_counter() - t0) * 1000,
-            model=llm.model,
+            model=client.model,
         )
         return result
 
@@ -790,7 +758,7 @@ Use "we" voice in descriptions."""
         # Clean brief for prompt (remove internal keys)
         clean_brief = {k: v for k, v in brief.items() if not k.startswith("_")}
 
-        llm = await create_tracked_llm(user_id=user_id, role="architect", session_id=session_id)
+        client = await create_tracked_llm(user_id=user_id, role="architect", session_id=session_id)
 
         task_instructions = f"""Generate a personalized MVP timeline adapted for the {tier} tier.
 
@@ -826,28 +794,31 @@ Return ONLY a JSON object:
   "adapted_for": "{tier}"
 }}"""
 
-        system_msg = SystemMessage(content=COFOUNDER_SYSTEM.format(task_instructions=task_instructions))
-        human_msg = HumanMessage(
-            content=(f"Idea: {idea}\n\nIdea Brief:\n{json.dumps(clean_brief, indent=2)}\n\nTier: {tier}")
-        )
+        system = COFOUNDER_SYSTEM.format(task_instructions=task_instructions)
+        messages = [
+            {
+                "role": "user",
+                "content": f"Idea: {idea}\n\nIdea Brief:\n{json.dumps(clean_brief, indent=2)}\n\nTier: {tier}",
+            }
+        ]
 
         t0 = time.perf_counter()
         try:
-            response = await _invoke_with_retry(llm, [system_msg, human_msg])
-            result = _parse_json_response(response.content)
+            content = await _invoke_with_retry(client, system, messages)
+            result = _parse_json_response(content)
         except json.JSONDecodeError:
             log.warning("json_parse_failed_retrying", user_id=user_id, session_id=session_id, tier=tier)
-            strict_system = SystemMessage(
-                content="IMPORTANT: Your response MUST be valid JSON only. "
+            strict_system = (
+                "IMPORTANT: Your response MUST be valid JSON only. "
                 "Do not include any explanation, markdown, or code fences. "
-                "Start your response with { .\n\n" + system_msg.content
+                "Start your response with { .\n\n" + system
             )
-            response = await _invoke_with_retry(llm, [strict_system, human_msg])
-            result = _parse_json_response(response.content)
+            content = await _invoke_with_retry(client, strict_system, messages)
+            result = _parse_json_response(content)
         await emit_llm_latency(
             method_name="generate_mvp_timeline",
             duration_ms=(time.perf_counter() - t0) * 1000,
-            model=llm.model,
+            model=client.model,
         )
         return result
 
@@ -876,7 +847,7 @@ Return ONLY a JSON object:
         # Clean brief for prompt (remove internal keys)
         clean_brief = {k: v for k, v in brief.items() if not k.startswith("_")}
 
-        llm = await create_tracked_llm(user_id=user_id, role="architect", session_id=session_id)
+        client = await create_tracked_llm(user_id=user_id, role="architect", session_id=session_id)
 
         task_instructions = f"""Generate a simplified app architecture diagram for a non-technical founder.
 
@@ -927,28 +898,31 @@ Return ONLY a JSON object:
   ]
 }}"""
 
-        system_msg = SystemMessage(content=COFOUNDER_SYSTEM.format(task_instructions=task_instructions))
-        human_msg = HumanMessage(
-            content=(f"Idea: {idea}\n\nIdea Brief:\n{json.dumps(clean_brief, indent=2)}\n\nTier: {tier}")
-        )
+        system = COFOUNDER_SYSTEM.format(task_instructions=task_instructions)
+        messages = [
+            {
+                "role": "user",
+                "content": f"Idea: {idea}\n\nIdea Brief:\n{json.dumps(clean_brief, indent=2)}\n\nTier: {tier}",
+            }
+        ]
 
         t0 = time.perf_counter()
         try:
-            response = await _invoke_with_retry(llm, [system_msg, human_msg])
-            result = _parse_json_response(response.content)
+            content = await _invoke_with_retry(client, system, messages)
+            result = _parse_json_response(content)
         except json.JSONDecodeError:
             log.warning("json_parse_failed_retrying", user_id=user_id, session_id=session_id, tier=tier)
-            strict_system = SystemMessage(
-                content="IMPORTANT: Your response MUST be valid JSON only. "
+            strict_system = (
+                "IMPORTANT: Your response MUST be valid JSON only. "
                 "Do not include any explanation, markdown, or code fences. "
-                "Start your response with { .\n\n" + system_msg.content
+                "Start your response with { .\n\n" + system
             )
-            response = await _invoke_with_retry(llm, [strict_system, human_msg])
-            result = _parse_json_response(response.content)
+            content = await _invoke_with_retry(client, strict_system, messages)
+            result = _parse_json_response(content)
         await emit_llm_latency(
             method_name="generate_app_architecture",
             duration_ms=(time.perf_counter() - t0) * 1000,
-            model=llm.model,
+            model=client.model,
         )
         return result
 
@@ -976,7 +950,7 @@ Return ONLY a JSON object:
         # Filter out internal keys
         clean_brief = {k: v for k, v in brief.items() if not k.startswith("_")}
 
-        llm = await create_tracked_llm(user_id=user_id, role="architect", session_id=session_id)
+        client = await create_tracked_llm(user_id=user_id, role="architect", session_id=session_id)
 
         task_instructions = f"""Generate a complete set of project artifacts from the product brief.
 These artifacts are the founder's project documentation — they'll share these with advisors,
@@ -1032,28 +1006,31 @@ Return ONLY a JSON object with these 5 keys:
 Each artifact should cross-reference others (e.g., milestones reference MVP features,
 risk log references brief assumptions)."""
 
-        system_msg = SystemMessage(content=COFOUNDER_SYSTEM.format(task_instructions=task_instructions))
-        human_msg = HumanMessage(
-            content=f"Generate project artifacts from this brief:\n\n{json.dumps(clean_brief, indent=2)}"
-        )
+        system = COFOUNDER_SYSTEM.format(task_instructions=task_instructions)
+        messages = [
+            {
+                "role": "user",
+                "content": f"Generate project artifacts from this brief:\n\n{json.dumps(clean_brief, indent=2)}",
+            }
+        ]
 
         t0 = time.perf_counter()
         try:
-            response = await _invoke_with_retry(llm, [system_msg, human_msg])
-            result = _parse_json_response(response.content)
+            content = await _invoke_with_retry(client, system, messages)
+            result = _parse_json_response(content)
         except json.JSONDecodeError:
             log.warning("json_parse_failed_retrying", user_id=user_id, session_id=session_id, tier=tier)
-            strict_system = SystemMessage(
-                content="IMPORTANT: Your response MUST be valid JSON only. "
+            strict_system = (
+                "IMPORTANT: Your response MUST be valid JSON only. "
                 "Do not include any explanation, markdown, or code fences. "
-                "Start your response with { .\n\n" + system_msg.content
+                "Start your response with { .\n\n" + system
             )
-            response = await _invoke_with_retry(llm, [strict_system, human_msg])
-            result = _parse_json_response(response.content)
+            content = await _invoke_with_retry(client, strict_system, messages)
+            result = _parse_json_response(content)
         await emit_llm_latency(
             method_name="generate_artifacts",
             duration_ms=(time.perf_counter() - t0) * 1000,
-            model=llm.model,
+            model=client.model,
         )
         return result
 
@@ -1061,7 +1038,6 @@ risk log references brief assumptions)."""
         """Execute the autonomous TAOR agent loop for a build session.
 
         Phase 41 will implement the full TAOR loop here.
-        RunnerReal delegates to the LangGraph pipeline until Phase 41 replaces it.
 
         Args:
             context: Dict with keys: project_id, user_id, idea_brief, execution_plan

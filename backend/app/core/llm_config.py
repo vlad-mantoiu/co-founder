@@ -9,10 +9,8 @@ Resolution order:
 from datetime import date
 from typing import Any
 
+import anthropic
 import structlog
-from langchain_anthropic import ChatAnthropic
-from langchain_core.callbacks import AsyncCallbackHandler
-from langchain_core.outputs import LLMResult
 from sqlalchemy import select
 
 from app.core.config import get_settings
@@ -116,64 +114,36 @@ async def _check_daily_token_limit(user_id: str, user_settings: UserSettings) ->
         raise PermissionError(f"Daily token limit reached ({used:,}/{max_tokens:,}). Resets at midnight UTC.")
 
 
-async def create_tracked_llm(
-    user_id: str,
-    role: str,
-    session_id: str,
-) -> ChatAnthropic:
-    """Return a ChatAnthropic instance with usage tracking callback.
+class TrackedAnthropicClient:
+    """Thin wrapper around anthropic.AsyncAnthropic that tracks usage after each call.
 
-    Resolves the model via plan/override/global fallback and attaches a
-    callback that writes UsageLog rows and increments the Redis daily counter.
+    Provides the same interface expected by runner_real.py:
+    - .model: the resolved model name
+    - .messages.create(): async Anthropic messages API call
+    - Usage is tracked automatically after each call via on_llm_end()
     """
-    model = await resolve_llm_config(user_id, role)
-    settings = get_settings()
 
-    callback = UsageTrackingCallback(
-        user_id=user_id,
-        session_id=session_id,
-        role=role,
-        model=model,
-    )
-
-    return ChatAnthropic(
-        model=model,
-        api_key=settings.anthropic_api_key,
-        max_tokens=8192 if role == "coder" else 4096,
-        callbacks=[callback],
-    )
-
-
-class UsageTrackingCallback(AsyncCallbackHandler):
-    """LangChain async callback that logs token usage to DB + Redis."""
-
-    def __init__(self, user_id: str, session_id: str, role: str, model: str):
-        super().__init__()
-        self.user_id = user_id
-        self.session_id = session_id
-        self.role = role
+    def __init__(self, client: anthropic.AsyncAnthropic, model: str, user_id: str, session_id: str, role: str):
+        self._client = client
         self.model = model
+        self._user_id = user_id
+        self._session_id = session_id
+        self._role = role
+        self.messages = _TrackedMessages(self)
 
-    async def on_llm_end(self, response: LLMResult, **kwargs: Any) -> None:
-        """Called after an LLM call completes."""
-        usage = _extract_usage(response)
-        if usage is None:
-            return
-
-        input_tokens = usage.get("input_tokens", 0)
-        output_tokens = usage.get("output_tokens", 0)
-        total_tokens = input_tokens + output_tokens
-
+    async def _track_usage(self, input_tokens: int, output_tokens: int) -> None:
+        """Write usage to Postgres and increment Redis daily counter."""
         cost = _calculate_cost(self.model, input_tokens, output_tokens)
+        total_tokens = input_tokens + output_tokens
 
         # Write to Postgres
         try:
             factory = get_session_factory()
             async with factory() as session:
                 log = UsageLog(
-                    clerk_user_id=self.user_id,
-                    session_id=self.session_id,
-                    agent_role=self.role,
+                    clerk_user_id=self._user_id,
+                    session_id=self._session_id,
+                    agent_role=self._role,
                     model_used=self.model,
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
@@ -184,38 +154,69 @@ class UsageTrackingCallback(AsyncCallbackHandler):
                 await session.commit()
         except Exception as e:
             logger.warning(
-                "usage_tracking_db_write_failed", user_id=self.user_id, error=str(e), error_type=type(e).__name__
+                "usage_tracking_db_write_failed",
+                user_id=self._user_id,
+                error=str(e),
+                error_type=type(e).__name__,
             )
 
         # Increment Redis daily counter
         try:
             r = get_redis()
             today = date.today().isoformat()
-            key = f"cofounder:usage:{self.user_id}:{today}"
+            key = f"cofounder:usage:{self._user_id}:{today}"
             await r.incrby(key, total_tokens)
             await r.expire(key, 90_000)  # 25h TTL for safety
         except Exception as e:
             logger.warning(
-                "usage_tracking_redis_write_failed", user_id=self.user_id, error=str(e), error_type=type(e).__name__
+                "usage_tracking_redis_write_failed",
+                user_id=self._user_id,
+                error=str(e),
+                error_type=type(e).__name__,
             )
 
 
-def _extract_usage(response: LLMResult) -> dict | None:
-    """Pull token usage dict from an LLMResult."""
-    if not response.generations:
-        return None
+class _TrackedMessages:
+    """Proxy for AsyncAnthropic.messages that intercepts create() to track usage."""
 
-    gen = response.generations[0]
-    if not gen:
-        return None
+    def __init__(self, tracked_client: TrackedAnthropicClient):
+        self._tracked = tracked_client
 
-    info = gen[0].generation_info or {}
-    usage = info.get("usage", {})
+    async def create(self, **kwargs: Any) -> anthropic.types.Message:
+        """Call messages.create() and track usage from the response."""
+        response = await self._tracked._client.messages.create(**kwargs)
 
-    if not usage and hasattr(response, "llm_output") and response.llm_output:
-        usage = response.llm_output.get("usage", {})
+        # Track usage from response
+        if hasattr(response, "usage") and response.usage:
+            input_tokens = getattr(response.usage, "input_tokens", 0)
+            output_tokens = getattr(response.usage, "output_tokens", 0)
+            await self._tracked._track_usage(input_tokens, output_tokens)
 
-    return usage if usage else None
+        return response
+
+
+async def create_tracked_llm(
+    user_id: str,
+    role: str,
+    session_id: str,
+) -> TrackedAnthropicClient:
+    """Return a TrackedAnthropicClient wrapping anthropic.AsyncAnthropic with usage tracking.
+
+    Resolves the model via plan/override/global fallback and wraps the client
+    so usage is tracked automatically after each messages.create() call.
+    """
+    model = await resolve_llm_config(user_id, role)
+    settings = get_settings()
+
+    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+
+    return TrackedAnthropicClient(
+        client=client,
+        model=model,
+        user_id=user_id,
+        session_id=session_id,
+        role=role,
+    )
 
 
 def _calculate_cost(model: str, input_tokens: int, output_tokens: int) -> int:

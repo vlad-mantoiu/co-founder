@@ -3,10 +3,11 @@
 This module provides:
 - _strip_json_fences: Remove markdown code fences from LLM output
 - _parse_json_response: Parse JSON from LLM response after stripping fences
-- _invoke_with_retry: Retry LLM invocation on Claude 529 OverloadedError
+- _invoke_with_retry: Retry LLM messages.create() on Claude 529 OverloadedError
 """
 
 import json
+from typing import Any
 
 import structlog
 from anthropic._exceptions import OverloadedError
@@ -48,13 +49,28 @@ def _parse_json_response(content: str) -> dict | list:
         sleep_seconds=rs.next_action.sleep,
     ),
 )
-async def _invoke_with_retry(llm, messages):
-    """Invoke LLM with retry on Claude 529 overload.
+async def _invoke_with_retry(client: Any, system: str, messages: list[dict], max_tokens: int = 4096) -> str:
+    """Invoke Anthropic messages.create() with retry on Claude 529 overload.
 
     Retries up to 3 times with exponential backoff (2s, 4s, 8s max 30s).
     Only retries OverloadedError (529). All other exceptions propagate immediately.
+
+    Args:
+        client: TrackedAnthropicClient (or any object with .messages.create() and .model)
+        system: System prompt string
+        messages: List of message dicts (role/content format)
+        max_tokens: Maximum tokens for the response
+
+    Returns:
+        Text content of the first response block
     """
-    return await llm.ainvoke(messages)
+    response = await client.messages.create(
+        model=client.model,
+        system=system,
+        messages=messages,
+        max_tokens=max_tokens,
+    )
+    return response.content[0].text
 
 
 async def enqueue_failed_request(user_id: str, session_id: str, action: str, payload: dict) -> None:
