@@ -75,8 +75,8 @@ class GenerationStatusResponse(BaseModel):
     debug_id: str | None = None
     sandbox_expires_at: str | None = None
     sandbox_paused: bool = False
-    snapshot_url: str | None = None    # null until first screenshot uploaded (Phase 34 writes this)
-    docs_ready: bool = False           # True when at least one docs section exists in Redis
+    snapshot_url: str | None = None  # null until first screenshot uploaded (Phase 34 writes this)
+    docs_ready: bool = False  # True when at least one docs section exists in Redis
 
 
 class CancelGenerationResponse(BaseModel):

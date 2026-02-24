@@ -82,9 +82,7 @@ class TestNarrationConstants:
 
     def test_fallback_narrations_are_nonempty_strings(self) -> None:
         for stage, text in _FALLBACK_NARRATIONS.items():
-            assert isinstance(text, str) and text.strip(), (
-                f"Stage {stage!r} fallback is empty or not a string"
-            )
+            assert isinstance(text, str) and text.strip(), f"Stage {stage!r} fallback is empty or not a string"
 
 
 # ---------------------------------------------------------------------------
@@ -373,6 +371,7 @@ class TestNarrateHappyPath:
 
             assert published_job_id == job_id
             from app.queue.state_machine import SSEEventType
+
             assert event["type"] == SSEEventType.BUILD_STAGE_STARTED
             assert event["stage"] == stage
             assert event["narration"] == narration_text
@@ -713,4 +712,5 @@ class TestModuleSingleton:
     def test_module_singleton_exists(self) -> None:
         """_narration_service module-level singleton must exist."""
         from app.services.narration_service import _narration_service
+
         assert isinstance(_narration_service, NarrationService)

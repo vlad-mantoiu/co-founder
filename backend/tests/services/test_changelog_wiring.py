@@ -232,9 +232,7 @@ async def test_changelog_skipped_for_first_build():
                     new=capture_mock,
                 ):
                     with patch("app.services.generation_service._get_settings", return_value=mock_settings):
-                        result = await service.execute_build(
-                            job_id, job_data, state_machine, redis=redis
-                        )
+                        result = await service.execute_build(job_id, job_data, state_machine, redis=redis)
 
     await asyncio.sleep(0)
 

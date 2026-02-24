@@ -170,7 +170,7 @@ class ScreenshotService:
                 await page.goto(
                     preview_url,
                     wait_until="load",  # "networkidle" is DISCOURAGED on Next.js dev servers
-                    timeout=10_000,     # 10s budget (leaves ~20s for validate + upload)
+                    timeout=10_000,  # 10s budget (leaves ~20s for validate + upload)
                 )
                 await asyncio.sleep(1)  # Allow React hydration to complete
                 png_bytes: bytes = await page.screenshot(type="png", full_page=False)

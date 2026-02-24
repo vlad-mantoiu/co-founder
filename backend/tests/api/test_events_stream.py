@@ -146,7 +146,7 @@ def test_events_stream_terminal_job_emits_final_and_closes(fake_redis, user_a):
     data_lines = [line for line in body.splitlines() if line.startswith("data:")]
     assert len(data_lines) >= 1, f"Expected at least one data: line, got body: {body!r}"
 
-    first_event = json.loads(data_lines[0][len("data:"):].strip())
+    first_event = json.loads(data_lines[0][len("data:") :].strip())
     assert first_event.get("status") == "ready", f"Expected status=ready, got: {first_event}"
 
 
@@ -175,7 +175,7 @@ def test_events_stream_terminal_failed_job(fake_redis, user_a):
     data_lines = [line for line in body.splitlines() if line.startswith("data:")]
     assert len(data_lines) >= 1, f"Expected at least one data: line, got body: {body!r}"
 
-    first_event = json.loads(data_lines[0][len("data:"):].strip())
+    first_event = json.loads(data_lines[0][len("data:") :].strip())
     assert first_event.get("status") == "failed", f"Expected status=failed, got: {first_event}"
 
 

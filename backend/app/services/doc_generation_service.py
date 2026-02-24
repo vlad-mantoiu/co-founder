@@ -92,9 +92,20 @@ _SAFETY_PATTERNS: list[tuple[re.Pattern, str]] = [
     # Unix paths: /home/, /usr/, /var/, /tmp/, /app/, /src/, /workspace/ followed by non-whitespace
     (re.compile(r"/(home|usr|var|tmp|app|src|workspace)/\S+"), ""),
     # Stack trace boilerplate: lines containing "Traceback (most recent call last):", "raise Foo", or File "..." line N
-    (re.compile(r"^.*?(Traceback \(most recent call last\):|raise \w[\w.]*(?:\(.*?\))?|File \"[^\"]+\",\s*line \d+).*$", re.MULTILINE), ""),
+    (
+        re.compile(
+            r"^.*?(Traceback \(most recent call last\):|raise \w[\w.]*(?:\(.*?\))?|File \"[^\"]+\",\s*line \d+).*$",
+            re.MULTILINE,
+        ),
+        "",
+    ),
     # Secret-shaped strings: API keys (sk-ant-..., sk-proj-..., AKIA..., ghp_..., xoxb-...)
-    (re.compile(r"\b(sk-(?:ant|proj|live|test)-[a-zA-Z0-9_-]{10,}|AKIA[A-Z0-9]{16}|ghp_[a-zA-Z0-9]{36}|xoxb-[a-zA-Z0-9-]+)\b"), "[REDACTED]"),
+    (
+        re.compile(
+            r"\b(sk-(?:ant|proj|live|test)-[a-zA-Z0-9_-]{10,}|AKIA[A-Z0-9]{16}|ghp_[a-zA-Z0-9]{36}|xoxb-[a-zA-Z0-9-]+)\b"
+        ),
+        "[REDACTED]",
+    ),
     # PascalCase filenames: starts with uppercase, mixed case, known extensions
     (re.compile(r"\b[A-Z][a-zA-Z0-9]+\.(py|ts|js|tsx|jsx|json)\b"), ""),
     # Framework/library names (word boundaries prevent false positives like "reactive")
@@ -331,8 +342,8 @@ class DocGenerationService:
                 f"Use 'we' language. Format as markdown with '## {version_label} Changes' heading. "
                 f"DO NOT mention developer terms like schema, endpoint, model, or API. "
                 f"Return ONLY valid JSON: "
-                f'{{\"changelog\": \"## {version_label} Changes\\n\\n### Added\\n- ...\\n\\n'
-                f'### Changed\\n- ...\\n\\n### Removed\\n- ...\"}}'
+                f'{{"changelog": "## {version_label} Changes\\n\\n### Added\\n- ...\\n\\n'
+                f'### Changed\\n- ...\\n\\n### Removed\\n- ..."}}'
             )
             user_prompt = (
                 f"Previous product spec:\n{previous_spec}\n\n"

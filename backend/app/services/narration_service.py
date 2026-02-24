@@ -111,9 +111,7 @@ class NarrationService:
                 )
                 narration_text = self._apply_safety_filter(narration_text)
             except Exception:
-                narration_text = _FALLBACK_NARRATIONS.get(
-                    stage, "We're making progress on your build."
-                )
+                narration_text = _FALLBACK_NARRATIONS.get(stage, "We're making progress on your build.")
 
             state_machine = JobStateMachine(redis)  # type: ignore[arg-type]
             await state_machine.publish_event(
@@ -195,9 +193,7 @@ class NarrationService:
             Tuple of (system_prompt, messages_list)
         """
         user_content = (
-            f"Stage: {stage}\n"
-            f"Product: {spec[:300]}\n"
-            "Write one sentence describing what we're doing in this stage."
+            f"Stage: {stage}\nProduct: {spec[:300]}\nWrite one sentence describing what we're doing in this stage."
         )
         messages = [{"role": "user", "content": user_content}]
         return _SYSTEM_PROMPT, messages

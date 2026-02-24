@@ -163,16 +163,13 @@ async def test_narration_called_for_each_stage():
 
     # narrate() must have been called exactly 4 times
     assert narrate_mock.call_count == 4, (
-        f"Expected narrate() called 4 times (scaffold/code/deps/checks), "
-        f"got {narrate_mock.call_count}"
+        f"Expected narrate() called 4 times (scaffold/code/deps/checks), got {narrate_mock.call_count}"
     )
 
     # Verify the exact 4 stages — collect all stage args
     called_stages = [c.kwargs.get("stage") for c in narrate_mock.call_args_list]
     expected_stages = ["scaffold", "code", "deps", "checks"]
-    assert called_stages == expected_stages, (
-        f"Expected stages {expected_stages}, got {called_stages}"
-    )
+    assert called_stages == expected_stages, f"Expected stages {expected_stages}, got {called_stages}"
 
     # Verify narrate() is NOT called for 'starting' or 'ready'
     assert "starting" not in called_stages, "narrate() must NOT be called for 'starting' stage"
@@ -224,8 +221,7 @@ async def test_narration_skipped_when_disabled():
 
     # narrate() must NOT have been called
     assert narrate_mock.call_count == 0, (
-        f"narrate() should not be called when narration_enabled=False; "
-        f"got {narrate_mock.call_count} calls"
+        f"narrate() should not be called when narration_enabled=False; got {narrate_mock.call_count} calls"
     )
 
     # Build still completes normally
@@ -331,8 +327,7 @@ async def test_screenshot_skipped_when_disabled():
 
     # capture() must NOT have been called
     assert capture_mock.call_count == 0, (
-        f"capture() should not be called when screenshot_enabled=False; "
-        f"got {capture_mock.call_count} calls"
+        f"capture() should not be called when screenshot_enabled=False; got {capture_mock.call_count} calls"
     )
 
     # Build still completes normally

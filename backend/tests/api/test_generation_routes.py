@@ -725,12 +725,8 @@ def test_docs_endpoint_returns_partial_sections(api_client: TestClient, fake_red
 
     assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.json()}"
     data = response.json()
-    assert data["overview"] == overview_text, (
-        f"Expected overview={overview_text!r}, got {data['overview']!r}"
-    )
-    assert data["features"] == features_text, (
-        f"Expected features={features_text!r}, got {data['features']!r}"
-    )
+    assert data["overview"] == overview_text, f"Expected overview={overview_text!r}, got {data['overview']!r}"
+    assert data["features"] == features_text, f"Expected features={features_text!r}, got {data['features']!r}"
     assert data["getting_started"] is None, (
         f"Expected getting_started=None (not written), got {data['getting_started']!r}"
     )

@@ -150,16 +150,12 @@ async def test_doc_generation_task_launched_after_scaffold():
     await asyncio.sleep(0)
 
     # generate() must have been called exactly once
-    assert generate_mock.call_count == 1, (
-        f"Expected generate() called 1 time, got {generate_mock.call_count}"
-    )
+    assert generate_mock.call_count == 1, f"Expected generate() called 1 time, got {generate_mock.call_count}"
 
     # Verify correct arguments were passed
     call_kwargs = generate_mock.call_args
     actual_job_id = call_kwargs.kwargs.get("job_id")
-    assert actual_job_id == job_id, (
-        f"generate() not called with job_id={job_id!r}; got job_id={actual_job_id!r}"
-    )
+    assert actual_job_id == job_id, f"generate() not called with job_id={job_id!r}; got job_id={actual_job_id!r}"
 
     actual_spec = call_kwargs.kwargs.get("spec")
     assert actual_spec == job_data["goal"], (
@@ -205,8 +201,7 @@ async def test_doc_generation_skipped_when_disabled():
 
     # generate() must NOT have been called
     assert generate_mock.call_count == 0, (
-        f"generate() should not be called when docs_generation_enabled=False; "
-        f"got {generate_mock.call_count} calls"
+        f"generate() should not be called when docs_generation_enabled=False; got {generate_mock.call_count} calls"
     )
 
     # Build still completes normally when flag is off

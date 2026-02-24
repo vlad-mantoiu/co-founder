@@ -198,7 +198,7 @@ class TestSafetyFilter:
 
     def test_strips_stack_trace_header(self) -> None:
         """'Traceback (most recent call last):' lines must be stripped."""
-        content = "Error: Traceback (most recent call last):\n  File \"/app/main.py\", line 42"
+        content = 'Error: Traceback (most recent call last):\n  File "/app/main.py", line 42'
         result = self.service._apply_safety_filter(content)
         assert "Traceback" not in result
 
@@ -271,8 +271,8 @@ class TestParseSections:
         raw = {
             "overview": "Valid overview.",
             "features": ["bullet1", "bullet2"],  # list — should be skipped
-            "getting_started": None,              # None — should be skipped
-            "faq": 42,                            # int — should be skipped
+            "getting_started": None,  # None — should be skipped
+            "faq": 42,  # int — should be skipped
         }
         sections = self.service._parse_sections(raw)
         assert "overview" in sections
@@ -377,7 +377,9 @@ class TestCallClaudeWithRetry:
         """AsyncAnthropic.messages.create() called with claude-3-5-haiku-20241022."""
         service = DocGenerationService()
         mock_response = MagicMock()
-        mock_response.content = [MagicMock(text='{"overview": "x", "features": "y", "getting_started": "z", "faq": "q"}')]
+        mock_response.content = [
+            MagicMock(text='{"overview": "x", "features": "y", "getting_started": "z", "faq": "q"}')
+        ]
 
         with (
             patch("app.services.doc_generation_service.anthropic") as mock_anthropic,
@@ -397,7 +399,9 @@ class TestCallClaudeWithRetry:
     async def test_returns_parsed_json_dict(self) -> None:
         """Returns a dict from the JSON response."""
         service = DocGenerationService()
-        sections_json = '{"overview": "Overview text", "features": "Features", "getting_started": "Steps", "faq": "Q&A"}'
+        sections_json = (
+            '{"overview": "Overview text", "features": "Features", "getting_started": "Steps", "faq": "Q&A"}'
+        )
         mock_response = MagicMock()
         mock_response.content = [MagicMock(text=sections_json)]
 
@@ -593,6 +597,7 @@ class TestGenerateHappyPath:
             assert mock_sm.publish_event.call_count == 4
             # Each call has DOCUMENTATION_UPDATED type
             from app.queue.state_machine import SSEEventType
+
             for call_args in mock_sm.publish_event.call_args_list:
                 event = call_args[0][1]
                 assert event["type"] == SSEEventType.DOCUMENTATION_UPDATED
