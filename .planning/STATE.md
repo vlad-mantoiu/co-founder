@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** v0.7 Autonomous Agent — Phase 40: LangGraph Removal + Protocol Extension (COMPLETE)
+**Current focus:** v0.7 Autonomous Agent — Phase 41: Autonomous Runner Core (TAOR Loop) — Plan 2/3 complete
 
 ## Current Position
 
-Phase: 40 of 46 (LangGraph Removal + Protocol Extension) — COMPLETE
-Plan: 4 of 4 complete
-Status: Phase 40 complete — ready for Phase 41
-Last activity: 2026-02-24 — Plan 40-04 complete: AUTONOMOUS_AGENT feature flag wired, 501 response for build endpoint, frontend coming-soon banner added
+Phase: 41 of 46 (Autonomous Runner Core — TAOR Loop) — IN PROGRESS
+Plan: 2 of 3 complete
+Status: Plan 41-02 complete — system prompt builder TDD'd, ready for Plan 41-03 (TAOR loop core)
+Last activity: 2026-02-25 — Plan 41-02 complete: build_system_prompt() pure function, 8 tests passing, verbatim founder context injection
 
-Progress: [█░░░░░░░░░] 17% (v0.7: 4/24 plans done)
+Progress: [█░░░░░░░░░] 25% (v0.7: 6/24 plans done)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 97 (v0.1: 47, v0.2: 20, v0.3: 9, v0.4: 21, v0.5: 15, v0.6: 12, v0.7: 4)
+- Total plans completed: 99 (v0.1: 47, v0.2: 20, v0.3: 9, v0.4: 21, v0.5: 15, v0.6: 12, v0.7: 6)
 - Total phases shipped: 36 (across 6 milestones; 37-39 abandoned)
 
 **By Milestone:**
@@ -59,6 +59,9 @@ Progress: [█░░░░░░░░░] 17% (v0.7: 4/24 plans done)
 - [40-04] AUTONOMOUS_AGENT=true (default) returns 501 immediately from /start endpoint before gate/job logic — build disabled until Phase 41
 - [40-04] _build_runner() uses real Settings.model_copy() for test overrides — avoids MagicMock attribute explosion across lru_cached get_settings callers
 - [40-04] 501 fires before gate check — correct because flag=true means no job should be enqueued regardless of gate state
+- [41-02] build_system_prompt() is a pure function (no I/O, no side effects) — verbatim json.dumps(indent=2) for Idea Brief and Build Plan; Q:/A: pairs for QnA
+- [41-02] _PERSONA_SECTION is a module-level constant — single source of truth for co-founder persona copy, no coupling to call site
+- [41-02] Critical guardrails minimal and catastrophic-action-only: no data deletion, no external prod API calls — trust tool-level sandbox safety for everything else
 
 ### Key Research Flags (check before planning)
 
@@ -79,9 +82,9 @@ None blocking Phase 41.
 
 ## Session Continuity
 
-Last session: 2026-02-24 (plan 40-04)
-Stopped at: Phase 40 COMPLETE — all 4 plans done (Protocol extension, service standalone, LangGraph removal, feature flag routing). Full unit suite: 540 passed.
-Resume: `/gsd:execute-phase 41` to begin Phase 41 (TAOR autonomous agent implementation)
+Last session: 2026-02-25 (plan 41-02)
+Stopped at: Completed 41-02-PLAN.md — build_system_prompt() TDD complete (8 tests pass). Plan 41-03 is next (TAOR loop core implementation).
+Resume: `/gsd:execute-phase 41` to continue Phase 41 with Plan 41-03
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*

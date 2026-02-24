@@ -10,7 +10,7 @@ Requirements for v0.7 Autonomous Agent. Each maps to roadmap phases.
 ### Agent Core
 
 - [ ] **AGNT-01**: Agent executes a TAOR (Think-Act-Observe-Repeat) loop using Anthropic tool-use API, autonomously deciding next actions until build is complete or human input needed
-- [ ] **AGNT-02**: Agent consumes Understanding Interview QnA + Idea Brief as input context, using it to make autonomous product/architecture decisions
+- [x] **AGNT-02**: Agent consumes Understanding Interview QnA + Idea Brief as input context, using it to make autonomous product/architecture decisions
 - [ ] **AGNT-03**: Agent has 7 Claude Code-style tools operating inside E2B sandbox: read_file, write_file, edit_file, bash, grep, glob, take_screenshot
 - [ ] **AGNT-04**: Agent handles narration natively via narrate() tool — first-person co-founder voice describing what it's doing and why
 - [ ] **AGNT-05**: Agent handles documentation generation natively as part of its workflow — no separate DocGenerationService
@@ -122,7 +122,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MIGR-02 | Phase 40 | Complete |
 | MIGR-03 | Phase 40 | Complete |
 | AGNT-01 | Phase 41 | Pending |
-| AGNT-02 | Phase 41 | Pending |
+| AGNT-02 | Phase 41 | Complete |
 | AGNT-06 | Phase 41 | Pending |
 | AGNT-03 | Phase 42 | Pending |
 | MIGR-04 | Phase 42 | Pending |
