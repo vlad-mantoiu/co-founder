@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** v0.6 Live Build Experience — Phase 36 in progress (Plan 01 of 4 complete)
+**Current focus:** v0.6 Live Build Experience — Phase 36 in progress (Plan 03 of 4 complete)
 
 ## Current Position
 
 Phase: 36 of 39 (GenerationService Wiring & API Routes)
-Plan: 01 complete
+Plan: 03 complete
 Status: In progress
-Last activity: 2026-02-24 — Phase 36 Plan 01 complete: NarrationService with Claude Haiku stage narration, safety filter, SSE event emission
+Last activity: 2026-02-24 — Phase 36 Plan 03 complete: SSE events stream endpoint with 15s heartbeat and Redis Pub/Sub get_message() polling
 
-Progress: [██░░░░░░░░] ~10% (v0.6 in progress — 6 plans shipped)
+Progress: [███░░░░░░░] ~15% (v0.6 in progress — 8 plans shipped)
 
 ## Performance Metrics
 
@@ -34,6 +34,7 @@ Progress: [██░░░░░░░░] ~10% (v0.6 in progress — 6 plans sh
 | v0.6 Phase 34 Plan 03 | 1 plan | 1 task | 2 files | ~1min |
 | Phase 35 P02 | 5min | 1 tasks | 2 files |
 | Phase 36 P01 | 5min | 1 tasks | 2 files |
+| Phase 36 P03 | 1052 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -96,6 +97,14 @@ Key v0.6 decisions (from Phase 36 Plan 01):
 - [Phase 36-narrationservice]: narrate() wraps wait_for() in try/except so even publish_event failure is caught — truly never raises
 - [Phase 36-narrationservice]: spec[:300] truncation in narrate(), not in _call_claude() — keeps _call_claude testable independently
 
+Key v0.6 decisions (from Phase 36 Plan 03):
+- [Phase 36-eventsstream]: pubsub.get_message() not pubsub.listen() — enables heartbeat interleaving for ALB-compatible SSE
+- [Phase 36-eventsstream]: 15s heartbeat interval for /{job_id}/events/stream — 4x safety margin below ALB 60s idle timeout
+- [Phase 36-eventsstream]: Heartbeat timer resets on data events — avoids unnecessary heartbeats during active streaming bursts
+- [Phase 36]: pubsub.get_message() not pubsub.listen() — enables heartbeat interleaving for ALB-compatible SSE
+- [Phase 36]: [Phase 36-eventsstream]: 15s heartbeat interval for /{job_id}/events/stream — 4x safety margin below ALB 60s idle timeout
+- [Phase 36]: [Phase 36-eventsstream]: Heartbeat timer resets on data events — avoids unnecessary heartbeats during active streaming bursts
+
 ### Pending Todos
 
 - [ ] Verify workflow_run gate: push a commit with a failing test and confirm deploy.yml does NOT trigger
@@ -112,8 +121,8 @@ None blocking Phase 34 Plan 02.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 36-01-PLAN.md — NarrationService with Claude Haiku stage narration, safety filter, SSE event emission
-Resume: `/gsd:execute-phase 36` (continue Phase 36, Plan 02)
+Stopped at: Completed 36-03-PLAN.md — SSE events stream endpoint GET /api/jobs/{id}/events/stream with 15s heartbeat and Redis Pub/Sub get_message() polling
+Resume: `/gsd:execute-phase 36` (continue Phase 36, Plan 04)
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*

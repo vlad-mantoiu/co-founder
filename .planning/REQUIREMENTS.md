@@ -30,7 +30,7 @@ Requirements for v0.6 Live Build Experience. Each maps to roadmap phases.
 
 - [x] **SNAP-01**: Screenshot captured after each completed build stage via Playwright
 - [x] **SNAP-02**: Screenshots stored in S3 and served via CloudFront URL
-- [ ] **SNAP-03**: SSE snapshot.updated event emitted when new screenshot is available
+- [x] **SNAP-03**: SSE snapshot.updated event emitted when new screenshot is available
 - [ ] **SNAP-04**: Center panel displays latest screenshot with crossfade animation
 - [ ] **SNAP-05**: Skeleton placeholder shown before first screenshot arrives
 - [x] **SNAP-06**: Screenshots below 5KB discarded as likely blank
@@ -135,7 +135,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | NARR-02 | Phase 36 | Complete |
 | NARR-04 | Phase 36 | Complete |
 | NARR-08 | Phase 36 | Complete |
-| SNAP-03 | Phase 36 | Pending |
+| SNAP-03 | Phase 36 | Complete |
 | DOCS-09 | Phase 36 | Pending |
 | REAS-01 | Phase 37 | Pending |
 | REAS-02 | Phase 37 | Pending |
