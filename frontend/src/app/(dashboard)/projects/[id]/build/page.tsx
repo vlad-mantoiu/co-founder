@@ -75,6 +75,7 @@ function PreBuildView({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
+  const [comingSoon, setComingSoon] = useState(false);
 
   useEffect(() => {
     async function fetchSelectedPlan() {
@@ -110,6 +111,12 @@ function PreBuildView({
           goal: plan.technical_approach || plan.name,
         }),
       });
+      if (res.status === 501) {
+        // Autonomous agent not yet ready — show non-blocking "coming soon" banner
+        setComingSoon(true);
+        setStarting(false);
+        return;
+      }
       if (!res.ok) {
         const body = await res.json().catch(() => null);
         setError(body?.detail ?? "Failed to start build.");
@@ -291,6 +298,18 @@ function PreBuildView({
         {error && (
           <div className="px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400">
             {error}
+          </div>
+        )}
+
+        {/* Coming soon banner — shown when backend returns 501 (autonomous agent in progress) */}
+        {comingSoon && (
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-center dark:border-blue-800 dark:bg-blue-950">
+            <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
+              Your AI Co-Founder is being built
+            </p>
+            <p className="mt-1 text-xs text-blue-600 dark:text-blue-400">
+              We&apos;re upgrading your co-founder with autonomous capabilities. This feature will be available soon.
+            </p>
           </div>
         )}
 
