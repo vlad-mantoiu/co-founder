@@ -183,16 +183,23 @@ async def _predicted_build_version(project_id: str) -> str:
     return f"build_v0_{max_n + 1}"
 
 
-def _get_runner(request: Request):
-    """Build a Runner instance — RunnerReal in production, RunnerFake in dev."""
+def _build_runner(request: Request):
+    """Return AutonomousRunner or RunnerReal based on AUTONOMOUS_AGENT flag.
+
+    Scope: build/generation endpoints only.
+    Understanding, onboarding, execution plans use RunnerReal directly.
+    """
     from app.core.config import get_settings
 
     settings = get_settings()
-    if settings.anthropic_api_key:
+    if settings.autonomous_agent:
+        from app.agent.runner_autonomous import AutonomousRunner
+
+        return AutonomousRunner()
+    elif settings.anthropic_api_key:
         from app.agent.runner_real import RunnerReal
 
-        checkpointer = getattr(request.app.state, "checkpointer", None)
-        return RunnerReal(checkpointer=checkpointer)
+        return RunnerReal()
     else:
         from app.agent.runner_fake import RunnerFake
 
@@ -229,6 +236,15 @@ async def start_generation(
     # Verify project ownership
     await _verify_project_ownership(request.project_id, user.user_id)
 
+    # Feature flag: autonomous agent not yet implemented — return 501 immediately
+    from app.core.config import get_settings as _get_settings
+
+    if _get_settings().autonomous_agent:
+        raise HTTPException(
+            status_code=501,
+            detail="Autonomous agent coming soon. Your AI Co-Founder is being built.",
+        )
+
     # Check for blocking gate
     from app.agent.runner_fake import RunnerFake
     from app.services.gate_service import GateService
@@ -258,8 +274,8 @@ async def start_generation(
     queue_manager = QueueManager(redis)
     await queue_manager.enqueue(job_id, "bootstrapper")
 
-    # Build a real Runner so the worker uses GenerationService instead of simulation
-    runner = _get_runner(request_obj)
+    # Build a runner based on AUTONOMOUS_AGENT flag
+    runner = _build_runner(request_obj)
 
     # Trigger background worker
     from app.queue.worker import process_next_job

@@ -29,6 +29,20 @@ from app.queue.state_machine import JobStateMachine
 
 pytestmark = pytest.mark.integration
 
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Helpers for feature flag overrides
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def _real_settings_with_flag(autonomous_agent: bool):
+    """Return the real Settings object (with all real defaults) but with autonomous_agent overridden."""
+    from app.core.config import Settings
+
+    s = Settings()
+    # Settings is a pydantic model — we use model_copy to override just the one field
+    return s.model_copy(update={"autonomous_agent": autonomous_agent})
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Fixtures
 # ──────────────────────────────────────────────────────────────────────────────
@@ -148,7 +162,11 @@ def _setup_job_in_state(fake_redis, job_id: str, user_id: str, project_id: str, 
 
 
 def test_start_generation_returns_job_id(api_client: TestClient, fake_redis, user_a):
-    """GENR-01: POST /api/generation/start returns 201 with job_id and status='queued'."""
+    """GENR-01: POST /api/generation/start returns 201 with job_id and status='queued'.
+
+    Uses AUTONOMOUS_AGENT=false to exercise the RunnerFake (legacy) path.
+    The flag=true path is tested separately in test_start_generation_returns_501_when_autonomous_agent_true.
+    """
     project_id = _create_test_project(api_client, user_a)
 
     app: FastAPI = api_client.app
@@ -159,7 +177,13 @@ def test_start_generation_returns_job_id(api_client: TestClient, fake_redis, use
     async def mock_user_settings(*args, **kwargs):
         return _mock_user_settings()
 
-    with patch("app.core.llm_config.get_or_create_user_settings", mock_user_settings):
+    # Disable autonomous flag — return a real Settings copy with autonomous_agent=False
+    flag_off = _real_settings_with_flag(autonomous_agent=False)
+
+    with (
+        patch("app.core.llm_config.get_or_create_user_settings", mock_user_settings),
+        patch("app.core.config.get_settings", return_value=flag_off),
+    ):
         response = api_client.post(
             "/api/generation/start",
             json={"project_id": project_id, "goal": "Build a todo app"},
@@ -201,13 +225,20 @@ def test_start_generation_requires_subscription_returns_402(api_client: TestClie
 
 
 def test_start_generation_blocked_by_gate(api_client: TestClient, fake_redis, user_a):
-    """POST /api/generation/start with pending gate returns 409."""
+    """POST /api/generation/start with pending gate returns 409.
+
+    Uses AUTONOMOUS_AGENT=false to exercise the gate-check path.
+    With flag=true the 501 is returned before the gate check.
+    """
     project_id = _create_test_project(api_client, user_a, name="Blocked Gen Project")
 
     app: FastAPI = api_client.app
     app.dependency_overrides[require_auth] = override_auth(user_a)
     app.dependency_overrides[require_build_subscription] = override_auth(user_a)
     app.dependency_overrides[get_redis] = lambda: fake_redis
+
+    # Disable autonomous flag so the gate-check path is reachable
+    flag_off = _real_settings_with_flag(autonomous_agent=False)
 
     # Create a pending gate for this project first
     async def mock_user_settings(*args, **kwargs):
@@ -229,8 +260,11 @@ def test_start_generation_blocked_by_gate(api_client: TestClient, fake_redis, us
         )
         assert gate_response.status_code == 201, f"Gate creation failed: {gate_response.json()}"
 
-    # Now try to start generation — should be blocked
-    with patch("app.core.llm_config.get_or_create_user_settings", mock_user_settings):
+    # Now try to start generation — should be blocked (gate check, not flag)
+    with (
+        patch("app.core.llm_config.get_or_create_user_settings", mock_user_settings),
+        patch("app.core.config.get_settings", return_value=flag_off),
+    ):
         response = api_client.post(
             "/api/generation/start",
             json={"project_id": project_id, "goal": "Build something"},
@@ -423,13 +457,19 @@ def test_preview_viewed_idempotent(api_client: TestClient, fake_redis, user_a):
 
 
 def test_rerun_creates_new_version(api_client: TestClient, fake_redis, user_a):
-    """GENR-07: Starting generation again predicts build_v0_2 when build_v0_1 exists."""
+    """GENR-07: Starting generation again predicts build_v0_2 when build_v0_1 exists.
+
+    Uses AUTONOMOUS_AGENT=false to exercise the version-prediction path.
+    """
     project_id = _create_test_project(api_client, user_a, name="Rerun Version Project")
 
     app: FastAPI = api_client.app
     app.dependency_overrides[require_auth] = override_auth(user_a)
     app.dependency_overrides[require_build_subscription] = override_auth(user_a)
     app.dependency_overrides[get_redis] = lambda: fake_redis
+
+    # Disable autonomous flag so the version-prediction path is reached
+    flag_off = _real_settings_with_flag(autonomous_agent=False)
 
     async def mock_user_settings(*args, **kwargs):
         return _mock_user_settings()
@@ -441,6 +481,7 @@ def test_rerun_creates_new_version(api_client: TestClient, fake_redis, user_a):
     with (
         patch("app.core.llm_config.get_or_create_user_settings", mock_user_settings),
         patch("app.api.routes.generation._predicted_build_version", mock_predict_v2),
+        patch("app.core.config.get_settings", return_value=flag_off),
     ):
         response = api_client.post(
             "/api/generation/start",
@@ -731,5 +772,85 @@ def test_docs_endpoint_returns_partial_sections(api_client: TestClient, fake_red
         f"Expected getting_started=None (not written), got {data['getting_started']!r}"
     )
     assert data["faq"] is None, f"Expected faq=None (not written), got {data['faq']!r}"
+
+    app.dependency_overrides.clear()
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Test 14: AUTONOMOUS_AGENT=true returns 501 from /start (MIGR-02)
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def test_start_generation_returns_501_when_autonomous_agent_true(api_client: TestClient, fake_redis, user_a):
+    """MIGR-02: POST /api/generation/start returns 501 when AUTONOMOUS_AGENT=true.
+
+    The 501 response detail must contain 'being built' to signal the banner copy.
+    The default Settings has autonomous_agent=True, so this test uses default settings.
+    """
+    project_id = _create_test_project(api_client, user_a, name="Autonomous Flag Project")
+
+    app: FastAPI = api_client.app
+    app.dependency_overrides[require_auth] = override_auth(user_a)
+    app.dependency_overrides[require_build_subscription] = override_auth(user_a)
+    app.dependency_overrides[get_redis] = lambda: fake_redis
+
+    # Use real Settings with autonomous_agent=True (the default — just making it explicit)
+    flag_on = _real_settings_with_flag(autonomous_agent=True)
+
+    async def mock_user_settings(*args, **kwargs):
+        return _mock_user_settings()
+
+    with (
+        patch("app.core.llm_config.get_or_create_user_settings", mock_user_settings),
+        patch("app.core.config.get_settings", return_value=flag_on),
+    ):
+        response = api_client.post(
+            "/api/generation/start",
+            json={"project_id": project_id, "goal": "Build a task tracker"},
+        )
+
+    assert response.status_code == 501, (
+        f"Expected 501 when AUTONOMOUS_AGENT=true, got {response.status_code}: {response.json()}"
+    )
+    detail = response.json().get("detail", "")
+    assert "being built" in detail.lower(), (
+        f"501 detail must contain 'being built' for frontend banner detection. Got: {detail!r}"
+    )
+
+    app.dependency_overrides.clear()
+
+
+def test_start_generation_returns_201_when_autonomous_agent_false(api_client: TestClient, fake_redis, user_a):
+    """MIGR-02: POST /api/generation/start returns 201 (queued) when AUTONOMOUS_AGENT=false.
+
+    With flag=false, the RunnerFake path is used (no API key in test env).
+    """
+    project_id = _create_test_project(api_client, user_a, name="Flag False Project")
+
+    app: FastAPI = api_client.app
+    app.dependency_overrides[require_auth] = override_auth(user_a)
+    app.dependency_overrides[require_build_subscription] = override_auth(user_a)
+    app.dependency_overrides[get_redis] = lambda: fake_redis
+
+    # Disable autonomous flag — real Settings with autonomous_agent=False
+    flag_off = _real_settings_with_flag(autonomous_agent=False)
+
+    async def mock_user_settings(*args, **kwargs):
+        return _mock_user_settings()
+
+    with (
+        patch("app.core.llm_config.get_or_create_user_settings", mock_user_settings),
+        patch("app.core.config.get_settings", return_value=flag_off),
+    ):
+        response = api_client.post(
+            "/api/generation/start",
+            json={"project_id": project_id, "goal": "Build a task tracker"},
+        )
+
+    assert response.status_code == 201, (
+        f"Expected 201 when AUTONOMOUS_AGENT=false, got {response.status_code}: {response.json()}"
+    )
+    data = response.json()
+    assert data["status"] == "queued"
 
     app.dependency_overrides.clear()

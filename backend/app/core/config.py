@@ -79,6 +79,9 @@ class Settings(BaseSettings):
         "deep_research": False,
         "strategy_graph": False,
     }
+
+    # Feature flag for autonomous agent migration (Phase 40 — v0.7)
+    autonomous_agent: bool = True  # env: AUTONOMOUS_AGENT
     public_routes: list[str] = [
         "/api/health",
         "/api/ready",
