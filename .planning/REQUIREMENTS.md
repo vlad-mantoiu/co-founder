@@ -38,9 +38,9 @@ Requirements for v0.7 Autonomous Agent. Each maps to roadmap phases.
 
 ### Cleanup & Migration
 
-- [ ] **MIGR-01**: LangGraph, LangChain deps atomically removed — all 6 node files, graph.py, NarrationService, DocGenerationService deleted
+- [x] **MIGR-01**: LangGraph, LangChain deps atomically removed — all 6 node files, graph.py, NarrationService, DocGenerationService deleted
 - [ ] **MIGR-02**: Feature flag (AUTONOMOUS_AGENT env var) toggles between old RunnerReal and new AutonomousRunner during transition
-- [ ] **MIGR-03**: Runner protocol extended with run_agent_loop() — RunnerFake stubs it for TDD, AutonomousRunner implements it
+- [x] **MIGR-03**: Runner protocol extended with run_agent_loop() — RunnerFake stubs it for TDD, AutonomousRunner implements it
 - [ ] **MIGR-04**: E2B sandbox file sync to S3 after each commit step — mitigates multi-resume file loss (E2B #884)
 
 ## v0.6 Requirements (Partial — Phases 33-36 Shipped, 37-39 Abandoned)
@@ -118,9 +118,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| MIGR-01 | Phase 40 | Pending |
+| MIGR-01 | Phase 40 | Complete |
 | MIGR-02 | Phase 40 | Pending |
-| MIGR-03 | Phase 40 | Pending |
+| MIGR-03 | Phase 40 | Complete |
 | AGNT-01 | Phase 41 | Pending |
 | AGNT-02 | Phase 41 | Pending |
 | AGNT-06 | Phase 41 | Pending |

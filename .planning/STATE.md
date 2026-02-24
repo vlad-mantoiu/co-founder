@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 ## Current Position
 
 Phase: 40 of 46 (LangGraph Removal + Protocol Extension)
-Plan: 1 of 4 complete
+Plan: 2 of 4 complete
 Status: In progress
-Last activity: 2026-02-24 — Plan 40-01 complete: Runner protocol extended with run_agent_loop, AutonomousRunner stub created
+Last activity: 2026-02-24 — Plan 40-02 complete: NarrationService and DocGenerationService extracted to standalone utilities
 
-Progress: [█░░░░░░░░░] 4% (v0.7: 1/24 plans done)
+Progress: [█░░░░░░░░░] 8% (v0.7: 2/24 plans done)
 
 ## Performance Metrics
 
@@ -32,6 +32,7 @@ Progress: [█░░░░░░░░░] 4% (v0.7: 1/24 plans done)
 | v0.4 Marketing Speed & SEO | 7 | 21 | 3 days (2026-02-20 to 2026-02-22) |
 | v0.5 Sandbox Integration | 5 | 15 | 1 day (2026-02-22) |
 | v0.6 Live Build Experience | 4 of 7 | 12 | 2 days (2026-02-23 to 2026-02-24) |
+| v0.7 Phase 40 | in progress | 2/4 plans | 2026-02-24 |
 
 ## Accumulated Context
 
@@ -49,6 +50,8 @@ Progress: [█░░░░░░░░░] 4% (v0.7: 1/24 plans done)
 - NarrationService + DocGenerationService deleted only after AGNT-04/AGNT-05 deliver native replacements (Phase 44)
 - [40-01] AutonomousRunner raises NotImplementedError for all 14 Runner methods — Phase 41 replaces stubs with TAOR
 - [40-01] RunnerReal.run_agent_loop() also NotImplementedError — restores protocol compliance until Phase 41
+- [40-02] NarrationService/DocGenerationService stay in app/services/; standalone = optional emitter constructor + new pure-return methods (get_narration, generate_sections)
+- [40-02] JobStateMachine imported locally inside service methods — patch target for tests is app.queue.state_machine.JobStateMachine, not app.services.X.JobStateMachine
 
 ### Key Research Flags (check before planning)
 
@@ -70,8 +73,8 @@ None blocking Phase 40.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Phase 40 Plan 01 complete — Runner protocol extended with run_agent_loop, AutonomousRunner stub created (40 tests green)
-Resume: `/gsd:execute-phase 40` to continue with Plan 40-02
+Stopped at: Phase 40 Plan 02 complete — NarrationService and DocGenerationService extracted to standalone utilities (565 unit tests green)
+Resume: `/gsd:execute-phase 40` to continue with Plan 40-03
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
