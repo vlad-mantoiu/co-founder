@@ -304,7 +304,7 @@ Plans:
 | 32. Sandbox Snapshot Lifecycle | v0.5 | 4/4 | Complete | 2026-02-22 |
 | 33. Infrastructure & Configuration | 2/3 | Complete    | 2026-02-23 | - |
 | 34. ScreenshotService | 3/3 | Complete    | 2026-02-23 | - |
-| 35. DocGenerationService | 2/2 | Complete   | 2026-02-24 | - |
+| 35. DocGenerationService | 2/2 | Complete    | 2026-02-24 | - |
 | 36. GenerationService Wiring & API Routes | v0.6 | 0/TBD | Not started | - |
 | 37. Frontend Hooks | v0.6 | 0/TBD | Not started | - |
 | 38. Panel Components | v0.6 | 0/TBD | Not started | - |
