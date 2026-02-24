@@ -18,13 +18,13 @@ Requirements for v0.6 Live Build Experience. Each maps to roadmap phases.
 ### Build Narration
 
 - [ ] **NARR-01**: User sees human-readable stage descriptions in activity feed (not raw stage names)
-- [ ] **NARR-02**: Claude generates idea-specific narration per stage transition
+- [x] **NARR-02**: Claude generates idea-specific narration per stage transition
 - [ ] **NARR-03**: Activity feed displays chronological agent activity with timestamps
-- [ ] **NARR-04**: Narration uses first-person co-founder voice
+- [x] **NARR-04**: Narration uses first-person co-founder voice
 - [ ] **NARR-05**: Raw logs available under collapsed "Technical Details" section within activity feed
 - [ ] **NARR-06**: Per-stage time estimates displayed at stage start
 - [ ] **NARR-07**: Token usage per stage displayed in activity feed
-- [ ] **NARR-08**: Safety guardrails strip internal paths, stack traces, and secrets from narration
+- [x] **NARR-08**: Safety guardrails strip internal paths, stack traces, and secrets from narration
 
 ### Live Screenshots
 
@@ -132,9 +132,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DOCS-03 | Phase 35 | Complete |
 | DOCS-07 | Phase 35 | Complete |
 | DOCS-08 | Phase 35 | Complete |
-| NARR-02 | Phase 36 | Pending |
-| NARR-04 | Phase 36 | Pending |
-| NARR-08 | Phase 36 | Pending |
+| NARR-02 | Phase 36 | Complete |
+| NARR-04 | Phase 36 | Complete |
+| NARR-08 | Phase 36 | Complete |
 | SNAP-03 | Phase 36 | Pending |
 | DOCS-09 | Phase 36 | Pending |
 | REAS-01 | Phase 37 | Pending |

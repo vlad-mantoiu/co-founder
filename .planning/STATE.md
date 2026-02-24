@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** v0.6 Live Build Experience — Phase 35 in progress (Plan 01 of 2 complete)
+**Current focus:** v0.6 Live Build Experience — Phase 36 in progress (Plan 01 of 4 complete)
 
 ## Current Position
 
-Phase: 35 of 39 (DocGenerationService)
-Plan: 02 complete
+Phase: 36 of 39 (GenerationService Wiring & API Routes)
+Plan: 01 complete
 Status: In progress
-Last activity: 2026-02-24 — Phase 35 Plan 02 complete: asyncio.create_task() wiring for DocGenerationService in execute_build()
+Last activity: 2026-02-24 — Phase 36 Plan 01 complete: NarrationService with Claude Haiku stage narration, safety filter, SSE event emission
 
-Progress: [█░░░░░░░░░] ~5% (v0.6 in progress — 5 plans shipped)
+Progress: [██░░░░░░░░] ~10% (v0.6 in progress — 6 plans shipped)
 
 ## Performance Metrics
 
@@ -33,6 +33,7 @@ Progress: [█░░░░░░░░░] ~5% (v0.6 in progress — 5 plans shi
 | v0.5 Sandbox Integration | 5 | 15 | 1 day (2026-02-22) |
 | v0.6 Phase 34 Plan 03 | 1 plan | 1 task | 2 files | ~1min |
 | Phase 35 P02 | 5min | 1 tasks | 2 files |
+| Phase 36 P01 | 5min | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -88,6 +89,13 @@ Key v0.6 decisions (from Phase 33 Plan 02):
 - [Phase 35-docgenerationservice]: _redis = None guard before try block prevents UnboundLocalError in no-Redis test environments
 - [Phase 35-docgenerationservice]: create_task gate: docs_generation_enabled AND _redis is not None — doc gen requires Redis
 
+Key v0.6 decisions (from Phase 36 Plan 01):
+- [Phase 36-narrationservice]: NARRATION_TIMEOUT_SECONDS=10.0 (shorter than DocGenerationService 30s — single sentence needs low latency)
+- [Phase 36-narrationservice]: NARRATION_MAX_TOKENS=80 — enforces 10-20 word sentence constraint at API level
+- [Phase 36-narrationservice]: Safety filter imported from doc_generation_service._SAFETY_PATTERNS — zero duplication
+- [Phase 36-narrationservice]: narrate() wraps wait_for() in try/except so even publish_event failure is caught — truly never raises
+- [Phase 36-narrationservice]: spec[:300] truncation in narrate(), not in _call_claude() — keeps _call_claude testable independently
+
 ### Pending Todos
 
 - [ ] Verify workflow_run gate: push a commit with a failing test and confirm deploy.yml does NOT trigger
@@ -104,8 +112,8 @@ None blocking Phase 34 Plan 02.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 35-02-PLAN.md — asyncio.create_task() wiring for DocGenerationService in execute_build()
-Resume: `/gsd:execute-phase 36` (next phase)
+Stopped at: Completed 36-01-PLAN.md — NarrationService with Claude Haiku stage narration, safety filter, SSE event emission
+Resume: `/gsd:execute-phase 36` (continue Phase 36, Plan 02)
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
