@@ -7,7 +7,8 @@
 - ✅ **v0.3 Marketing Separation** — Phases 18-21 (shipped 2026-02-20)
 - ✅ **v0.4 Marketing Speed & SEO** — Phases 22-27 (shipped 2026-02-22)
 - ✅ **v0.5 Sandbox Integration** — Phases 28-32 (shipped 2026-02-22)
-- 🚧 **v0.6 Live Build Experience** — Phases 33-39 (in progress)
+- ✅ **v0.6 Live Build Experience** — Phases 33-36 (shipped 2026-02-24, phases 37-39 abandoned)
+- 🚧 **v0.7 Autonomous Agent** — Phases 40-46 (in progress)
 
 ## Phases
 
@@ -74,27 +75,42 @@
 <details>
 <summary>✅ v0.5 Sandbox Integration (Phases 28-32) — SHIPPED 2026-02-22</summary>
 
-- [x] **Phase 28: Sandbox Runtime Fixes** — AsyncSandbox migration, dev server launch, FileChange bug fix (completed 2026-02-22)
-- [x] **Phase 29: Build Log Streaming** — Redis Streams buffer + SSE endpoint for backend log delivery (completed 2026-02-22)
-- [x] **Phase 30: Frontend Build UX** — Log panel, build progress stages, auto-retry visibility (completed 2026-02-22)
-- [x] **Phase 31: Preview Iframe** — Embedded iframe, CSP update, sandbox expiry handling, new-tab fallback (completed 2026-02-22)
-- [x] **Phase 32: Sandbox Snapshot Lifecycle** — beta_pause after build, snapshot endpoint, resume verification (completed 2026-02-22)
+- [x] Phase 28: Sandbox Runtime Fixes (2/2 plans) — completed 2026-02-22
+- [x] Phase 29: Build Log Streaming (3/3 plans) — completed 2026-02-22
+- [x] Phase 30: Frontend Build UX (3/3 plans) — completed 2026-02-22
+- [x] Phase 31: Preview Iframe (4/4 plans) — completed 2026-02-22
+- [x] Phase 32: Sandbox Snapshot Lifecycle (4/4 plans) — completed 2026-02-22
 
 **Full details:** `.planning/milestones/v0.5-ROADMAP.md`
 
 </details>
 
-### v0.6 Live Build Experience (In Progress)
+<details>
+<summary>✅ v0.6 Live Build Experience (Phases 33-36) — SHIPPED 2026-02-24 (phases 37-39 abandoned)</summary>
 
-**Milestone Goal:** Transform the build page from a loading screen into a live co-founder experience — founders see their product evolve visually, read generated documentation, and feel like a real engineering team is building for them.
+- [x] Phase 33: Infrastructure & Configuration (3/3 plans) — completed 2026-02-23
+- [x] Phase 34: ScreenshotService (3/3 plans) — completed 2026-02-23
+- [x] Phase 35: DocGenerationService (2/2 plans) — completed 2026-02-24
+- [x] Phase 36: GenerationService Wiring & API Routes (4/4 plans) — completed 2026-02-24
+- [~] Phase 37: Frontend Hooks — abandoned (v0.7 replaces architecture)
+- [~] Phase 38: Panel Components — abandoned (v0.7 replaces architecture)
+- [~] Phase 39: BuildPage Refactor & Completion State — abandoned (v0.7 replaces architecture)
 
-- [x] **Phase 33: Infrastructure & Configuration** - S3 screenshots bucket, CloudFront OAC behavior, IAM grants, Settings env vars (completed 2026-02-23)
-- [x] **Phase 34: ScreenshotService** - Playwright capture from ECS worker, S3 upload, non-fatal error handling (completed 2026-02-23)
-- [x] **Phase 35: DocGenerationService** - Claude-powered doc generation, Redis hash storage, asyncio.create_task decoupling (completed 2026-02-24)
-- [x] **Phase 36: GenerationService Wiring & API Routes** - Wire services into build pipeline, new SSE and REST endpoints, narration generation (completed 2026-02-24)
-- [ ] **Phase 37: Frontend Hooks** - useBuildEvents SSE consumer, useDocGeneration, snapshot and doc state management
-- [ ] **Phase 38: Panel Components** - ActivityFeed, LiveSnapshot, DocPanel — three-panel build experience
-- [ ] **Phase 39: BuildPage Refactor & Completion State** - Three-panel grid assembly, completion hero, layout state machine
+*Phases 37-39 abandoned in favor of v0.7 autonomous agent. SSE streaming, S3/CloudFront screenshot infrastructure, and safety pattern filtering from phases 33-36 are kept intact.*
+
+</details>
+
+### v0.7 Autonomous Agent (In Progress)
+
+**Milestone Goal:** Replace the rigid LangGraph multi-agent pipeline with a single autonomous Claude agent that operates inside E2B, consuming the founder's Idea Brief, autonomously planning and executing a GSD-like workflow, streaming progress to the UI, pacing work against the subscription token budget, and only stopping when it genuinely needs the founder.
+
+- [ ] **Phase 40: LangGraph Removal + Protocol Extension** - Atomic removal of LangGraph/LangChain; feature flag scaffold; Runner protocol extended with run_agent_loop()
+- [ ] **Phase 41: Autonomous Runner Core (TAOR Loop)** - AutonomousRunner implementing the TAOR loop with input context consumption, iteration cap, repetition detection, and context management
+- [ ] **Phase 42: E2B Tool Dispatcher** - All 7 Claude Code-style tools dispatched to E2B sandbox; E2B file sync to S3 after each phase commit
+- [ ] **Phase 43: Token Budget + Sleep/Wake Daemon** - Daily token budget pacing, sleep/wake lifecycle with PostgreSQL persistence, model-per-tier config, cost tracking and circuit breakers
+- [ ] **Phase 44: Native Agent Capabilities** - narrate() tool replacing NarrationService; documentation generation native to agent workflow
+- [ ] **Phase 45: Self-Healing Error Model** - 3-retry with different approaches per error signature; founder escalation via DecisionConsole
+- [ ] **Phase 46: UI Integration** - Activity feed with verbose toggle; agent state card; Kanban phase updates; new SSE event types wired to frontend
 
 ## Phase Details
 
@@ -178,12 +194,11 @@
   2. A PNG uploaded to `cofounder-screenshots/screenshots/test.png` is served at the CloudFront URL with `cache-control: max-age=31536000, immutable` headers
   3. Setting `SCREENSHOT_ENABLED=false` in ECS task environment disables screenshot capture without requiring a code deploy
   4. `GET /api/generation/{job_id}/status` response includes a `snapshot_url` field (null initially) — confirming the API contract exists before services write to it
-  5. The new SSE event type names (`build.stage.started`, `build.stage.completed`, `snapshot.updated`, `documentation.updated`) are documented in Settings and accepted by the existing pub/sub channel structure
+  5. The new SSE event type names are documented in Settings and accepted by the existing pub/sub channel structure
 **Plans:** 3/3 plans complete
-Plans:
-- [ ] 33-01-PLAN.md — ScreenshotsStack CDK (S3 + CloudFront OAC) + ComputeStack IAM/env wiring (INFRA-01, INFRA-02)
-- [ ] 33-02-PLAN.md — Settings feature flags + GenerationStatusResponse extension + /docs endpoint (INFRA-04, INFRA-05)
-- [ ] 33-03-PLAN.md — SSE event type constants + typed event publishing in JobStateMachine (INFRA-03)
+- [x] 33-01-PLAN.md — ScreenshotsStack CDK (S3 + CloudFront OAC) + ComputeStack IAM/env wiring (INFRA-01, INFRA-02)
+- [x] 33-02-PLAN.md — Settings feature flags + GenerationStatusResponse extension + /docs endpoint (INFRA-04, INFRA-05)
+- [x] 33-03-PLAN.md — SSE event type constants + typed event publishing in JobStateMachine (INFRA-03)
 
 ### Phase 34: ScreenshotService
 **Goal**: The worker can capture a screenshot of the running E2B preview URL via Playwright on the ECS host, upload it to S3, and return a CloudFront URL — all without crashing the build if anything fails.
@@ -195,10 +210,9 @@ Plans:
   3. A screenshot smaller than 5KB is discarded (not uploaded) and the service logs a warning — blank pages do not pollute the snapshot history
   4. If Playwright crashes, the network is unreachable, or S3 upload fails, the build job continues to READY state — the failure is logged as a warning only
 **Plans:** 3/3 plans complete
-Plans:
 - [x] 34-01-PLAN.md — TDD ScreenshotService: validate, circuit breaker, capture orchestration, upload, Redis persist (SNAP-01, SNAP-02, SNAP-06, SNAP-07)
 - [x] 34-02-PLAN.md — Dockerfile Playwright headless-shell + pyproject.toml dependencies (SNAP-01, SNAP-02)
-- [ ] 34-03-PLAN.md — Gap closure: Add CacheControl immutable header to S3 upload (SNAP-02)
+- [x] 34-03-PLAN.md — Gap closure: Add CacheControl immutable header to S3 upload (SNAP-02)
 
 ### Phase 35: DocGenerationService
 **Goal**: A Claude API call generates founder-safe end-user documentation during the build, stores it in Redis, and never delays or fails the build if anything goes wrong.
@@ -209,66 +223,109 @@ Plans:
   2. The `job:{id}:docs` Redis hash contains `overview`, `features`, `getting_started`, and `faq` keys within 30 seconds of scaffold completion for a typical build
   3. Documentation content contains no code blocks, CLI commands, internal file paths, or architecture implementation details — only founder-readable product description
   4. If the Claude API returns a rate limit error, times out, or the Redis write fails, the build job continues normally — doc generation failure never sets job status to FAILED
-  5. Documentation sections arrive progressively in the Redis hash — `overview` is written first, remaining sections follow — enabling progressive display even before all sections complete
+  5. Documentation sections arrive progressively in the Redis hash — `overview` is written first, remaining sections follow
 **Plans:** 2/2 plans complete
-Plans:
-- [ ] 35-01-PLAN.md — TDD DocGenerationService: Claude Haiku API call, JSON parse, progressive Redis writes, safety filter, failure handling (DOCS-01, DOCS-02, DOCS-07, DOCS-08)
-- [ ] 35-02-PLAN.md — Wire DocGenerationService into execute_build() via asyncio.create_task() (DOCS-03)
+- [x] 35-01-PLAN.md — TDD DocGenerationService (DOCS-01, DOCS-02, DOCS-07, DOCS-08)
+- [x] 35-02-PLAN.md — Wire DocGenerationService into execute_build() via asyncio.create_task() (DOCS-03)
 
 ### Phase 36: GenerationService Wiring & API Routes
 **Goal**: ScreenshotService and DocGenerationService are wired into the live build pipeline at the correct insertion points, narration is generated per stage transition, and new SSE/REST endpoints are live for the frontend to consume.
 **Depends on**: Phase 34, Phase 35
 **Requirements**: NARR-02, NARR-04, NARR-08, SNAP-03, DOCS-09
 **Success Criteria** (what must be TRUE):
-  1. Every stage transition in a live build emits a `build.stage.started` SSE event containing a Claude-generated, first-person co-founder narration sentence — not a raw stage name
-  2. When a screenshot upload completes, a `snapshot.updated` SSE event is emitted on the job's pub/sub channel within 2 seconds — the frontend can rely on this event to trigger a display update
-  3. `GET /api/jobs/{id}/events/stream` delivers typed SSE events (build.stage.started, build.stage.completed, snapshot.updated, documentation.updated) to an authenticated client with heartbeat keepalive
-  4. `GET /api/jobs/{id}/docs` returns the current documentation sections from the Redis hash — empty object if generation has not started, partial object if in progress
-  5. Narration text contains no stack traces, internal file paths (`/app/`, `/workspace/`), raw error messages, or secret-shaped strings — safety guardrails strip these before the narration is published
-  6. The changelog section of docs compares build iterations when a v0.2+ iteration job runs — first builds receive an empty changelog
+  1. Every stage transition in a live build emits a `build.stage.started` SSE event containing a Claude-generated, first-person co-founder narration sentence
+  2. When a screenshot upload completes, a `snapshot.updated` SSE event is emitted on the job's pub/sub channel within 2 seconds
+  3. `GET /api/jobs/{id}/events/stream` delivers typed SSE events to an authenticated client with heartbeat keepalive
+  4. `GET /api/jobs/{id}/docs` returns the current documentation sections from the Redis hash
+  5. Narration text contains no stack traces, internal file paths, raw error messages, or secret-shaped strings
+  6. The changelog section compares build iterations when a v0.2+ iteration job runs
 **Plans:** 4/4 plans complete
-Plans:
-- [x] 36-01-PLAN.md — TDD NarrationService: Claude Haiku stage narration with safety filter (NARR-02, NARR-04, NARR-08)
+- [x] 36-01-PLAN.md — TDD NarrationService (NARR-02, NARR-04, NARR-08)
 - [x] 36-02-PLAN.md — Wire NarrationService + ScreenshotService + changelog into build pipeline (SNAP-03, DOCS-09)
 - [x] 36-03-PLAN.md — SSE typed events stream endpoint with heartbeat keepalive (SNAP-03, NARR-02)
-- [ ] 36-04-PLAN.md — Gap closure: Extend _SAFETY_PATTERNS for /workspace/ paths, stack traces, and secrets (NARR-08)
+- [x] 36-04-PLAN.md — Gap closure: Extend _SAFETY_PATTERNS (NARR-08)
 
-### Phase 37: Frontend Hooks
-**Goal**: React hooks consume the new SSE and REST endpoints, maintain typed state for snapshot URL, documentation sections, and elapsed time, and recover correctly from SSE reconnections.
-**Depends on**: Phase 36
-**Requirements**: REAS-01, REAS-02, REAS-06, SNAP-04, SNAP-05
+### Phase 40: LangGraph Removal + Protocol Extension
+**Goal**: The codebase is clean of all LangGraph and LangChain dependencies, the Runner protocol is extended with run_agent_loop(), and a feature flag controls which runner is used — enabling construction of AutonomousRunner without import conflicts or shared namespace confusion.
+**Depends on**: Phase 36 (first phase of v0.7)
+**Requirements**: MIGR-01, MIGR-02, MIGR-03
 **Success Criteria** (what must be TRUE):
-  1. `useBuildEvents` connects to the SSE endpoint and dispatches typed events to separate state slices — snapshot URL updates do not trigger re-renders in the documentation panel and vice versa
-  2. On SSE reconnect, the hook bootstraps from `GET /api/generation/{job_id}/status` and `GET /api/jobs/{id}/docs` before opening the event stream — no stale or missing state after a network interruption
-  3. The elapsed time counter increments every second from build start without page refresh — the hook maintains this timer independently of SSE events
-  4. Per-stage time estimates and the active agent role are available as hook state fields updated on each `build.stage.started` event — components can read these without additional API calls
-  5. The snapshot state holds the latest CloudFront URL (or null before the first screenshot) — components receive a typed prop, never a raw SSE event object
-**Plans:** TBD
+  1. `import langgraph` and `import langchain` produce ImportError anywhere in the codebase — confirmed by grepping pyproject.toml and all Python import sites
+  2. The full pytest suite passes after removal — no test references LangGraph-specific state, no endpoint imports from deleted modules
+  3. `AUTONOMOUS_AGENT=false` starts the server using the existing RunnerReal behavior; `AUTONOMOUS_AGENT=true` routes to AutonomousRunner (stub returning NotImplemented) without import errors
+  4. `runner.run_agent_loop()` is defined in the Runner abstract protocol and `RunnerFake.run_agent_loop()` returns a deterministic stub response — TDD is possible before AutonomousRunner exists
+**Plans**: TBD
 
-### Phase 38: Panel Components
-**Goal**: Three panel components — ActivityFeed, LiveSnapshot, DocPanel — are built, independently scrollable, and verified at all target breakpoints with both mock and live data.
-**Depends on**: Phase 37
-**Requirements**: NARR-01, NARR-03, NARR-05, NARR-06, NARR-07, SNAP-03, DOCS-04, DOCS-05, DOCS-06, REAS-03, REAS-04, REAS-05, REAS-07, LAYOUT-03
+### Phase 41: Autonomous Runner Core (TAOR Loop)
+**Goal**: The AutonomousRunner executes the TAOR (Think-Act-Observe-Repeat) loop using the Anthropic tool-use API, consumes the Understanding Interview QnA and Idea Brief as input context, streams text deltas to the existing SSE channel, and has all loop safety guards in place from day one.
+**Depends on**: Phase 40
+**Requirements**: AGNT-01, AGNT-02, AGNT-06
 **Success Criteria** (what must be TRUE):
-  1. The ActivityFeed shows human-readable narration entries in chronological order with timestamps — raw stage names (SCAFFOLD, CODE) never appear in the visible feed; they are only accessible under a collapsed "Technical Details" section
-  2. The LiveSnapshot panel crossfades from skeleton shimmer to the first screenshot, then crossfades again on each subsequent `snapshot.updated` event — no flash or layout shift during transitions
-  3. The DocPanel renders documentation sections progressively with fade-in animation — each section appears as its Redis key is populated, and the Markdown download button is active when at least one section exists
-  4. When a build stage exceeds 120 seconds without a new SSE event, a reassurance banner appears inline in the ActivityFeed — and a modal offering email notification appears at 300 seconds
-  5. Each panel scrolls independently — the ActivityFeed auto-scrolls to the latest entry while the DocPanel stays at the founder's reading position — no panel forces the others to scroll
-**Plans:** TBD
+  1. A job routed through `AUTONOMOUS_AGENT=true` completes the TAOR loop end-to-end — the agent reasons, calls tools (stubbed), observes results, and reaches `end_turn` stop reason without manual intervention
+  2. The agent's system prompt includes the founder's Idea Brief and Understanding Interview QnA — decisions made by the agent reference the founder's stated goals, not generic defaults
+  3. With `MAX_TOOL_CALLS` set to 5 in test config, a loop exceeding the cap terminates with a structured "iteration limit reached" escalation rather than running indefinitely
+  4. Repeating the same tool call with the same arguments 3 times within a 10-call window triggers repetition detection — the loop halts and logs the repeated call signature
+  5. Tool results exceeding 1000 tokens are middle-truncated before being appended to the message history — the first 500 and last 500 tokens are preserved with a `[N lines omitted]` marker
+**Plans**: TBD
 
-### Phase 39: BuildPage Refactor & Completion State
-**Goal**: The BuildPage assembles the three panels into the three-column grid, the layout state machine drives distinct content per state, and the completion experience gives founders a hero moment with working download and deploy actions.
-**Depends on**: Phase 38
-**Requirements**: LAYOUT-01, LAYOUT-02, LAYOUT-04, COMP-01, COMP-02, COMP-03, COMP-04, COMP-05, COMP-06, COMP-07
+### Phase 42: E2B Tool Dispatcher
+**Goal**: All 7 Claude Code-style tools (read_file, write_file, edit_file, bash, grep, glob, take_screenshot) are dispatched to the E2B sandbox by a typed tool dispatcher, and project files are synced to S3 after each agent phase commit to prevent data loss on sandbox resume.
+**Depends on**: Phase 41
+**Requirements**: AGNT-03, MIGR-04
 **Success Criteria** (what must be TRUE):
-  1. At 1280px+ viewport, the build page shows a three-column layout: 280px activity feed left, flexible center snapshot, 320px documentation right — all three panels visible simultaneously with no horizontal scrollbar
-  2. Below 1280px, the layout degrades gracefully — panels stack or collapse in a usable order rather than overflowing or breaking
-  3. When the build completes, the three-panel grid collapses into a completion layout showing a hero "Your MVP is ready" moment, elapsed build time ("Built in 4m 23s"), the build version label, and clear next-step CTAs
-  4. The "Download Documentation" button triggers a Markdown file download and the PDF option generates via WeasyPrint — both work from the completion state
-  5. Refreshing the page while in completion state restores the completion layout — not the building state — because the terminal job status is read from the API on mount
-  6. The "What's next" deploy CTA links to the deploy flow — founders are never left wondering what to do after the build completes
-**Plans:** TBD
+  1. The agent can read, write, and execute bash commands inside the E2B sandbox through typed tool dispatch — a test build produces a working file tree in the sandbox after tool calls complete
+  2. `take_screenshot` captures the live preview URL via Playwright inside the sandbox, uploads to S3, and returns the CloudFront URL as a tool result — reusing the existing ScreenshotService upload path
+  3. `edit_file` performs surgical old_string/new_string replacement — the file diff is verifiable and does not corrupt surrounding content
+  4. After each agent phase commit, project files are synced from the E2B sandbox to S3 — a sandbox recreated from that S3 snapshot contains the correct file tree without manual re-run
+**Plans**: TBD
+
+### Phase 43: Token Budget + Sleep/Wake Daemon
+**Goal**: The agent distributes work across the subscription window using a cost-weighted daily allowance, transitions to "sleeping" state when the budget is consumed, wakes automatically on budget refresh, persists all session state to PostgreSQL so conversation history survives sleep/wake cycles, and hard circuit breakers prevent cost runaway.
+**Depends on**: Phase 42
+**Requirements**: BDGT-01, BDGT-02, BDGT-03, BDGT-04, BDGT-05, BDGT-06, BDGT-07
+**Success Criteria** (what must be TRUE):
+  1. The daily token allowance is calculated from remaining subscription tokens and days until renewal using actual cost in microdollars — not raw token count; Opus output tokens are weighted 5x higher than input
+  2. When the daily budget is exhausted, the agent emits `agent.sleeping` SSE, calls `beta_pause()` on the sandbox, and sets its state to "sleeping" in Redis — the build job does not transition to FAILED
+  3. At the next budget refresh, the daemon wakes the sleeping agent, restores conversation history from PostgreSQL, verifies the sandbox file integrity from S3, and resumes the TAOR loop without founder intervention
+  4. The AgentCheckpoint table in PostgreSQL stores the full message history, sandbox_id, current phase, and per-error retry counts — a server restart does not lose in-progress agent state
+  5. Selecting `cto_scale` tier routes the agent to Opus; `bootstrapper` and `partner` tiers route to Sonnet — model selection is fixed at session start and logged to the AgentSession record
+  6. Every Anthropic API call records input tokens, output tokens, and cost in microdollars to a per-session Redis key — the activity feed can display cumulative session cost
+  7. If a single day's API spend exceeds the daily budget by more than 10%, the loop is killed immediately and the agent transitions to a "budget_exceeded" error state surfaced to the founder
+**Plans**: TBD
+
+### Phase 44: Native Agent Capabilities
+**Goal**: The agent narrates its work in first-person co-founder voice via a narrate() tool (replacing the NarrationService), generates end-user documentation natively as part of its workflow (replacing the DocGenerationService), and the deleted services leave no dead code or broken imports behind.
+**Depends on**: Phase 43
+**Requirements**: AGNT-04, AGNT-05
+**Success Criteria** (what must be TRUE):
+  1. Every significant agent action is narrated inline — "I'm setting up the authentication system using Clerk because your brief specified enterprise-grade security" — the narration appears in the activity feed as the agent works, not after a stage completes
+  2. The narrate() call is tracked by the token budget daemon — narration API calls are included in the daily cost tally and can trigger sleep if the budget is consumed mid-narration
+  3. The agent generates structured documentation sections (overview, features, getting_started, faq) as part of its workflow — the `job:{id}:docs` Redis hash is populated by agent tool calls, not a separate service
+  4. NarrationService and DocGenerationService files are deleted and their imports removed — the pytest suite passes with zero references to the deleted modules
+**Plans**: TBD
+
+### Phase 45: Self-Healing Error Model
+**Goal**: The agent retries failed operations 3 times with meaningfully different approaches per unique error signature before escalating to the founder, retry state persists across sleep/wake cycles so the agent never loops on the same failure indefinitely, and escalation surfaces structured context via the existing DecisionConsole pattern.
+**Depends on**: Phase 44
+**Requirements**: AGNT-07, AGNT-08
+**Success Criteria** (what must be TRUE):
+  1. When a tool call fails, the agent's next attempt uses a different approach — not a verbatim retry of the same call; the error signature `{error_type}:{error_message_hash}` is recorded to PostgreSQL after each failure
+  2. After 3 failures with distinct approaches for the same error signature, the agent stops retrying and escalates — it does not attempt a 4th approach or enter a retry loop
+  3. On agent wake, previously-failed error signatures are loaded from PostgreSQL — an operation that failed 3 times yesterday is immediately escalated rather than retried again
+  4. The escalation payload surfaced to the founder via DecisionConsole includes: problem description in plain English, what was tried (3 attempts summarized), and a specific recommended action — the founder has enough context to unblock the agent with one decision
+**Plans**: TBD
+
+### Phase 46: UI Integration
+**Goal**: The frontend surfaces the autonomous agent as a living co-founder — GSD phases appear on the Kanban Timeline in real time, the activity feed shows narration by default and tool-level detail on demand, and the dashboard always reflects the agent's current state (working, sleeping, waiting, error).
+**Depends on**: Phase 45
+**Requirements**: UIAG-01, UIAG-02, UIAG-03, UIAG-04, UIAG-05
+**Success Criteria** (what must be TRUE):
+  1. As the agent completes GSD phases, Kanban Timeline cards transition from pending to in-progress to complete in real time — a founder watching the dashboard sees their build plan materialize without page refresh
+  2. The activity feed shows one human-readable entry per agent phase by default — "Planning authentication system...", "Building the login page..." — raw tool names (bash, write_file) are hidden unless verbose mode is enabled
+  3. Toggling verbose mode in the activity feed reveals individual tool calls with human-readable labels and their inputs/outputs — "Wrote 47 lines to `app/auth/login.tsx`" rather than raw JSON tool_use blocks
+  4. The dashboard agent state card updates in real time: "Building" shows elapsed time, "Resting" shows a countdown to next wake, "Needs your input" shows the escalation prompt, "Error" shows what failed
+  5. The 5 new SSE event types (agent.thinking, agent.tool.called, agent.sleeping, gsd.phase.started, gsd.phase.completed) are emitted by the backend and consumed by frontend hooks that dispatch them to the correct state slices — unknown event types are silently ignored by both old and new frontend code
+**Plans**: TBD
 
 ## Progress
 
@@ -307,14 +364,21 @@ Plans:
 | 30. Frontend Build UX | v0.5 | 3/3 | Complete | 2026-02-22 |
 | 31. Preview Iframe | v0.5 | 4/4 | Complete | 2026-02-22 |
 | 32. Sandbox Snapshot Lifecycle | v0.5 | 4/4 | Complete | 2026-02-22 |
-| 33. Infrastructure & Configuration | 2/3 | Complete    | 2026-02-23 | - |
-| 34. ScreenshotService | 3/3 | Complete    | 2026-02-23 | - |
-| 35. DocGenerationService | 2/2 | Complete    | 2026-02-24 | - |
-| 36. GenerationService Wiring & API Routes | 4/4 | Complete    | 2026-02-24 | - |
-| 37. Frontend Hooks | v0.6 | 0/TBD | Not started | - |
-| 38. Panel Components | v0.6 | 0/TBD | Not started | - |
-| 39. BuildPage Refactor & Completion State | v0.6 | 0/TBD | Not started | - |
+| 33. Infrastructure & Configuration | v0.6 | 3/3 | Complete | 2026-02-23 |
+| 34. ScreenshotService | v0.6 | 3/3 | Complete | 2026-02-23 |
+| 35. DocGenerationService | v0.6 | 2/2 | Complete | 2026-02-24 |
+| 36. GenerationService Wiring & API Routes | v0.6 | 4/4 | Complete | 2026-02-24 |
+| 37. Frontend Hooks | v0.6 | — | Abandoned | - |
+| 38. Panel Components | v0.6 | — | Abandoned | - |
+| 39. BuildPage Refactor & Completion State | v0.6 | — | Abandoned | - |
+| 40. LangGraph Removal + Protocol Extension | v0.7 | 0/TBD | Not started | - |
+| 41. Autonomous Runner Core (TAOR Loop) | v0.7 | 0/TBD | Not started | - |
+| 42. E2B Tool Dispatcher | v0.7 | 0/TBD | Not started | - |
+| 43. Token Budget + Sleep/Wake Daemon | v0.7 | 0/TBD | Not started | - |
+| 44. Native Agent Capabilities | v0.7 | 0/TBD | Not started | - |
+| 45. Self-Healing Error Model | v0.7 | 0/TBD | Not started | - |
+| 46. UI Integration | v0.7 | 0/TBD | Not started | - |
 
 ---
 *Created: 2026-02-16*
-*Updated: 2026-02-23 — v0.6 milestone roadmap added (Phases 33-39)*
+*Updated: 2026-02-24 — v0.7 milestone roadmap added (Phases 40-46); v0.6 phases 37-39 marked abandoned*

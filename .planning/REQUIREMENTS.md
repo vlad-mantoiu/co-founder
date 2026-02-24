@@ -118,13 +118,36 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (populated during roadmap creation) | | |
+| MIGR-01 | Phase 40 | Pending |
+| MIGR-02 | Phase 40 | Pending |
+| MIGR-03 | Phase 40 | Pending |
+| AGNT-01 | Phase 41 | Pending |
+| AGNT-02 | Phase 41 | Pending |
+| AGNT-06 | Phase 41 | Pending |
+| AGNT-03 | Phase 42 | Pending |
+| MIGR-04 | Phase 42 | Pending |
+| BDGT-01 | Phase 43 | Pending |
+| BDGT-02 | Phase 43 | Pending |
+| BDGT-03 | Phase 43 | Pending |
+| BDGT-04 | Phase 43 | Pending |
+| BDGT-05 | Phase 43 | Pending |
+| BDGT-06 | Phase 43 | Pending |
+| BDGT-07 | Phase 43 | Pending |
+| AGNT-04 | Phase 44 | Pending |
+| AGNT-05 | Phase 44 | Pending |
+| AGNT-07 | Phase 45 | Pending |
+| AGNT-08 | Phase 45 | Pending |
+| UIAG-01 | Phase 46 | Pending |
+| UIAG-02 | Phase 46 | Pending |
+| UIAG-03 | Phase 46 | Pending |
+| UIAG-04 | Phase 46 | Pending |
+| UIAG-05 | Phase 46 | Pending |
 
 **Coverage:**
 - v0.7 requirements: 24 total
-- Mapped to phases: 0
-- Unmapped: 24 ⚠️
+- Mapped to phases: 24
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-02-24*
-*Last updated: 2026-02-24 — v0.7 requirements defined*
+*Last updated: 2026-02-24 — v0.7 requirements mapped to phases 40-46*
