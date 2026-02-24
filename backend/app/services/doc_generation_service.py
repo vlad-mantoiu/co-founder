@@ -292,6 +292,74 @@ class DocGenerationService:
 
         await redis.hset(f"job:{job_id}:docs", "_status", final_status)  # type: ignore[attr-defined]
 
+    async def generate_changelog(
+        self,
+        job_id: str,
+        current_spec: str,
+        previous_spec: str,
+        build_version: str,
+        redis: object,
+    ) -> None:
+        """Generate changelog comparing two build specs. Never raises.
+
+        Writes 'changelog' key to job:{id}:docs Redis hash.
+        Emits SSEEventType.DOCUMENTATION_UPDATED with section="changelog".
+
+        Args:
+            job_id: Build job identifier
+            current_spec: Current iteration's spec/goal string
+            previous_spec: Previous build's spec/goal string
+            build_version: Current build version (e.g. "build_v0_2")
+            redis: Async Redis client
+        """
+        try:
+            # Extract version label: build_v0_2 -> v0.2
+            parts = build_version.split("_")
+            if len(parts) >= 3:
+                version_label = f"v{parts[-2][1:]}.{parts[-1]}"
+            else:
+                version_label = build_version
+
+            system_prompt = (
+                f"You are writing a product changelog for a non-technical founder. "
+                f"Compare two product specs and list what was Added, Changed, and Removed. "
+                f"Use plain English, no code, no file paths, no framework names. "
+                f"Use 'we' language. Format as markdown with '## {version_label} Changes' heading. "
+                f"DO NOT mention developer terms like schema, endpoint, model, or API. "
+                f"Return ONLY valid JSON: "
+                f'{{\"changelog\": \"## {version_label} Changes\\n\\n### Added\\n- ...\\n\\n'
+                f'### Changed\\n- ...\\n\\n### Removed\\n- ...\"}}'
+            )
+            user_prompt = (
+                f"Previous product spec:\n{previous_spec}\n\n"
+                f"Current product spec:\n{current_spec}\n\n"
+                f"Generate a changelog showing what was Added, Changed, and Removed."
+            )
+            messages = [{"role": "user", "content": user_prompt}]
+            raw_dict = await self._call_claude_with_retry(system_prompt, messages)
+            changelog_text = raw_dict.get("changelog", "")
+            if isinstance(changelog_text, str) and changelog_text.strip():
+                safe_content = self._apply_safety_filter(changelog_text)
+                await redis.hset(f"job:{job_id}:docs", "changelog", safe_content)  # type: ignore[attr-defined]
+                state_machine = JobStateMachine(redis)  # type: ignore[arg-type]
+                await state_machine.publish_event(
+                    job_id,
+                    {
+                        "type": SSEEventType.DOCUMENTATION_UPDATED,
+                        "section": "changelog",
+                    },
+                )
+        except Exception as exc:
+            logger.warning(
+                "changelog_generation_failed",
+                job_id=job_id,
+                build_version=build_version,
+                error=str(exc),
+                error_type=type(exc).__name__,
+            )
+
+        return None
+
     def _apply_safety_filter(self, content: str) -> str:
         """Apply regex-based content safety filter to a section.
 

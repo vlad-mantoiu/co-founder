@@ -123,6 +123,7 @@ class DocsResponse(BaseModel):
     features: str | None = None
     getting_started: str | None = None
     faq: str | None = None
+    changelog: str | None = None  # null for first builds; generated for v0.2+ iteration builds
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -686,6 +687,7 @@ async def get_generation_docs(
         features=docs_data.get("features"),
         getting_started=docs_data.get("getting_started"),
         faq=docs_data.get("faq"),
+        changelog=docs_data.get("changelog"),
     )
 
 

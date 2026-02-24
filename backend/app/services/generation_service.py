@@ -563,6 +563,20 @@ class GenerationService:
             sandbox_id = sandbox.sandbox_id
             build_version = await self._get_next_build_version(project_id, state_machine)
 
+            # DOCS-09: Generate changelog for v0.2+ iteration builds
+            if _settings.docs_generation_enabled and _redis is not None and build_version != "build_v0_1":
+                prev_spec = await self._fetch_previous_spec(project_id)
+                if prev_spec:
+                    asyncio.create_task(
+                        _doc_generation_service.generate_changelog(
+                            job_id=job_id,
+                            current_spec=job_data.get("goal", ""),
+                            previous_spec=prev_spec,
+                            build_version=build_version,
+                            redis=_redis,
+                        )
+                    )
+
             # 7. Timeline narration (GENL-05)
             try:
                 await self._log_iteration_event(
@@ -620,6 +634,40 @@ class GenerationService:
 
     # ------------------------------------------------------------------
     # Helpers
+    async def _fetch_previous_spec(self, project_id: str) -> str:
+        """Fetch the goal/spec from the most recent READY job for this project.
+
+        Returns empty string if no previous job exists or DB query fails.
+
+        Args:
+            project_id: Project UUID string
+
+        Returns:
+            Goal string from most recent READY job, or empty string on any failure.
+        """
+        import uuid as _uuid
+
+        from app.db.models.job import Job
+
+        try:
+            factory = get_session_factory()
+            async with factory() as session:
+                result = await session.execute(
+                    select(Job)
+                    .where(Job.project_id == _uuid.UUID(project_id))
+                    .where(Job.status == JobStatus.READY.value)
+                    .where(Job.goal.isnot(None))
+                    .order_by(Job.created_at.desc())
+                    .limit(1)
+                )
+                job = result.scalar_one_or_none()
+                if job is not None and job.goal:
+                    return str(job.goal)
+        except Exception:
+            pass
+
+        return ""
+
     # ------------------------------------------------------------------
 
     async def _get_next_build_version(
