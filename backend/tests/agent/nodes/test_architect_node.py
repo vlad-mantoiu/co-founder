@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.agent.nodes.architect import architect_node, _create_branch_name, _format_messages
+from app.agent.nodes.architect import _create_branch_name, _format_messages, architect_node
 from app.agent.state import create_initial_state
 
 pytestmark = pytest.mark.unit
@@ -34,9 +34,9 @@ class TestArchitectNodeReturnsInitializedErrorState:
         """Architect return dict must include active_errors: []."""
         state = _make_state()
 
-        plan_json = json.dumps([
-            {"index": 0, "description": "Setup", "status": "pending", "files_to_modify": ["README.md"]}
-        ])
+        plan_json = json.dumps(
+            [{"index": 0, "description": "Setup", "status": "pending", "files_to_modify": ["README.md"]}]
+        )
 
         mock_response = MagicMock()
         mock_response.content = plan_json
@@ -44,8 +44,10 @@ class TestArchitectNodeReturnsInitializedErrorState:
         mock_llm = AsyncMock()
         mock_llm.ainvoke = AsyncMock(return_value=mock_response)
 
-        with patch("app.agent.nodes.architect.create_tracked_llm", return_value=mock_llm), \
-             patch("app.agent.nodes.architect.get_semantic_memory") as mock_mem:
+        with (
+            patch("app.agent.nodes.architect.create_tracked_llm", return_value=mock_llm),
+            patch("app.agent.nodes.architect.get_semantic_memory") as mock_mem,
+        ):
             mock_mem.return_value.get_context_for_prompt = AsyncMock(return_value="")
             result = await architect_node(state)
 
@@ -59,9 +61,7 @@ class TestArchitectNodeReturnsInitializedErrorState:
         # Even if state had a stale retry_count, architect should reset it
         state["retry_count"] = 3
 
-        plan_json = json.dumps([
-            {"index": 0, "description": "Setup", "status": "pending", "files_to_modify": []}
-        ])
+        plan_json = json.dumps([{"index": 0, "description": "Setup", "status": "pending", "files_to_modify": []}])
 
         mock_response = MagicMock()
         mock_response.content = plan_json
@@ -69,8 +69,10 @@ class TestArchitectNodeReturnsInitializedErrorState:
         mock_llm = AsyncMock()
         mock_llm.ainvoke = AsyncMock(return_value=mock_response)
 
-        with patch("app.agent.nodes.architect.create_tracked_llm", return_value=mock_llm), \
-             patch("app.agent.nodes.architect.get_semantic_memory") as mock_mem:
+        with (
+            patch("app.agent.nodes.architect.create_tracked_llm", return_value=mock_llm),
+            patch("app.agent.nodes.architect.get_semantic_memory") as mock_mem,
+        ):
             mock_mem.return_value.get_context_for_prompt = AsyncMock(return_value="")
             result = await architect_node(state)
 
@@ -89,8 +91,10 @@ class TestArchitectNodeReturnsInitializedErrorState:
         mock_llm = AsyncMock()
         mock_llm.ainvoke = AsyncMock(return_value=mock_response)
 
-        with patch("app.agent.nodes.architect.create_tracked_llm", return_value=mock_llm), \
-             patch("app.agent.nodes.architect.get_semantic_memory") as mock_mem:
+        with (
+            patch("app.agent.nodes.architect.create_tracked_llm", return_value=mock_llm),
+            patch("app.agent.nodes.architect.get_semantic_memory") as mock_mem,
+        ):
             mock_mem.return_value.get_context_for_prompt = AsyncMock(return_value="")
             result = await architect_node(state)
 
@@ -102,9 +106,7 @@ class TestArchitectNodeReturnsInitializedErrorState:
         """Semantic memory failure must not prevent active_errors/retry_count initialization."""
         state = _make_state()
 
-        plan_json = json.dumps([
-            {"index": 0, "description": "Step A", "status": "pending", "files_to_modify": []}
-        ])
+        plan_json = json.dumps([{"index": 0, "description": "Step A", "status": "pending", "files_to_modify": []}])
 
         mock_response = MagicMock()
         mock_response.content = plan_json
@@ -112,11 +114,11 @@ class TestArchitectNodeReturnsInitializedErrorState:
         mock_llm = AsyncMock()
         mock_llm.ainvoke = AsyncMock(return_value=mock_response)
 
-        with patch("app.agent.nodes.architect.create_tracked_llm", return_value=mock_llm), \
-             patch("app.agent.nodes.architect.get_semantic_memory") as mock_mem:
-            mock_mem.return_value.get_context_for_prompt = AsyncMock(
-                side_effect=RuntimeError("memory service down")
-            )
+        with (
+            patch("app.agent.nodes.architect.create_tracked_llm", return_value=mock_llm),
+            patch("app.agent.nodes.architect.get_semantic_memory") as mock_mem,
+        ):
+            mock_mem.return_value.get_context_for_prompt = AsyncMock(side_effect=RuntimeError("memory service down"))
             result = await architect_node(state)
 
         assert result["active_errors"] == []
@@ -130,18 +132,22 @@ class TestArchitectNodePlanParsing:
     async def test_valid_json_produces_correct_plan(self):
         state = _make_state()
 
-        plan_json = json.dumps([
-            {"index": 0, "description": "Scaffold", "status": "pending", "files_to_modify": ["package.json"]},
-            {"index": 1, "description": "Implement", "status": "pending", "files_to_modify": ["src/index.ts"]},
-        ])
+        plan_json = json.dumps(
+            [
+                {"index": 0, "description": "Scaffold", "status": "pending", "files_to_modify": ["package.json"]},
+                {"index": 1, "description": "Implement", "status": "pending", "files_to_modify": ["src/index.ts"]},
+            ]
+        )
 
         mock_response = MagicMock()
         mock_response.content = plan_json
         mock_llm = AsyncMock()
         mock_llm.ainvoke = AsyncMock(return_value=mock_response)
 
-        with patch("app.agent.nodes.architect.create_tracked_llm", return_value=mock_llm), \
-             patch("app.agent.nodes.architect.get_semantic_memory") as mock_mem:
+        with (
+            patch("app.agent.nodes.architect.create_tracked_llm", return_value=mock_llm),
+            patch("app.agent.nodes.architect.get_semantic_memory") as mock_mem,
+        ):
             mock_mem.return_value.get_context_for_prompt = AsyncMock(return_value="")
             result = await architect_node(state)
 
@@ -158,8 +164,10 @@ class TestArchitectNodePlanParsing:
         mock_llm = AsyncMock()
         mock_llm.ainvoke = AsyncMock(return_value=mock_response)
 
-        with patch("app.agent.nodes.architect.create_tracked_llm", return_value=mock_llm), \
-             patch("app.agent.nodes.architect.get_semantic_memory") as mock_mem:
+        with (
+            patch("app.agent.nodes.architect.create_tracked_llm", return_value=mock_llm),
+            patch("app.agent.nodes.architect.get_semantic_memory") as mock_mem,
+        ):
             mock_mem.return_value.get_context_for_prompt = AsyncMock(return_value="")
             result = await architect_node(state)
 

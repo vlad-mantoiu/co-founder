@@ -9,9 +9,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.agent.nodes.executor import (
-    executor_node,
     _detect_project_type,
     _run_tests_in_sandbox,
+    executor_node,
 )
 from app.agent.state import create_initial_state
 from app.core.exceptions import SandboxError
@@ -66,8 +66,10 @@ class TestExecutorErrorPathsHaveMessages:
         mock_runtime.make_dir = AsyncMock()
         mock_runtime.write_file = AsyncMock(side_effect=SandboxError("disk full"))
 
-        with patch("app.agent.nodes.executor.get_settings", return_value=mock_settings), \
-             patch("app.agent.nodes.executor.E2BSandboxRuntime", return_value=mock_runtime):
+        with (
+            patch("app.agent.nodes.executor.get_settings", return_value=mock_settings),
+            patch("app.agent.nodes.executor.E2BSandboxRuntime", return_value=mock_runtime),
+        ):
             result = await executor_node(state)
 
         assert "messages" in result, "file_write error path must include messages"
@@ -84,13 +86,13 @@ class TestExecutorErrorPathsHaveMessages:
 
         mock_runtime = MagicMock()
         mock_runtime.session = MagicMock()
-        mock_runtime.session.return_value.__aenter__ = AsyncMock(
-            side_effect=SandboxError("connection refused")
-        )
+        mock_runtime.session.return_value.__aenter__ = AsyncMock(side_effect=SandboxError("connection refused"))
         mock_runtime.session.return_value.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("app.agent.nodes.executor.get_settings", return_value=mock_settings), \
-             patch("app.agent.nodes.executor.E2BSandboxRuntime", return_value=mock_runtime):
+        with (
+            patch("app.agent.nodes.executor.get_settings", return_value=mock_settings),
+            patch("app.agent.nodes.executor.E2BSandboxRuntime", return_value=mock_runtime),
+        ):
             result = await executor_node(state)
 
         assert "messages" in result, "SandboxError catch path must include messages"
@@ -104,9 +106,10 @@ class TestExecutorErrorPathsHaveMessages:
         mock_settings = MagicMock()
         mock_settings.e2b_api_key = None  # Force local execution
 
-        with patch("app.agent.nodes.executor.get_settings", return_value=mock_settings), \
-             patch("app.agent.nodes.executor.resolve_safe_project_path",
-                   side_effect=PermissionError("no write access")):
+        with (
+            patch("app.agent.nodes.executor.get_settings", return_value=mock_settings),
+            patch("app.agent.nodes.executor.resolve_safe_project_path", side_effect=PermissionError("no write access")),
+        ):
             result = await executor_node(state)
 
         assert "messages" in result, "local file_write error path must include messages"
@@ -139,9 +142,10 @@ class TestExecutorErrorPathsHaveMessages:
                 # Subsequent calls (during validation): raise ValueError
                 raise ValueError(f"unsafe path: {path}")
 
-        with patch("app.agent.nodes.executor.get_settings", return_value=mock_settings), \
-             patch("app.agent.nodes.executor.resolve_safe_project_path",
-                   side_effect=resolve_side_effect):
+        with (
+            patch("app.agent.nodes.executor.get_settings", return_value=mock_settings),
+            patch("app.agent.nodes.executor.resolve_safe_project_path", side_effect=resolve_side_effect),
+        ):
             # Also mock the file write itself so we get to the validation step
             with patch("pathlib.Path.write_text"):
                 with patch("pathlib.Path.mkdir"):
@@ -172,10 +176,12 @@ class TestExecutorErrorPathsHaveMessages:
         mock_proc.returncode = 0
         mock_proc.communicate = AsyncMock(return_value=(b"OK", b""))
 
-        with patch("app.agent.nodes.executor.get_settings", return_value=mock_settings), \
-             patch("app.agent.nodes.executor.resolve_safe_project_path") as mock_resolve, \
-             patch("asyncio.create_subprocess_exec", return_value=mock_proc), \
-             patch("asyncio.wait_for", return_value=(b"OK", b"")):
+        with (
+            patch("app.agent.nodes.executor.get_settings", return_value=mock_settings),
+            patch("app.agent.nodes.executor.resolve_safe_project_path") as mock_resolve,
+            patch("asyncio.create_subprocess_exec", return_value=mock_proc),
+            patch("asyncio.wait_for", return_value=(b"OK", b"")),
+        ):
             safe_path = MagicMock(spec=Path)
             safe_path.parent = MagicMock()
             safe_path.parent.mkdir = MagicMock()
@@ -203,9 +209,11 @@ class TestExecutorErrorPathsHaveMessages:
         mock_settings = MagicMock()
         mock_settings.e2b_api_key = None
 
-        with patch("app.agent.nodes.executor.get_settings", return_value=mock_settings), \
-             patch("app.agent.nodes.executor.resolve_safe_project_path") as mock_resolve, \
-             patch("asyncio.create_subprocess_exec", side_effect=OSError("cannot fork")):
+        with (
+            patch("app.agent.nodes.executor.get_settings", return_value=mock_settings),
+            patch("app.agent.nodes.executor.resolve_safe_project_path") as mock_resolve,
+            patch("asyncio.create_subprocess_exec", side_effect=OSError("cannot fork")),
+        ):
             safe_path = MagicMock(spec=Path)
             safe_path.parent = MagicMock()
             safe_path.parent.mkdir = MagicMock()
@@ -259,9 +267,7 @@ class TestRunTestsInSandbox:
     async def test_exit_code_5_treated_as_success(self):
         """Pytest exit code 5 (no tests collected) should be treated as success."""
         mock_runtime = MagicMock()
-        mock_runtime.run_command = AsyncMock(
-            return_value={"stdout": "NO TESTS RAN", "stderr": "", "exit_code": 5}
-        )
+        mock_runtime.run_command = AsyncMock(return_value={"stdout": "NO TESTS RAN", "stderr": "", "exit_code": 5})
         step = {"index": 0, "description": "Python step", "files_to_modify": ["main.py"], "status": "pending"}
         result = await _run_tests_in_sandbox(mock_runtime, "python", step)
         assert result["exit_code"] == 0

@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.agent.nodes.coder import coder_node, _parse_file_changes, _format_errors, _format_working_files
+from app.agent.nodes.coder import _format_errors, _format_working_files, _parse_file_changes, coder_node
 from app.agent.state import create_initial_state
 
 pytestmark = pytest.mark.unit
@@ -104,8 +104,9 @@ class TestCoderNodeEmptyParseDetection:
 
         # working_files may or may not be in result, but must not be non-empty
         working = result.get("working_files", {})
-        assert working == {} or working == state["working_files"], \
+        assert working == {} or working == state["working_files"], (
             "working_files must not grow when no files were parsed"
+        )
 
     @pytest.mark.asyncio
     async def test_malformed_format_returns_error(self):
@@ -166,10 +167,7 @@ class TestParseFileChanges:
         assert result["foo.py"]["new_content"] == "print('hi')"
 
     def test_parses_multiple_files(self):
-        content = (
-            "===FILE: a.py===\ncode_a\n===END FILE===\n"
-            "===FILE: b.py===\ncode_b\n===END FILE==="
-        )
+        content = "===FILE: a.py===\ncode_a\n===END FILE===\n===FILE: b.py===\ncode_b\n===END FILE==="
         result = _parse_file_changes(content)
         assert len(result) == 2
         assert "a.py" in result
