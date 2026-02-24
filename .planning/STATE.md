@@ -35,6 +35,7 @@ Progress: [███░░░░░░░] ~15% (v0.6 in progress — 8 plans sh
 | Phase 35 P02 | 5min | 1 tasks | 2 files |
 | Phase 36 P01 | 5min | 1 tasks | 2 files |
 | Phase 36 P03 | 1052 | 2 tasks | 2 files |
+| Phase 36 P02 | 25min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -104,6 +105,9 @@ Key v0.6 decisions (from Phase 36 Plan 03):
 - [Phase 36]: pubsub.get_message() not pubsub.listen() — enables heartbeat interleaving for ALB-compatible SSE
 - [Phase 36]: [Phase 36-eventsstream]: 15s heartbeat interval for /{job_id}/events/stream — 4x safety margin below ALB 60s idle timeout
 - [Phase 36]: [Phase 36-eventsstream]: Heartbeat timer resets on data events — avoids unnecessary heartbeats during active streaming bursts
+- [Phase 36]: [Phase 36-02]: asyncio_default_test_loop_scope=session added to pyproject.toml — playwright event loop teardown fix for function-scope tests with multiple create_task() calls
+- [Phase 36]: [Phase 36-02]: generate_changelog() uses JSON approach {'changelog': '...'} reusing _call_claude_with_retry — no new text-extraction method needed
+- [Phase 36]: [Phase 36-02]: _redis = None guard added to execute_iteration_build() — was missing before, caused UnboundLocalError when Redis unavailable in test env
 
 ### Pending Todos
 

@@ -46,7 +46,7 @@ Requirements for v0.6 Live Build Experience. Each maps to roadmap phases.
 - [ ] **DOCS-06**: Documentation downloadable as PDF via WeasyPrint at build completion
 - [x] **DOCS-07**: Documentation content is founder-safe — no code, CLI commands, or internal architecture
 - [x] **DOCS-08**: Documentation generation failure is non-fatal — build continues if doc gen fails
-- [ ] **DOCS-09**: Changelog generated comparing build iterations
+- [x] **DOCS-09**: Changelog generated comparing build iterations
 
 ### Long-Build Reassurance
 
@@ -136,7 +136,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | NARR-04 | Phase 36 | Complete |
 | NARR-08 | Phase 36 | Complete |
 | SNAP-03 | Phase 36 | Complete |
-| DOCS-09 | Phase 36 | Pending |
+| DOCS-09 | Phase 36 | Complete |
 | REAS-01 | Phase 37 | Pending |
 | REAS-02 | Phase 37 | Pending |
 | REAS-06 | Phase 37 | Pending |

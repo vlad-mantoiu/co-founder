@@ -91,7 +91,7 @@
 - [x] **Phase 33: Infrastructure & Configuration** - S3 screenshots bucket, CloudFront OAC behavior, IAM grants, Settings env vars (completed 2026-02-23)
 - [x] **Phase 34: ScreenshotService** - Playwright capture from ECS worker, S3 upload, non-fatal error handling (completed 2026-02-23)
 - [x] **Phase 35: DocGenerationService** - Claude-powered doc generation, Redis hash storage, asyncio.create_task decoupling (completed 2026-02-24)
-- [ ] **Phase 36: GenerationService Wiring & API Routes** - Wire services into build pipeline, new SSE and REST endpoints, narration generation
+- [x] **Phase 36: GenerationService Wiring & API Routes** - Wire services into build pipeline, new SSE and REST endpoints, narration generation (completed 2026-02-24)
 - [ ] **Phase 37: Frontend Hooks** - useBuildEvents SSE consumer, useDocGeneration, snapshot and doc state management
 - [ ] **Phase 38: Panel Components** - ActivityFeed, LiveSnapshot, DocPanel — three-panel build experience
 - [ ] **Phase 39: BuildPage Refactor & Completion State** - Three-panel grid assembly, completion hero, layout state machine
@@ -226,7 +226,7 @@ Plans:
   4. `GET /api/jobs/{id}/docs` returns the current documentation sections from the Redis hash — empty object if generation has not started, partial object if in progress
   5. Narration text contains no stack traces, internal file paths (`/app/`, `/workspace/`), raw error messages, or secret-shaped strings — safety guardrails strip these before the narration is published
   6. The changelog section of docs compares build iterations when a v0.2+ iteration job runs — first builds receive an empty changelog
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 Plans:
 - [ ] 36-01-PLAN.md — TDD NarrationService: Claude Haiku stage narration with safety filter (NARR-02, NARR-04, NARR-08)
 - [ ] 36-02-PLAN.md — Wire NarrationService + ScreenshotService + changelog into build pipeline (SNAP-03, DOCS-09)
@@ -309,7 +309,7 @@ Plans:
 | 33. Infrastructure & Configuration | 2/3 | Complete    | 2026-02-23 | - |
 | 34. ScreenshotService | 3/3 | Complete    | 2026-02-23 | - |
 | 35. DocGenerationService | 2/2 | Complete    | 2026-02-24 | - |
-| 36. GenerationService Wiring & API Routes | 2/3 | In Progress|  | - |
+| 36. GenerationService Wiring & API Routes | 3/3 | Complete   | 2026-02-24 | - |
 | 37. Frontend Hooks | v0.6 | 0/TBD | Not started | - |
 | 38. Panel Components | v0.6 | 0/TBD | Not started | - |
 | 39. BuildPage Refactor & Completion State | v0.6 | 0/TBD | Not started | - |
