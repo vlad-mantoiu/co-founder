@@ -27,7 +27,7 @@ def test_runner_is_runtime_checkable():
     assert isinstance(Runner, type)
     assert issubclass(type(Runner), type(Protocol))
 
-    # Test that isinstance works with a complete dummy class
+    # Test that isinstance works with a complete dummy class (including run_agent_loop)
     class CompleteRunner:
         async def run(self, state: CoFounderState) -> CoFounderState:
             return state
@@ -79,9 +79,37 @@ def test_runner_is_runtime_checkable():
                 "integration_recommendations": [],
             }
 
+        async def run_agent_loop(self, context: dict) -> dict:
+            return {"status": "completed", "project_id": "test", "phases_completed": 0, "result": "stub"}
+
     complete = CompleteRunner()
     # If runtime_checkable is working, isinstance should return True
     assert isinstance(complete, Runner), "Runner protocol must support isinstance checks (runtime_checkable)"
+
+
+def test_runner_protocol_has_run_agent_loop():
+    """Verify Runner protocol defines run_agent_loop() with correct signature."""
+    import inspect
+    from typing import get_type_hints
+
+    # Method must exist on the protocol
+    assert hasattr(Runner, "run_agent_loop"), "Runner protocol must define run_agent_loop()"
+
+    # Inspect the method signature
+    sig = inspect.signature(Runner.run_agent_loop)
+    params = list(sig.parameters.keys())
+
+    # Must accept 'context' parameter (besides 'self')
+    assert "context" in params, f"run_agent_loop() must have 'context' parameter, got: {params}"
+
+    # Type hints must specify context: dict
+    hints = get_type_hints(Runner.run_agent_loop)
+    assert "context" in hints, "run_agent_loop() must have type hint for 'context'"
+    assert hints["context"] is dict, f"context must be typed as dict, got: {hints['context']}"
+
+    # Return type must be dict
+    assert "return" in hints, "run_agent_loop() must have return type hint"
+    assert hints["return"] is dict, f"return type must be dict, got: {hints['return']}"
 
 
 def test_runner_has_required_methods():

@@ -376,3 +376,56 @@ async def test_step_accepts_all_valid_stages(stage):
 
     # Should not raise, and should update current_node
     assert result["current_node"] == stage
+
+
+# =============================================================================
+# RUN_AGENT_LOOP TESTS (Phase 40 extension)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_run_agent_loop_happy_path():
+    """RunnerFake('happy_path').run_agent_loop() returns deterministic result dict."""
+    runner = RunnerFake(scenario="happy_path")
+    context = {"project_id": "test-123", "user_id": "user-1"}
+
+    result = await runner.run_agent_loop(context)
+
+    # All four required keys must be present
+    assert "status" in result, "run_agent_loop result must have 'status' key"
+    assert "project_id" in result, "run_agent_loop result must have 'project_id' key"
+    assert "phases_completed" in result, "run_agent_loop result must have 'phases_completed' key"
+    assert "result" in result, "run_agent_loop result must have 'result' key"
+
+    # Status should indicate completion
+    assert result["status"] == "completed"
+
+    # project_id should echo back the input
+    assert result["project_id"] == "test-123"
+
+    # phases_completed must be an integer
+    assert isinstance(result["phases_completed"], int)
+
+
+@pytest.mark.asyncio
+async def test_run_agent_loop_llm_failure():
+    """RunnerFake('llm_failure').run_agent_loop() raises RuntimeError with rate limit message."""
+    runner = RunnerFake(scenario="llm_failure")
+    context = {"project_id": "test-123", "user_id": "user-1"}
+
+    with pytest.raises(RuntimeError) as exc_info:
+        await runner.run_agent_loop(context)
+
+    error_msg = str(exc_info.value).lower()
+    assert "rate limit" in error_msg, f"Expected 'rate limit' in error, got: {exc_info.value}"
+
+
+@pytest.mark.asyncio
+async def test_runner_fake_still_satisfies_protocol():
+    """isinstance(RunnerFake(), Runner) is True after run_agent_loop extension."""
+    runner = RunnerFake()
+    assert isinstance(runner, Runner), "RunnerFake must satisfy Runner protocol after run_agent_loop addition"
+
+    # run_agent_loop must be present and callable
+    assert hasattr(runner, "run_agent_loop"), "RunnerFake must have run_agent_loop method"
+    assert callable(runner.run_agent_loop), "RunnerFake.run_agent_loop must be callable"
