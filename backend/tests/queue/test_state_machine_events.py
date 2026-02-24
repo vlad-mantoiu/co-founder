@@ -7,7 +7,7 @@ import pytest
 from fakeredis import aioredis
 
 from app.queue.schemas import JobStatus
-from app.queue.state_machine import STAGE_LABELS, SSEEventType, JobStateMachine
+from app.queue.state_machine import STAGE_LABELS, JobStateMachine, SSEEventType
 
 pytestmark = pytest.mark.unit
 

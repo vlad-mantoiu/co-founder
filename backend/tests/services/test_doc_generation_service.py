@@ -29,15 +29,15 @@ TDD coverage:
 
 import asyncio
 import json
-from unittest.mock import AsyncMock, MagicMock, patch, call
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from app.services.doc_generation_service import (
-    SECTION_ORDER,
-    DOC_GEN_TIMEOUT_SECONDS,
-    DOC_GEN_MODEL,
     DOC_GEN_MAX_TOKENS,
+    DOC_GEN_MODEL,
+    DOC_GEN_TIMEOUT_SECONDS,
+    SECTION_ORDER,
     DocGenerationService,
 )
 
@@ -795,7 +795,7 @@ class TestGenerateNeverRaises:
             patch.object(service, "_call_claude_with_retry", new_callable=AsyncMock) as mock_call,
         ):
             mock_settings.return_value.docs_generation_enabled = True
-            mock_call.side_effect = asyncio.TimeoutError("Timed out")
+            mock_call.side_effect = TimeoutError("Timed out")
 
             result = await service.generate(job_id, "spec", mock_redis)
             assert result is None

@@ -19,7 +19,6 @@ import fakeredis.aioredis
 import pytest
 
 from app.agent.runner_fake import RunnerFake
-from app.queue.schemas import JobStatus
 from app.queue.state_machine import JobStateMachine
 from app.services.generation_service import GenerationService
 

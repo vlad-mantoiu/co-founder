@@ -21,12 +21,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.services.narration_service import (
-    NARRATION_MODEL,
+    _FALLBACK_NARRATIONS,
     NARRATION_MAX_TOKENS,
+    NARRATION_MODEL,
     NARRATION_TIMEOUT_SECONDS,
     STAGE_AGENT_ROLES,
     STAGE_TIME_ESTIMATES,
-    _FALLBACK_NARRATIONS,
     NarrationService,
 )
 
@@ -549,8 +549,8 @@ class TestNarrateFallback:
             patch("app.services.narration_service.asyncio.wait_for", new_callable=AsyncMock) as mock_wait,
             patch("app.services.narration_service.JobStateMachine") as mock_sm_cls,
         ):
-            mock_call.side_effect = asyncio.TimeoutError("Timed out")
-            mock_wait.side_effect = asyncio.TimeoutError("Timed out")
+            mock_call.side_effect = TimeoutError("Timed out")
+            mock_wait.side_effect = TimeoutError("Timed out")
             mock_sm = AsyncMock()
             mock_sm_cls.return_value = mock_sm
 

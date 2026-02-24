@@ -192,7 +192,7 @@ class DocGenerationService:
                 raw_text: str = response.content[0].text
                 return json.loads(_strip_json_fences(raw_text))
 
-            except (RateLimitError, APITimeoutError, asyncio.TimeoutError) as exc:
+            except (TimeoutError, RateLimitError, APITimeoutError) as exc:
                 if attempt == 0:
                     logger.warning(
                         "doc_generation_retrying",

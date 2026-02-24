@@ -645,7 +645,6 @@ def test_get_generation_status_includes_snapshot_url(api_client: TestClient, fak
 
     # Create a READY job with snapshot_url set in the Redis hash
     _setup_job_in_state(fake_redis, job_id, user_a.user_id, project_id, JobStatus.READY)
-    state_machine = JobStateMachine(fake_redis)
     asyncio.run(fake_redis.hset(f"job:{job_id}", "snapshot_url", cloudfront_url))
 
     app: FastAPI = api_client.app

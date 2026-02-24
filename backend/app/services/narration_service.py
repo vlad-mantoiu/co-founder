@@ -169,7 +169,7 @@ class NarrationService:
                 )
                 return response.content[0].text.strip()
 
-            except (RateLimitError, APITimeoutError, asyncio.TimeoutError) as exc:
+            except (TimeoutError, RateLimitError, APITimeoutError) as exc:
                 if attempt == 0:
                     logger.warning(
                         "narration_retrying",

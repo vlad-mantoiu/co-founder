@@ -339,7 +339,7 @@ async def stream_job_events(
                         pubsub.get_message(ignore_subscribe_messages=True),
                         timeout=1.0,
                     )
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     continue
 
                 if message and message["type"] == "message":
