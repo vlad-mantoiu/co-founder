@@ -82,9 +82,9 @@ None blocking Phase 41.
 
 ## Session Continuity
 
-Last session: 2026-02-25 (plan 41-02)
-Stopped at: Completed 41-02-PLAN.md — build_system_prompt() TDD complete (8 tests pass). Plan 41-03 is next (TAOR loop core implementation).
-Resume: `/gsd:execute-phase 41` to continue Phase 41 with Plan 41-03
+Last session: 2026-02-25 (plan 41-01 + 41-02 — Wave 1 complete)
+Stopped at: Wave 1 done — 41-01 (safety+dispatcher, 17 tests) and 41-02 (system prompt, 8 tests) both GREEN. 41-01 needs SUMMARY.md created. Wave 2 (41-03 TAOR loop) not started. Context ran out mid-execute-phase.
+Resume: `/gsd:execute-phase 41` — will skip 41-02 (has SUMMARY), re-execute 41-01 SUMMARY creation, then run 41-03
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
