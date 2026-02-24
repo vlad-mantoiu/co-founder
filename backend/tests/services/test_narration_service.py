@@ -443,53 +443,47 @@ class TestNarrateSpecTruncation:
     """Spec is truncated to first 300 chars before passing to Claude."""
 
     async def test_narrate_truncates_long_spec(self) -> None:
-        """Spec longer than 300 chars is truncated before Claude call."""
+        """Spec longer than 300 chars is truncated before passing to _call_claude."""
         service = NarrationService()
         mock_redis = AsyncMock()
         long_spec = "X" * 800
 
-        captured_spec = {}
-
-        async def capture_call(stage, spec):
-            captured_spec["spec"] = spec
-            return "We're making progress."
-
         with (
-            patch.object(service, "_call_claude", side_effect=capture_call),
+            patch.object(service, "_call_claude", new_callable=AsyncMock) as mock_call,
             patch("app.services.narration_service.asyncio.wait_for", new_callable=AsyncMock) as mock_wait,
             patch("app.services.narration_service.JobStateMachine") as mock_sm_cls,
         ):
+            mock_call.return_value = "We're making progress."
             mock_wait.return_value = "We're making progress."
             mock_sm_cls.return_value = AsyncMock()
 
             await service.narrate(job_id="job-1", stage="scaffold", spec=long_spec, redis=mock_redis)
 
-            # The spec passed to _call_claude should be max 300 chars
-            assert len(captured_spec["spec"]) <= 300
+            # _call_claude is called — its second arg (spec) should be max 300 chars
+            mock_call.assert_called_once()
+            called_spec = mock_call.call_args[0][1]  # positional arg: (stage, spec)
+            assert len(called_spec) <= 300
 
     async def test_narrate_passes_short_spec_unchanged(self) -> None:
-        """Spec shorter than 300 chars is passed to Claude unchanged."""
+        """Spec shorter than 300 chars is passed to _call_claude unchanged."""
         service = NarrationService()
         mock_redis = AsyncMock()
         short_spec = "Build a task management tool for remote teams."
 
-        captured_spec = {}
-
-        async def capture_call(stage, spec):
-            captured_spec["spec"] = spec
-            return "We're making progress."
-
         with (
-            patch.object(service, "_call_claude", side_effect=capture_call),
+            patch.object(service, "_call_claude", new_callable=AsyncMock) as mock_call,
             patch("app.services.narration_service.asyncio.wait_for", new_callable=AsyncMock) as mock_wait,
             patch("app.services.narration_service.JobStateMachine") as mock_sm_cls,
         ):
+            mock_call.return_value = "We're making progress."
             mock_wait.return_value = "We're making progress."
             mock_sm_cls.return_value = AsyncMock()
 
             await service.narrate(job_id="job-1", stage="scaffold", spec=short_spec, redis=mock_redis)
 
-            assert captured_spec["spec"] == short_spec
+            mock_call.assert_called_once()
+            called_spec = mock_call.call_args[0][1]
+            assert called_spec == short_spec
 
 
 # ---------------------------------------------------------------------------
