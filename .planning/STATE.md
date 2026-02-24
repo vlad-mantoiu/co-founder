@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** v0.6 Live Build Experience — Phase 36 in progress (Plan 03 of 4 complete)
+**Current focus:** v0.6 Live Build Experience — Phase 36 COMPLETE (all 4 plans shipped)
 
 ## Current Position
 
 Phase: 36 of 39 (GenerationService Wiring & API Routes)
-Plan: 03 complete
+Plan: 04 complete (Phase 36 complete — all 4 plans shipped)
 Status: In progress
-Last activity: 2026-02-24 — Phase 36 Plan 03 complete: SSE events stream endpoint with 15s heartbeat and Redis Pub/Sub get_message() polling
+Last activity: 2026-02-24 — Phase 36 Plan 04 complete: Extended _SAFETY_PATTERNS with workspace paths, stack traces, and secret-shaped strings (NARR-08 closed)
 
-Progress: [███░░░░░░░] ~15% (v0.6 in progress — 8 plans shipped)
+Progress: [████░░░░░░] ~20% (v0.6 in progress — 9 plans shipped)
 
 ## Performance Metrics
 
@@ -36,6 +36,7 @@ Progress: [███░░░░░░░] ~15% (v0.6 in progress — 8 plans sh
 | Phase 36 P01 | 5min | 1 tasks | 2 files |
 | Phase 36 P03 | 1052 | 2 tasks | 2 files |
 | Phase 36 P02 | 25min | 2 tasks | 7 files |
+| Phase 36 P04 | 110 | 1 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -108,6 +109,9 @@ Key v0.6 decisions (from Phase 36 Plan 03):
 - [Phase 36]: [Phase 36-02]: asyncio_default_test_loop_scope=session added to pyproject.toml — playwright event loop teardown fix for function-scope tests with multiple create_task() calls
 - [Phase 36]: [Phase 36-02]: generate_changelog() uses JSON approach {'changelog': '...'} reusing _call_claude_with_retry — no new text-extraction method needed
 - [Phase 36]: [Phase 36-02]: _redis = None guard added to execute_iteration_build() — was missing before, caused UnboundLocalError when Redis unavailable in test env
+- [Phase 36]: [Phase 36-04]: Modified existing unix path pattern to include /workspace/ (8 total patterns) — cleaner than separate entry
+- [Phase 36]: [Phase 36-04]: Stack trace regex ^.*?(trigger).*$ with re.MULTILINE — catches trigger mid-line not just at line-start
+- [Phase 36]: [Phase 36-04]: [REDACTED] replacement for secrets preserves sentence flow vs empty string removal
 
 ### Pending Todos
 
@@ -125,8 +129,8 @@ None blocking Phase 34 Plan 02.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 36-03-PLAN.md — SSE events stream endpoint GET /api/jobs/{id}/events/stream with 15s heartbeat and Redis Pub/Sub get_message() polling
-Resume: `/gsd:execute-phase 36` (continue Phase 36, Plan 04)
+Stopped at: Completed 36-04-PLAN.md — Extended _SAFETY_PATTERNS with workspace paths, stack traces, and secret-shaped strings (NARR-08 gap closure)
+Resume: `/gsd:execute-phase 37` (Phase 37 — next phase)
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
