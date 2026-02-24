@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** v0.6 Live Build Experience — Phase 34 in progress (Plan 03 of N complete)
+**Current focus:** v0.6 Live Build Experience — Phase 35 in progress (Plan 01 of 2 complete)
 
 ## Current Position
 
-Phase: 34 of 39 (ScreenshotService)
-Plan: 03 complete
+Phase: 35 of 39 (DocGenerationService)
+Plan: 01 complete
 Status: In progress
-Last activity: 2026-02-24 — Phase 34 Plan 03 complete: CacheControl immutable header on S3 screenshot upload
+Last activity: 2026-02-24 — Phase 35 Plan 01 complete: DocGenerationService with Claude Haiku, progressive Redis writes, safety filter
 
-Progress: [█░░░░░░░░░] ~4% (v0.6 in progress — 4 plans shipped)
+Progress: [█░░░░░░░░░] ~5% (v0.6 in progress — 5 plans shipped)
 
 ## Performance Metrics
 
@@ -78,6 +78,11 @@ Key v0.6 decisions (from Phase 33 Plan 02):
 - [Phase 34-screenshotservice]: MIN_CHANNEL_STDDEV=8.0 — empirical; calibrate from production logs
 - [Phase 34-screenshotservice]: playwright>=1.58.0 added to pyproject.toml — ScreenshotService dependency
 - [Phase 34-screenshotservice]: CacheControl='max-age=31536000, immutable' safe on content-addressed S3 keys (job_id/stage.png never overwritten)
+- [Phase 35-docgenerationservice]: claude-3-5-haiku-20241022 model (CONTEXT.md Haiku decision overrides STATE.md note about Sonnet)
+- [Phase 35-docgenerationservice]: Direct anthropic.AsyncAnthropic per call — no persistent client state, no LangChain wrapper
+- [Phase 35-docgenerationservice]: Module-level _SAFETY_PATTERNS compiled at import — avoids re-compile overhead per section write
+- [Phase 35-docgenerationservice]: generate() returns None — consistent with fire-and-forget asyncio.create_task pattern
+- [Phase 35-docgenerationservice]: _status flow: pending -> generating (first write) -> complete/partial/failed
 
 ### Pending Todos
 
@@ -95,8 +100,8 @@ None blocking Phase 34 Plan 02.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 34-03-PLAN.md — CacheControl immutable header on S3 upload
-Resume: `/gsd:execute-phase 34` (continue with plan 04)
+Stopped at: Completed 35-01-PLAN.md — DocGenerationService with Claude Haiku, progressive Redis writes, safety filter
+Resume: `/gsd:execute-phase 35` (continue with plan 02)
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*

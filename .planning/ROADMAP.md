@@ -210,7 +210,7 @@ Plans:
   3. Documentation content contains no code blocks, CLI commands, internal file paths, or architecture implementation details — only founder-readable product description
   4. If the Claude API returns a rate limit error, times out, or the Redis write fails, the build job continues normally — doc generation failure never sets job status to FAILED
   5. Documentation sections arrive progressively in the Redis hash — `overview` is written first, remaining sections follow — enabling progressive display even before all sections complete
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 Plans:
 - [ ] 35-01-PLAN.md — TDD DocGenerationService: Claude Haiku API call, JSON parse, progressive Redis writes, safety filter, failure handling (DOCS-01, DOCS-02, DOCS-07, DOCS-08)
 - [ ] 35-02-PLAN.md — Wire DocGenerationService into execute_build() via asyncio.create_task() (DOCS-03)
@@ -304,7 +304,7 @@ Plans:
 | 32. Sandbox Snapshot Lifecycle | v0.5 | 4/4 | Complete | 2026-02-22 |
 | 33. Infrastructure & Configuration | 2/3 | Complete    | 2026-02-23 | - |
 | 34. ScreenshotService | 3/3 | Complete    | 2026-02-23 | - |
-| 35. DocGenerationService | v0.6 | 0/2 | Not started | - |
+| 35. DocGenerationService | 1/2 | In Progress|  | - |
 | 36. GenerationService Wiring & API Routes | v0.6 | 0/TBD | Not started | - |
 | 37. Frontend Hooks | v0.6 | 0/TBD | Not started | - |
 | 38. Panel Components | v0.6 | 0/TBD | Not started | - |
