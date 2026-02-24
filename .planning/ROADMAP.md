@@ -310,7 +310,7 @@ Plans:
 | 33. Infrastructure & Configuration | 2/3 | Complete    | 2026-02-23 | - |
 | 34. ScreenshotService | 3/3 | Complete    | 2026-02-23 | - |
 | 35. DocGenerationService | 2/2 | Complete    | 2026-02-24 | - |
-| 36. GenerationService Wiring & API Routes | 4/4 | Complete   | 2026-02-24 | - |
+| 36. GenerationService Wiring & API Routes | 4/4 | Complete    | 2026-02-24 | - |
 | 37. Frontend Hooks | v0.6 | 0/TBD | Not started | - |
 | 38. Panel Components | v0.6 | 0/TBD | Not started | - |
 | 39. BuildPage Refactor & Completion State | v0.6 | 0/TBD | Not started | - |
