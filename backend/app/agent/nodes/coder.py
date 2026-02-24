@@ -101,10 +101,7 @@ Existing working files:
             "messages": [
                 {
                     "role": "assistant",
-                    "content": (
-                        f"Coder returned no parseable files for: {current_step['description']}. "
-                        "Will retry."
-                    ),
+                    "content": (f"Coder returned no parseable files for: {current_step['description']}. Will retry."),
                     "node": "coder",
                 }
             ],
