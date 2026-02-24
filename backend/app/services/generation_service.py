@@ -4,6 +4,7 @@ Wires Runner (LLM code generation) + E2BSandboxRuntime (execution) into
 the JobStateMachine transitions, persisting sandbox build results.
 """
 
+import asyncio
 import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -14,6 +15,7 @@ from sqlalchemy import select
 
 from app.agent.runner import Runner
 from app.agent.state import create_initial_state
+from app.core.config import get_settings as _get_settings
 from app.core.exceptions import SandboxError
 from app.db.base import get_session_factory
 from app.db.redis import get_redis
@@ -21,9 +23,13 @@ from app.metrics.cloudwatch import emit_business_event
 from app.queue.schemas import JobStatus
 from app.queue.state_machine import JobStateMachine
 from app.sandbox.e2b_runtime import E2BSandboxRuntime
+from app.services.doc_generation_service import DocGenerationService
 from app.services.log_streamer import LogStreamer
 
 logger = structlog.get_logger(__name__)
+
+# DOCS-03: Module-level singleton — one instance reused across all builds
+_doc_generation_service = DocGenerationService()
 
 
 class GenerationService:
@@ -76,6 +82,7 @@ class GenerationService:
         sandbox = None
         user_id = job_data.get("user_id", "")
         project_id = job_data.get("project_id", "")
+        _redis = None  # resolved below; None when Redis unavailable (test env)
         try:
             _redis = redis if redis is not None else get_redis()
             streamer: LogStreamer = LogStreamer(redis=_redis, job_id=job_id, phase="scaffold")
@@ -98,6 +105,19 @@ class GenerationService:
                 goal=job_data.get("goal", ""),
                 session_id=job_id,
             )
+
+            # DOCS-03: Start doc generation as background task after scaffold completes
+            # Fire-and-forget — task handles its own errors, never blocks the build
+            # Only launched when Redis is available (no-op in unit tests without Redis)
+            _settings = _get_settings()
+            if _settings.docs_generation_enabled and _redis is not None:
+                asyncio.create_task(
+                    _doc_generation_service.generate(
+                        job_id=job_id,
+                        spec=job_data.get("goal", ""),
+                        redis=_redis,
+                    )
+                )
 
             # 3. CODE — run the Runner pipeline
             await state_machine.transition(job_id, JobStatus.CODE, "Running LLM code generation pipeline")
