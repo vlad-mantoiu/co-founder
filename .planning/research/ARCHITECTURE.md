@@ -1,747 +1,822 @@
 # Architecture Research
 
-**Domain:** Live Build Experience integration — v0.6 milestone on existing AI Co-Founder SaaS
-**Researched:** 2026-02-23
-**Confidence:** HIGH — based on direct codebase inspection of all integration points
+**Domain:** Autonomous Claude Agent replacing LangGraph in AI Co-Founder SaaS (v0.7)
+**Researched:** 2026-02-24
+**Confidence:** HIGH — based on direct codebase analysis of all integration points + verified Anthropic SDK docs
 
 ---
 
 ## System Overview
 
-### Current Build Flow (as-shipped)
+### Current Architecture (v0.6, being replaced)
 
 ```
 Browser (Next.js)
   |
-  +-- useBuildProgress --> GET /api/generation/{job_id}/status   (5s poll)
-  +-- useBuildLogs    --> GET /api/jobs/{job_id}/logs/stream     (SSE)
-                              |
-                        FastAPI (ECS Fargate)
-                              |
-                        BackgroundTask --> process_next_job()
-                              |
-                        GenerationService.execute_build()
-                        +-- runner.run()          <- LangGraph (CODE stage)
-                        +-- sandbox.start()       <- E2B create
-                        +-- sandbox.write_file()  <- write generated files
-                        +-- sandbox.start_dev_server() <- npm install + run dev
-                        +-- returns preview_url
-                              |
-                        Redis (job:{id} hash + job:{id}:logs stream)
-                              |
-                        Postgres (jobs table -- terminal state persist)
+  +-- GET /api/jobs/{id}/events/stream  (SSE, Redis Pub/Sub)
+  +-- GET /api/generation/{id}/status  (5s poll)
+                    |
+              FastAPI Backend
+                    |
+              BackgroundTask: process_next_job(runner=RunnerReal)
+                    |
+              GenerationService.execute_build()
+              +-- runner.run(agent_state)        <- LangGraph 6-node pipeline
+              +-- sandbox.start()                <- E2B create
+              +-- sandbox.write_file()            <- write generated files
+              +-- sandbox.start_dev_server()      <- npm install + run
+              +-- returns preview_url
+                    |
+              Redis (job:{id} hash, job:{id}:events Pub/Sub)
+              Postgres (jobs table — terminal state persist)
+              E2B Cloud (sandbox)
 ```
 
-### Proposed v0.6 Build Flow (new data paths highlighted)
+### Target Architecture (v0.7)
 
 ```
-Browser (Next.js) -- NEW: Three-panel layout
-  |
-  +-- useBuildProgress   --> GET /api/generation/{job_id}/status  (5s poll, unchanged)
-  +-- useBuildEvents     --> GET /api/jobs/{job_id}/events/stream (NEW SSE endpoint)
-  |     receives: build.stage.started, build.stage.completed,
-  |               snapshot.updated, documentation.updated
-  +-- useDocGeneration   --> GET /api/jobs/{job_id}/docs          (NEW REST poll)
-        Panel left: ActivityFeed (narrated agent events)
-        Panel center: LiveSnapshot (S3/CloudFront img, updates per stage)
-        Panel right: DocPanel (progressive documentation)
-                              |
-                        FastAPI (ECS Fargate)
-                              |
-                        GenerationService.execute_build()  <- MODIFIED
-                        |   (screenshots + doc gen wired in at stage boundaries)
-                        |
-                        +-- After start_dev_server() returns:
-                        |   +-- capture_screenshot(preview_url) -> bytes (Playwright)
-                        |   +-- upload_to_s3(bytes)             -> S3 key
-                        |   +-- redis.hset(job:id, snapshot_url, cf_url)
-                        |   +-- publish SSE event: snapshot.updated
-                        |
-                        +-- After CODE stage (asyncio.create_task):
-                        |   +-- anthropic.messages.create()  <- direct Anthropic SDK
-                        |   +-- writes doc sections to Redis hash
-                        |   +-- publishes SSE event: documentation.updated
-                        |
-                        +-- (existing) sandbox.start_dev_server() --> preview_url
-                              |
-                        Redis
-                        +-- job:{id}:logs         (existing Redis Stream -- unchanged)
-                        +-- job:{id}              (existing hash -- add snapshot_url, doc fields)
-                        +-- job:{id}:events       (existing Pub/Sub channel -- new event types)
-                        +-- job:{id}:docs         (NEW hash -- doc sections)
-                              |
-                        S3 (screenshots bucket -- NEW)
-                        +-- build-screenshots/{job_id}/{stage}.png
-                              |
-                        CloudFront (new distribution or new behavior on existing)
-```
-
----
-
-## Component Boundaries
-
-### Existing Components -- Unchanged
-
-| Component | File | What It Does |
-|-----------|------|--------------|
-| `GenerationService` | `backend/app/services/generation_service.py` | Orchestrates build pipeline stages |
-| `E2BSandboxRuntime` | `backend/app/sandbox/e2b_runtime.py` | Wraps E2B AsyncSandbox API |
-| `LogStreamer` | `backend/app/services/log_streamer.py` | Writes log lines to Redis Stream |
-| `JobStateMachine` | `backend/app/queue/state_machine.py` | State transitions + Redis Pub/Sub events |
-| `worker.py` | `backend/app/queue/worker.py` | Dequeues + calls GenerationService |
-| `useBuildProgress` | `frontend/src/hooks/useBuildProgress.ts` | 5s poll of /status endpoint |
-| `useBuildLogs` | `frontend/src/hooks/useBuildLogs.ts` | SSE consumer for log stream |
-| `BuildProgressBar` | `frontend/src/components/build/BuildProgressBar.tsx` | Stage progress indicator |
-| `BuildLogPanel` | `frontend/src/components/build/BuildLogPanel.tsx` | Collapsed technical log panel |
-
-### New Backend Components
-
-| Component | File (to create) | Responsibility |
-|-----------|------------------|---------------|
-| `ScreenshotService` | `backend/app/services/screenshot_service.py` | Playwright screenshot of preview URL, S3 upload via boto3 |
-| `DocGenerationService` | `backend/app/services/doc_generation_service.py` | Direct Anthropic SDK calls for end-user docs, writes to Redis |
-| `build_events` route | `backend/app/api/routes/build_events.py` | NEW SSE endpoint for typed build events (Pub/Sub subscriber) |
-| `docs` route | `backend/app/api/routes/docs.py` | GET /api/jobs/{id}/docs -- reads job:{id}:docs Redis hash |
-
-### Modified Backend Components
-
-| Component | What Changes |
-|-----------|-------------|
-| `GenerationService.execute_build()` | Add screenshot capture + doc gen calls at stage boundaries (after CODE and after start_dev_server) |
-| `GenerationService.execute_iteration_build()` | Same screenshot hook after start_dev_server |
-| `Settings` (`config.py`) | New env vars: `screenshot_bucket`, `screenshot_cloudfront_domain`, `screenshot_enabled` |
-| `Job` model (`job.py`) | Add column: `snapshot_url TEXT` nullable |
-| Alembic migration | New migration for snapshot_url column |
-| `compute-stack.ts` (CDK) | New S3 bucket + CloudFront behavior/distribution, task role PutObject grant |
-
-### New Frontend Components
-
-| Component | File (to create) | Responsibility |
-|-----------|------------------|---------------|
-| `ActivityFeed` | `frontend/src/components/build/ActivityFeed.tsx` | Left panel: narrated agent events, 2/5min reassurance |
-| `LiveSnapshot` | `frontend/src/components/build/LiveSnapshot.tsx` | Center panel: screenshot img updating per stage |
-| `DocPanel` | `frontend/src/components/build/DocPanel.tsx` | Right panel: progressive doc sections with skeleton |
-| `useBuildEvents` | `frontend/src/hooks/useBuildEvents.ts` | SSE consumer for new events endpoint |
-| `useDocGeneration` | `frontend/src/hooks/useDocGeneration.ts` | REST fetch triggered by documentation.updated event |
-
-### Modified Frontend Components
-
-| Component | What Changes |
-|-----------|-------------|
-| `BuildPage` (`projects/[id]/build/page.tsx`) | Three-panel layout during build, existing success/failure states preserved |
-
----
-
-## Integration Points -- The Five Questions
-
-### 1. E2B Screenshot Capture: Timing and Location in Worker Flow
-
-**Constraint established by codebase inspection:** `AsyncSandbox` from `e2b_code_interpreter` has no screenshot method (confirmed by `dir()` inspection of installed package). The E2B Desktop sandbox (`e2b-desktop`) has `screenshot()` but uses a graphical desktop environment -- not the code interpreter sandbox this project uses.
-
-**Approach: Worker-side Playwright (MEDIUM confidence)**
-
-Run Playwright in the ECS worker container against the public preview URL. This approach:
-- Requires no in-sandbox tooling changes
-- Preview URL is HTTP-accessible from the ECS network (E2B preview URLs are public HTTPS)
-- Playwright is a Python package fitting the existing Python stack
-- Adds ~150MB (Chromium) to the Docker image
-- Needs `playwright install chromium --with-deps` in Dockerfile
-
-```python
-# In ScreenshotService.capture(preview_url: str) -> bytes
-from playwright.async_api import async_playwright
-import asyncio
-
-async def capture_screenshot(preview_url: str) -> bytes:
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        page = await browser.new_page(viewport={"width": 1280, "height": 800})
-        await page.goto(preview_url, wait_until="networkidle", timeout=30000)
-        await asyncio.sleep(2)  # Let animations settle
-        screenshot = await page.screenshot(type="png")
-        await browser.close()
-        return screenshot
-```
-
-**Timing in GenerationService.execute_build() -- insertion point after line 150 (start_dev_server returns):**
-
-```
-# EXISTING PIPELINE STAGES (unchanged):
-STARTING -> SCAFFOLD -> CODE -> DEPS -> CHECKS -> (worker handles READY)
-
-# NEW: Screenshot capture inserted between dev server ready and build result:
-step 5b: start_dev_server() returns preview_url    <- EXISTING (line 150)
-step 5c: capture_screenshot(preview_url)            <- NEW (ScreenshotService)
-step 5d: upload to S3, get CloudFront URL           <- NEW (ScreenshotService)
-step 5e: write snapshot_url to Redis hash           <- NEW
-step 5f: publish SSE event: snapshot.updated        <- NEW
-step 6:  compute build result fields                <- EXISTING
-```
-
-Same insertion point in `execute_iteration_build()` -- after `start_dev_server()` at line 384.
-
-**Non-fatal wrapper (follows `_archive_logs_to_s3` pattern):**
-
-```python
-snapshot_url = None
-try:
-    if settings.screenshot_enabled:
-        image_bytes = await screenshot_service.capture_screenshot(preview_url)
-        snapshot_url = await screenshot_service.upload(job_id, "ready", image_bytes)
-        await _redis.hset(f"job:{job_id}", mapping={"snapshot_url": snapshot_url})
-except Exception:
-    logger.warning("screenshot_failed", job_id=job_id, exc_info=True)
+┌────────────────────────────────────────────────────────────────────┐
+│                  Next.js Frontend (existing, unchanged)             │
+│  Activity Feed | Build Canvas | Preview                            │
+│  SSE: GET /api/jobs/{id}/events/stream  (same channel, new events) │
+└────────────────────────────┬───────────────────────────────────────┘
+                             │ HTTPS / SSE
+┌────────────────────────────▼───────────────────────────────────────┐
+│                   FastAPI Backend (port 8000, existing)             │
+├────────────────────────────────────────────────────────────────────┤
+│  POST /api/generation/start  (unchanged — enqueue + BG task)        │
+│  GET  /api/jobs/{id}/events/stream  (unchanged — Redis Pub/Sub SSE) │
+│  POST /api/agent/{id}/wake  (NEW — resume sleeping agent)           │
+├────────────────────────────────────────────────────────────────────┤
+│  ┌────────────────────────────────────────────────────────────┐    │
+│  │         AutonomousRunner  (replaces RunnerReal)             │    │
+│  │  Implements Runner Protocol (all 13 methods preserved)      │    │
+│  │  + run_agent_loop(system_prompt, initial_message)           │    │
+│  │  Uses native anthropic.AsyncAnthropic (NOT LangChain)      │    │
+│  │  Tool dispatch: E2BToolDispatcher (7 tools)                 │    │
+│  │  Budget checkpoint: TokenBudgetDaemon.checkpoint()          │    │
+│  └──────────────┬─────────────────────────────────────────────┘    │
+│                 │                                                   │
+│  ┌──────────────▼─────────────────────────────────────────────┐    │
+│  │         E2BToolDispatcher  (app/agent/tools/)               │    │
+│  │  Maps Claude tool_use blocks → E2BSandboxRuntime methods    │    │
+│  │  Tools: read_file, write_file, edit_file, bash,             │    │
+│  │         grep, glob, take_screenshot                         │    │
+│  │  Publishes agent.tool.called/result SSE events              │    │
+│  └──────────────┬─────────────────────────────────────────────┘    │
+│                 │                                                   │
+│  ┌──────────────▼─────────────────────────────────────────────┐    │
+│  │         TokenBudgetDaemon  (app/agent/daemon.py)            │    │
+│  │  asyncio.Event — suspends loop when daily budget consumed   │    │
+│  │  Reads cofounder:usage:{user_id}:{today} from Redis         │    │
+│  │  agent_state: "active" | "sleeping" | "waiting_founder"     │    │
+│  │  Wakes on POST /api/agent/{id}/wake or midnight auto-reset  │    │
+│  └──────────────┬─────────────────────────────────────────────┘    │
+└─────────────────┼──────────────────────────────────────────────────┘
+                  │
+┌─────────────────▼──────────────────────────────────────────────────┐
+│                    Infrastructure (all existing)                     │
+├──────────────────┬─────────────────────────────────────────────────┤
+│  PostgreSQL       │  jobs table, usage_logs, plan_tiers              │
+│  Redis            │  job:{id}:events Pub/Sub, usage counters         │
+│  E2B Cloud        │  AsyncSandbox.create() / .connect() / .commands  │
+│  S3 + CloudFront  │  Screenshots, build log archives                 │
+└──────────────────┴─────────────────────────────────────────────────┘
 ```
 
 ---
 
-### 2. S3 Upload from Worker Process for Screenshots
-
-**Existing S3 usage in codebase:** `worker.py` already uses `boto3.client("s3")` for log archival (`_archive_logs_to_s3`). The boto3 pattern, IAM role, and error handling approach are all established.
-
-**New bucket:** `cofounder-screenshots` (separate from `getinsourced-marketing`). Different access model: no public website hosting, OAC from CloudFront, immutable cache.
-
-**Upload pattern (follows existing `_archive_logs_to_s3`):**
-
-```python
-# In ScreenshotService
-import asyncio
-import boto3
-
-async def upload(self, job_id: str, stage: str, image_bytes: bytes) -> str:
-    """Upload PNG to S3. Returns CloudFront URL. Non-fatal by convention (caller catches)."""
-    key = f"screenshots/{job_id}/{stage}.png"
-    # boto3 is synchronous -- run in thread to not block event loop
-    await asyncio.to_thread(
-        self._s3_client.put_object,
-        Bucket=self.settings.screenshot_bucket,
-        Key=key,
-        Body=image_bytes,
-        ContentType="image/png",
-        CacheControl="public, max-age=31536000, immutable",
-    )
-    return f"https://{self.settings.screenshot_cloudfront_domain}/{key}"
-```
-
-**IAM addition in `compute-stack.ts`:**
-
-```typescript
-// New S3 bucket for screenshots
-const screenshotsBucket = new s3.Bucket(this, 'ScreenshotsBucket', {
-    bucketName: 'cofounder-screenshots',
-    blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-    removalPolicy: cdk.RemovalPolicy.RETAIN,
-});
-screenshotsBucket.grantPut(taskRole);
-```
-
-**CloudFront:** Add an `/screenshots/*` behavior to a new (or existing) CloudFront distribution backed by the screenshots bucket with OAC, immutable cache headers, no CSP restrictions.
-
-**Redis persistence:**
-
-```python
-await redis.hset(f"job:{job_id}", mapping={"snapshot_url": cloudfront_url})
-```
-
-The `snapshot_url` value is served to the frontend via the existing `/api/generation/{job_id}/status` endpoint (add `snapshot_url` field to `GenerationStatusResponse`) or via the new `/api/jobs/{job_id}/docs` endpoint.
-
----
-
-### 3. Separate Claude API Call for Doc Generation
-
-**Trigger:** Doc generation fires **after CODE stage completes** (LangGraph pipeline returns `working_files`) using `asyncio.create_task()`. This gives ~120s of free concurrency while npm install and dev server startup run. A Claude Sonnet call completes in 10-30s -- well within this window.
-
-**Service location:** `DocGenerationService` in `backend/app/services/doc_generation_service.py`. Called from `GenerationService.execute_build()`. Not a separate microservice or FastAPI BackgroundTask -- stays inside the worker async context.
-
-**Anthropic client:** Second instance using the same `settings.anthropic_api_key`. Uses `claude-sonnet-4-20250514` (lighter than Opus, sufficient for doc generation). Separate from the LangGraph-internal Claude calls.
-
-**Integration in execute_build():**
-
-```python
-# After CODE stage (step 3), before DEPS/sandbox (step 4):
-doc_task = asyncio.create_task(
-    doc_service.generate_docs(job_id=job_id, goal=job_data.get("goal", ""),
-                              working_files=working_files, redis=_redis)
-)
-streamer._phase = "install"  # Continue to DEPS as before
-
-# ... sandbox work: start(), write_file(), start_dev_server() (~120s) ...
-
-# Before returning, give doc gen a brief window to finish if not done:
-try:
-    await asyncio.wait_for(asyncio.shield(doc_task), timeout=30.0)
-except (asyncio.TimeoutError, Exception):
-    logger.warning("doc_generation_incomplete", job_id=job_id)
-    # Build still completes -- docs just may not be ready yet
-```
-
-**Doc generation writes to Redis:**
-
-```python
-# job:{id}:docs hash structure
-{
-    "status": "generating" | "ready",
-    "overview": "Plain-English description of the app",
-    "features": '["Feature 1", "Feature 2"]',   # JSON-encoded list
-    "getting_started": "How to use the app...",
-    "tech_note": "Built with Next.js...",         # optional
-}
-```
-
-**Safety guardrails:** The prompt must instruct Claude to produce only founder-facing narrative -- no file paths, no stack traces, no internal module names, no database schema details. The `DocGenerationService` must filter `working_files` to only pass a file list (not file contents) to limit context size and prevent secret exposure.
-
----
-
-### 4. New SSE Event Types Alongside Existing Log Stream
-
-**Why a second SSE endpoint, not adding to existing log stream:**
-
-The existing `GET /api/jobs/{job_id}/logs/stream` reads from the Redis Stream (`XREAD`) and emits only `event: log` (log lines) and `event: done`. The `useBuildLogs` frontend hook parses `LogLine` objects from these. Mixing typed events into this stream would break the existing consumer.
-
-The new build events flow on Redis Pub/Sub (`SUBSCRIBE`), which already exists as `job:{job_id}:events` channel -- `JobStateMachine.transition()` already publishes to it. The new endpoint subscribes to this same channel.
-
-**New endpoint: `GET /api/jobs/{job_id}/events/stream`**
-
-```python
-# backend/app/api/routes/build_events.py
-@router.get("/{job_id}/events/stream")
-async def stream_build_events(
-    job_id: str,
-    request: Request,
-    user: ClerkUser = Depends(require_auth),
-    redis = Depends(get_redis),
-):
-    job_data = await state_machine.get_job(job_id)
-    if not job_data or job_data.get("user_id") != user.user_id:
-        raise HTTPException(status_code=404, detail="Job not found")
-
-    async def event_generator():
-        async with redis.pubsub() as pubsub:
-            await pubsub.subscribe(f"job:{job_id}:events")
-            last_heartbeat = time.monotonic()
-            async for message in pubsub.listen():
-                if await request.is_disconnected():
-                    return
-                now = time.monotonic()
-                if now - last_heartbeat >= 20:
-                    yield "event: heartbeat\ndata: {}\n\n"
-                    last_heartbeat = now
-                if message["type"] != "message":
-                    continue
-                data = json.loads(message["data"])
-                event_type = data.get("type", "build.stage.changed")
-                yield f"event: {event_type}\ndata: {json.dumps(data)}\n\n"
-                if data.get("status") in ("ready", "failed"):
-                    yield f"event: done\ndata: {json.dumps({'status': data['status']})}\n\n"
-                    return
-
-    return StreamingResponse(event_generator(), media_type="text/event-stream",
-                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
-```
-
-**Backward-compatible Pub/Sub payload extension:**
-
-`JobStateMachine.transition()` currently publishes `{job_id, status, message, timestamp}`. Add `type` field:
-
-```python
-# In JobStateMachine.transition() -- extend payload, not replace
-await self.redis.publish(
-    f"job:{job_id}:events",
-    json.dumps({
-        "type": "build.stage.changed",     # NEW -- existing consumers ignore unknown fields
-        "job_id": job_id,
-        "status": new_status.value,        # EXISTING
-        "message": message,                # EXISTING
-        "timestamp": now.isoformat(),      # EXISTING
-    })
-)
-```
-
-**Additional events published by new services:**
-
-```python
-# In ScreenshotService after successful S3 upload:
-await redis.publish(f"job:{job_id}:events", json.dumps({
-    "type": "snapshot.updated",
-    "job_id": job_id,
-    "snapshot_url": cloudfront_url,
-    "timestamp": datetime.now(UTC).isoformat(),
-}))
-
-# In DocGenerationService after writing to Redis:
-await redis.publish(f"job:{job_id}:events", json.dumps({
-    "type": "documentation.updated",
-    "job_id": job_id,
-    "timestamp": datetime.now(UTC).isoformat(),
-}))
-```
-
-**Event type taxonomy:**
-
-| Event Type | Emitter | Payload |
-|-----------|---------|---------|
-| `build.stage.changed` | `JobStateMachine.transition()` | `{status, message, timestamp}` |
-| `snapshot.updated` | `ScreenshotService` | `{snapshot_url}` |
-| `documentation.updated` | `DocGenerationService` | `{}` (frontend fetches docs on receipt) |
-| `heartbeat` | SSE generator loop | `{}` |
-| `done` | SSE generator when terminal | `{status: "ready"|"failed"}` |
-
-**Late-join handling for `useBuildEvents`:**
-
-Pub/Sub is fire-and-forget -- late joiners miss past events. The hook must bootstrap from REST on connect:
-
-```typescript
-// useBuildEvents initialization
-useEffect(() => {
-    // 1. Immediately fetch current state (snapshot_url, doc status)
-    fetchCurrentState();
-    // 2. Then open SSE for future updates
-    connectSSE();
-}, [jobId]);
-```
-
----
-
-### 5. Three-Panel Frontend Layout Replacing Current Build Page
-
-**Current page:** `frontend/src/app/(dashboard)/projects/[id]/build/page.tsx`
-Single narrow column during build: spinner + progress bar + collapsed log panel.
-Wide layout on success: `BuildSummary` + `PreviewPane`.
-
-**New page:** Three-panel during build, same success/failure states unchanged.
-
-**Layout grid:**
-
-```
-Active build state (>= 1024px):
-+------------------+------------------------+------------------+
-|   ActivityFeed   |      LiveSnapshot      |     DocPanel     |
-|   (1fr, ~25%)    |      (2fr, ~50%)       |   (1fr, ~25%)    |
-|                  |                        |                  |
-| Narrated events  | <img> screenshot       | Doc sections     |
-| Agent narration  | (BrowserChrome frame)  | Overview         |
-| 2/5min messages  | Skeleton if no shot    | Features list    |
-| Collapsed logs   | Stage label below      | Getting started  |
-+------------------+------------------------+------------------+
-
-Success state: unchanged (full-width BuildSummary + PreviewPane)
-Failure state: unchanged (full-width BuildFailureCard)
-Mobile (< 1024px): stacked column, snapshot top, activity middle, docs collapsed
-```
-
-**`BuildPage` modifications:**
-
-The page orchestrates three new hooks alongside the two existing ones:
-
-```typescript
-// Existing (unchanged):
-const { status, label, previewUrl, isTerminal, ... } = useBuildProgress(jobId, getToken);
-const { lines, isConnected, autoFixAttempt, loadEarlier } = useBuildLogs(jobId, getToken);
-
-// New:
-const { snapshotUrl, events } = useBuildEvents(jobId, getToken);
-const { docs, isGenerating } = useDocGeneration(jobId, getToken);
-```
-
-**`ActivityFeed` component:**
-
-Receives `events: BuildEvent[]` and `autoFixAttempt`. Converts stage names to calm narration:
-
-```
-build.stage.changed (code)     -> "Writing your application code..."
-build.stage.changed (deps)     -> "Installing dependencies..."
-build.stage.changed (checks)   -> "Running health checks..."
-snapshot.updated               -> "First look at your app is ready"
-documentation.updated          -> "Documentation generated"
-auto-fix signal (from logs)    -> "Noticed an issue -- fixing automatically..."
-```
-
-Includes elapsed-time based reassurance banners:
-- 2min mark: "Complex apps can take a few minutes -- hang tight"
-- 5min mark: "Almost there -- finalizing your build"
-
-Includes collapsible "Technical details" section containing the existing `BuildLogPanel`.
-
-**`LiveSnapshot` component:**
-
-```typescript
-interface LiveSnapshotProps {
-  snapshotUrl: string | null;
-  stage: string;
-}
-// Renders BrowserChrome (existing component) wrapping:
-// - <img src={snapshotUrl}> when available (fade-in via AnimatePresence)
-// - Skeleton placeholder with shimmer when snapshotUrl is null
-// - Stage label ("Building..." / "Ready") below the frame
-```
-
-**`DocPanel` component:**
-
-```typescript
-interface DocPanelProps {
-  docs: DocSections | null;
-  isGenerating: boolean;
-}
-// Renders overview, features[], getting_started sections
-// Skeleton placeholders while isGenerating=true
-// "Download Documentation" button (Markdown export, reuses existing export pattern)
-```
-
-**Completion state:** When `status === "ready"`, the three-panel collapses and the page shows the existing `BuildSummary + PreviewPane` layout, now enriched with a link to download generated documentation.
-
----
-
-## Data Flow Changes
-
-### New Redis Keys
-
-| Key | Type | Fields | TTL |
-|-----|------|--------|-----|
-| `job:{id}:docs` | Hash | `status`, `overview`, `features`, `getting_started`, `tech_note` | 24h |
-| `job:{id}` | Hash | Add: `snapshot_url` field | Existing (no change) |
-
-### New Postgres Column (Job table migration required)
-
-| Column | Type | Purpose |
-|--------|------|---------|
-| `snapshot_url` | TEXT nullable | CloudFront URL of screenshot for build history display |
-
-### New API Routes
-
-| Route | Method | Auth | Purpose |
-|-------|--------|------|---------|
-| `/api/jobs/{id}/events/stream` | GET | require_auth | SSE: typed build events from Pub/Sub |
-| `/api/jobs/{id}/docs` | GET | require_auth | REST: current doc sections from `job:{id}:docs` |
-
-`GenerationStatusResponse` extended with `snapshot_url: str | None = None` field.
-
-### New Settings (Environment Variables)
-
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `screenshot_bucket` | `""` | S3 bucket name for screenshots |
-| `screenshot_cloudfront_domain` | `""` | CloudFront domain serving screenshots |
-| `screenshot_enabled` | `False` | Feature flag (False until infra deployed) |
-
----
-
-## Build Order (Dependency-Ordered)
-
-Dependencies flow: CDK infrastructure --> backend services --> backend API routes --> frontend hooks --> frontend components --> page assembly.
-
-### Phase A: Infrastructure (unblocks all backend)
-1. CDK: new S3 bucket + CloudFront distribution/behavior for screenshots
-2. CDK: ECS task role `PutObject` grant on screenshots bucket
-3. Settings: add `screenshot_bucket`, `screenshot_cloudfront_domain`, `screenshot_enabled`
-4. Alembic migration: `snapshot_url` column on jobs table
-
-### Phase B: Backend Services (parallel, both depend on A)
-5. `ScreenshotService` -- Playwright capture + S3 upload, non-fatal, asyncio.to_thread for boto3
-6. `DocGenerationService` -- Anthropic SDK, Redis hash writes, non-fatal, 24h TTL
-
-### Phase C: Wire Services into GenerationService (depends on B)
-7. Wire `ScreenshotService` into `execute_build()` and `execute_iteration_build()` (after start_dev_server)
-8. Wire `DocGenerationService` into `execute_build()` (asyncio.create_task after CODE stage)
-9. Extend `JobStateMachine.transition()` with `type` field in Pub/Sub payload
-
-### Phase D: New API Routes (depends on C)
-10. `build_events.py` route: SSE endpoint subscribing to `job:{id}:events` Pub/Sub
-11. `docs.py` route: REST endpoint reading `job:{id}:docs` Redis hash
-12. Extend `GenerationStatusResponse` with `snapshot_url` field
-
-### Phase E: Frontend Hooks (depends on D)
-13. `useBuildEvents` -- SSE consumer, dispatches typed events, bootstraps from REST on connect
-14. `useDocGeneration` -- fetches from `/api/jobs/{id}/docs`, triggered by `documentation.updated` event
-
-### Phase F: Frontend Components (depends on E, parallel)
-15. `ActivityFeed` -- narrated events from useBuildEvents, elapsed-time reassurance
-16. `LiveSnapshot` -- snapshot_url from useBuildEvents, BrowserChrome wrapper, skeleton
-17. `DocPanel` -- docs from useDocGeneration, sections, download button
-
-### Phase G: Page Assembly (depends on F)
-18. `BuildPage` refactor -- three-panel grid during build, existing success/failure states unchanged
+## Component Boundaries: New vs Modified vs Deleted
+
+### New Components (build from scratch)
+
+| Component | Path | Purpose |
+|-----------|------|---------|
+| `AutonomousRunner` | `app/agent/autonomous_runner.py` | Runner protocol impl; replaces RunnerReal for agentic builds |
+| `TokenBudgetDaemon` | `app/agent/daemon.py` | Sleep/wake lifecycle; budget checkpoint per API call |
+| `AgentStateStore` | `app/agent/agent_state_store.py` | Persists message history to Postgres for resume after sleep |
+| `E2BToolDispatcher` | `app/agent/tools/e2b_tools.py` | Tool dispatch to E2B sandbox methods |
+| `ToolSchemas` | `app/agent/tools/schemas.py` | Claude tool JSON schemas for all 7 tools |
+| `ScreenshotTool` | `app/agent/tools/screenshot_tool.py` | take_screenshot → S3 upload + SSE snapshot.updated event |
+| Wake endpoint | `app/api/routes/agent.py` | POST /api/agent/{job_id}/wake — signals daemon to resume |
+
+### Modified Components (extend existing)
+
+| Component | Change |
+|-----------|--------|
+| `Runner` protocol (`runner.py`) | Add `run_agent_loop(system_prompt, initial_message)` method signature |
+| `RunnerFake` (`runner_fake.py`) | Add stub `run_agent_loop()` that returns immediately (for tests) |
+| `GenerationService` | Call `runner.run_agent_loop()` instead of `runner.run()` in `execute_build()` |
+| `JobStateMachine` | Add new `SSEEventType` constants for agent events; keep existing ones |
+| `llm_config.py` | Add `resolve_model_for_tier(tier)` → model string (Opus/Sonnet); keep `create_tracked_llm()` |
+| `PlanTier` DB model | Add `monthly_token_budget: int` field for daemon initialization |
+| `job:{id}` Redis hash | Add `agent_state` field: `"active" \| "sleeping" \| "waiting_founder"` |
+
+### Deleted After AutonomousRunner Stable
+
+| Component | Notes |
+|-----------|-------|
+| `RunnerReal` | Remove after v0.7 integration tests pass |
+| `app/agent/graph.py` | LangGraph graph definition |
+| `app/agent/llm_helpers.py` | LangChain helpers |
+| `app/agent/nodes/` (6 files) | architect, coder, executor, debugger, reviewer, git_manager |
+| `NarrationService` | Agent handles narration natively via text output |
+| `DocGenerationService` | Agent handles docs natively via write_file tool |
+| `langchain-anthropic` dep | Remove from requirements after LangGraph removed |
 
 ---
 
 ## Architectural Patterns
 
-### Pattern 1: Non-Fatal Side Effects
+### Pattern 1: Agentic Loop with Native Anthropic SDK Streaming
 
-All three new pipeline hooks (screenshot, doc gen, SSE event publish) must be non-fatal. A screenshot timeout, Claude rate limit, or S3 connectivity error must never fail the build.
+**What:** Use `anthropic.AsyncAnthropic` directly (not LangChain). The loop calls `client.messages.stream()` as an async context manager, streams text deltas to SSE, accumulates the full message, dispatches tool calls, then loops until `stop_reason == "end_turn"`.
 
+**Why not `client.beta.messages.tool_runner()`:** The beta tool runner hides the loop internals — no ability to publish SSE events between tool calls, no budget checkpoint per iteration, no way to suspend mid-loop for the sleep/wake daemon. The SSE stream would go dark for the entire build duration.
+
+**Example (core agentic loop):**
 ```python
-# Follow the pattern of _archive_logs_to_s3 and _handle_mvp_built_transition
-try:
-    snapshot_url = await screenshot_service.capture_and_upload(preview_url, job_id)
-    await redis.hset(f"job:{job_id}", mapping={"snapshot_url": snapshot_url})
-    await redis.publish(f"job:{job_id}:events", json.dumps({
-        "type": "snapshot.updated", "snapshot_url": snapshot_url, ...
-    }))
-except Exception:
-    logger.warning("screenshot_failed", job_id=job_id, exc_info=True)
-    # Build continues -- snapshot_url stays None
+# app/agent/autonomous_runner.py
+
+import anthropic
+from app.agent.tools.schemas import TOOL_SCHEMAS
+from app.agent.tools.e2b_tools import E2BToolDispatcher
+
+class AutonomousRunner:
+    def __init__(
+        self,
+        model: str,
+        sandbox: E2BSandboxRuntime,
+        streamer: LogStreamer,
+        state_machine: JobStateMachine,
+        job_id: str,
+        budget_daemon: TokenBudgetDaemon,
+    ):
+        self._client = anthropic.AsyncAnthropic()
+        self._model = model
+        self._dispatcher = E2BToolDispatcher(sandbox, streamer, state_machine, job_id)
+        self._budget = budget_daemon
+        self._messages: list[dict] = []
+        self._streamer = streamer
+        self._state_machine = state_machine
+        self._job_id = job_id
+
+    async def run_agent_loop(self, system_prompt: str, initial_message: str) -> None:
+        self._messages = [{"role": "user", "content": initial_message}]
+
+        while True:
+            # Suspend here if daily budget exhausted — resumes on wake signal
+            await self._budget.checkpoint()
+
+            async with self._client.messages.stream(
+                model=self._model,
+                max_tokens=8192,
+                system=system_prompt,
+                tools=TOOL_SCHEMAS,
+                messages=self._messages,
+            ) as stream:
+                # Stream text deltas to SSE in real time
+                async for event in stream:
+                    if (
+                        event.type == "content_block_delta"
+                        and event.delta.type == "text_delta"
+                    ):
+                        await self._streamer.write_event(
+                            event.delta.text, source="agent"
+                        )
+                        # Also publish typed SSE event for activity feed
+                        await self._state_machine.publish_event(self._job_id, {
+                            "type": "agent.thinking",
+                            "text": event.delta.text,
+                        })
+
+                full_message = await stream.get_final_message()
+
+            # Accumulate token usage against daily budget
+            await self._budget.record_tokens(
+                full_message.usage.input_tokens + full_message.usage.output_tokens
+            )
+
+            # No tool calls — agent has completed its work
+            if full_message.stop_reason == "end_turn":
+                self._messages.append(
+                    {"role": "assistant", "content": full_message.content}
+                )
+                break
+
+            # Dispatch all tool calls in this response
+            self._messages.append(
+                {"role": "assistant", "content": full_message.content}
+            )
+            tool_results = []
+            for block in full_message.content:
+                if block.type == "tool_use":
+                    result = await self._dispatcher.dispatch(block.name, block.input)
+                    tool_results.append({
+                        "type": "tool_result",
+                        "tool_use_id": block.id,
+                        "content": result,
+                    })
+
+            self._messages.append({"role": "user", "content": tool_results})
 ```
 
-### Pattern 2: Parallel Async Doc Generation
+### Pattern 2: E2B Operations as Claude Tool Schemas
 
-Doc generation hides latency behind sandbox work using `asyncio.create_task()`. The npm install + dev server startup window (~60-120s) is longer than a Claude Sonnet call (~10-30s).
+**What:** Each `E2BSandboxRuntime` method becomes a JSON schema Claude uses as a tool. `E2BToolDispatcher` maps tool names to async sandbox calls. The 7-tool surface (read, write, edit, bash, grep, glob, screenshot) covers all build operations.
 
+**Boundary:** Sandbox lifecycle (start, pause, kill) is NOT exposed as agent tools — it is owned by `GenerationService` and the worker. The agent only operates on files and commands inside the running sandbox.
+
+**Example (tool schemas):**
 ```python
-# Start doc gen before expensive sandbox operations
-doc_task = asyncio.create_task(doc_service.generate_docs(...))
-
-# Sandbox work: start(), file writes, npm install, start_dev_server (~60-120s)
-# ...
-
-# Before returning, give remaining time for doc gen to finish
-try:
-    await asyncio.wait_for(asyncio.shield(doc_task), timeout=30.0)
-except (asyncio.TimeoutError, Exception):
-    logger.warning("doc_generation_incomplete", job_id=job_id)
-    # Acceptable -- frontend handles the "generating" state
+# app/agent/tools/schemas.py
+TOOL_SCHEMAS = [
+    {
+        "name": "read_file",
+        "description": "Read file content from the sandbox.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "Absolute sandbox path, e.g. /home/user/project/src/index.ts"}
+            },
+            "required": ["path"]
+        }
+    },
+    {
+        "name": "write_file",
+        "description": "Write content to a file. Creates parent directories.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string"},
+                "content": {"type": "string"}
+            },
+            "required": ["path", "content"]
+        }
+    },
+    {
+        "name": "edit_file",
+        "description": "Apply a targeted patch to an existing file. Replaces old_string with new_string (first occurrence).",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string"},
+                "old_string": {"type": "string"},
+                "new_string": {"type": "string"}
+            },
+            "required": ["path", "old_string", "new_string"]
+        }
+    },
+    {
+        "name": "bash",
+        "description": "Run a shell command in the sandbox. Returns stdout, stderr, exit_code.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "command": {"type": "string"},
+                "cwd": {"type": "string", "default": "/home/user/project"},
+                "timeout": {"type": "integer", "default": 120}
+            },
+            "required": ["command"]
+        }
+    },
+    {
+        "name": "grep",
+        "description": "Search file contents with a regex. Returns matching lines with paths.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "pattern": {"type": "string"},
+                "path": {"type": "string", "default": "/home/user/project"},
+                "include": {"type": "string", "description": "Glob filter e.g. '*.ts'"}
+            },
+            "required": ["pattern"]
+        }
+    },
+    {
+        "name": "glob",
+        "description": "List files matching a glob pattern in the sandbox.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "pattern": {"type": "string", "description": "e.g. '/home/user/project/src/**/*.ts'"}
+            },
+            "required": ["pattern"]
+        }
+    },
+    {
+        "name": "take_screenshot",
+        "description": "Capture a screenshot of the running preview. Uploads to S3, returns URL.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "stage": {"type": "string", "description": "Label for this checkpoint, e.g. 'after_auth_flow'"}
+            },
+            "required": ["stage"]
+        }
+    }
+]
 ```
 
-### Pattern 3: Late-Join SSE with REST Bootstrap
+**Example (dispatcher):**
+```python
+# app/agent/tools/e2b_tools.py
+import json
 
-Pub/Sub is fire-and-forget. The `useBuildEvents` hook handles page refresh by bootstrapping from REST before opening SSE:
+class E2BToolDispatcher:
+    def __init__(
+        self,
+        sandbox: E2BSandboxRuntime,
+        streamer: LogStreamer,
+        state_machine: JobStateMachine,
+        job_id: str,
+    ):
+        self._sandbox = sandbox
+        self._streamer = streamer
+        self._state_machine = state_machine
+        self._job_id = job_id
 
-```typescript
-useEffect(() => {
-    async function init() {
-        // Step 1: fetch current state to hydrate panels immediately
-        const [statusRes, docsRes] = await Promise.all([
-            apiFetch(`/api/generation/${jobId}/status`, getToken),
-            apiFetch(`/api/jobs/${jobId}/docs`, getToken),
-        ]);
-        const status = await statusRes.json();
-        const docs = await docsRes.json();
-        setSnapshotUrl(status.snapshot_url ?? null);
-        setDocs(docs);
-        // Step 2: then open SSE for future updates
-        connectSSE();
-    }
-    init();
-}, [jobId]);
+    async def dispatch(self, tool_name: str, tool_input: dict) -> str:
+        # Publish verbose-mode SSE event before every tool call
+        await self._state_machine.publish_event(self._job_id, {
+            "type": "agent.tool.called",
+            "tool": tool_name,
+            "input": tool_input,
+        })
+        result = await self._execute(tool_name, tool_input)
+        await self._state_machine.publish_event(self._job_id, {
+            "type": "agent.tool.result",
+            "tool": tool_name,
+            "result_preview": str(result)[:200],
+        })
+        return result
+
+    async def _execute(self, tool_name: str, tool_input: dict) -> str:
+        match tool_name:
+            case "read_file":
+                return await self._sandbox.read_file(tool_input["path"])
+            case "write_file":
+                await self._sandbox.write_file(tool_input["path"], tool_input["content"])
+                return json.dumps({"ok": True, "path": tool_input["path"]})
+            case "edit_file":
+                content = await self._sandbox.read_file(tool_input["path"])
+                if tool_input["old_string"] not in content:
+                    return json.dumps({"error": f"old_string not found in {tool_input['path']}"})
+                updated = content.replace(tool_input["old_string"], tool_input["new_string"], 1)
+                await self._sandbox.write_file(tool_input["path"], updated)
+                return json.dumps({"ok": True})
+            case "bash":
+                result = await self._sandbox.run_command(
+                    tool_input["command"],
+                    cwd=tool_input.get("cwd", "/home/user/project"),
+                    timeout=tool_input.get("timeout", 120),
+                    on_stdout=self._streamer.on_stdout,
+                    on_stderr=self._streamer.on_stderr,
+                )
+                return json.dumps(result)
+            case "grep":
+                include = tool_input.get("include", "*")
+                path = tool_input.get("path", "/home/user/project")
+                result = await self._sandbox.run_command(
+                    f"grep -rn --include='{include}' {repr(tool_input['pattern'])} {path}",
+                    timeout=30,
+                )
+                return result["stdout"][:10000]
+            case "glob":
+                result = await self._sandbox.run_command(
+                    f"find /home/user/project -name '{tool_input['pattern']}' -type f",
+                    timeout=15,
+                )
+                return result["stdout"]
+            case "take_screenshot":
+                from app.agent.tools.screenshot_tool import take_and_upload_screenshot
+                url = await take_and_upload_screenshot(
+                    sandbox=self._sandbox,
+                    job_id=self._job_id,
+                    stage=tool_input["stage"],
+                    state_machine=self._state_machine,
+                )
+                return json.dumps({"screenshot_url": url})
+            case _:
+                return json.dumps({"error": f"Unknown tool: {tool_name}"})
 ```
 
-### Pattern 4: Typed SSE Event Dispatch in Frontend
+### Pattern 3: Token Budget Daemon with Sleep/Wake
 
-`useBuildEvents` dispatches to separate state slices by event type so components only re-render on their data:
+**What:** `TokenBudgetDaemon` runs as a collaborator to the agentic loop. Before every API call, the loop calls `await budget.checkpoint()`. If the daily allowance is consumed, the daemon suspends the loop via `asyncio.Event.clear()`, writes `agent_state=sleeping` to Redis, and publishes an SSE event. The loop resumes when `asyncio.Event.set()` is called — either by the wake endpoint or the midnight auto-reset coroutine.
 
-```typescript
-function handleEvent(eventType: string, data: BuildEvent) {
-    switch (eventType) {
-        case "build.stage.changed":
-            dispatch({ type: "ADD_ACTIVITY", event: data });
-            break;
-        case "snapshot.updated":
-            setSnapshotUrl(data.snapshot_url);
-            break;
-        case "documentation.updated":
-            // Trigger REST fetch rather than embedding docs in event payload
-            triggerDocRefetch();
-            break;
-        case "done":
-            setIsDone(true);
-            break;
-    }
-}
+**Daemon lifecycle:** The daemon is instantiated in `GenerationService.execute_build()` and passed to `AutonomousRunner`. It does not run as a separate process — it runs in the same asyncio event loop as the background task.
+
+**Wake endpoint challenge:** The FastAPI wake endpoint (`POST /api/agent/{id}/wake`) must reach the daemon's `asyncio.Event` object. Since the daemon lives inside a BackgroundTask in the same process, store it in `app.state.active_daemons[job_id]` during build and remove it on completion.
+
+**Example:**
+```python
+# app/agent/daemon.py
+import asyncio
+from datetime import UTC, datetime
+
+class TokenBudgetDaemon:
+    """Paces agent token consumption across the subscription window.
+
+    Budget: daily_allowance = (monthly_budget - window_tokens_used) / days_until_renewal
+    Checkpoint: called before every API request. Blocks if allowance exhausted.
+    """
+
+    def __init__(self, user_id: str, job_id: str, redis, daily_token_allowance: int):
+        self._user_id = user_id
+        self._job_id = job_id
+        self._redis = redis
+        self._daily_allowance = daily_token_allowance
+        self._tokens_today = 0
+        self._wake_event = asyncio.Event()
+        self._wake_event.set()  # Start awake
+
+    async def checkpoint(self) -> None:
+        """Block the loop if daily budget is exhausted. Resumes on wake()."""
+        # Sync token count from Redis (UsageTrackingCallback writes there)
+        today = datetime.now(UTC).date().isoformat()
+        raw = await self._redis.get(f"cofounder:usage:{self._user_id}:{today}")
+        self._tokens_today = int(raw) if raw else self._tokens_today
+
+        if self._tokens_today >= self._daily_allowance:
+            await self._sleep()
+            await self._wake_event.wait()  # Blocks here until wake()
+
+    async def record_tokens(self, tokens: int) -> None:
+        """Record tokens consumed by one API call."""
+        self._tokens_today += tokens
+
+    async def _sleep(self) -> None:
+        self._wake_event.clear()
+        await self._redis.hset(f"job:{self._job_id}", "agent_state", "sleeping")
+        await self._redis.publish(
+            f"job:{self._job_id}:events",
+            '{"type": "agent.sleeping", "reason": "daily_budget_exhausted"}'
+        )
+
+    def wake(self) -> None:
+        """Called by the wake endpoint or midnight reset coroutine."""
+        self._wake_event.set()
+        # Caller also hsets agent_state=active and publishes agent.waking event
+```
+
+**Wake endpoint:**
+```python
+# app/api/routes/agent.py
+@router.post("/{job_id}/wake")
+async def wake_agent(
+    job_id: str,
+    request: Request,
+    user: ClerkUser = Depends(require_auth),
+    redis=Depends(get_redis),
+):
+    """Resume a sleeping agent — resets daily budget window for a new day."""
+    # Verify ownership
+    state_machine = JobStateMachine(redis)
+    job_data = await state_machine.get_job(job_id)
+    if not job_data or job_data.get("user_id") != user.user_id:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    daemon = getattr(request.app.state, "active_daemons", {}).get(job_id)
+    if daemon is None:
+        raise HTTPException(status_code=409, detail="No active agent for this job")
+
+    daemon.wake()
+    await redis.hset(f"job:{job_id}", "agent_state", "active")
+    await redis.publish(f"job:{job_id}:events", '{"type": "agent.waking"}')
+    return {"status": "woken"}
+```
+
+### Pattern 4: Runner Protocol Evolution
+
+**What:** The existing `Runner` Protocol has 13 methods used by `GateService`, tests, and the generation pipeline. `AutonomousRunner` implements all 13 (using direct Anthropic SDK calls, not LangChain) plus the new `run_agent_loop()`. The `run()` method on `AutonomousRunner` becomes a thin adapter that sets up the sandbox and calls `run_agent_loop()`.
+
+**Migration path:**
+1. Add `run_agent_loop()` to `Runner` protocol with `...` stub (non-breaking — existing impls don't need it until called)
+2. Implement `AutonomousRunner` with all 13 methods + `run_agent_loop()`
+3. `GenerationService.execute_build()` calls `runner.run_agent_loop()` — new call site, not replacing existing `runner.run()`
+4. Keep `RunnerReal` and LangGraph until `AutonomousRunner` passes all integration tests
+5. Switch `_get_runner()` in `generation.py` to return `AutonomousRunner` when `AUTONOMOUS_AGENT=true` env var set
+6. Remove `RunnerReal`, `graph.py`, `nodes/`, in cleanup phase
+
+### Pattern 5: SSE Event Schema Evolution (Additive)
+
+**What:** New event types added to the existing `job:{id}:events` Pub/Sub channel. Existing events (`build.stage.started`, `snapshot.updated`, `documentation.updated`) continue unchanged. Frontend consumers ignore unknown event types — safe to add.
+
+**New SSEEventType constants:**
+```python
+class SSEEventType:
+    # Existing — keep unchanged
+    BUILD_STAGE_STARTED = "build.stage.started"
+    BUILD_STAGE_COMPLETED = "build.stage.completed"
+    SNAPSHOT_UPDATED = "snapshot.updated"
+    DOCUMENTATION_UPDATED = "documentation.updated"
+
+    # New for autonomous agent (v0.7)
+    AGENT_THINKING = "agent.thinking"          # text delta from Claude (activity feed default)
+    AGENT_TOOL_CALLED = "agent.tool.called"    # verbose mode: tool name + input
+    AGENT_TOOL_RESULT = "agent.tool.result"    # verbose mode: tool result preview
+    AGENT_SLEEPING = "agent.sleeping"          # budget exhausted, loop suspended
+    AGENT_WAKING = "agent.waking"              # budget refreshed, loop resumed
+    AGENT_WAITING_FOUNDER = "agent.waiting_founder"  # escalated — needs decision
+    GSD_PHASE_STARTED = "gsd.phase.started"    # Kanban timeline: new phase begun
+    GSD_PHASE_COMPLETED = "gsd.phase.completed"  # Kanban timeline: phase done
+```
+
+**Frontend activity feed:** Default view shows `agent.thinking` text (plain phase summaries). Verbose toggle additionally shows `agent.tool.called` and `agent.tool.result`. This directly satisfies the PROJECT.md "Activity feed with verbose toggle" requirement.
+
+---
+
+## Data Flow
+
+### Full Agentic Build Flow (v0.7)
+
+```
+Founder clicks "Build"
+    ↓
+POST /api/generation/start
+    ↓
+JobStateMachine.create_job()  →  job:{id} hash (status=QUEUED) in Redis
+QueueManager.enqueue(job_id, tier)
+BackgroundTasks.add_task(process_next_job, runner=AutonomousRunner)
+    ↓
+process_next_job() [FastAPI background task, same asyncio event loop]
+    ├── Acquire user_semaphore + project_semaphore (existing)
+    └── GenerationService.execute_build(job_id, job_data, state_machine)
+            │
+            ├── STARTING: state_machine.transition() → Redis Pub/Sub event
+            │
+            ├── E2BSandboxRuntime.start()  → creates fresh sandbox
+            ├── E2BSandboxRuntime.set_timeout(3600)
+            │
+            ├── Compute daily_token_allowance:
+            │     query PlanTier.monthly_token_budget
+            │     query UsageLog: tokens_used_this_window
+            │     query PlanTier.renewal_date
+            │     daily_allowance = remaining / days_until_renewal
+            │
+            ├── TokenBudgetDaemon(user_id, job_id, redis, daily_allowance)
+            ├── app.state.active_daemons[job_id] = daemon
+            │
+            ├── AutonomousRunner(model, sandbox, streamer, state_machine, daemon)
+            │
+            ├── SCAFFOLD: state_machine.transition()  →  SSE: build.stage.started
+            │
+            ├── AutonomousRunner.run_agent_loop(system_prompt, idea_brief_text)
+            │     │
+            │     ├── [LOOP ITERATION N]
+            │     │
+            │     ├── TokenBudgetDaemon.checkpoint()
+            │     │     └── If exhausted: await asyncio.Event (suspended here)
+            │     │           UI shows "agent.sleeping" state
+            │     │           Resumes on POST /api/agent/{id}/wake
+            │     │
+            │     ├── anthropic.AsyncAnthropic.messages.stream(tools=TOOL_SCHEMAS)
+            │     │     ├── text deltas → streamer.write_event() → job:{id}:logs
+            │     │     │       also: publish SSE agent.thinking event
+            │     │     └── accumulate full_message via get_final_message()
+            │     │
+            │     ├── TokenBudgetDaemon.record_tokens(usage.input + usage.output)
+            │     │
+            │     ├── If stop_reason == "end_turn":  break  (agent finished)
+            │     │
+            │     ├── For each tool_use block in full_message.content:
+            │     │     ├── E2BToolDispatcher.dispatch(block.name, block.input)
+            │     │     │     ├── publish SSE: agent.tool.called
+            │     │     │     ├── call E2BSandboxRuntime method
+            │     │     │     └── publish SSE: agent.tool.result
+            │     │     └── collect tool_result (JSON string)
+            │     │
+            │     └── messages.append tool_results; [LOOP ITERATION N+1]
+            │
+            ├── CODE: state_machine.transition()  → SSE: build.stage.started
+            │
+            ├── E2BSandboxRuntime.start_dev_server()  → preview_url
+            │
+            ├── CHECKS: state_machine.transition()
+            │
+            ├── state_machine.transition(READY)   → SSE: build.stage.started{status:"ready"}
+            │
+            ├── E2BSandboxRuntime.beta_pause()
+            ├── del app.state.active_daemons[job_id]
+            └── persist job to Postgres (terminal state)
+
+Frontend SSE consumer (existing GET /api/jobs/{id}/events/stream):
+    ├── build.stage.started  →  stage ring + Kanban update
+    ├── agent.thinking       →  activity feed text (default view)
+    ├── agent.tool.called    →  verbose mode: "Running bash: npm install..."
+    ├── agent.tool.result    →  verbose mode: exit_code, truncated output
+    ├── agent.sleeping       →  "Agent paused — budget refreshes at midnight"
+    ├── gsd.phase.started    →  Kanban column → in_progress
+    └── build.stage.started{status:"ready"}  →  build complete state
+```
+
+### Token Budget Pacing Flow
+
+```
+On build start:
+    ├── UsageLog query: SUM(total_tokens) WHERE user_id AND created_at >= window_start
+    ├── PlanTier.monthly_token_budget  (e.g., 2_000_000 for bootstrapper)
+    ├── tokens_remaining = monthly_budget - window_tokens_used
+    ├── days_until_renewal = (renewal_date - today).days  (min 1)
+    └── daily_allowance = max(50_000, tokens_remaining / days_until_renewal)
+
+Every agentic loop iteration (before API call):
+    ├── TokenBudgetDaemon.checkpoint()
+    │     read cofounder:usage:{user_id}:{today} from Redis
+    │     compare to daily_allowance
+    └── If within budget: proceed with API call
+
+After API call:
+    └── TokenBudgetDaemon.record_tokens(input_tokens + output_tokens)
+        (UsageTrackingCallback also writes to Redis — daemon syncs on next checkpoint)
+
+When budget exhausted:
+    ├── asyncio.Event.clear()  →  loop suspends at await checkpoint()
+    ├── Redis: job:{id} hset agent_state = "sleeping"
+    └── SSE publish: {"type": "agent.sleeping", "reason": "daily_budget_exhausted"}
+
+On wake (user action or midnight auto-reset):
+    ├── daemon.wake()  →  asyncio.Event.set()
+    ├── Redis: job:{id} hset agent_state = "active"
+    └── SSE publish: {"type": "agent.waking"}
+```
+
+### GSD Kanban Phase Recording Flow
+
+```
+AutonomousRunner system prompt includes phase reporting instructions.
+Agent signals phase transitions via a special "record_gsd_phase" tool
+OR via structured markers in its text output that the runner parses.
+
+On phase_start:
+    ├── StageEvent INSERT (event_type="gsd_phase_started", detail={phase_name, phase_index})
+    └── SSE publish: {"type": "gsd.phase.started", "phase": "planning", "index": 0}
+
+On phase_complete:
+    ├── StageEvent INSERT (event_type="gsd_phase_completed", detail={phase_name, duration_ms})
+    └── SSE publish: {"type": "gsd.phase.completed", "phase": "planning", "duration_ms": 45000}
+
+Frontend Kanban Timeline:
+    Reads gsd.phase.started/completed events from SSE
+    Updates column status: queued → in_progress → done
+```
+
+### Self-Healing Error Flow (3 retries then escalate)
+
+```
+AutonomousRunner detects build failure (bash tool returns non-zero exit_code):
+    ├── Retry 1: Modify approach, try again (same loop)
+    ├── Retry 2: Different approach (loop continues)
+    ├── Retry 3: Different approach (loop continues)
+    └── After 3 failures: agent writes a structured explanation and stops
+          sets agent_state = "waiting_founder" in Redis
+          SSE publish: {"type": "agent.waiting_founder", "reason": "..."}
+          Frontend shows: "Your input needed" card with explanation
+
+This pattern is implemented entirely by the agent's system prompt instructions
+and the agent's own reasoning — no special loop machinery required.
 ```
 
 ---
 
-## Anti-Patterns to Avoid
+## Recommended Project Structure
 
-### Anti-Pattern 1: Mixing Typed Events into the Log Stream
+```
+backend/app/agent/
+├── runner.py                 # Protocol: add run_agent_loop() signature
+├── runner_fake.py            # Keep: add stub run_agent_loop()
+├── runner_real.py            # DEPRECATE: keep during transition, remove after
+├── autonomous_runner.py      # NEW: AutonomousRunner implements Runner protocol
+├── daemon.py                 # NEW: TokenBudgetDaemon — sleep/wake lifecycle
+├── agent_state_store.py      # NEW: conversation history persistence
+├── tools/
+│   ├── __init__.py
+│   ├── schemas.py            # NEW: Claude tool JSON schemas (7 tools)
+│   ├── e2b_tools.py          # NEW: E2BToolDispatcher
+│   └── screenshot_tool.py   # NEW: take_screenshot → S3 + SSE
+├── state.py                  # Keep: CoFounderState (used by RunnerFake)
+├── graph.py                  # DEPRECATE after v0.7 stable
+├── llm_helpers.py            # DEPRECATE after v0.7 stable
+├── nodes/                    # DEPRECATE: all 6 node files
+└── path_safety.py            # Keep: reuse path validation in tool adapters
 
-**What people do:** Embed `snapshot.updated` events as structured log lines in the existing `job:{id}:logs` Redis Stream.
-
-**Why it's wrong:** `useBuildLogs` only handles `event: log` SSE events as `LogLine` objects. The `BuildLogPanel` renders raw text -- event payloads appear as noise. Breaks existing consumer without any fallback.
-
-**Do this instead:** New `job:{id}:events` Pub/Sub channel with new SSE endpoint at `/api/jobs/{id}/events/stream`. Keep log stream for human-readable lines only.
-
-### Anti-Pattern 2: In-Sandbox Screenshot Tooling
-
-**What people do:** Run `npm install puppeteer` inside the user's generated project sandbox, then execute a screenshot script.
-
-**Why it's wrong:** Pollutes the user's generated project with dev tooling. Adds 200-500MB to sandbox. Chromium install is 30-60s. May conflict with the generated project's own dependencies.
-
-**Do this instead:** Worker-process Playwright against the public preview URL. The ECS container takes the screenshot externally against the public HTTPS URL.
-
-### Anti-Pattern 3: Blocking Build on Doc Generation
-
-**What people do:** `await doc_service.generate_docs(...)` inline in `execute_build()`, after CODE stage, before DEPS.
-
-**Why it's wrong:** Adds 10-30s to the critical build path before sandbox work starts. Founders wait visibly longer.
-
-**Do this instead:** `asyncio.create_task()` -- doc gen runs concurrently with npm install. The build is never blocked.
-
-### Anti-Pattern 4: Storing Full Docs in Postgres
-
-**What people do:** Store full generated documentation as a JSONB column in the jobs table.
-
-**Why it's wrong:** Docs are transient build artifacts (expire with sandbox, 24h relevance). Postgres is for the permanent audit trail. Large JSONB payloads slow down the jobs table queries.
-
-**Do this instead:** Redis hash `job:{id}:docs` with 24h TTL. Postgres only gets a short `snapshot_url` TEXT field for build history.
-
-### Anti-Pattern 5: Continuous Poll for Doc Sections
-
-**What people do:** `useDocGeneration` polls `/api/jobs/{id}/docs` every 5 seconds during build.
-
-**Why it's wrong:** Adds 12 unnecessary API calls over a 60s build, most of which return `"status": "generating"`. No user-visible benefit.
-
-**Do this instead:** Event-triggered fetch -- `useDocGeneration` only fetches when `useBuildEvents` emits `documentation.updated`. Zero wasted calls.
+backend/app/api/routes/
+├── agent.py                  # NEW: POST /api/agent/{id}/wake endpoint
+└── ... (existing routes unchanged)
+```
 
 ---
 
-## Integration Points Summary
+## Integration Points
 
 ### External Services
 
 | Service | Integration Pattern | Notes |
 |---------|---------------------|-------|
-| E2B AsyncSandbox | Unchanged -- existing `run_command()` / `start_dev_server()` | No native screenshot method; screenshots taken from worker process |
-| Playwright (worker-side) | New Python dependency, runs in ECS container headless | Add to Dockerfile: `playwright install chromium --with-deps` |
-| Anthropic SDK | Second `AsyncAnthropic` instance with Sonnet model for doc gen | Separate from LangGraph agent calls; use asyncio.create_task |
-| S3 (new `cofounder-screenshots` bucket) | `boto3.client("s3")` via `asyncio.to_thread` in ScreenshotService | Follows `_archive_logs_to_s3` non-fatal pattern |
-| CloudFront | New distribution or behavior serving screenshots bucket | OAC origin, immutable cache, no Clerk auth |
-| Redis Pub/Sub | Existing `job:{id}:events` channel extended with new event types | Backward-compatible: add `type` field, existing consumers check `status` field |
+| Anthropic API | `anthropic.AsyncAnthropic` (native SDK, NOT LangChain) | Remove `langchain-anthropic` dep after LangGraph removed; keep during transition |
+| E2B Cloud | Existing `AsyncSandbox.create()` / `.connect()` / `.commands.run()` | No changes to E2BSandboxRuntime; tools wrap existing methods |
+| Redis | Existing `job:{id}:events` Pub/Sub + `agent_state` field in `job:{id}` hash | Add `agent_state` field; new SSEEventType constants are additive |
+| PostgreSQL | Existing `UsageLog` table for per-call token tracking | Add `monthly_token_budget` to `PlanTier`; read window usage for daemon init |
+| S3 | Existing screenshot upload path from ScreenshotService | `screenshot_tool.py` reuses ScreenshotService S3 logic directly |
+| Anthropic API (usage tracking) | Existing `UsageTrackingCallback` writes token counts to Redis daily counter | Daemon reads `cofounder:usage:{user_id}:{today}` — no double-counting |
 
 ### Internal Boundaries
 
 | Boundary | Communication | Notes |
 |----------|---------------|-------|
-| `GenerationService` + `ScreenshotService` | Direct async call inside execute_build(), non-fatal try/except | Feature-flagged via `settings.screenshot_enabled` |
-| `GenerationService` + `DocGenerationService` | `asyncio.create_task()` -- fire and shield | Non-fatal; timeout with warning |
-| `ScreenshotService` + S3 | `boto3` via `asyncio.to_thread()` | boto3 is synchronous; must not block event loop |
-| `useBuildEvents` + `/events/stream` | SSE via `apiFetch` + ReadableStream reader | Same auth pattern as `useBuildLogs` |
-| `useBuildEvents` triggers `useDocGeneration` | `documentation.updated` event triggers REST fetch | No continuous poll |
-| `BuildPage` + all hooks | Props drilling down to panels | Three panel components receive minimal typed props |
+| AutonomousRunner ↔ E2BToolDispatcher | Direct async call (same process, constructor injection) | Dispatcher does not own sandbox lifecycle |
+| AutonomousRunner ↔ TokenBudgetDaemon | `await daemon.checkpoint()` + `daemon.wake()` via asyncio.Event | Both in same asyncio event loop; no queue needed |
+| Wake endpoint ↔ TokenBudgetDaemon | `request.app.state.active_daemons[job_id]` registry | Set at build start, del at build end; 404 if no active daemon |
+| Worker ↔ SSE frontend | Redis Pub/Sub `job:{id}:events` (unchanged transport) | Only new event types added; existing frontend ignores unknown types |
+| GenerationService ↔ AutonomousRunner | Runner Protocol `run_agent_loop()` method | Same DI pattern as current `runner.run()` call |
+| AutonomousRunner ↔ LogStreamer | Direct call: `streamer.write_event()`, `streamer.on_stdout/on_stderr` | LogStreamer instance passed to AutonomousRunner constructor |
+| AutonomousRunner ↔ JobStateMachine | Direct call: `state_machine.publish_event()` | State machine passed to AutonomousRunner constructor |
+
+---
+
+## Scaling Considerations
+
+| Scale | Architecture Adjustments |
+|-------|--------------------------|
+| 0-100 concurrent users | FastAPI BackgroundTasks model works. asyncio.Event per daemon in-process. One E2B sandbox per active job. |
+| 100-1k users | Move workers out of FastAPI process — asyncio event loop saturation risk from long-running builds. Use dedicated asyncio worker pool or Celery with asyncio executor. Wake endpoint signals via Redis Pub/Sub instead of in-process asyncio.Event. |
+| 1k+ users | E2B concurrency limits per org become binding. Multiple worker processes with Redis-based daemon signaling. Anthropic API RPM limits — exponential backoff already implemented via tenacity in RunnerReal; carry forward to AutonomousRunner. |
+
+**First bottleneck:** FastAPI background task loop saturation. A 30-60 minute agentic build blocks the event loop from starting new background tasks. Mitigation for v0.7: run one build per ECS task (scale out horizontally, not vertically). Each task picks one job from the Redis queue. This requires no architecture change — just ECS task count scaling.
+
+**Second bottleneck:** Anthropic API rate limits under parallel agent load. Mitigation: the existing per-user daily token limit enforcement already constrains peak usage. Add a global RPM counter in Redis with leaky bucket for additional safety.
+
+---
+
+## Anti-Patterns
+
+### Anti-Pattern 1: Using `client.beta.messages.tool_runner()` for the Agent Loop
+
+**What people do:** Use the SDK's beta `tool_runner` helper because it handles the agentic loop automatically.
+
+**Why it's wrong:** The tool runner runs the entire loop internally — no opportunity to publish SSE events between tool calls, no budget checkpoint per iteration, no way to suspend on sleep. The SSE activity feed would go dark for the entire 30-60 minute build.
+
+**Do this instead:** Implement the loop manually with `async with client.messages.stream()` so each tool call boundary is observable and checkpointable.
+
+### Anti-Pattern 2: Keeping LangChain for the Autonomous Agent
+
+**What people do:** Use `ChatAnthropic` from `langchain-anthropic` for the new agent, because it's already in the codebase.
+
+**Why it's wrong:** LangChain wraps Anthropic's streaming events and does not expose `input_json_delta` events mid-stream. You lose fine-grained streaming control and cannot intercept tool call parameters as they stream in. The LangChain callback system also adds latency.
+
+**Do this instead:** Use native `anthropic.AsyncAnthropic` for `AutonomousRunner`. Keep `langchain-anthropic` only for the 13 RunnerFake-backed protocol methods during the transition period, then remove it entirely.
+
+### Anti-Pattern 3: Storing Full Conversation History in Redis
+
+**What people do:** Serialize the full `messages` list into a Redis key for persistence across sleep/wake cycles.
+
+**Why it's wrong:** A build that writes 50 files via tool calls accumulates MBs of message history. Each `write_file` tool result includes the file content. Redis is not suited for large blobs and has performance issues above ~1MB per key.
+
+**Do this instead:** Store conversation checkpoints in a new PostgreSQL `AgentCheckpoint` table (`job_id`, `message_index`, `role`, `content_json`, `created_at`). Redis holds only `agent_state` (active/sleeping/waiting_founder), `message_count`, and `tokens_used_today`. On resume after sleep, load checkpoint from Postgres and continue from where the loop suspended.
+
+### Anti-Pattern 4: Exposing Sandbox Lifecycle as Agent Tools
+
+**What people do:** Give the agent a `start_sandbox` or `kill_sandbox` tool so it can manage its own environment.
+
+**Why it's wrong:** The agent could kill its own sandbox mid-build, leaving the job in an unrecoverable state. Sandbox lifecycle is infrastructure owned by `GenerationService` and the worker — not agent responsibility.
+
+**Do this instead:** `GenerationService` creates and destroys the sandbox. The agent only receives tools that operate *within* the running sandbox (read, write, bash, etc.).
+
+### Anti-Pattern 5: Polling Budget Check Inside the Agent Loop
+
+**What people do:** Check a Redis budget key every N iterations rather than before every API call.
+
+**Why it's wrong:** "Every N iterations" means N-1 over-budget API calls happen before the check fires. For Opus at $75/M output tokens, even one extra call can cost $0.60+.
+
+**Do this instead:** `TokenBudgetDaemon.checkpoint()` runs before every single API call. `record_tokens()` runs immediately after. The window between exceeding budget and stopping is exactly one API call (unavoidable — you can't know tokens before the call completes).
+
+### Anti-Pattern 6: Replacing the Runner Protocol Instead of Extending It
+
+**What people do:** Delete the `Runner` protocol and `RunnerFake`, replacing all callers with direct `AutonomousRunner` references.
+
+**Why it's wrong:** `RunnerFake` is used by `GateService` and ~150 existing tests. Removing it breaks the entire test suite and forces simultaneous rewrite of all test fixtures.
+
+**Do this instead:** `AutonomousRunner` implements the existing `Runner` protocol. `RunnerFake` gets a stub `run_agent_loop()`. Only `GenerationService.execute_build()` changes its call site. All other callers are unaffected.
 
 ---
 
 ## Sources
 
-- Direct codebase inspection (HIGH confidence):
-  - `backend/app/services/generation_service.py` -- pipeline stages, insertion points
-  - `backend/app/sandbox/e2b_runtime.py` -- E2B API surface, confirmed no screenshot
-  - `backend/app/services/log_streamer.py` -- Redis Stream write pattern
-  - `backend/app/queue/worker.py` -- existing S3 upload pattern (`_archive_logs_to_s3`)
-  - `backend/app/queue/state_machine.py` -- Pub/Sub payload, transition pattern
-  - `backend/app/api/routes/logs.py` -- existing SSE pattern, xread vs pubsub
-  - `backend/app/api/routes/generation.py` -- status endpoint, response schema
-  - `backend/app/core/config.py` -- Settings pattern for new env vars
-  - `backend/app/db/models/job.py` -- existing columns, migration pattern
-  - `frontend/src/hooks/useBuildProgress.ts` -- 5s poll pattern
-  - `frontend/src/hooks/useBuildLogs.ts` -- SSE consumer pattern (ReadableStream)
-  - `frontend/src/app/(dashboard)/projects/[id]/build/page.tsx` -- existing three-state layout
-  - `infra/lib/compute-stack.ts` -- ECS task role, IAM pattern for S3 grants
-  - `infra/lib/marketing-stack.ts` -- S3 + CloudFront CDK pattern to follow
-- E2B AsyncSandbox screenshot: confirmed no method by `dir()` inspection of installed `e2b_code_interpreter` package
-- E2B Desktop screenshot: [E2B SDK Reference](https://e2b.dev/docs/sdk-reference/desktop-js-sdk/v1.1.1/sandbox) -- Desktop only, not code interpreter
-- Playwright Python in ECS: MEDIUM confidence -- standard headless Chromium Docker pattern
+- Anthropic API Streaming docs: https://platform.claude.com/docs/en/build-with-claude/streaming (verified 2026-02-24, HIGH confidence)
+- Anthropic Python SDK: https://github.com/anthropics/anthropic-sdk-python (verified 2026-02-24, HIGH confidence)
+- Codebase — `backend/app/agent/runner.py` — Runner protocol, 13 methods (HIGH confidence)
+- Codebase — `backend/app/agent/runner_real.py` — LangChain usage patterns to migrate away from (HIGH confidence)
+- Codebase — `backend/app/agent/state.py` — CoFounderState schema (HIGH confidence)
+- Codebase — `backend/app/sandbox/e2b_runtime.py` — E2B API surface, all available methods (HIGH confidence)
+- Codebase — `backend/app/queue/worker.py` — process_next_job orchestration pattern (HIGH confidence)
+- Codebase — `backend/app/services/generation_service.py` — execute_build() pipeline stages (HIGH confidence)
+- Codebase — `backend/app/services/log_streamer.py` — Redis Stream write pattern (HIGH confidence)
+- Codebase — `backend/app/queue/state_machine.py` — SSE Pub/Sub, event types (HIGH confidence)
+- Codebase — `backend/app/api/routes/jobs.py` — existing SSE stream endpoint (HIGH confidence)
+- Codebase — `backend/app/core/llm_config.py` — token tracking, model resolution (HIGH confidence)
 
 ---
 
-*Architecture research for: v0.6 Live Build Experience -- integration with existing AI Co-Founder SaaS*
-*Researched: 2026-02-23*
+*Architecture research for: v0.7 Autonomous Claude Agent replacing LangGraph in AI Co-Founder SaaS*
+*Researched: 2026-02-24*

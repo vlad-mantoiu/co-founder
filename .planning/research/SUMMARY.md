@@ -1,189 +1,218 @@
 # Project Research Summary
 
-**Project:** AI Co-Founder SaaS — v0.6 Live Build Experience
-**Domain:** Real-time AI agent build experience for non-technical founders (E2B sandboxes, SSE streaming, LangGraph)
-**Researched:** 2026-02-23
+**Project:** AI Co-Founder SaaS — v0.7 Autonomous Agent
+**Domain:** Autonomous Claude agent replacing LangGraph multi-agent pipeline
+**Researched:** 2026-02-24
 **Confidence:** HIGH
 
 ## Executive Summary
 
-The v0.6 milestone transforms the build page from a narrow single-column spinner into a three-panel live experience: an activity feed showing Claude-narrated agent progress (left), a live screenshot of the running app (center), and auto-generated end-user documentation (right). The codebase is already production-capable for the foundational primitives — FastAPI SSE streaming, Redis Streams, E2B AsyncSandbox, Anthropic SDK, boto3, Tailwind v4 grid, and Framer Motion — making v0.6 a targeted integration milestone, not a greenfield build. The single net-new backend dependency is `playwright>=1.58.0` for headless screenshot capture. No new npm packages are required.
+The v0.7 milestone replaces the existing LangGraph 6-node pipeline (Architect, Coder, Executor, Debugger, Reviewer, GitManager) with a single autonomous Claude agent using the Think-Act-Observe-Repeat (TAOR) loop pattern used by every production autonomous coding tool (Claude Code, Cursor Agent, Devin, Jules). The core architectural insight is that a predefined directed graph is the wrong abstraction for autonomous work — the model should drive control flow via `stop_reason`, not a static graph topology. The direct Anthropic SDK (`anthropic>=0.83.0`) replaces 4 LangChain/LangGraph dependencies, enabling full streaming visibility, per-iteration budget checkpointing, and clean sleep/wake suspension — none of which are possible through the beta tool runner or LangChain's streaming abstraction.
 
-The recommended approach builds in strict dependency order: infrastructure first (S3 bucket + CloudFront behavior for screenshots, CDK IAM grant), then the two new backend services (`ScreenshotService`, `DocGenerationService`) wired non-fatally into `GenerationService`, then new SSE and REST endpoints for typed build events and docs, then frontend hooks consuming those endpoints, then the three new panel components, and finally the `BuildPage` refactor assembling everything. Every new feature must be decoupled from the critical build path — screenshot failure and doc generation failure must never propagate to job FAILED state. Competitive analysis shows Lovable, v0, and Bolt all target developers; none produce human-readable narration or end-user documentation, making these genuine differentiators for a non-technical founder audience.
+The recommended approach is a phased migration: first remove LangGraph atomically (preserving the Runner Protocol), then build the AutonomousRunner implementing the same protocol, then layer on the sleep/wake daemon and tool surface. The existing infrastructure (SSE streaming, E2B sandbox, Redis Pub/Sub, PostgreSQL, Stripe billing, Clerk auth) is kept intact — v0.7 is an engine replacement, not a rewrite. The two novel features — token budget pacing across the subscription window and the sleep/wake co-founder model — have no competitor equivalent and define the product's positioning.
 
-The highest-risk integration is Playwright-in-E2B: Chromium runs as root inside the sandbox and requires `--no-sandbox` and a 300-second install timeout (not the default 120s). The second-highest risk is coupling doc generation to the build pipeline — Claude API calls must run via `asyncio.create_task()`, not inline `await`, so a rate limit or timeout never adds latency or causes a build failure. All S3 uploads must use `asyncio.to_thread()` with existing `boto3` (no new dependencies). SSE parser updates in the frontend must deploy before backend event emission changes to avoid silent event drops.
+The dominant risk is cost runaway: agentic deployments consume 20-30x more tokens than single-turn generation. Without cost circuit breakers, a CTO-tier Opus session can exhaust a week's budget in a single run. Budget pacing must use actual cost in microdollars (from the existing `UsageLog.cost_microdollars` field), not raw token counts, because Opus output tokens cost 5x more than input. The second major risk is context window bloat — accumulated tool results can exhaust the 200K limit mid-build. Both require upfront design in the agentic loop, not retrofitting.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The stack delta for v0.6 is minimal by design. One new Python package (`playwright>=1.58.0`) is added to `pyproject.toml`. No new npm packages are required. Three new environment variables are added to `Settings`: `screenshots_bucket`, `screenshots_cloudfront_domain`, and `screenshot_enabled` (feature flag). One new CDK resource is required: an S3 bucket (`cofounder-screenshots`) with a CloudFront distribution or behavior serving `screenshots/*` with immutable cache headers (1-year TTL, OAC). All LLM calls for doc generation use the existing `anthropic.AsyncAnthropic` client already present in `anthropic>=0.40.0`.
+The stack change is a targeted upgrade: bump `anthropic` to `>=0.83.0`, add `e2b>=2.13.0` (base package for raw filesystem and command execution), and remove `langgraph`, `langgraph-checkpoint-postgres`, `langchain-anthropic`, and `langchain-core`. Everything else — FastAPI, PostgreSQL, Redis, E2B, Playwright, boto3, Clerk, Stripe — is unchanged. The asyncio stdlib replaces APScheduler/Celery for the sleep/wake daemon: the daemon is a long-lived coroutine in the same event loop as FastAPI, not an external process.
 
 **Core technologies:**
-- `playwright>=1.58.0` (Python, ECS host): headless Chromium screenshot of public E2B preview URL — only option since `AsyncSandbox` has no built-in screenshot API (confirmed against E2B SDK reference)
-- `anthropic>=0.40.0` (existing): `AsyncAnthropic.messages.create()` for single-shot doc generation per build — `claude-sonnet-4-20250514` (cheaper than Opus, sufficient for short-form narration, 600 max tokens)
-- `boto3>=1.35.0` (existing) + `asyncio.to_thread()`: non-blocking S3 PNG upload — avoids `aioboto3` dependency while preserving event loop safety
-- `tailwindcss>=4.0.0` (existing): `grid-cols-[280px_1fr_320px]` arbitrary value syntax for the three-panel layout — zero new frontend dependencies
-- Redis Pub/Sub (existing `job:{id}:events` channel): new typed build events (`build.stage.changed`, `snapshot.updated`, `documentation.updated`) extend the existing channel backward-compatibly by adding a `type` field
+- `anthropic>=0.83.0`: Direct Claude API access — tool-use loop, streaming, `count_tokens()` pre-flight budget checks (free and authoritative for Claude models)
+- `e2b>=2.13.0`: Base E2B package for raw `sandbox.filesystem.read/write()` and `sandbox.commands.run()` — the existing `e2b-code-interpreter` is kept until old REPL-based code is audited and removed
+- `asyncio` (stdlib): In-process coroutine daemon with `asyncio.Event` for sleep/wake signaling — no external scheduler needed
+- All existing infrastructure unchanged: FastAPI, PostgreSQL, Redis, S3, Playwright, Clerk, Stripe
+
+**Do not add:** `tiktoken` (wrong tokenizer for Claude), `apscheduler`/`celery`/`rq` (wrong execution model for in-process coroutine), `mem0ai` (audit and remove if unused — conversation history in `messages[]` is the context), MCP framework libraries (tools are internal, co-located with FastAPI).
 
 ### Expected Features
 
-**Must have (table stakes — P1, v0.6 scope):**
-- Extended SSE event stream (`build.stage.changed`, `snapshot.updated`, `documentation.updated`) — all other features depend on this infrastructure; implement first
-- Three-panel build page layout replacing the current narrow single-column view — the milestone's primary visual deliverable
-- Human-readable stage narration in the activity feed (Claude-generated, complete sentences, no raw log lines) — non-technical founders cannot parse "SCAFFOLD" or "eslint --fix"
-- Live screenshot per build stage via Playwright on the ECS worker against the public E2B preview URL — visual proof the build is progressing
-- Progressive end-user documentation starting at scaffold-complete — converts idle wait time into productive reading; triggers before the longest code stage runs
-- 2-minute and 5-minute long-build reassurance thresholds — NN/g mandates per-step explanation for operations exceeding 10 seconds
-- Polished completion state: hero moment, elapsed time stats, download docs button, deploy CTA
+The AutonomousRunner is the critical path dependency — all other features depend on it. Tool surface can be built incrementally starting with core read/write primitives before expanding.
 
-**Should have (differentiators — P2, add after v0.6 validation):**
-- Changelog generation for v0.2+ iteration builds
-- Per-build stats card (page count, endpoint count) in completion summary — requires structured output from LangGraph runner
-- Email notification backend endpoint for builds exceeding 5 minutes
+**Must have (P1 — v0.7 launch):**
+- `AutonomousRunner` implementing TAOR loop behind existing Runner Protocol interface — users expect this; every competitor has it
+- Core tool surface: `read_file`, `write_file`, `bash`, `grep`, `glob`, `edit_file` — agent is useless without tools
+- `narrate()` tool replacing NarrationService — agent self-narrates in first-person co-founder voice
+- `record_phase()` tool writing to Postgres `AgentPhase` — feeds existing Kanban Timeline
+- Token budget tracking: daily allowance from subscription tier + days until renewal, cost-weighted (not raw token count)
+- Sleep trigger: graceful sleep on daily budget exhaustion; `AgentSession` persisted to PostgreSQL
+- Wake trigger: scheduled job at midnight UTC restores sleeping sessions
+- Self-healing: 3-retry model with per-error-signature persistence in PostgreSQL; escalate to founder on failure
+- Founder input endpoint: `POST /api/generation/{job_id}/input` — escalation is a dead end without this
+- Configurable model per tier: Opus for CTO Scale, Sonnet for Bootstrapper/Partner (fixed at session start)
+- Activity feed with verbose toggle: default shows narration, verbose shows tool calls
+- Feature flag: `AUTONOMOUS_AGENT=true` env var switches between LangGraph and AutonomousRunner
+- LangGraph + NarrationService + DocGenerationService deletion after AutonomousRunner verified
+
+**Should have (P2 — after core is stable):**
+- `take_screenshot()` tool: Playwright-in-sandbox, S3 upload, returns CloudFront URL
+- `edit_file` surgical edits (write_file works as fallback for v0.7 launch)
+- Verbose activity feed toggle showing tool call diffs for CTO Scale users
+- `write_documentation()` tool for agent-native doc generation
 
 **Defer (v2+):**
-- Build history with version diff
-- Shareable completion permalink with screenshot embed
-- Video recording of build process (requires E2B Desktop sandbox type switch — different template, different API, higher cost)
-- GitHub push on completion
-- API reference documentation
+- Multi-agent orchestration (parallel sub-agents) — coordination overhead exceeds benefit for single-MVP builds
+- Git tool (agent commits/pushes) — requires GitHub App auth inside sandbox, out of scope per PROJECT.md
+- Web browsing tool — requires E2B Desktop sandbox type, different template
+- Long-term memory/personalization across projects — requires vector store
 
 ### Architecture Approach
 
-v0.6 follows a strict dependency chain: CDK infra unlocks backend services, services unlock API routes, routes unlock frontend hooks, hooks unlock panel components, components unlock the page refactor. The critical architectural constraint is non-fatal side effects — every new integration (screenshot capture, doc generation, SSE event publish) must be wrapped in try/except so any failure logs a warning and continues the build. Doc generation decouples from the critical path via `asyncio.create_task()` fired after the CODE stage, hiding its 10-30 second latency behind the ~60-120 second npm install + dev server window. The new SSE endpoint (`/api/jobs/{id}/events/stream`) subscribes to the existing Redis Pub/Sub channel rather than mixing typed events into the log stream, preserving backward compatibility with the existing `useBuildLogs` consumer.
+The architecture is a single-process, in-event-loop design: `AutonomousRunner` runs as a FastAPI `BackgroundTask`, streams text deltas to the existing `job:{id}:events` Redis Pub/Sub channel (same SSE transport as v0.6), and uses `asyncio.Event` for sleep/wake signaling. The `TokenBudgetDaemon` is a collaborator object (not a separate process) that the loop calls `await daemon.checkpoint()` before every API call. State uses a two-tier model: Redis for hot state (active/sleeping/waiting_founder, token count, sandbox_id), PostgreSQL for cold state (message history, file snapshots, error retry counts). The Runner Protocol is preserved — `AutonomousRunner` implements all 13 existing methods plus `run_agent_loop()`, keeping all RunnerFake-backed tests unmodified.
 
 **Major components:**
-1. `ScreenshotService` (`backend/app/services/screenshot_service.py`) — Playwright capture of public preview URL from ECS worker container + `asyncio.to_thread()` S3 upload; non-fatal; feature-flagged via `screenshot_enabled`
-2. `DocGenerationService` (`backend/app/services/doc_generation_service.py`) — direct `AsyncAnthropic.messages.create()` call (not LangGraph); writes `{status, overview, features, getting_started, tech_note}` to `job:{id}:docs` Redis hash (24h TTL); decoupled via `asyncio.create_task()`
-3. `build_events` route (`backend/app/api/routes/build_events.py`) — new SSE endpoint over Redis Pub/Sub for typed events; includes heartbeat; terminates on `done`
-4. `docs` route (`backend/app/api/routes/docs.py`) — REST endpoint reading `job:{id}:docs` hash; frontend fetches only on `documentation.updated` event (no continuous poll)
-5. `useBuildEvents` + `useDocGeneration` (frontend hooks) — SSE consumer with REST bootstrap on connect for late-join recovery; event-triggered doc fetch
-6. `ActivityFeed`, `LiveSnapshot`, `DocPanel` (frontend components) — three new panel components receiving typed props; `React.memo()` to prevent cross-panel re-renders
-7. `BuildPage` refactor — `grid-cols-[280px_1fr_320px]` three-panel grid during build; existing success/failure states unchanged
+1. `AutonomousRunner` (`app/agent/autonomous_runner.py`) — TAOR loop with streaming, tool dispatch, session state management; replaces RunnerReal
+2. `E2BToolDispatcher` (`app/agent/tools/e2b_tools.py`) — maps Claude `tool_use` blocks to E2BSandboxRuntime methods; publishes SSE events before/after each tool call
+3. `TokenBudgetDaemon` (`app/agent/daemon.py`) — asyncio.Event-based sleep/wake; budget checkpoint before every API call; reads `cofounder:usage:{user_id}:{today}` from Redis
+4. `AgentStateStore` (`app/agent/agent_state_store.py`) — two-tier persistence: Redis hot state + PostgreSQL checkpoint for message history
+5. `ToolSchemas` (`app/agent/tools/schemas.py`) — 7 Claude JSON tool definitions (read_file, write_file, edit_file, bash, grep, glob, take_screenshot)
+6. Wake endpoint (`app/api/routes/agent.py`) — `POST /api/agent/{job_id}/wake` signals daemon via `app.state.active_daemons[job_id]` registry
+7. New SSE event types (additive, existing frontend ignores unknown): `agent.thinking`, `agent.tool.called`, `agent.tool.result`, `agent.sleeping`, `agent.waking`, `agent.waiting_founder`, `gsd.phase.started`, `gsd.phase.completed`
+
+**Remove after AutonomousRunner stable:** `RunnerReal`, `app/agent/graph.py`, `app/agent/llm_helpers.py`, `app/agent/nodes/` (6 files), `NarrationService`, `DocGenerationService`, all LangChain/LangGraph dependencies.
 
 ### Critical Pitfalls
 
-1. **Screenshot captures blank page** — `_wait_for_dev_server()` returns 200 before React hydration completes; add `SCREENSHOT_WAIT_AFTER_READY_SECONDS = 5` sleep constant; discard screenshots below 5KB (likely blank)
-2. **Playwright `--no-sandbox` missing in E2B** — E2B sandboxes run as root; Chromium exits immediately without `args=['--no-sandbox', '--disable-setuid-sandbox']`; Playwright install timeout must be 300s not the default 120s
-3. **Doc generation blocks or fails the build** — inline `await anthropic_client.messages.create()` adds 10-30s latency and couples Claude rate limits to build health; always use `asyncio.create_task()` with non-fatal try/except; no Anthropic calls inside `execute_build()` on the critical path
-4. **Boto3 S3 upload blocks the async event loop** — synchronous `s3.put_object()` in async context blocks all coroutines; wrap every S3 call in `await asyncio.to_thread(s3.put_object, ...)` — applies to screenshot uploads and should be retrofitted to existing `_archive_logs_to_s3()` in `worker.py`
-5. **New SSE event types silently dropped** — the existing `useBuildLogs.ts` parser handles only `heartbeat`, `done`, `log`; unknown event types fall through with no error; always deploy frontend parser updates before backend emission changes; add `console.debug` fallback for unknown types
-6. **`E2BSandboxRuntime.read_file()` crashes on PNG bytes** — existing method decodes as UTF-8; add `read_file_bytes()` returning raw `bytes`; never call `read_file()` on binary files
-7. **Screenshot captured after `beta_pause()`** — sandbox unavailable post-pause; screenshot must run inside `execute_build()` after `start_dev_server()` returns, strictly before the function returns its result dict
-8. **Three-panel layout broken at 1024-1280px viewport** — three `fr` columns at 1024px produce a center panel too narrow for useful screenshots; use fixed-width side panels `grid-cols-[280px_1fr_320px]` at `xl:` (1280px+), two columns at `md:`, single column below 768px
-9. **Independent panel scrolling broken** — `overflow-y: auto` without `min-h-0` on CSS grid children causes panels to expand to content height; add `min-h-0` (Tailwind) to every scrollable panel `div`; parent grid must have `h-[calc(100vh-64px)]`
-10. **Stale snapshot on SSE reconnect** — Redis Pub/Sub is fire-and-forget; missed events are lost; store `snapshot_url` in job Redis hash; `useBuildEvents` must REST-bootstrap from `GET /api/generation/{job_id}/status` before opening SSE
+1. **Context window bloat mid-build** — Tool results accumulate and can exhaust the 200K token limit mid-task. Prevention: truncate all tool results at source using middle-truncation (keep first 500 + last 500 tokens; `[N lines omitted]` in middle — never truncate from beginning, as build errors appear at the end); implement context compaction at 150K tokens; detect Anthropic's `<system_warning>` injection and trigger proactive compaction.
+
+2. **Cost runaway before circuit breakers exist** — Agentic sessions consume 20-30x tokens vs single-turn. Opus output costs 5x more than input ($75 vs $15/M). Prevention: pace on cost in microdollars from `UsageLog.cost_microdollars`, not raw tokens; hard per-session cost cap as circuit breaker before every API call; 90% monthly budget hard stop; cost forecast surfaced before agent sleeps.
+
+3. **Infinite tool-use loop** — No built-in iteration cap in the direct Anthropic API loop (unlike LangGraph's recursion depth). Prevention: `MAX_TOOL_CALLS = 150` hard outer cap in loop controller; repetition detection by hashing `(tool_name, tool_input)` — halt if same hash appears 3+ times in last 10 calls; per-error retry tracking by `{error_type}:{error_message_hash}` (not a single global retry counter).
+
+4. **E2B sandbox expiry during sleep** — Sandbox expires (1 hour Hobby, 24 hours Pro) if not explicitly paused; E2B Issue #884 causes file loss on multi-resume. Prevention: always call `beta_pause()` before sleep; persist `sandbox_id` to PostgreSQL (not Redis, which can evict); sync project files to S3 after each phase commit; sentinel file check on wake; recreate sandbox from S3 snapshot if integrity check fails.
+
+5. **LangGraph removal breaks endpoints atomically** — `agent.py` imports `create_cofounder_graph` from the to-be-deleted `graph.py`. Partial removal causes startup failures across all agent routes. Prevention: remove LangGraph in a single atomic PR; update `agent.py` import sites before deleting files; run full `pytest` suite immediately after removal.
+
+6. **Retry counter resets on sleep/wake** — If `retry_count` is not persisted per error signature, agent retries same failing operation daily forever, never escalating. The existing `state.py` uses a global `retry_count: int` that resets. Prevention: persist `{project_id}:{error_type}:{error_hash}` retry state to PostgreSQL; check on wake before retrying any previously-failed operation.
+
+7. **SSE connection killed by ALB at 60s idle** — Long E2B commands (npm install: 2-5 min) produce no SSE events during execution; ALB default idle timeout is 60 seconds. Prevention: set `idle_timeout.timeout_seconds = 300` in CDK; use `asyncio.create_task()` for long commands; emit `tool_started` SSE event before execution; heartbeat every 5 seconds while command runs.
 
 ## Implications for Roadmap
 
-The dependency chain is strictly ordered and yields 7 phases. Infrastructure enables services. Services enable routes. Routes enable hooks. Hooks enable components. Components enable page assembly.
+Based on research, suggested phase structure — 7 phases in strict dependency order:
 
-### Phase 1: Infrastructure and Configuration
-**Rationale:** S3 bucket and CloudFront behavior must exist before any screenshot can be stored. CDK IAM grant must exist before the worker can write. Settings must be in place before service code can read them. Alembic migration must run before the status endpoint can return `snapshot_url`. Nothing else in v0.6 can ship without these.
-**Delivers:** `cofounder-screenshots` S3 bucket (CDK, private, OAC), CloudFront `screenshots/*` behavior with 1-year immutable TTL, ECS task role `PutObject` grant, `screenshot_bucket` / `screenshot_cloudfront_domain` / `screenshot_enabled` env vars in `Settings`, Alembic migration for `snapshot_url TEXT` column on jobs table, `doc_generation_model` setting defaulting to `claude-sonnet-4-20250514`
-**Avoids:** Pitfall 5 (presigned URLs with expiry — CloudFront behavior in CDK from the start); Pitfall 4 (event loop blocking — infrastructure in place so the right async pattern gets used from first use)
+### Phase 1: LangGraph Atomic Removal
+**Rationale:** Must be done first and in a single atomic PR. Partial removal causes startup failures across all agent endpoints. Building the new agent while LangGraph is still present creates import confusion and prevents clean testing. No downside to doing this first.
+**Delivers:** Clean codebase with zero LangGraph imports; Runner Protocol preserved; all existing tests passing; `AUTONOMOUS_AGENT` env var feature flag skeleton ready for Phase 2.
+**Addresses:** Pitfall 5 (LangGraph removal breaks imports) — atomic removal is the only safe approach.
+**Avoids:** Mixing removal with construction in the same PR — the single highest-risk operational mistake in this migration.
 
-### Phase 2: ScreenshotService
-**Rationale:** Depends only on Phase 1 infrastructure. Can be written and tested independently before GenerationService integration. The non-fatal wrapper pattern, `asyncio.to_thread()` for boto3, Playwright `--no-sandbox` flags, binary file read, and post-ready sleep must all be correct and tested before this service is wired into the build pipeline.
-**Delivers:** `backend/app/services/screenshot_service.py` — Playwright capture of public E2B preview URL from ECS worker container, 5-second post-ready sleep constant, `read_file_bytes()` method added to `E2BSandboxRuntime`, `asyncio.to_thread()` S3 upload returning CloudFront URL, non-fatal error handling with structlog warning
-**Addresses:** Live screenshots feature
-**Avoids:** Pitfall 1 (blank screenshots), Pitfall 2 (`--no-sandbox`), Pitfall 6 (binary file read crash), Pitfall 4 (event loop blocking), Pitfall 7 (screenshot before `beta_pause`)
+### Phase 2: AutonomousRunner Core Loop
+**Rationale:** The critical path dependency for everything else. Build with minimum viable tool surface (read_file + write_file + bash) to prove the TAOR loop works end-to-end before adding complexity.
+**Delivers:** `AutonomousRunner` implementing Runner Protocol; 3-tool surface; streaming text deltas to SSE via `messages.stream()`; `end_turn` termination; `MAX_TOOL_CALLS` iteration cap; repetition detection; feature-flagged entry in GenerationService.
+**Uses:** `anthropic>=0.83.0` direct SDK streaming (not beta tool_runner, not LangChain); E2B base `sandbox.commands.run()` and `sandbox.filesystem.read/write()`.
+**Implements:** AutonomousRunner, E2BToolDispatcher (3 tools), ToolSchemas.
+**Avoids:** Pitfall 1 (context bloat) — implement middle-truncation and token tracking from day one; Pitfall 2 (infinite loop) — MAX_TOOL_CALLS and repetition detection before any tool is added.
 
-### Phase 3: DocGenerationService
-**Rationale:** Depends only on existing Anthropic SDK (already in pyproject.toml) and Redis (already available). Can be developed in parallel with Phase 2. The architecture decision — decoupled from build via `asyncio.create_task()`, non-fatal, with retry on 429 — must be locked in here, not deferred to integration time.
-**Delivers:** `backend/app/services/doc_generation_service.py` — direct `AsyncAnthropic.messages.create()` with `claude-sonnet-4-20250514`, 600 max tokens, writes `{status, overview, features, getting_started, tech_note}` to `job:{id}:docs` Redis hash (24h TTL), exponential backoff on 429, non-fatal error handling
-**Addresses:** Progressive end-user documentation feature
-**Avoids:** Pitfall 3 (doc gen blocks build — task creation pattern established here), Pitfall 7 (Claude rate limits — backoff and separate key support)
+### Phase 3: Token Budget + Sleep/Wake Daemon
+**Rationale:** Cannot defer — this defines the product's core "persistent co-founder" positioning and controls cost. Build before expanding the tool surface because the daemon must checkpoint on every API call regardless of tool count.
+**Delivers:** `TokenBudgetDaemon` with asyncio.Event sleep/wake; daily allowance on cost (microdollars), not raw tokens; `AgentSession` persisted to PostgreSQL with sandbox_id; E2B `beta_pause()` on sleep; S3 file sync after each phase commit; `agent.sleeping`/`agent.waking` SSE events; wake endpoint `POST /api/agent/{job_id}/wake`; cost circuit breaker.
+**Uses:** Existing `UsageLog.cost_microdollars` for cost-based pacing; existing `UsageTracker` Redis pattern extended with per-session cost tracking.
+**Avoids:** Pitfall 3 (sandbox expiry mid-build); Pitfall 4 (cost vs token pacing mismatch — cost-weighted from day one); Pitfall 8 (model cost drift on tier change); Pitfall 10 (Redis state too large — two-tier architecture); Pitfall 11 (cost runaway — circuit breaker with per-session and 90% monthly caps).
 
-### Phase 4: GenerationService Wiring and New API Routes
-**Rationale:** Wires Phases 2 and 3 into the running build pipeline at the correct insertion points (both after `start_dev_server()` returns and before `execute_build()` returns its result dict). Extends `JobStateMachine` Pub/Sub payload backward-compatibly. Delivers the new API routes the frontend hooks will consume. This is the integration phase — all new services get connected here.
-**Delivers:** `ScreenshotService` wired into `execute_build()` and `execute_iteration_build()` (non-fatal, feature-flagged), `DocGenerationService` wired via `asyncio.create_task()` after CODE stage with 30s `asyncio.wait_for` shield before build returns, `JobStateMachine.transition()` extended with `type` field, `GET /api/jobs/{id}/events/stream` SSE endpoint (Pub/Sub subscriber with heartbeat), `GET /api/jobs/{id}/docs` REST endpoint, `GenerationStatusResponse` extended with `snapshot_url` field
-**Avoids:** Pitfall 3 (no inline Anthropic calls in execute_build), Pitfall 7 (screenshot before pause), Pitfall 8 (new endpoints separate from log stream), Pitfall 12 (snapshot_url now in status API for reconnect recovery)
+### Phase 4: Full Tool Surface
+**Rationale:** Expand beyond 3 core tools once the loop and budget are stable. Each tool is independent dispatch logic — can be built incrementally.
+**Delivers:** Complete 7-tool set: `edit_file` (surgical old_string/new_string replacement), `grep`, `glob`, `narrate` (replaces NarrationService, first-person voice), `record_phase` (new `AgentPhase` Postgres table, feeds Kanban Timeline), `take_screenshot` (Playwright-in-sandbox + S3).
+**Addresses:** Feature Domain 4 (GSD Kanban phases); Feature Domain 5 (Activity feed); Feature Domain 8 (narration/docs/screenshots as native tools — NarrationService deletion).
+**Avoids:** Pitfall 9 (bash output hides errors — structured `{stdout, stderr, exit_code}` result, middle-truncation); Pitfall 12 (SSE event storm — server-side verbose filter, debounce rapid tool calls).
 
-### Phase 5: Frontend Hooks
-**Rationale:** Frontend hooks consume the Phase 4 API routes. This phase must deploy after Phase 4 routes exist in staging. Critically, the new SSE event type handlers in `useBuildLogs.ts` (or the new `useBuildEvents`) must be deployed before Phase 4 backend emission reaches production — frontend-first ordering for SSE changes.
-**Delivers:** `useBuildEvents` hook (SSE consumer for `/api/jobs/{id}/events/stream`, REST bootstrap on connect from `GET /status` and `GET /docs`, typed event dispatch to separate state slices), `useDocGeneration` hook (REST fetch triggered by `documentation.updated` event — no continuous poll), new state fields: `latestSnapshot`, `snapshotStage`, `docSections`, `currentStageNarration`
-**Avoids:** Pitfall 8 (frontend parser before backend emission), Pitfall 9 (SSE backpressure — separate state slices, `useDeferredValue` on doc state), Pitfall 12 (REST bootstrap on connect)
+### Phase 5: Self-Healing Error Model
+**Rationale:** Build after the full tool surface so error classification has real tool failure signals. The retry model needs diverse failure modes to validate.
+**Delivers:** Error classifier; per-error retry state persisted to PostgreSQL by `{project_id}:{error_type}:{error_hash}`; 3-retry-with-different-approach model (retry state checked on wake before attempting any previously-failed operation); escalation to founder via `agent.waiting_founder` SSE + `DecisionConsole` UI; `POST /api/generation/{job_id}/input` founder input endpoint.
+**Avoids:** Pitfall 7 (retry counter resets on wake — PostgreSQL persistence per error signature, not global in-memory int).
 
-### Phase 6: Panel Components
-**Rationale:** Depends on Phase 5 hooks. Components receive typed props and can be built and tested with mock data. Three components can be developed in parallel. CSS Grid pitfalls (independent scrolling, responsive breakpoints) must be addressed here before the page assembles them — easier to fix in isolation.
-**Delivers:** `ActivityFeed` (narrated stage events from `useBuildEvents`, 2min/5min reassurance banners, rotating "while you wait" insights from Idea Brief, collapsed "Technical details" section containing existing `BuildLogPanel`), `LiveSnapshot` (screenshot `<img>` with crossfade via `AnimatePresence`, BrowserChrome wrapper, skeleton shimmer, 5KB file-size guard before display), `DocPanel` (progressive sections with skeleton, section fade-in animation, download Markdown button), responsive grid validated at 375px/768px/1280px/1440px/1920px, `min-h-0` on all scrollable panel divs
-**Addresses:** All five feature domains: narration, screenshots, documentation, long-build reassurance, completion state
-**Avoids:** Pitfall 9 (`React.memo()` on snapshot and doc panels), Pitfall 10 (responsive breakpoints at 1280px), Pitfall 11 (`min-h-0` independent scrolling)
+### Phase 6: Activity Feed + UI Polish
+**Rationale:** Once backend is stable and feature-flagged to staging, focus on the founder-facing UX layer. SSE infrastructure exists from v0.6 — this phase wires new event types to frontend components.
+**Delivers:** Activity feed with verbose toggle (default: narration only; verbose: tool calls + diffs); agent status card ("Resting — resumes tomorrow at 9am UTC" with countdown); cost forecast in sleep notification; model badge in build status bar ("Powered by Claude Opus"); human-readable tool name mapping for verbose mode; activity feed capped at 200 entries.
+**Addresses:** UX pitfalls — sleep state with no explanation; escalation notification that's unclear; verbose mode showing raw tool names vs human language.
 
-### Phase 7: BuildPage Refactor and Completion State Polish
-**Rationale:** Page assembly is last — depends on all hooks and components from Phases 5-6. Existing success/failure states are preserved unchanged. Completion state enrichment (elapsed time stats, docs download, deploy CTA, hero copy) completes the milestone deliverable.
-**Delivers:** `BuildPage` refactored to `grid-cols-[280px_1fr_320px]` three-panel layout during build, layout state machine (`idle | building | complete`) with distinct panel content per state, existing `BuildSummary + PreviewPane` success state enriched with docs download link and "Built in Xm Ys" stats, `next.config.js` CloudFront domain added to `images.remotePatterns`, completion state verified on page refresh (terminal state preserved)
+### Phase 7: Cleanup + Performance Hardening
+**Rationale:** Post-validation cleanup. LangGraph nodes, NarrationService, DocGenerationService deleted only after AutonomousRunner has passed integration tests and run in production behind the feature flag.
+**Delivers:** Deletion of all deprecated components; ALB timeout `idle_timeout.timeout_seconds = 300` set in CDK; SSE event batching for high-frequency tool calls; `write_documentation()` tool (if DocGenerationService quality insufficient); `mem0ai` audit and removal; full performance load test.
+**Avoids:** All technical debt patterns identified in PITFALLS.md — event storms, 1-hour Redis TTL on sleep/wake sessions, SQLite-in-dev trap.
 
 ### Phase Ordering Rationale
 
-- **Infrastructure before services:** No S3 bucket = no screenshots; no CDK IAM grant = permission error on first upload. This is a hard dependency.
-- **Services before wiring:** Proves non-fatal patterns, binary file handling, and async patterns in isolation before any production build pipeline code is touched. Reduces integration risk significantly.
-- **Wiring and routes together (Phase 4):** The new API routes are closely coupled to what the GenerationService writes to Redis — delivering them together ensures the data model is consistent before the frontend consumes it.
-- **Frontend-first for SSE changes:** Phase 5 (hooks with new event handlers) deploys before Phase 4 (backend emission) reaches production. This prevents the silent-drop window where the backend emits events the frontend ignores.
-- **Components before page (Phases 6 before 7):** Individual panels can be validated with mock data and responsive layout can be verified before the live data flow is wired through the page.
-- **Doc generation as `asyncio.create_task()` decided in Phase 3, enforced in Phase 4:** The coupling risk is addressed architecturally in the service before integration, making it impossible to accidentally introduce blocking behavior during wiring.
+- **Phase 1 before everything:** Atomic LangGraph removal eliminates import-level conflicts during Phase 2 construction. Two concurrent codepaths sharing the same module namespace causes subtle bugs.
+- **Phase 2 before Phase 3:** The daemon checkpoints the loop. The loop must exist before anything can be checkpointed.
+- **Phase 3 before Phase 4:** Expanding the tool surface increases per-session cost. The budget ceiling must be enforced before adding expensive tool calls (especially bash + npm operations).
+- **Phase 4 before Phase 5:** Error classification requires real tool failures to classify. Building the error model before the tools means classifying hypothetical errors from a hypothetical tool set.
+- **Phase 5 before Phase 6:** The escalation UI (DecisionConsole integration) requires the backend escalation endpoint and state machine to exist.
+- **Phase 6 before Phase 7:** Validate UX is correct before deleting fallback code. Feature flag keeps LangGraph accessible during Phase 6 validation.
+- **Phase 7 last:** Cleanup only after the new system is production-validated.
 
 ### Research Flags
 
 Phases likely needing deeper research during planning:
+- **Phase 3 (Sleep/Wake Daemon):** E2B `beta_pause()` has confirmed bugs — Issue #884 (file loss on multi-resume) and Issue #875 (autoPause override on connect). Check E2B changelog for fix status before finalizing sandbox persistence strategy. If unfixed, S3 file sync is mandatory, not optional, for multi-day builds.
+- **Phase 3 (Token Budget):** Cost-based pacing using `UsageLog.cost_microdollars` needs verification that `_calculate_cost()` in `llm_config.py` is called on every autonomous loop API call (not just LangGraph-gated calls). Audit integration before writing the daemon.
+- **Phase 5 (Self-Healing):** The `DecisionConsole` UI component needs inspection to confirm it can accept the structured escalation payload format without schema changes.
 
-- **Phase 2 (ScreenshotService):** The STACK.md and ARCHITECTURE.md research files present two different screenshot approaches — STACK.md recommends Playwright inside the E2B sandbox; ARCHITECTURE.md recommends Playwright on the ECS worker against the public preview URL. **The implementation team must align on one approach before Phase 2 begins.** Worker-side is recommended for v0.6 (faster builds, no per-build Playwright install) but adds ~150MB Chromium to the Docker image. In-sandbox avoids the Docker image change but adds 90-120 seconds per build. This decision needs an explicit spike against a live E2B sandbox before writing production code.
-- **Phase 4 (GenerationService Wiring):** `execute_build()` and `execute_iteration_build()` insertion points require reading the actual current file before implementation — line numbers and exact pipeline stages shift between versions. Confirm the exact insertion points, especially for the iteration build path.
-
-Phases with standard patterns (skip research):
-
-- **Phase 1 (CDK infrastructure):** S3 + CloudFront OAC pattern is identical to the existing `marketing-stack.ts`; established CDK code to copy-adapt.
-- **Phase 3 (DocGenerationService):** Direct `AsyncAnthropic.messages.create()` is a single-shot stateless call; well-documented; existing client in codebase.
-- **Phase 5 (Frontend hooks):** `useBuildEvents` mirrors `useBuildLogs` exactly; the SSE consumer pattern is copy-extend with new event type branches.
-- **Phase 6 (Panel components):** CSS Grid three-panel layout is fully specified in research including exact Tailwind classes, breakpoints, and `min-h-0` requirements.
+Phases with standard patterns (skip additional research):
+- **Phase 1 (LangGraph Removal):** Mechanical cleanup — grep imports, delete files, run tests. No architectural decisions needed.
+- **Phase 2 (Core Loop):** TAOR loop is thoroughly documented in Anthropic official docs with multiple high-confidence sources. The pattern is approximately 30 lines of Python with well-defined behavior.
+- **Phase 4 (Tool Surface):** Each tool is a thin wrapper over existing `E2BSandboxRuntime` methods already in production. No novel integration.
+- **Phase 6 (Activity Feed UI):** SSE infrastructure is complete from v0.6. Frontend wires known event types to existing components.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All decisions verified against official docs and existing pyproject.toml/package.json; only one net-new package (`playwright`); all rejected alternatives documented with reasoning |
-| Features | HIGH | Codebase fully inspected for existing capabilities; competitor analysis of Lovable/v0/Bolt confirms differentiators are genuine gaps; NN/g UX research cited for time-based reassurance thresholds |
-| Architecture | HIGH | Based on direct codebase inspection of all integration points across 14 files; one MEDIUM confidence gap (in-sandbox vs worker-side Playwright — documented in Gaps below) |
-| Pitfalls | HIGH | All 13 critical pitfalls verified against codebase code paths, official Playwright docs, E2B GitHub issues, AWS docs, and CSS spec; each includes warning signs and recovery strategy |
+| Stack | HIGH | Anthropic SDK v0.83.0 confirmed via PyPI (released 2026-02-19); E2B v2.13.3 confirmed (2026-02-21); asyncio pattern is stdlib; all removals verified against codebase `pyproject.toml` direct inspection |
+| Features | HIGH | TAOR loop is industry standard with multiple high-confidence corroborating sources (Anthropic official, Claude Code, Devin official blog, Lovable $100M ARR post); sleep/wake model is novel but derives from well-understood asyncio patterns |
+| Architecture | HIGH | Based on direct codebase analysis of all integration points: `runner.py`, `generation_service.py`, `state_machine.py`, `e2b_runtime.py`, `llm_config.py`; Anthropic streaming docs verified against official sources |
+| Pitfalls | HIGH | E2B bugs verified via GitHub issues; ALB timeout verified via AWS docs; context window behavior verified via Anthropic official docs; cost pitfalls derived from existing `llm_config.py` `_calculate_cost()` code review |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **Screenshot approach alignment (MUST RESOLVE before Phase 2):** STACK.md recommends installing Playwright inside the E2B sandbox via `run_command()`; ARCHITECTURE.md recommends running Playwright from the ECS worker against the public preview URL. These are architecturally different — worker-side requires Chromium in the Docker image (~150MB); sandbox-side requires 90-120s Playwright install per build. Recommendation: worker-side for v0.6 (no build time penalty for founders), custom E2B template with Playwright pre-installed as Phase 2.x follow-on to eliminate per-build install time.
-- **Separate Anthropic API key for doc generation:** PITFALLS.md recommends a second API key to avoid rate limit contention with the LangGraph pipeline (which already calls Claude as Architect, Coder, Debugger, Reviewer). Add `doc_generation_anthropic_api_key` setting that falls back to `anthropic_api_key` if not set. This is an ops/secrets decision for Phase 3.
-- **`execute_iteration_build()` exact insertion point:** ARCHITECTURE.md references "around line 384" for the screenshot hook in `execute_iteration_build()`. Confirm the exact line by reading the current file before Phase 4 — the line number will have shifted.
-- **Custom E2B template with Playwright pre-installed:** PITFALLS.md flags per-build `playwright install chromium --with-deps` (90-120s) as a performance trap that hits immediately on every build. Creating a custom E2B template eliminates this cost. Not blocking v0.6 but track as high-priority follow-on after the milestone ships.
+- **E2B Issue #884 status:** File loss on multi-resume is a confirmed bug as of research date. Before finalizing Phase 3 design, check if E2B has shipped a fix. If not, the S3 file sync fallback is mandatory, not optional, for the multi-day sleep/wake model.
+- **`mem0ai` usage audit:** STACK.md flags this as potentially unused. Run `grep -r "mem0" backend/` before Phase 7 cleanup to confirm it is safe to remove. If in use, define a migration plan before deletion.
+- **Existing `retry_count` schema in `state.py`:** Currently a global integer with `max_retries = 5` (not 3 as specified for v0.7, and not per-error-signature). Phase 5 requires a schema migration to per-error-signature retry state in PostgreSQL. Plan the migration before writing retry logic.
+- **`app/api/routes/agent.py` session TTL:** Currently 3,600 seconds (1 hour). Phase 3 must update to 86,400 seconds (24 hours) minimum. Verify no other code depends on the 1-hour expiry assumption.
+- **ALB idle timeout current value:** Default is 60 seconds. Verify the existing CDK stack does not already have a custom value set before Phase 7 makes the CDK change.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-
-- Existing codebase direct reads — `backend/app/services/generation_service.py`, `backend/app/sandbox/e2b_runtime.py`, `backend/app/services/log_streamer.py`, `backend/app/queue/worker.py`, `backend/app/queue/state_machine.py`, `backend/app/api/routes/logs.py`, `backend/app/api/routes/generation.py`, `backend/app/core/config.py`, `backend/app/db/models/job.py`, `backend/pyproject.toml`, `infra/lib/compute-stack.ts`, `infra/lib/marketing-stack.ts`, `frontend/src/hooks/useBuildProgress.ts`, `frontend/src/hooks/useBuildLogs.ts`, `frontend/src/app/(dashboard)/projects/[id]/build/page.tsx`, `frontend/package.json`
-- E2B Python SDK reference v2.2.4 — `AsyncSandbox` has no screenshot methods
-- E2B Code Interpreter Python SDK reference v1.0.1 — confirmed no screenshot API in code-interpreter sandbox
-- Playwright Python PyPI — v1.58.0 released Jan 30, 2026; Ubuntu 22.04/24.04 x86-64 supported
-- Playwright Python docs — headless Chromium on Linux; `--no-sandbox` requirement for containerized environments
-- Playwright GitHub Issue #3191 — `--no-sandbox` required for root processes confirmed
-- Python `asyncio.to_thread` documentation — correct pattern for wrapping blocking synchronous calls in async context
+- [Anthropic Python SDK — PyPI](https://pypi.org/project/anthropic/) — v0.83.0 confirmed released 2026-02-19
+- [Anthropic Tool Use — Official Docs](https://platform.claude.com/docs/en/docs/build-with-claude/tool-use/overview) — TAOR loop, stop_reason protocol, parallel tool calls, tool pricing
+- [Anthropic Streaming — Official Docs](https://platform.claude.com/docs/en/build-with-claude/streaming) — `messages.stream()`, `get_final_message()`, text_delta events
+- [Anthropic Context Windows — Official Docs](https://platform.claude.com/docs/en/build-with-claude/context-windows) — 200K limit, validation errors on overflow, tool result clearing, system_warning injection
+- [Anthropic Effective Context Engineering](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents) — compaction, tool result pruning, progressive pruning strategy
+- [Anthropic Effective Harnesses for Long-Running Agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents) — context exhaustion mid-task, session continuity
+- [E2B Sandbox Persistence Docs](https://e2b.dev/docs/sandbox/persistence) — pause/resume plan restrictions, 1-hour Hobby / 24-hour Pro runtime limits
+- [E2B GitHub Issue #884](https://github.com/e2b-dev/E2B/issues/884) — confirmed multi-resume file loss bug
+- [FastAPI Background Tasks](https://fastapi.tiangolo.com/tutorial/background-tasks/) — BackgroundTasks + asyncio.create_task() daemon pattern
+- Codebase: `backend/app/agent/runner.py` — Runner Protocol, 13 methods confirmed
+- Codebase: `backend/app/agent/runner_real.py` — LangChain usage patterns to migrate from
+- Codebase: `backend/app/agent/state.py` — global `retry_count: int`, `max_retries = 5` confirmed
+- Codebase: `backend/app/agent/graph.py` — LangGraph import sites confirmed
+- Codebase: `backend/app/services/generation_service.py` — `execute_build()` pipeline stages confirmed
+- Codebase: `backend/app/core/llm_config.py` — `_calculate_cost()`, `_check_daily_token_limit()`, Redis key `cofounder:usage:{user_id}:{today}` confirmed
+- Codebase: `backend/app/queue/state_machine.py` — SSE Pub/Sub event types confirmed
+- Codebase: `backend/app/sandbox/e2b_runtime.py` — E2B API surface, `beta_pause()` implementation confirmed
+- Codebase: `backend/app/api/routes/agent.py` — 3600s session TTL, `json.dumps` session storage, LangGraph import sites confirmed
 
 ### Secondary (MEDIUM confidence)
+- [E2B PyPI](https://pypi.org/project/e2b/) — v2.13.3 confirmed (sourced from web search, JS-disabled page)
+- [Claude Code Architecture Reverse Engineered](https://vrungta.substack.com/p/claude-code-architecture-reverse) — TAOR loop, 6-layer memory, tool primitives
+- [ZenML — Claude Code Agent Architecture](https://www.zenml.io/llmops-database/claude-code-agent-architecture-single-threaded-master-loop-for-autonomous-coding) — dual-buffer queue, streaming, error handling, turn limits
+- [RedMonk — 10 Things Developers Want from Agentic IDEs (Dec 2025)](https://redmonk.com/kholterhoff/2025/12/22/10-things-developers-want-from-their-agentic-ides-in-2025/) — checkpoints, predictable pricing as table stakes
+- [Lovable Agent ($100M ARR)](https://lovable.dev/blog/agent) — visible task list UX, 91% error reduction, end-to-end accuracy
+- [Devin 2025 Annual Performance Review](https://cognition.ai/blog/devin-annual-performance-review-2025) — human-in-the-loop requirements, iterative change limitations (official Cognition source)
+- [Agentic LLM token consumption 20-30x](https://introl.com/blog/ai-agent-infrastructure-autonomous-systems-compute-requirements-2025) — token multiplication in agentic deployments
+- [GoCodeo — Error Recovery in AI Agent Development](https://www.gocodeo.com/post/error-recovery-and-fallback-strategies-in-ai-agent-development) — error classification, retry logic, human escalation, checkpointing
+- [Claude Sonnet 4.6 Pricing — VentureBeat](https://venturebeat.com/technology/anthropics-sonnet-4-6-matches-flagship-ai-performance-at-one-fifth-the-cost) — $3/$15 vs $15/$75 per million tokens; Sonnet near-Opus performance confirmed
 
-- Smashing Magazine Feb 2026 — agentic UX patterns (explainable rationale, audit trail, step visibility)
-- NN/g — response time limits (10s, 2min thresholds), progress indicator requirements, completion state content
-- UX Magazine — multi-agent transparency, step visibility pattern
-- FastAPI GitHub Discussion #11210 — event loop blocking confirmed with synchronous calls in async context
-- E2B Desktop SDK reference — `screenshot()` API exists only in `e2b-desktop` sandbox, not code interpreter
-- UI Bakery blog — Lovable competitor live preview UX analysis
-- boto3 GitHub Issue #1512 — thread safety for S3 uploads confirmed
-
-### Tertiary (LOW confidence)
-
-- aioboto3 PyPI v13.3.0 — available but explicitly rejected in favor of `asyncio.to_thread` with existing boto3 (no new dependency)
-- E2B DeepWiki — `open()` URL method, `scrot` implementation detail (not used in final recommended approach)
+### Tertiary (LOW confidence — validate during implementation)
+- [Claude Code Issue #4277](https://github.com/anthropics/claude-code/issues/4277) — loop detection patterns (community issue, not official)
+- [State Management Patterns for Long-Running AI Agents](https://dev.to/inboryn_99399f96579fcd705/state-management-patterns-for-long-running-ai-agents-redis-vs-statefulsets-vs-external-databases-39c5) — Redis vs PostgreSQL trade-offs
+- Self-healing agent patterns (Medium) — 4-tier escalation, graduated remediation
 
 ---
-*Research completed: 2026-02-23*
+*Research completed: 2026-02-24*
 *Ready for roadmap: yes*

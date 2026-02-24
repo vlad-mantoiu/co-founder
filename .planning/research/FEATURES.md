@@ -1,272 +1,386 @@
 # Feature Research
 
-**Domain:** Live AI build experience — non-technical founder watching an AI agent build their MVP in real time
-**Researched:** 2026-02-23
-**Confidence:** HIGH (existing codebase fully inspected; UX patterns sourced from NN/g, Smashing Magazine, Lovable/v0/Bolt competitive analysis; E2B SDK verified)
+**Domain:** Autonomous AI coding agent — replacing rigid LangGraph pipeline with Claude-powered autonomous loop in AI Co-Founder SaaS
+**Researched:** 2026-02-24
+**Milestone:** v0.7 Autonomous Agent
+**Confidence:** HIGH (sourced from Claude Code architecture analysis, Devin production learnings, Cline/Cursor/Bolt/Lovable competitive analysis, Anthropic official docs, E2B SDK)
 
 ---
 
-## Context: What Already Exists
+## Note on Previous Research
 
-Before mapping new features, the current build page already ships the following. Do not rebuild these.
+This file supersedes the v0.6 FEATURES.md (focused on live build UX / three-panel layout). That research is preserved in git history. The v0.7 milestone replaces the LangGraph multi-agent pipeline with a single autonomous Claude agent. All features below are **new** relative to what already exists.
 
-| Component | Location | Status |
-|-----------|----------|--------|
-| `BuildProgressBar` — 6-stage stepper (queued → starting → scaffold → code → deps → checks → ready) | `frontend/src/components/build/BuildProgressBar.tsx` | COMPLETE |
-| `BuildLogPanel` — collapsed "Technical details" toggle with raw SSE log streaming | `frontend/src/components/build/BuildLogPanel.tsx` | COMPLETE |
-| `AutoFixBanner` — shows debugger retry attempt number | `frontend/src/components/build/AutoFixBanner.tsx` | COMPLETE |
-| `BuildSummary` + `PreviewPane` — iframe at completion with sandbox pause/resume/expiry UX | `frontend/src/components/build/BuildSummary.tsx`, `PreviewPane.tsx` | COMPLETE |
-| `BuildFailureCard` — error summary + debug_id + retry CTA | `frontend/src/components/build/BuildFailureCard.tsx` | COMPLETE |
-| `useBuildProgress` — polling every 5s via `/api/generation/{job_id}/status` | `frontend/src/hooks/useBuildProgress.ts` | COMPLETE |
-| `useBuildLogs` — SSE ReadableStream for raw log lines (stdout/stderr/system) | `frontend/src/hooks/useBuildLogs.ts` | COMPLETE |
-| SSE stream at `/api/generation/{job_id}/logs` | `backend/app/queue/` | COMPLETE |
-| Confetti on success, cancel button with AlertDialog | `build/page.tsx` | COMPLETE |
+---
 
-The v0.6 milestone adds a **three-panel layout** replacing the current narrow single-column view. The five research domains below cover only what is new.
+## What Already Exists (Do Not Rebuild)
+
+| Component | Status |
+|-----------|--------|
+| SSE streaming infrastructure with heartbeat | COMPLETE (v0.6) |
+| S3 + CloudFront screenshot storage infrastructure | COMPLETE (v0.6) |
+| Safety pattern filtering (no secrets/raw errors in output) | COMPLETE (v0.6) |
+| E2B sandbox runtime (`E2BSandboxRuntime`) | COMPLETE (v0.5) |
+| Worker capacity model + Redis priority queue | COMPLETE (v0.1) |
+| Tier-based concurrency limits (bootstrapper/partner/cto_scale) | COMPLETE (v0.1) |
+| Stripe billing + subscription tier enforcement | COMPLETE (v0.2) |
+| Kanban timeline UI component | COMPLETE (v0.1) |
+| LangGraph agents (Architect, Coder, Executor, Debugger, Reviewer, GitManager) | COMPLETE — being REPLACED |
+| NarrationService, DocGenerationService | COMPLETE — being REMOVED |
 
 ---
 
 ## Feature Landscape
 
-### Feature Domain 1: Real-Time Build Narration (Human-Readable Agent Activity)
+### Feature Domain 1: Autonomous Agentic Loop (Core Engine)
+
+The fundamental replacement for LangGraph. Where LangGraph used a predefined directed graph of agents, the autonomous loop lets Claude decide what to do next at every step.
 
 #### Table Stakes
 
 | Feature | Why Expected | Complexity | Dependency on Existing |
 |---------|--------------|------------|------------------------|
-| Human-readable stage sentences | "Setting up your project structure" not "scaffold" — non-technical founders cannot parse technical stage names | LOW | Extends `STAGE_LABELS` in `useBuildProgress.ts`; new narration text added to SSE payload |
-| Visible current action description | NN/g (HIGH confidence): without per-step descriptions, users assume crash after ~10s of spinner | LOW | New SSE event field: `narration.text`, shown prominently above activity feed |
-| Chronological activity feed | Smashing Magazine 2026 / aiuxpatterns.com (MEDIUM confidence): agentic UX requires an audit trail of agent steps — audit trail is what makes an agent credible vs opaque | MEDIUM | Replaces collapsed `BuildLogPanel` as the primary visible element during build; log panel moves to inner "Advanced" toggle |
-| Jargon-free language | Target user is non-technical — "Writing your authentication flow" not "Running eslint --fix on auth.ts:47" | LOW | Claude prompt wrapping narration generation |
-| Per-stage completion confirmation | Users need an explicit "Stage X done" signal — ambiguity during multi-minute stages causes anxiety (NN/g verified) | LOW | SSE `build.stage.completed` event (new event type) |
+| Think-Act-Observe-Repeat (TAOR) master loop | Every production autonomous coding agent (Claude Code, Cline, Cursor Agent, Jules) uses a while-loop that continues while the model emits tool calls and terminates on plain-text response — this is the baseline architecture | HIGH | Replaces `RunnerReal` wrapping LangGraph; new `AutonomousRunner` class implementing same `Runner` interface |
+| Tool call execution and result injection | Agent's plan only has value if tools execute and results come back into context — no tool results = agent hallucinating outcomes | HIGH | Wraps E2B sandbox tools (`read_file`, `write_file`, `bash`, `grep`, `glob`) and injects outputs as user-turn messages |
+| Termination on plain-text response | Agent must know when to stop — a hard-coded graph always terminates but an autonomous loop must decide "I'm done" vs "I need to do more" | MEDIUM | Model emits completion response with no tool calls; runner exits loop |
+| Max turn limit as runaway guard | Without a turn cap, a confused agent spirals indefinitely; Claude Code and Cursor both implement hard turn limits | LOW | Configurable per-tier; default 100 turns for Bootstrapper, 200 for CTO Scale |
+| Single flat conversation history | Claude Code's architecture finding: one flat message array (not tree/graph) avoids coordination overhead and produces more coherent agent behavior | MEDIUM | Loop appends assistant turns + tool results as `user` turns in the same messages array |
+| System prompt encoding GSD phases | The autonomous agent needs a structured workflow — the system prompt encodes discuss → plan → execute → verify phases and tool usage rules | MEDIUM | System prompt generated from Idea Brief + project context; references GSD-like phase structure |
 
 #### Differentiators
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Narration generated by Claude (not template strings) | Dynamic, idea-specific narration ("Building your Stripe checkout for SaaS billing") vs generic ("Implementing payment module") — makes founders feel the AI understands their specific product | MEDIUM | Separate Claude API call per stage; result stored in Redis, emitted via SSE `narration.updated` event; ~100-200 tokens per narration line |
-| "What's happening right now" one-liner | Single prominent sentence above activity feed showing live action; updates when each narration event arrives — more scannable than reading a list | LOW | Derived from latest `narration.updated` SSE event; no additional backend work beyond narration generation |
-| Agent persona voice | Narration in first-person co-founder voice: "I'm setting up your database schema so your data is organized from day one" rather than passive system log | LOW | Prompt engineering only; no infra change |
-| Per-stage time estimate | "This stage typically takes 2 minutes" displayed at stage start — sets expectations, directly reduces anxiety at the point it is highest | LOW | Static lookup table keyed on stage name; no LLM call needed |
+| Phase-aware planning before execution | Cline's research confirms: "frontload context, cultivate understanding, then act" — agents that plan before coding produce dramatically better results than agents that write code immediately | MEDIUM | Agent's first N turns are dedicated exploration (read project context, review Idea Brief, emit a plan) before any file writes occur |
+| Structured task decomposition (TodoWrite pattern) | Claude Code uses a `TodoWrite` tool to produce an internal task list — this externalizes the plan and makes it inspectable by the UI | MEDIUM | `record_task` tool that writes structured tasks to Redis; feeds the GSD phase display on Kanban Timeline |
+| Model-decided stopping vs timer-decided stopping | LangGraph stopped when the graph terminated; autonomous agent stops when Claude decides the work is genuinely complete — aligns better with variable-complexity tasks | HIGH | Agent emits a `task_complete` signal with completion summary; runner detects and terminates |
+| Re-entrant session from stored state | Agent must be able to resume from where it left off after sleep/wake cycle — this requires externalizing state | HIGH | Agent notes stored in Redis/Postgres (`AgentSession` model); context reconstructed from notes + conversation summary on wake |
 
 #### Anti-Features
 
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| Raw error traces in narration feed | Founders want full transparency | Exposes internal file paths, stack traces, and any secrets in environment variables — security + UX problem for non-technical audience | Show sanitized "Something unexpected happened — auto-fix is running" with debug_id reference only |
-| Real-time token streaming in activity feed | Feels alive and fast | Creates cognitive chaos — founder reads incomplete sentences that overwrite themselves; no useful information density from partial tokens | Emit complete narration sentences only, not streaming tokens |
-| Per-file-change events in activity feed | Maximum transparency | LangGraph writes hundreds of files — one event per file floods the feed with meaningless noise | Aggregate: one narration event per agent stage transition only |
+| Free-running agent with no turn limit | Maximum autonomy | Production agents spiral: Devin 2025 review shows agents get "confused in iterative changes" and consume 10x expected tokens; Gartner predicts 40% of agent projects cancelled due to cost overruns | Hard turn limit per session; token budget cap that triggers sleep |
+| Multi-agent spawning (sub-agents spawning sub-agents) | More parallelism = faster builds | Recursive spawning causes uncontrolled proliferation — Claude Code specifically "prevents recursive spawning under strict depth limits"; coordination overhead exceeds parallelism benefit for single-MVP builds | Single agent with rich tool set; no sub-agents in v0.7 |
+| Non-deterministic phase ordering | Flexibility | Without structured phases, agent skips testing, skips docs, writes incomplete code — same failure mode as unguided vibe coding | Encode GSD discuss→plan→execute→verify phases in system prompt as required checkpoints |
 
 ---
 
-### Feature Domain 2: Live Screenshot / Preview Updates During Build
+### Feature Domain 2: Claude Code-Style Tool Surface in E2B
+
+The tool set is the agent's hands. Without rich tools, the agent can only generate text — it cannot actually build anything.
 
 #### Table Stakes
 
 | Feature | Why Expected | Complexity | Dependency on Existing |
 |---------|--------------|------------|------------------------|
-| At least one preview screenshot before build completes | Lovable, v0, Bolt all show a live preview pane — founders expect something visual during build, not just text for 4-5 minutes | HIGH | Requires new: Playwright-in-sandbox or E2B Desktop; S3 upload path; SSE `snapshot.updated` event; frontend image display in center panel |
-| Screenshot stored in S3, served via CloudFront | Screenshots must survive browser refresh and be available in the completion state | MEDIUM | Existing S3 + CloudFront infrastructure; new bucket path `/snapshots/{job_id}/stage-{name}.png` |
-| Frontend receives SSE event when snapshot is ready | Founder sees screenshot appear in center panel when captured — not polling | LOW | New SSE event `snapshot.updated` with `{ url, stage, captured_at }` |
-| Loading/placeholder state in center panel | Panel must not show an empty box while first screenshot is being captured (can take 30-60s) | LOW | Skeleton shimmer in center panel until first `snapshot.updated` event arrives |
+| `read_file(path)` tool | Every autonomous coding agent starts with file reading — agent cannot understand or modify existing code without it | LOW | Wraps `E2BSandboxRuntime.read_file()`; already exists in sandbox |
+| `write_file(path, content)` tool | Agent needs to create new files — the most basic coding operation | LOW | Wraps `E2BSandboxRuntime.write_file()`; already exists |
+| `edit_file(path, old_content, new_content)` tool | Surgical edits prevent the agent from rewriting entire files when it only needs to change 3 lines — preserves context and reduces errors | MEDIUM | New tool; uses diff-based patch inside sandbox; surgical replacement pattern from Claude Code architecture |
+| `bash(command)` tool | Agents need to run commands: install deps, run tests, start dev server, check for errors | MEDIUM | Wraps `E2BSandboxRuntime.run_command()`; add output capture + timeout |
+| `grep(pattern, path)` tool | Code search is essential for navigating an existing codebase — agent uses grep to find function definitions, imports, error locations | LOW | Wraps E2B bash `grep -r`; output truncated to 50 lines max to protect context window |
+| `glob(pattern)` tool | Directory listing and file discovery — agent needs to understand project structure before modifying it | LOW | Wraps E2B `find` or Python `glob`; returns file list |
+| `take_screenshot()` tool | Agent needs visual feedback to verify UI is rendering correctly — this is how it "sees" what it built | MEDIUM | Playwright-in-sandbox approach (already validated in v0.6 research); `localhost:3000` screenshot; S3 upload; returns CloudFront URL |
 
 #### Differentiators
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Screenshot per completed stage (not just final) | Shows the product evolving — scaffold stage can show a placeholder or directory confirmation, code stage shows first rendered UI, deps stage shows styled app — founder sees tangible progression | HIGH | One screenshot after each `stage.completed` event; 4-5 screenshots total per build; crossfade between them |
-| Crossfade animation between snapshots | Smooth visual evolution feels premium vs jarring jump cut between screenshots | LOW | CSS `transition: opacity 0.4s` on `<img>` src change |
-| Screenshot captured from running dev server | Actual browser render of the app at `localhost:3000` rather than a terminal output — shows real UI that the founder will preview | HIGH | Playwright installed inside E2B sandbox during scaffold stage; `page.screenshot()` after `localhost:3000` is live; upload bytes to S3 |
-| Fallback to terminal screenshot if Playwright fails | Build must never block on screenshot failure | LOW | Try Playwright `page.screenshot()`; on exception, use `scrot` of the terminal output; upload whichever succeeds; if both fail, skip and continue build |
+| Tool result size limits protecting context window | Without limits, a single `bash` call that produces 50KB of npm install output consumes most of the context window; Claude Code uses ~2000 line read limits | MEDIUM | Each tool trims output: read_file max 2000 lines, bash max 200 lines stdout, grep max 50 matches; overflow replaced with "... (N more lines)" |
+| Tool error as structured feedback (not exception) | If a tool fails, the agent receives a structured error result and can try a different approach — crashing the loop on tool error is the wrong behavior | MEDIUM | All tools return `{"ok": false, "error": "...", "code": "..."}` on failure; agent decides how to respond |
+| Risk-classified tools requiring confirmation | Claude Code distinguishes read-only tools (safe, no confirmation) from write tools (safe, auto-approved) from destructive tools (require explicit confirmation before execution) | LOW | In v0.7 context: read/grep/glob are auto-approved; write/bash are auto-approved within sandbox; no escalation needed because E2B sandbox is isolated |
+| `narrate(message)` tool for activity feed | Agent narrates its own actions in plain language via an explicit tool call — eliminates the separate NarrationService; agent explains itself | MEDIUM | New tool that emits SSE `activity.narration` event with the message text; agent calls this to explain what it's about to do in non-technical terms |
 
 #### Anti-Features
 
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| Live video stream of sandbox desktop | Maximum transparency | E2B Desktop screenshot API returns `bytearray` per call — not a video stream; streaming video would require WebRTC or WebSocket video frames which is a separate infrastructure problem disproportionate to the value | Periodic screenshots at stage completion events only |
-| Screenshot every N seconds (time-based) | Shows constant activity | Most seconds nothing visually changes — creates noise, wastes S3 writes, adds polling complexity | Trigger on `stage.completed` event only; one midpoint screenshot for stages estimated >90 seconds |
-| Founder clicking into sandbox via VNC/remote desktop | Power user transparency | Destroys the "your engineering team is building it" framing; non-technical founders will panic seeing a terminal; security risk | Keep sandbox opaque during build; iframe preview only after completion |
-
-**Implementation decision (HIGH confidence):** E2B provides two sandbox types. The standard `e2b` sandbox (currently in use) runs code but has no display. The `e2b-desktop` sandbox provides Xfce desktop with Xvfb and supports `desktop.screenshot()` returning `bytearray`. Switching to `e2b-desktop` would require changing sandbox type and rebuilding the sandbox init. The lower-risk alternative: install Playwright (`pip install playwright && playwright install chromium`) inside the existing standard E2B sandbox during the scaffold stage, and call Playwright as a subprocess to screenshot `localhost:3000` after the dev server is confirmed live. This preserves the existing sandbox type and lifecycle.
+| Browser automation tool (agent controls a browser) | Agent could look up docs or verify deployed app | Adds E2B Desktop dependency (different sandbox type); significant complexity; agent already has bash access for curl/wget; Playwright is limited to localhost screenshot | Keep browser-in-sandbox limited to Playwright localhost screenshots; no general web browsing |
+| Git tool (agent commits, pushes) | Preserves build history | Out of scope per PROJECT.md — "GitHub repo push for generated code deferred to future milestone"; adds GitHub App auth complexity inside sandbox | Defer; agent's outputs are captured via file reads at completion |
+| File deletion tool | Cleanup | Irreversible inside sandbox context; agent can overwrite files instead of deleting; deletion risk outweighs benefit | Overwrite with empty content if agent needs to "delete" |
 
 ---
 
-### Feature Domain 3: Auto-Generated End-User Documentation During Build
+### Feature Domain 3: Token Budget Pacing and Sleep/Wake Model
+
+The most novel feature of this milestone — distinguishes this product from all competitors which run until completion or until they error out.
 
 #### Table Stakes
 
 | Feature | Why Expected | Complexity | Dependency on Existing |
 |---------|--------------|------------|------------------------|
-| "How to use your app" guide generated by build completion | Founders expect a tangible deliverable they can share with first users — a completion state with only a preview URL and no docs feels incomplete | MEDIUM | New Claude API call using Idea Brief + build metadata; result stored as new artifact type |
-| Documentation visible in right panel during/after build | Three-panel layout (specified in milestone) — right panel must show content during and after build | LOW | New SSE event `documentation.updated` with Markdown content; frontend renders with `react-markdown` |
-| Progressive generation — sections appear as Claude writes them | Non-technical founders need instant gratification — waiting for a full doc before showing anything converts wait time into frustration | MEDIUM | Stream Claude response into SSE `documentation.updated` events; emit one event per section completed |
-| Content is founder-safe — no code, no CLI commands | Target user is non-technical — "Click Settings > Billing > Add Card" not `curl -X POST /api/payments` | LOW | Claude prompt constraint; adversarial prompt test cases needed |
+| Daily token budget calculation | Agent must know how many tokens it can spend today — `tokens_remaining / days_until_renewal` gives the daily budget | MEDIUM | New field in `UsageTracker` (already exists); reads subscription period from Stripe data in Postgres |
+| Token counting per turn | Agent tracks how many tokens each turn costs — needs to know when to stop before hitting the daily limit | MEDIUM | Anthropic API returns `usage` in each response; `AutonomousRunner` accumulates; stores in Redis per session |
+| Sleep trigger on budget exhaustion | When daily budget is consumed, agent saves state and transitions to "sleeping" — does not crash, does not error | MEDIUM | New `AgentStatus` state: `sleeping`; persisted in Postgres `AgentSession`; Redis key with TTL for wake detection |
+| Wake trigger on budget refresh | At midnight (subscription renewal window) or when admin resets budget, sleeping agent wakes and continues where it left off | MEDIUM | Scheduled task (existing Redis worker infrastructure) checks sleeping sessions and enqueues wake jobs at budget reset |
+| Sleep/wake status visible in UI | Founder must see "Agent is resting — resumes tomorrow when your daily budget refreshes" not just a frozen spinner | LOW | New SSE event `agent.status_changed` with status + reason + resume_at timestamp; frontend shows appropriate state |
 
 #### Differentiators
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Documentation generated in parallel with build, not after | Founder reads docs while the build is still running — converts dead wait time into productive reading time; doc is ready the moment build completes | MEDIUM | Trigger doc generation from Idea Brief data at `scaffold.completed` event (Idea Brief exists before build starts; no code needed to generate user docs) |
-| Downloadable PDF at completion | Matches existing artifact export pattern (WeasyPrint already in stack); founders want a tangible file to share with advisors or investors | MEDIUM | Re-use existing WeasyPrint PDF pipeline; new document type "End-User Guide" |
-| Sections appear in order: Overview → Features → Getting Started → FAQ | Progressive disclosure — overview arrives in ~15s, full doc completes as build finishes | LOW | Claude structured output with section delimiters; emit SSE event per section |
-| Documentation tied to specific build version | If founder rebuilds, they get a new doc version — prevents stale docs from mismatching current app | LOW | Store with `build_version` field; existing versioning pattern from artifact pipeline applies |
+| Pace tokens across subscription window (not just daily) | Daily budget prevents overspend but can be gamed; pacing across the full subscription window gives founder a consistent co-founder presence | HIGH | Budget = `tokens_remaining / days_until_renewal`; if agent uses less one day, next day's budget is slightly higher; exponential smoothing to prevent starvation |
+| Agent summarizes progress before sleeping | When agent sleeps, it first writes a structured summary of what was done and what remains — makes waking up seamless | MEDIUM | `sleep_summary` tool call before entering sleep state; summary stored in `AgentSession.notes`; reconstructed into context on wake |
+| Founder notified when agent sleeps and wakes | "Your AI co-founder is resting — it will pick up where it left off tomorrow" — sets correct expectations | LOW | Email notification via existing notification path; SSE push when agent status changes |
+| Different daily budgets per tier | CTO Scale gets 4x the daily token budget of Bootstrapper — makes the premium tier feel meaningfully faster | LOW | `DAILY_TOKEN_BUDGET_BY_TIER` config dict; read from `subscription.tier` at session start |
 
 #### Anti-Features
 
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| Technical architecture docs for founders | Seems comprehensive | Non-technical founders cannot use architecture docs; adds cognitive overload; Architecture artifact already exists for technical advisors | Keep Architecture artifact separate (already exists in artifact pipeline); End-User Guide is strictly user-facing "how to use your app" |
-| Editable docs during active generation | Founders want to customize from the start | Editing a streaming document creates race conditions and confusing UX when Claude overwrites edits | Allow editing only after build completes and documentation is finalized |
-| API reference docs | Completeness | Generated MVP has no public API in v0.6 scope; out of scope per PROJECT.md | Defer to future milestone when GitHub push and public APIs are added |
+| Hard stop on token limit (error state) | Simple to implement | Founder sees "Your build failed due to token limits" — terrible UX; the agent should finish its current thought and sleep gracefully | Detect approaching limit (90% of daily budget) and trigger graceful sleep before hard limit |
+| One-shot unlimited builds | Simplicity | Agentic deployments consume 20-30x more tokens than single-turn generation (confirmed finding); unlimited builds are a billing disaster at scale; Gartner predicts 40% of agent projects cancelled for cost overruns | Budget pacing is non-negotiable; the "co-founder that works overnight" framing turns the constraint into a feature |
+| Per-request token limits (like normal API calls) | Familiar pattern | Agentic tasks are variable-length by nature; per-request limits cause agents to truncate mid-task; context window is already the per-request limit | Budget at the session/day level, not per individual tool call |
 
 ---
 
-### Feature Domain 4: Long-Build Reassurance Patterns
+### Feature Domain 4: GSD Phases on Kanban Timeline with Live Status
+
+The PM-facing output of the agent's work. Founders see structured phases, not raw tool calls.
 
 #### Table Stakes
 
 | Feature | Why Expected | Complexity | Dependency on Existing |
 |---------|--------------|------------|------------------------|
-| Time elapsed counter | NN/g (HIGH confidence): users need to know a process has not frozen — elapsed time is minimum viable reassurance for any operation >10 seconds | LOW | `Date.now()` minus `buildStartedAt` from first SSE event; display as "3m 42s elapsed" |
-| Per-stage time estimate | NN/g: "percent-done or time remaining" required for operations >10 seconds; stage durations are known from historical data | LOW | Static lookup: scaffold ~30s, code ~3-5 min, deps ~1-2 min; display "~2 min remaining" at stage start |
-| Progress animation that is not just a spinner | Static spinner is the weakest possible reassurance — something that visually changes over time maintains engagement | LOW | Animated progress pulse on current stage in stage bar; rotating tip in activity feed |
-| 2-minute threshold message | NN/g (HIGH confidence): 2 minutes is the threshold where users begin to abandon if given no explanation | LOW | Frontend timer: if any stage exceeds 120s without a new SSE event, emit "Taking longer than expected — this means your app has more moving parts than average" into the activity feed |
-| Tab-focus re-fetch on return | Already implemented in `useBuildProgress` — must be preserved in the new layout | ALREADY EXISTS | No change needed; `visibilitychange` handler in existing hook |
+| Agent records phases as structured events | Without structured phase recording, the Kanban Timeline shows nothing during autonomous execution | MEDIUM | `record_phase(name, status, description)` tool that writes to Postgres `AgentPhase` table; feeds existing Kanban Timeline API |
+| Phase status: pending/active/complete/failed | Kanban card states must reflect real agent state — founder should see which phase is running | LOW | Status transitions emitted via SSE `phase.status_changed` event; Kanban cards update in real time |
+| Phases align with GSD workflow pattern | discuss → plan → execute → verify maps to the existing five-stage state machine context; phases are sub-units within stages | MEDIUM | System prompt defines expected phases; agent records them via tool; phase names are readable (not code identifiers) |
+| Phase list visible before agent starts executing | Founder should see the agent's plan before it starts writing code — creates trust and alignment | MEDIUM | Agent's first required action is to emit all planned phases in `pending` state before beginning execution |
 
 #### Differentiators
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| 5-minute threshold escalation | At 5 minutes founders are genuinely anxious — move from passive text reassurance to proactive offer | MEDIUM | Frontend timer: at 300s show modal "This build is taking extra time. Want us to email you when it's ready?" — triggers `POST /api/generation/{job_id}/notify` endpoint |
-| Rotating "while you wait" insights | Shows the AI is building something meaningful — "Your app will have 3 API endpoints and 5 database tables" drawn from Idea Brief data | LOW | Extract key numbers from Idea Brief at build start; pre-generate 4-5 fact strings; rotate every 30s in activity feed |
-| Active agent role display | At each stage, show which agent is active: "Architect is planning your database schema", "Coder is writing your authentication" — humanizes the multi-agent pipeline | LOW | Map stage name to agent name in a static frontend lookup; no backend change |
-| Completion time displayed in success state | NN/g: success dialogs should show elapsed time — "Built in 4m 23s" — helps founders calibrate expectations for future builds | LOW | Track first SSE event timestamp to terminal state timestamp; display in `BuildSummary` |
+| Phases are agent-generated (not hardcoded) | Different projects need different phase structures — a SaaS needs auth+billing phases, a marketplace needs listing+matching phases; agent generates the right phases for the specific idea | HIGH | Agent uses Idea Brief to generate project-specific phase names; not a static lookup table |
+| Phase duration estimates | "Authentication — ~15 minutes" shown in Kanban card — sets expectations, matches the "predictable pricing" pattern developers want | MEDIUM | Agent includes estimated duration when recording phase; estimate updated if actual exceeds it |
+| Phase completion triggers screenshot | When a phase completes, agent takes a screenshot (if UI work was done) — links visual evidence to Kanban phases | LOW | `record_phase(..., trigger_screenshot=True)` flag; calls `take_screenshot()` internally |
+| Timeline persists across sleep/wake cycles | Founder sees complete history of what was done across multiple sessions — not a fresh slate each wake | LOW | Phases stored in Postgres with `session_id`; displayed across sessions on Timeline |
 
 #### Anti-Features
 
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| Progress bar percentage | Seems informative | LLM-based build duration is non-deterministic — a "25%" bar that sits for 3 minutes is worse than no percentage; creates false expectations that erode trust when wrong | Use stage-based progress (6 discrete stages) rather than a fake cumulative percentage |
-| Exact ETA ("Your build will be ready in X minutes") | Founders want certainty | LLM code gen is non-deterministic; any specific ETA will be wrong ~50% of the time; being wrong erodes trust faster than not promising | Use ranges: "~2-4 minutes remaining for this stage" |
-| Auto-redirect when build completes | Feels responsive | Destroys the reveal moment — completion is the emotional peak of the experience; founder should see it presented, not be jarred by a redirect | Present polished completion state in place; never auto-redirect |
+| One Kanban card per tool call | Maximum transparency | Agent makes 100s of tool calls per session — one card per call creates noise that's unreadable; Jules (Google) and Lovable both learned this lesson | One card per named phase; verbose tool-call detail lives in Activity Feed |
+| Real-time code diff display in Kanban | Technical transparency | LangGraph predecessor generated code in a predictable pattern; autonomous agent makes edits across many files incrementally — diffs are meaningless mid-phase | Show diff summary at phase completion, not per-write |
 
 ---
 
-### Feature Domain 5: Build Completion States
+### Feature Domain 5: Activity Feed with Verbose Toggle
+
+The transparency layer. Founders see what the agent is doing at the right level of detail.
 
 #### Table Stakes
 
 | Feature | Why Expected | Complexity | Dependency on Existing |
 |---------|--------------|------------|------------------------|
-| "Your MVP is ready" hero moment | Completion is the emotional peak of the founder experience — must feel like a celebration, not just a status label change | LOW | Extend existing confetti + `BuildSummary`; add hero copy and visual treatment |
-| Live preview iframe | Already exists in `PreviewPane` — its absence would be a regression | ALREADY EXISTS | `PreviewPane` with sandbox pause/resume already shipped |
-| "Open in new tab" prominent link | Founders want to share the preview URL immediately | LOW | Already in `BuildSummary`; confirm it is prominent and above the fold |
-| Download docs button | Founders expect a tangible file to keep and share | MEDIUM | Links to generated End-User Guide PDF; requires Documentation feature (Domain 3) above |
-| "What's next" CTA | Founders do not know what to do after build — need a clear next step | LOW | Prominent card: "Deploy your app" linking to `/projects/{id}/deploy` |
-| Build version label | Sets context for future iterations — founder knows this is "v0.1" and more versions can follow | LOW | `buildVersion` field already in `useBuildProgress` state; display in completion header |
+| Phase-level narration in default view | Lovable's research shows: "the agent now creates visible tasks while working, giving you more control and transparency" — users expect to know what the agent is doing | LOW | `narrate()` tool calls emitted as SSE `activity.narration` events; default feed shows narration only |
+| Verbose toggle revealing tool-level detail | Developers (CTO Scale tier) want to see individual tool calls — but non-technical founders do not; toggle satisfies both | LOW | SSE events carry `{ type: "narration" | "tool_call", verbose_only: bool }`; frontend filters based on toggle state |
+| Activity feed persists across page refresh | Founder closes tab, comes back — feed is still there showing what was done | LOW | Activity events stored in Postgres `AgentActivity` table with `job_id`; endpoint replays history on load |
+| Clear "agent is thinking" signal | Users need to know the agent is processing, not hung — Claude Code uses streaming output; for non-technical founders, a thinking indicator is sufficient | LOW | SSE `agent.thinking` heartbeat every 3s when agent is in model inference (no tool calls); frontend shows animated indicator |
 
 #### Differentiators
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Summary stats card | Quantified achievement: "Built in 4m 23s, 3 pages, 5 API endpoints" — founder can share this as social proof | LOW | Elapsed time from build timestamps; page/endpoint counts from build metadata if available; static fallback if not |
-| Latest screenshot shown in center panel on completion | Three-panel layout persists into completion state — center panel shows the last captured screenshot; transitions to full iframe on demand | LOW | Layout state toggle: `building` vs `complete` renders different center panel content |
-| Three-panel layout collapses gracefully on completion | After build, left panel shows full activity log (not live feed), center shows screenshot or iframe, right shows finalized docs | MEDIUM | Layout state machine: `idle` | `building` | `complete` — each with different panel content |
-| Completion state persists on page refresh | Founder should share the URL and see the same completion state; no re-build required | LOW | Already implemented: `status=ready` is a terminal state detected by polling; no additional work needed |
+| Narration in first-person co-founder voice | "I'm setting up your database schema" not "executing write_file backend/models.py" — the product persona is a co-founder, not a bot | LOW | Prompt engineering; agent instructed to narrate in first-person non-technical language via `narrate()` tool |
+| Verbose mode shows tool call diffs | When verbose is enabled, write_file calls show a minimal diff — relevant for CTO Scale users who want audit trails | MEDIUM | Tool result stored with before/after for file operations; verbose SSE event includes diff |
+| Error events shown with human explanation | When an error occurs, the activity feed shows "Ran into an issue with the database connection — trying a different approach" not "ECONNREFUSED 127.0.0.1:5432" | LOW | Agent narrates its error handling; raw error stored separately in debug log; only human-friendly version in feed |
+| Configurable feed density (compact/comfortable) | Power users want denser information; non-technical founders want more breathing room | LOW | Frontend-only CSS variable; no backend change |
 
 #### Anti-Features
 
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| Auto-start iteration on completion | Reduces friction | Iteration requires Gate 2 (Solidification Gate) — bypassing it skips scope creep detection, a core product value | Show "Ready to iterate?" CTA that leads to Gate 2 flow |
-| GitHub push on completion | Power user request | Out of scope per PROJECT.md; GitHub integration is a separate future milestone | Show a "Coming soon" badge on a stub "Push to GitHub" button |
-| Deploy to production on completion | Founders want a live app immediately | Production deployment is the Deploy Readiness stage — premature deploy skips important assessments | Link to Deploy Readiness flow, not direct prod deploy |
+| Raw stdout/stderr in default feed | Full transparency | Non-technical founders cannot parse npm warnings and Python stack traces; creates anxiety not confidence; safety filter already prevents secrets exposure | Raw output visible in verbose mode only; default feed shows narration |
+| Token streaming in feed (partial sentences appearing) | Feels fast and alive | Creates cognitive chaos — users read incomplete sentences; no useful information until sentence completes; Lovable and Bolt both moved away from this | Emit narration as complete sentences only |
+| Automatic scrolling that follows every event | Founder sees latest activity | Interrupts reading if founder scrolled up to review history | Smart scroll: auto-follow when at bottom, freeze when user scrolls up |
+
+---
+
+### Feature Domain 6: Self-Healing Error Model (3 Retries Then Escalate)
+
+The resilience layer. Distinguishes from systems that give up on first error.
+
+#### Table Stakes
+
+| Feature | Why Expected | Complexity | Dependency on Existing |
+|---------|--------------|------------|------------------------|
+| Error classification before retry | Not all errors warrant a retry: transient network errors → immediate retry; semantic errors (wrong logic) → different approach retry; fatal errors (out of disk) → escalate immediately | MEDIUM | Error classifier on tool result; maps error type to retry strategy |
+| 3 retries with different approaches | Industry standard across Cursor (documented 3-retry pattern), GoCodeo error recovery guide, and the existing `AutoFixBanner` UX in the build page | MEDIUM | Retry counter stored in `AgentSession` per-error; each retry uses a different prompt framing ("try a different approach") |
+| Escalate to founder after 3 failures | The agent cannot solve everything — founder must be brought in with a clear explanation of what's stuck | MEDIUM | After 3 retries: emit `agent.needs_input` SSE event; transition agent to `waiting_for_input` state; show "Your co-founder needs your help" UI with human-readable problem description |
+| Founder response resumes agent | After founder provides guidance, agent incorporates it and continues — the interaction is not a dead end | MEDIUM | New `POST /api/generation/{job_id}/input` endpoint; input injected as system context in next turn; agent resumes |
+| Checkpoint before each destructive action | Redmonk developer survey (2025): "checkpoint/rollback functionality" is a table-stakes expectation for agentic IDEs — save state before risky operations | MEDIUM | Agent calls `checkpoint()` tool before any bash command that modifies the filesystem; checkpoint stored in E2B sandbox snapshot or file backup |
+
+#### Differentiators
+
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| Retry uses different strategy, not same prompt | Naive retry: send same prompt again → same result. Intelligent retry: "previous approach failed because X, try Y instead" → actually useful | HIGH | Retry context includes error classification + previous attempt summary; agent given explicit permission to try a different approach |
+| Error triage narration ("I ran into something, let me try a different way") | Founder sees agent self-correcting — builds confidence in the agent's capability; hiding errors is worse than showing recovery | LOW | `narrate()` call before retry; narration reflects honest attempt at fix |
+| Escalation includes structured problem description | When escalating, agent produces: what it was trying to do, what went wrong, what it tried, what it needs from the founder | MEDIUM | Structured escalation format; presented in UI as a decision card matching existing `DecisionConsole` pattern |
+| Partial-completion checkpoint at escalation | If agent completes 3 of 5 phases before getting stuck, the completed work is preserved — founder does not lose 3 phases of work | LOW | Phase records + file states in E2B sandbox persist; escalation surfaces what was completed before the block |
+
+#### Anti-Features
+
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| Infinite retry loop | Never give up | Token consumption spirals exponentially; same failure mode causes same error; Bolt users report "token-burning error loops" as the primary complaint | Hard 3-retry limit; escalate; founder has information to help |
+| Silent failure (agent gives up without telling founder) | Avoids alarming founder | Founder returns to find nothing happened — worse than being told there's a problem | Always notify on escalation; agent status shows `waiting_for_input` |
+| Automatic rollback without confirmation | Safety | Autonomous rollback can destroy valid work done before the failure point | Checkpoint before risky operations; offer rollback to founder as explicit choice, not automatic |
+
+---
+
+### Feature Domain 7: Configurable Model Per Subscription Tier
+
+Cost-performance optimization that also drives tier differentiation.
+
+#### Table Stakes
+
+| Feature | Why Expected | Complexity | Dependency on Existing |
+|---------|--------------|------------|------------------------|
+| Bootstrapper tier uses Sonnet | Sonnet 4.6 provides "near-Opus performance at 1/5 the cost" ($3/$15 vs $15/$75 per million tokens) — makes the bootstrapper tier economically viable | LOW | `MODEL_BY_TIER` config dict; `AutonomousRunner` reads `subscription.tier` at session start |
+| CTO Scale tier uses Opus | Opus 4.6 provides highest quality reasoning — justifies premium pricing; follows the established pattern of "better model = premium feature" | LOW | Same config dict; Opus selected for `cto_scale` tier |
+| Model selection at session start (not per-turn) | Model must not change mid-session — changing model mid-conversation invalidates context and produces incoherent results | LOW | Model selected once at `AgentSession` creation; stored in session record |
+
+#### Differentiators
+
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| Model displayed in UI ("Powered by Claude Opus") | Transparency builds trust; CTO Scale founders want to see they're getting the premium model | LOW | `session.model` included in SSE session start event; shown in build status bar |
+| Adaptive thinking for Opus tier | Opus 4.6 supports adaptive thinking (Claude dynamically allocates extended thinking budget) — enables better architectural decisions for complex MVPs | LOW | `thinking: {type: "auto"}` in API call for Opus; Sonnet uses standard mode; confirmed in Anthropic docs |
+| Partner tier uses Sonnet with elevated token budget | Middle tier gets same model as Bootstrapper but more daily tokens — differentiates on throughput, not quality | LOW | `partner` tier: Sonnet model + 2x Bootstrapper daily token budget |
+
+#### Anti-Features
+
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| Let founders pick their own model | Flexibility | Billing complexity (cost is per-token, model choice directly affects cost); founders will always pick Opus regardless of tier → economics break | Tier = model; no user choice; upsell path is clear |
+| Different models for different phases (planning=Opus, coding=Sonnet) | Cost optimization | Mid-session model switching invalidates context; architectural decisions and coding are interleaved in autonomous loop | Single model per session; if cost is concern, raise the Sonnet quality bar via better prompting |
+
+---
+
+### Feature Domain 8: Agent Narration and Documentation Native Handling
+
+The v0.7 agent replaces the separate NarrationService and DocGenerationService. These capabilities become native tool calls.
+
+#### Table Stakes
+
+| Feature | Why Expected | Complexity | Dependency on Existing |
+|---------|--------------|------------|------------------------|
+| Agent narrates its own actions via `narrate()` tool | Eliminates NarrationService (a separate Claude API call per stage) — agent self-narrates more accurately because it knows what it just did | LOW | New tool; agent calls with plain-language description; emits SSE; NarrationService deleted |
+| Agent generates end-user docs via `write_documentation()` tool | Eliminates DocGenerationService — agent generates docs at the right moment in the workflow, not on a fixed schedule | MEDIUM | New tool; structured doc content; stored as artifact; DocGenerationService deleted |
+| Screenshots via `take_screenshot()` tool | Agent takes screenshots when contextually relevant (after UI phase) — not on a fixed schedule | MEDIUM | Playwright-in-sandbox (already validated); agent calls tool after completing UI work |
+| All three services replaced by tools | Three separate services become three tool calls — simpler architecture, more coherent output | MEDIUM | Delete NarrationService, DocGenerationService; ScreenshotService becomes utility called by tool handler |
+
+#### Differentiators
+
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| Contextually-triggered narration (agent decides when) | LangGraph triggered narration at fixed stage transitions; autonomous agent narrates when something meaningful happens — more natural and less mechanical | LOW | Prompt instructs agent to call `narrate()` before significant actions, not on a schedule |
+| Documentation generated mid-build not just at completion | Agent can write a "how to use your auth system" doc section right after completing the auth phase — while it still has full context | MEDIUM | `write_documentation(section, content)` tool; multiple calls during build; document assembled from sections |
+| Screenshot with optional caption | Agent provides a human-readable caption with each screenshot ("Your app's dashboard is taking shape") — richer than raw image | LOW | `take_screenshot(caption)` tool parameter; caption stored with screenshot metadata; displayed in UI |
+
+#### Anti-Features
+
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| Keep NarrationService running in parallel | Backward compatibility | Two narration sources produce inconsistent voice and duplicate content; increases cost; SSE events collide | Delete NarrationService; agent-native narration is strictly better |
+| Auto-generate docs for every tool call | Maximum documentation | Produces thousands of meaningless micro-docs; floods the artifact store | Agent-controlled: only call `write_documentation()` for meaningful milestones |
 
 ---
 
 ## Feature Dependencies
 
 ```
-[Extended SSE Event Stream]
-    └──required by──> [1. Build Narration] (narration.updated event)
-    └──required by──> [2. Live Screenshots] (snapshot.updated event)
-    └──required by──> [3. Auto-Generated Documentation] (documentation.updated event)
-    └──required by──> [4. Long-Build Reassurance] (build.stage.started/completed with timestamps)
-    └──note: ALL new features share this single infrastructure dependency
+[AutonomousRunner / TAOR Master Loop] — CORE
+    └──requires──> [Tool Surface in E2B] (tools are the loop's hands)
+    └──requires──> [Token Budget Tracking] (loop must know when to stop)
+    └──enables──> [Self-Healing Error Model] (retries happen inside loop)
+    └──enables──> [Narration + Docs + Screenshots] (tools called from within loop)
 
-[Three-Panel Layout Component]
-    └──required by──> [Milestone deliverable]
-    └──content from──> [1. Build Narration] (left panel)
-    └──content from──> [2. Live Screenshots] (center panel)
-    └──content from──> [3. Auto-Generated Documentation] (right panel)
-    └──replaces──> Existing single-column narrow build view
+[Token Budget Pacing + Sleep/Wake]
+    └──requires──> [AutonomousRunner] (runner implements sleep trigger)
+    └──requires──> [AgentSession persistence] (state to resume from)
+    └──requires──> [Scheduled wake task] (Redis worker checks sleeping sessions)
+    └──feeds──> [UI Agent Status] (sleeping/waking/running states)
 
-[2. Live Screenshots]
-    └──requires──> Playwright installed inside E2B sandbox (scaffold stage)
-    └──requires──> Post-stage screenshot trigger in LangGraph runner or GenerationService
-    └──requires──> S3 upload utility (bytes → S3 key → CloudFront URL)
-    └──requires──> SSE snapshot.updated event emission
+[GSD Phases on Kanban Timeline]
+    └──requires──> [AutonomousRunner] (agent calls record_phase tool)
+    └──requires──> [AgentPhase Postgres table] (new)
+    └──enhances──> [Activity Feed] (phases are the high-level view; activity is detail)
+    └──integrates with──> [Existing Kanban Timeline UI] (existing component, new data source)
 
-[3. Auto-Generated Documentation]
-    └──trigger──> scaffold.completed SSE event (Idea Brief available from this point)
-    └──requires──> Claude API call for doc streaming (separate from narration calls)
-    └──requires──> documentation.updated SSE event emission per section
-    └──enables──> [5. Completion States: Download docs button]
+[Activity Feed with Verbose Toggle]
+    └──requires──> [AutonomousRunner] (narrate tool emits SSE events)
+    └──requires──> [SSE infrastructure] (ALREADY EXISTS from v0.6)
+    └──requires──> [AgentActivity Postgres table] (new — for persistence)
+    └──feeds from──> [Self-Healing Error Model] (errors shown in feed)
 
-[1. Build Narration]
-    └──requires──> Claude API call per stage transition (narration.updated event)
-    └──enhances──> [4. Long-Build Reassurance] (narration IS the primary reassurance mechanism)
+[Self-Healing Error Model]
+    └──requires──> [AutonomousRunner] (retry happens inside loop)
+    └──requires──> [Error classifier] (new)
+    └──requires──> [Founder input endpoint] (new: POST /api/generation/{job_id}/input)
+    └──integrates with──> [Existing DecisionConsole pattern] (escalation UI)
 
-[4. Long-Build Reassurance]
-    └──requires──> build start timestamp (in first SSE event)
-    └──requires──> per-stage expected durations (static frontend lookup)
-    └──5min threshold──> new backend endpoint POST /api/generation/{job_id}/notify
+[Configurable Model Per Tier]
+    └──requires──> [AutonomousRunner] (model selection at session start)
+    └──requires──> [Subscription tier from Postgres] (ALREADY EXISTS)
+    └──LOW complexity] — one config dict, one read at session start
 
-[5. Build Completion States]
-    └──requires──> [2. Live Screenshots] latest screenshot for center panel
-    └──requires──> [3. Auto-Generated Documentation] for download docs button
-    └──requires──> [4. Long-Build Reassurance] completion time for stats card
+[Narration + Docs + Screenshots as native tools]
+    └──requires──> [Tool Surface in E2B] (screenshot tool needs Playwright-in-sandbox)
+    └──enables deletion of──> [NarrationService, DocGenerationService]
+    └──requires──> [S3 upload utility] (ALREADY EXISTS from v0.6)
+    └──requires──> [SSE event emission] (ALREADY EXISTS from v0.6)
 ```
 
 ### Dependency Notes
 
-- **Extended SSE stream is the single critical infrastructure dependency.** All four new feature domains emit new event types. This must be implemented first. The existing SSE endpoint at `/api/generation/{job_id}/logs` delivers raw log lines — new typed events (`build.stage.started`, `build.stage.completed`, `narration.updated`, `snapshot.updated`, `documentation.updated`) must be added alongside or on a parallel stream.
+- **AutonomousRunner is the single critical path.** All features depend on the master loop being implemented first. The existing `Runner` interface must be preserved — `AutonomousRunner` replaces `RunnerReal` behind the same interface, ensuring `RunnerFake` continues to work for testing.
 
-- **Screenshots require Playwright-in-sandbox, not E2B Desktop.** The current build uses standard E2B sandbox (no display). The pragmatic approach: install Playwright during scaffold stage and call it as a subprocess to screenshot `localhost:3000` once the dev server is live. This preserves the existing sandbox type, lifecycle, and all existing `E2BSandboxRuntime` code.
+- **AgentSession persistence is the second critical dependency.** Sleep/wake, error recovery checkpointing, and activity feed replay all require a durable session record. This must be implemented before token budget pacing.
 
-- **Documentation generation starts at scaffold.completed, not at build completion.** The Idea Brief exists before the build starts. Documentation does not require the generated code — it describes how to use the app based on the brief. Starting at `scaffold.completed` means the right panel has partial content while the code stage (longest stage) runs. This is the key UX win: founders read docs while building, not after.
+- **SSE infrastructure is already complete** (v0.6). New event types need to be defined but the transport layer is done.
 
-- **Left panel replaces (not supplements) the existing `BuildLogPanel`.** Raw logs move to an "Advanced" collapsible within the activity feed panel. The feed itself shows narration events. This avoids two competing log UIs.
+- **Tool Surface can be built incrementally.** Start with `bash` + `read_file` + `write_file` (minimum viable agent) then add `edit_file`, `grep`, `glob`, `narrate`, `take_screenshot`, `write_documentation`, `record_phase` in order.
 
-- **Three-panel layout has a completion state variant.** During build: left=live feed, center=latest screenshot, right=progressive docs. After completion: left=full activity history, center=screenshot transitioning to iframe, right=finalized docs with download button.
+- **LangGraph nodes (architect, coder, executor, debugger, reviewer, git_manager) and NarrationService/DocGenerationService must be removed only after AutonomousRunner is verified working.** Big-bang replacement risks breaking the build path entirely. Feature-flag the switch.
 
 ---
 
-## MVP Definition (v0.6 scope)
+## MVP Definition (v0.7 scope)
 
-### Launch With
+### Launch With (v0.7)
 
-- [ ] Extended SSE event stream — `narration.updated`, `snapshot.updated`, `documentation.updated`, `build.stage.started`, `build.stage.completed` — this is the foundation; implement first
-- [ ] Three-panel layout component replacing current narrow single-column view
-- [ ] Human-readable narration via Claude API per stage transition — complete sentences in activity feed, no streaming tokens
-- [ ] Live screenshot after each stage completion — Playwright-in-sandbox, upload to S3, emit `snapshot.updated` SSE event
-- [ ] Progressive end-user documentation starting at `scaffold.completed` — streamed into right panel as sections complete
-- [ ] 2-minute threshold reassurance message in activity feed
-- [ ] 5-minute threshold email notification offer (modal, not automatic email)
-- [ ] Polished completion state: hero moment, elapsed time stats, download docs button, "what's next" deploy CTA
-- [ ] Safety guardrails: narration strips internal paths and error traces; debug_id shown, not raw stack traces
+- [ ] `AutonomousRunner` implementing TAOR loop with the same `Runner` interface — drops into existing worker infrastructure
+- [ ] Core tool surface: `read_file`, `write_file`, `bash`, `grep`, `glob`, `edit_file` — the six primitives needed to build code
+- [ ] `narrate()` tool emitting SSE `activity.narration` events — replaces NarrationService
+- [ ] `record_phase()` tool writing to Postgres `AgentPhase` — feeds existing Kanban Timeline
+- [ ] Token budget tracking: daily budget calculated from subscription tier + days until renewal; session-level accumulation
+- [ ] Sleep trigger: agent sleeps gracefully when daily budget exhausted; status visible to founder
+- [ ] Wake trigger: scheduled job restores sleeping sessions at budget reset
+- [ ] Self-healing: 3-retry model with error classification; escalate to founder on failure
+- [ ] Founder input endpoint: `POST /api/generation/{job_id}/input` to resume from escalation
+- [ ] Configurable model per tier: Opus for CTO Scale, Sonnet for Bootstrapper/Partner
+- [ ] Activity feed with verbose toggle: default shows narration, verbose shows tool calls
+- [ ] `take_screenshot()` tool: Playwright-in-sandbox, S3 upload, returns CloudFront URL
+- [ ] Feature-flag to switch between LangGraph (old) and AutonomousRunner (new) — safe rollback path
+- [ ] Delete LangGraph nodes + NarrationService + DocGenerationService after AutonomousRunner verified
 
-### Add After Validation (v0.6.x)
+### Add After Validation (v0.7.x)
 
-- [ ] Changelog generation for v0.2+ iteration builds — only useful once the iteration cycle is built
-- [ ] Per-build stats (page count, endpoint count) in completion summary — requires structured output from LangGraph runner
-- [ ] Email notification backend endpoint — low priority if typical build stays under 5 minutes
+- [ ] `write_documentation()` tool for agent-native doc generation (NarrationService already deleted by v0.7; DocGenerationService deletion deferred to v0.7.x if documentation quality is insufficient)
+- [ ] Adaptive thinking enabled for Opus tier (requires testing; may increase cost unpredictably)
+- [ ] Screenshot captions (minor UX enhancement)
+- [ ] Email notification on agent sleep/wake (low priority if founders are checking the dashboard)
+- [ ] Agent-generated phase duration estimates (nice-to-have; static estimates are sufficient for v0.7)
 
 ### Future Consideration (v2+)
 
-- [ ] Build history browsable list with version diff
-- [ ] Shareable build completion permalink with screenshot embed and stats
-- [ ] Video recording of build process (requires E2B Desktop sandbox type switch)
+- [ ] Multi-agent orchestration (parallel sub-agents for independent tasks) — complexity outweighs benefit for single-MVP builds
+- [ ] Agent builds on top of previous build version (v0.3 iterates on v0.2 with diff-awareness) — requires git integration
+- [ ] Agent learns from founder feedback across projects (long-term memory / personalization) — requires vector store
+- [ ] Web browsing tool for agent to look up documentation — requires E2B Desktop or separate browser service
 
 ---
 
@@ -274,48 +388,76 @@ The v0.6 milestone adds a **three-panel layout** replacing the current narrow si
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| Extended SSE event stream (infra) | HIGH | MEDIUM | P1 — blocks all other new features |
-| Three-panel layout | HIGH | MEDIUM | P1 — milestone visual deliverable |
-| Human-readable narration (activity feed) | HIGH | MEDIUM | P1 — core experience, replaces raw log |
-| Live screenshots | HIGH | HIGH | P1 — visual proof of building |
-| Progressive documentation | HIGH | MEDIUM | P1 — tangible founder deliverable |
-| Long-build reassurance (2min/5min thresholds) | HIGH | LOW | P1 — safety net for slow builds |
-| Polished completion state | HIGH | LOW | P1 — emotional peak moment |
-| Changelog generation | MEDIUM | MEDIUM | P2 — only after iteration cycle built |
-| Build stats summary card | MEDIUM | LOW | P2 — nice-to-have |
-| Email notification for long builds | MEDIUM | MEDIUM | P3 — only if builds regularly exceed 5min |
+| AutonomousRunner (TAOR loop) | HIGH | HIGH | P1 — everything else depends on this |
+| Core tool surface (read/write/bash/grep/glob) | HIGH | MEDIUM | P1 — agent is useless without tools |
+| Token budget tracking | HIGH | MEDIUM | P1 — cost control is mandatory |
+| Sleep/wake daemon | HIGH | MEDIUM | P1 — defines the product's "persistent co-founder" positioning |
+| `narrate()` tool + activity feed | HIGH | LOW | P1 — replaces existing NarrationService, simpler |
+| `record_phase()` tool + Kanban integration | HIGH | LOW | P1 — PM-facing output; ties to existing Timeline UI |
+| Self-healing 3-retry + escalation | HIGH | MEDIUM | P1 — without this, agent failures leave founders stranded |
+| Configurable model per tier | MEDIUM | LOW | P1 — revenue/cost alignment; one config dict |
+| Feature flag (LangGraph ↔ AutonomousRunner) | HIGH | LOW | P1 — safe rollback path |
+| `edit_file` surgical edits | MEDIUM | MEDIUM | P2 — improves quality; `write_file` works as fallback |
+| `take_screenshot()` tool | MEDIUM | MEDIUM | P2 — visual feedback; not blocking |
+| Verbose activity feed toggle | MEDIUM | LOW | P2 — CTO Scale differentiator |
+| Founder input endpoint (resume from escalation) | HIGH | MEDIUM | P1 — without this, escalation is a dead end |
+| Delete old LangGraph nodes | LOW | LOW | P2 — cleanup; after AutonomousRunner verified |
+| `write_documentation()` tool | MEDIUM | MEDIUM | P2 — defer to v0.7.x |
+| Wake notification (email) | LOW | LOW | P3 — dashboard polling is sufficient |
+
+**Priority key:**
+- P1: Must have for v0.7 launch
+- P2: Should have, add when core is stable
+- P3: Nice to have, defer to v0.7.x or later
 
 ---
 
 ## Competitor Feature Analysis
 
-| Feature | Lovable (v2.0) | v0 (Vercel) | Bolt.new | Our Approach |
-|---------|----------------|-------------|----------|--------------|
-| Live preview during generation | Right panel iframe updates in real-time as code is written | Instant component preview (static generation) | Split view with live preview pane | Screenshots per stage; full iframe in completion state — E2B sandbox URL not stable mid-build |
-| Agent activity feed | Chat-driven; shows diff preview before applying changes | None — loading state only | None — spinner only | Explicit activity feed with Claude narration, left panel |
-| Human-readable narration | Minimal — shows file names being modified | None | None | Full narration by Claude per stage — differentiator |
-| Documentation generation | None | None | None | Progressive End-User Guide from Idea Brief — differentiator |
-| Long-build reassurance | No explicit patterns | No explicit patterns | No explicit patterns | 2min/5min thresholds + per-stage time estimates — differentiator |
-| Completion state | Preview URL + share button | Component copy/paste only | Preview URL + deploy CTA | Hero moment + stats card + docs download + deploy CTA |
+| Feature | Claude Code | Cursor Agent | Devin 2.0 | Bolt.new | Lovable Agent | Google Jules | Our v0.7 Approach |
+|---------|-------------|--------------|-----------|----------|---------------|--------------|-------------------|
+| Core loop | TAOR master loop, single-threaded, model-directed | While-loop with tool calls | Planner + executor in cloud VM | Single-shot generation with retry | Autonomous multi-step agent | Async task queue, async execution | TAOR loop inside E2B sandbox; same pattern as Claude Code |
+| Tool set | read/write/edit/bash/grep/glob/MCP | Same + editor integration | Shell + browser + editor | File editor + terminal | Web + file + image + search | Shell + file + PR creation | Same 7 primitives; Playwright for screenshots; custom narrate/record_phase/take_screenshot tools |
+| Error recovery | Auto-compaction, turn limits, checkpoint/rewind | 3 retries + git rollback; 60-70% auto-fix rate | Human gating throughout; weak mid-execution adaptation | Token-burning error loops (known problem) | 91% error reduction in v2; end-to-end accuracy | Plan-first then execute; PR review before merge | 3-retry with different approaches; classify errors; escalate with structured problem description |
+| User interaction model | Developer CLI; everything visible | IDE-integrated; plan approval, then act | Pre-scope task → Devin executes → human verifies PR | Chat → instant generation → iterate | Natural language → agent executes → summary | Task assignment → async background → PR review | Founder sees Kanban phases + activity feed; escalation via Decision Console |
+| Progress visibility | Raw tool output in terminal | Chat + diff view | Plan shown before execution | Spinner + diffs | Task list + completion summary | Async; check status in dashboard or CLI | Kanban phases (PM-level) + activity feed (verbose toggle) + screenshots |
+| Token budget | None (user pays per session) | None | Monthly credit limit | Monthly credit limit | Monthly credit limit | Monthly credit limit | Subscription-window pacing with daily budget + sleep/wake — unique differentiator |
+| Target user | Developer | Developer | Developer/Engineering manager | Vibe coder / semi-technical | Non-technical founder | Developer | Non-technical founder (same as Lovable, but with PM-centric output) |
+| Sleep/wake model | None | None | None | None | None | None | Novel — no competitor has this |
 
-**Key observation:** Lovable, v0, and Bolt all target developers or semi-technical users who can parse file diffs and code. None generate human-readable narration or end-user documentation. These are genuine differentiators for a non-technical founder audience.
+**Key observations:**
+
+1. **TAOR loop is industry standard** — every production autonomous coding agent uses this pattern. Implementing it is table stakes, not a differentiator.
+
+2. **Token budget pacing with sleep/wake is genuinely novel** — no competitor has a "paces your budget across your subscription window" model. Devin/Cursor/Bolt all run until completion or credits run out. This is the strongest v0.7 differentiator.
+
+3. **Error recovery quality varies widely** — Bolt's token-burning loops are a known failure mode; Devin requires heavy human gatekeeping; Cursor achieves ~60-70% auto-fix. The 3-retry-then-escalate pattern with structured escalation is better than all three.
+
+4. **Narration via tool call (not separate service) is cleaner** — Lovable and similar tools use a separate narration service; having the agent narrate its own actions is more accurate and eliminates an entire service.
+
+5. **PM-facing output (Kanban phases) is unique** — all competitors target developers with code diffs and pull requests; our Kanban phase tracking maps agent activity to founder-readable milestones.
 
 ---
 
 ## Sources
 
-- [Designing for Agentic AI: Practical UX Patterns — Smashing Magazine (Feb 2026)](https://www.smashingmagazine.com/2026/02/designing-agentic-ai-practical-ux-patterns/) — explainable rationale, confidence signal, action audit patterns
-- [Designing for Long Waits and Interruptions — NN/g](https://www.nngroup.com/articles/designing-for-waits-and-interruptions/) — time thresholds (10s, 2min), progress indicator requirements, completion dialog content
-- [Response Time Limits — Jakob Nielsen, NN/g](https://www.nngroup.com/articles/response-times-3-important-limits/) — 10-second rule, elapsed time requirement
-- [Secrets of Agentic UX — UX Magazine](https://uxmag.com/articles/secrets-of-agentic-ux-emerging-design-patterns-for-human-interaction-with-ai-agents) — multi-agent transparency, step visibility pattern
-- [Agentic AI Design Patterns — agentic-design.ai](https://agentic-design.ai/patterns/ui-ux-patterns) — real-time agent activity visualization
-- [What is Lovable AI — UI Bakery](https://uibakery.io/blog/what-is-lovable-ai) — competitor live preview UX analysis
-- [E2B Desktop Python SDK Reference](https://e2b.dev/docs/sdk-reference/desktop-python-sdk/v2.0.1/sandbox) — `screenshot()` API, `bytearray` return format (HIGH confidence, verified)
-- [E2B Desktop DeepWiki](https://deepwiki.com/e2b-dev/desktop/4-python-sdk) — `open()` URL method, `scrot` implementation detail, Xvfb display (MEDIUM confidence)
-- [Playwright Screenshot Guide — ZenRows (2026)](https://www.zenrows.com/blog/playwright-screenshot) — `page.screenshot()` API confirmed current
-- Existing codebase direct reads (HIGH confidence): `frontend/src/app/(dashboard)/projects/[id]/build/page.tsx`, `frontend/src/hooks/useBuildProgress.ts`, `frontend/src/hooks/useBuildLogs.ts`, `frontend/src/components/build/BuildLogPanel.tsx`, `frontend/src/components/build/BuildSummary.tsx`
+- [Claude Code Architecture (Reverse Engineered)](https://vrungta.substack.com/p/claude-code-architecture-reverse) — TAOR loop, 6-layer memory, tool primitives, context compression (HIGH confidence, multiple sources agree)
+- [Claude Code Agent Architecture: Single-Threaded Master Loop — ZenML](https://www.zenml.io/llmops-database/claude-code-agent-architecture-single-threaded-master-loop-for-autonomous-coding) — dual-buffer queue, streaming, error handling, turn limits (HIGH confidence)
+- [Devin's 2025 Performance Review — Cognition AI](https://cognition.ai/blog/devin-annual-performance-review-2025) — human-in-the-loop requirements, iterative change limitations, production learnings (HIGH confidence, official source)
+- [Cline's Plan & Act Paradigm](https://cline.bot/blog/plan-smarter-code-faster-clines-plan-act-is-the-paradigm-for-agentic-coding) — two-phase planning, table stakes for agentic coding (MEDIUM confidence)
+- [10 Things Developers Want from Agentic IDEs — RedMonk (Dec 2025)](https://redmonk.com/kholterhoff/2025/12/22/10-things-developers-want-from-their-agentic-ides-in-2025/) — background agents, checkpoints, human-in-the-loop, predictable pricing as table stakes (HIGH confidence)
+- [Lovable Agent ($100M ARR blog post)](https://lovable.dev/blog/agent) — 91% error reduction, visible task list UX, end-to-end accuracy (MEDIUM confidence)
+- [Google Jules — Autonomous Async Coding Agent](https://jules.google/) — plan-before-execute, async PR workflow, approval model (HIGH confidence, official source)
+- [Error Recovery and Fallback Strategies — GoCodeo](https://www.gocodeo.com/post/error-recovery-and-fallback-strategies-in-ai-agent-development) — error classification, retry logic, human escalation, checkpointing (MEDIUM confidence)
+- [Effective Context Engineering for AI Agents — Anthropic Engineering](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents) — compaction, note-taking, multi-agent patterns (HIGH confidence, official)
+- [Building with Extended Thinking — Anthropic API Docs](https://platform.claude.com/docs/en/build-with-claude/extended-thinking) — adaptive thinking, budget_tokens parameter, Opus vs Sonnet (HIGH confidence, official)
+- [Claude Sonnet 4.6 pricing — VentureBeat](https://venturebeat.com/technology/anthropics-sonnet-4-6-matches-flagship-ai-performance-at-one-fifth-the-cost) — $3/$15 vs $15/$75 per million tokens; Sonnet near-Opus performance (HIGH confidence)
+- [Agentic LLMs consume 20-30x tokens — AI Agent Infrastructure](https://introl.com/blog/ai-agent-infrastructure-autonomous-systems-compute-requirements-2025) — token multiplication in agentic deployments (MEDIUM confidence)
+- [E2B GitHub — Secure Agent Sandboxes](https://github.com/e2b-dev/E2B) — sandbox capabilities, 150ms spin-up, persistent sessions, file system access (HIGH confidence, official)
+- [Lovable vs Bolt vs v0 comparison — multiple sources (2025-2026)](https://betterstack.com/community/comparisons/bolt-vs-v0-vs-lovable/) — competitor UX patterns, streaming approaches, error loop problems (MEDIUM confidence)
+- [Self-healing agent patterns — 4-tier escalation](https://medium.com/@muhammad.awais.professional/ai-that-fixes-itself-inside-the-new-architectures-for-resilient-agents-9d12449da7a8) — graduated remediation, 3-retry limit, human escalation (MEDIUM confidence)
 
 ---
 
-*Feature research for: v0.6 Live Build Experience — AI Co-Founder SaaS*
-*Researched: 2026-02-23*
+*Feature research for: v0.7 Autonomous Agent — AI Co-Founder SaaS*
+*Researched: 2026-02-24*

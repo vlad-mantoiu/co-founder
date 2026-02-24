@@ -1,422 +1,398 @@
 # Stack Research
 
-**Domain:** Live build experience additions to existing AI Co-Founder SaaS (v0.6)
-**Milestone:** v0.6 Live Build Experience — three-panel build page, E2B screenshots, progressive docs, extended SSE
-**Researched:** 2026-02-23
-**Confidence:** HIGH (all critical decisions verified against official docs and existing codebase)
+**Domain:** Autonomous Claude agent with tool-use, token budgeting, and daemon execution (v0.7 milestone additions only)
+**Researched:** 2026-02-24
+**Confidence:** HIGH (Anthropic SDK — official docs + PyPI + GitHub releases), MEDIUM (E2B — official docs + PyPI), HIGH (asyncio daemon pattern — stdlib, no external verification needed)
 
 ---
 
-## Scope
+## Context: What Exists vs What Changes
 
-This document covers **only new additions and changes** for v0.6. The previous STACK.md for v0.5 (E2B lifecycle, iframe embedding, SSE, Redis Streams) remains valid — do not re-research those areas.
+The existing stack is validated and ships in production. This document covers only what v0.7 adds or removes.
 
-**Validated existing capabilities (DO NOT re-add):**
+**Remove (LangGraph replacement):**
+- `langgraph>=0.2.0`
+- `langgraph-checkpoint-postgres>=2.0.0`
+- `langchain-anthropic>=0.3.0`
+- `langchain-core>=0.3.0`
 
-| Capability | Package | Status |
-|------------|---------|--------|
-| FastAPI `StreamingResponse` SSE | `fastapi>=0.115.0` | Production — `logs.py` event_generator pattern |
-| Redis Streams (`xadd`/`xread`/`xrevrange`) | `redis>=5.2.0` | Production — `log_streamer.py`, `logs.py` |
-| E2B `AsyncSandbox` (commands, files, run_command) | `e2b-code-interpreter>=1.0.0` | Production — `e2b_runtime.py` |
-| Anthropic SDK (sync + async) | `anthropic>=0.40.0` | Production — LangGraph agent nodes |
-| `langchain-anthropic` / LangGraph | `langchain-anthropic>=0.3.0`, `langgraph>=0.2.0` | Production — agent pipeline |
-| `boto3` (sync S3, CloudWatch) | `boto3>=1.35.0` | Production — `cloudwatch.py`; S3 bucket config key exists but is not wired yet |
-| `structlog` | `structlog>=25.0.0` | Production — structured logging |
-| Tailwind CSS v4 grid utilities | `tailwindcss>=4.0.0` | Production — existing build page layout |
-| Framer Motion v12 | `framer-motion>=12.34.0` | Production — `AnimatePresence` on build page |
-| shadcn/ui components | Inline in `components/ui/` | Production — `GlassCard`, `AlertDialog`, etc. |
-| `fetch()` + `ReadableStreamDefaultReader` (SSE client) | Browser native | Production — `useBuildLogs.ts` |
-| `next/image` | Next.js 15 built-in | Available — needs CloudFront domain added to `next.config.js` |
-
----
-
-## What's New for v0.6
-
-Five capabilities are new:
-
-1. **E2B screenshot capture** — run Playwright inside the E2B sandbox to screenshot the live dev server
-2. **S3 screenshot storage + CloudFront serving** — upload PNG from backend, serve via existing CloudFront setup
-3. **Separate Claude API calls for doc generation** — single-shot Anthropic messages, not LangGraph
-4. **Extended SSE event stream** — new event types (`stage`, `snapshot`, `doc`) on the existing Redis Stream
-5. **Three-panel build page layout** — CSS Grid restructure, no new frontend packages
+**Keep (unchanged):**
+- `anthropic>=0.40.0` — already present, bump version only
+- `e2b-code-interpreter>=1.0.0` — already present, may swap or add base `e2b` package
+- All existing FastAPI, PostgreSQL, Redis, Clerk, Stripe, AWS infrastructure
+- `playwright>=1.58.0` — added in v0.6, keep for screenshot tool
+- `boto3>=1.35.0` — keep for S3 screenshot uploads from agent
 
 ---
 
 ## Recommended Stack Additions
 
-### Backend — New Python Dependencies
+### Core: Anthropic SDK (Version Bump + Drop LangChain)
 
-**Net new dependency: `playwright>=1.58.0` only.**
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| `anthropic` | `>=0.83.0` | Direct Claude API access for autonomous agentic loop — tool-use, streaming, token counting | Already in `pyproject.toml` at `>=0.40.0`. Bump to `>=0.83.0` (released 2026-02-19) to get top-level cache control, stable server-side tool runner, and `client.messages.count_tokens()`. Removes the LangChain wrapper entirely — the direct SDK gives full control over the tool-use loop with no graph abstraction overhead. |
 
-| Package | Version | Purpose | Why Needed |
-|---------|---------|---------|-----------|
-| `playwright` | `>=1.58.0` | Headless Chromium screenshot capture inside E2B sandbox | E2B `AsyncSandbox` (code-interpreter SDK) has **no built-in screenshot API** — verified against official E2B SDK reference. Visual capture requires a headless browser. Playwright is installed *inside the sandbox* at runtime via `run_command("pip install playwright && playwright install chromium --with-deps")`, not on the ECS Fargate host |
+**Why drop LangChain/LangGraph for the direct Anthropic SDK:**
 
-**Packages NOT added (already present, adequacy verified):**
+The autonomous agent loop is `while stop_reason != "end_turn"` over `client.messages.create()` with a `tools=` list. LangGraph adds value when the pipeline is a predefined graph of named nodes (Architect → Coder → Executor). An autonomous agent with dynamic tool dispatch doesn't fit a static graph — the model drives execution, not the graph. The direct SDK removes 4 dependencies, is fully typed, and the agentic loop is ~30 lines of Python.
 
-| Package | Already In pyproject.toml | Why Not Adding Separately |
-|---------|--------------------------|--------------------------|
-| `aioboto3` | No — but not needed | S3 uploads are infrequent (one PNG per build stage, ~6 times per build), not concurrent. `asyncio.get_running_loop().run_in_executor(None, boto3_put_object)` with existing sync `boto3` is 3 lines of code and zero new packages. Performance difference is negligible for this use case |
-| `anthropic` async client | `anthropic>=0.40.0` already present | `anthropic.AsyncAnthropic` is already available in the installed package — no version bump needed |
-| `sse-starlette` | Not required | The existing `StreamingResponse` + `event_generator()` pattern in `logs.py` is already in production. New event types extend the same stream with no library changes needed |
-
----
-
-### Backend — New Configuration Keys
-
-No new packages. New env vars added to `Settings` class in `config.py`:
-
-| Config Key | Type | Default | Purpose |
-|-----------|------|---------|---------|
-| `screenshots_bucket` | `str` | `""` | S3 bucket for screenshot storage. If empty, screenshot capture is skipped gracefully (non-fatal) |
-| `screenshots_cloudfront_domain` | `str` | `""` | CloudFront distribution domain serving the screenshots bucket (e.g., `d1abc.cloudfront.net`) |
-| `doc_generation_model` | `str` | `"claude-sonnet-4-20250514"` | Claude model ID for doc generation calls. Separate from architect/coder/reviewer models — intentionally cheaper |
-
----
-
-### Backend — New SSE Event Types (No New Packages or Redis Keys)
-
-The existing `job:{job_id}:logs` Redis Stream is extended with new `source` field values. The existing `event_generator()` in `logs.py` routes by `source` to emit the correct SSE `event:` type.
-
-**Existing events (unchanged):**
-
-| SSE Event | Source Value | When |
-|-----------|-------------|------|
-| `event: log` | `stdout`, `stderr`, `system` | Build command output (existing) |
-| `event: done` | — | Job reaches READY or FAILED (existing) |
-| `event: heartbeat` | — | Every 20s to prevent ALB idle timeout (existing) |
-
-**New events:**
-
-| SSE Event | Source Value in Redis | Payload Shape | When Emitted |
-|-----------|----------------------|---------------|--------------|
-| `event: stage` | `"stage"` | `{stage: string, narration: string, ts: string}` | Worker transitions job status (SCAFFOLD, CODE, DEPS, CHECKS) — written via `LogStreamer.write_event()` |
-| `event: snapshot` | `"snapshot"` | `{url: string, stage: string, ts: string}` | After Playwright screenshot uploaded to S3 and CloudFront URL generated |
-| `event: doc` | `"doc"` | `{section: string, content: string, ts: string}` | After Claude doc-generation call returns for a stage |
-
-**Implementation:** All three new event types write to the same `job:{job_id}:logs` Redis Stream via `LogStreamer.write_event(text, source="snapshot")`. The `event_generator()` in `logs.py` reads the `source` field and emits the matching SSE event type:
+**Agentic loop pattern (HIGH confidence — verified via official Anthropic docs):**
 
 ```python
-# In logs.py event_generator() — extend the existing dispatch:
-source = line.get("source", "stdout")
-event_type = {
-    "snapshot": "snapshot",
-    "doc": "doc",
-    "stage": "stage",
-}.get(source, "log")
-yield f"event: {event_type}\ndata: {json.dumps(line)}\n\n"
+async def run_agent_loop(
+    client: anthropic.AsyncAnthropic,
+    messages: list[dict],
+    tools: list[dict],
+    model: str,
+    max_iterations: int = 50,
+) -> list[dict]:
+    for _ in range(max_iterations):
+        response = await client.messages.create(
+            model=model,
+            max_tokens=8192,
+            tools=tools,
+            messages=messages,
+        )
+        messages.append({"role": "assistant", "content": response.content})
+
+        if response.stop_reason == "end_turn":
+            break
+
+        # Claude may return multiple tool_use blocks in one response (parallel tool calls)
+        tool_results = []
+        for block in response.content:
+            if block.type == "tool_use":
+                result = await dispatch_tool(block.name, block.input)
+                tool_results.append({
+                    "type": "tool_result",
+                    "tool_use_id": block.id,
+                    "content": result,
+                })
+
+        if tool_results:
+            messages.append({"role": "user", "content": tool_results})
+
+    return messages
+```
+
+**Token counting — built into SDK, free, no extra library (HIGH confidence — verified via official docs):**
+
+```python
+# Before each iteration — check budget before consuming tokens
+count = await client.messages.count_tokens(
+    model=model,
+    tools=tools,
+    messages=messages,
+)
+tokens_this_turn_estimate = count.input_tokens
+# Compare against budget.daily_remaining before proceeding
+```
+
+**Streaming to SSE activity feed:**
+
+```python
+async with client.messages.stream(
+    model=model,
+    max_tokens=8192,
+    tools=tools,
+    messages=messages,
+) as stream:
+    async for event in stream:
+        # Emit text_delta events and tool_use_delta blocks to the SSE queue
+        await sse_queue.put(serialize_event(event))
+    final = await stream.get_final_message()
+```
+
+**Tool definitions with strict mode (HIGH confidence — verified via official docs):**
+
+```python
+AGENT_TOOLS = [
+    {
+        "name": "bash",
+        "description": "Run a bash command in the E2B sandbox.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "command": {"type": "string", "description": "The bash command to run."},
+            },
+            "required": ["command"],
+        },
+    },
+    {
+        "name": "read_file",
+        "description": "Read the contents of a file in the sandbox.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "Absolute path to the file."},
+            },
+            "required": ["path"],
+        },
+    },
+    {
+        "name": "write_file",
+        "description": "Write content to a file in the sandbox, creating it if it does not exist.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "Absolute path to the file."},
+                "content": {"type": "string", "description": "Content to write."},
+            },
+            "required": ["path", "content"],
+        },
+    },
+    {
+        "name": "grep",
+        "description": "Search file contents for a pattern.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "pattern": {"type": "string"},
+                "path": {"type": "string"},
+            },
+            "required": ["pattern", "path"],
+        },
+    },
+    {
+        "name": "glob",
+        "description": "Find files matching a glob pattern.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "pattern": {"type": "string"},
+                "directory": {"type": "string"},
+            },
+            "required": ["pattern"],
+        },
+    },
+    {
+        "name": "take_screenshot",
+        "description": "Capture a screenshot of the running dev server and return a URL.",
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+        },
+    },
+]
 ```
 
 ---
 
-### Frontend — No New npm Packages
+### Tool Implementation: E2B Base Package
 
-All v0.6 frontend capabilities are covered by existing packages:
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| `e2b` | `>=2.13.0` | Implement bash, read_file, write_file, grep, glob tools — filesystem and command execution inside sandbox | The existing `pyproject.toml` has `e2b-code-interpreter>=1.0.0`, which is the high-level stateful Python REPL / Jupyter-style sandbox. The autonomous agent needs raw `sandbox.filesystem.read/write()` and `sandbox.commands.run()` directly — not the code interpreter's cell execution model. The base `e2b` package (latest: 2.13.3 released 2026-02-21) exposes the Sandbox class with Filesystem, Commands, and Pty subsystems. |
 
-| Capability | Existing Package | How to Use |
-|-----------|-----------------|------------|
-| Three-panel responsive layout | `tailwindcss>=4.0.0` | `grid grid-cols-1 lg:grid-cols-[280px_1fr_320px] h-[calc(100vh-64px)]` |
-| Panel animation / crossfade | `framer-motion>=12.34.0` | `AnimatePresence` + `motion.div` — already on build page |
-| Extended SSE event parsing | Browser native `ReadableStreamDefaultReader` | Extend `useBuildLogs.ts` with `source === "snapshot"` and `source === "doc"` branches |
-| Screenshot display | `next/image` (Next.js 15 built-in) | `<Image>` for CloudFront-served screenshots. Add CloudFront domain to `next.config.js` |
-| Reassurance timing (2min/5min) | Browser native `Date.now()` / `useRef` | Track build start time in `useBuildProgress.ts`, return elapsed seconds |
-| Completion state (launch button, download docs) | `lucide-react>=0.400.0` (existing), `sonner>=2.0.7` (existing) | Existing icon set and toast library |
+**E2B tool dispatch mapping (MEDIUM confidence — verified via e2b.dev/docs):**
 
-**One config change required (not a dependency):**
+```python
+from e2b import AsyncSandbox
 
-```javascript
-// frontend/next.config.js — add CloudFront domain for next/image
-images: {
-  remotePatterns: [
-    { hostname: "d1abc.cloudfront.net" }  // replace with actual domain
-  ]
+async def dispatch_tool(sandbox: AsyncSandbox, name: str, inputs: dict) -> str:
+    match name:
+        case "bash":
+            result = await sandbox.commands.run(inputs["command"], timeout=60)
+            return f"stdout: {result.stdout}\nstderr: {result.stderr}"
+
+        case "read_file":
+            content = await sandbox.filesystem.read(inputs["path"])
+            return content
+
+        case "write_file":
+            await sandbox.filesystem.write(inputs["path"], inputs["content"])
+            return f"Written: {inputs['path']}"
+
+        case "grep":
+            result = await sandbox.commands.run(
+                f"grep -r {shlex.quote(inputs['pattern'])} {shlex.quote(inputs['path'])}"
+            )
+            return result.stdout or "(no matches)"
+
+        case "glob":
+            directory = inputs.get("directory", "/home/user/project")
+            result = await sandbox.commands.run(
+                f"find {shlex.quote(directory)} -name {shlex.quote(inputs['pattern'])} -type f"
+            )
+            return result.stdout or "(no matches)"
+
+        case "take_screenshot":
+            # Reuse existing Playwright-in-sandbox pattern from v0.6
+            return await capture_screenshot_and_upload(sandbox)
+
+        case _:
+            return f"Unknown tool: {name}"
+```
+
+**Key E2B API methods (MEDIUM confidence — e2b.dev/docs/sdk-reference):**
+
+| Method | What it does |
+|--------|-------------|
+| `sandbox.filesystem.read(path)` | Read file content as string |
+| `sandbox.filesystem.write(path, content)` | Write string content to file |
+| `sandbox.filesystem.list(path)` | List directory contents |
+| `sandbox.filesystem.exists(path)` | Check file/directory existence |
+| `sandbox.commands.run(cmd, timeout=60)` | Execute bash command, returns `result.stdout` / `result.stderr` |
+| `sandbox.commands.kill(pid)` | Terminate a running process |
+
+**Package decision — keep both or swap:**
+- Keep `e2b-code-interpreter>=1.0.0` if anything in the existing codebase calls its REPL API (check `app/sandbox/e2b_runtime.py`)
+- Add `e2b>=2.13.0` for the new agent tool implementations
+- Both packages can coexist — different namespaces (`e2b` vs `e2b_code_interpreter`)
+- After v0.7 ships and old code is removed, audit and drop `e2b-code-interpreter` if unused
+
+---
+
+### Daemon Execution: No New Library — Use asyncio
+
+The sleep/wake daemon model requires no external library. It is a long-lived `asyncio.Task` that checks token budget and calls `asyncio.sleep()` when the daily allocation is exhausted.
+
+**Why not APScheduler, Celery, or RQ:**
+
+| Option | Why rejected |
+|--------|-------------|
+| APScheduler | Designed for recurring cron-style jobs at fixed intervals. The daemon is a per-session coroutine with dynamic sleep duration computed from budget state. APScheduler adds configuration, persistence layer, and process management for a pattern that stdlib handles in 10 lines. |
+| Celery | Distributed task queue requiring a separate worker process and broker configuration. The daemon is in-process, shares the FastAPI app's database connections, and is already backed by Redis for state. Celery adds a full process architecture for zero benefit. |
+| RQ (Redis Queue) | Same objection as Celery — external worker process. The daemon's "sleep" is not a deferred task, it's a sleeping coroutine that wakes on a timer. |
+
+**Daemon pattern (HIGH confidence — FastAPI + asyncio stdlib):**
+
+```python
+# Launch from a FastAPI route or startup event
+async def agent_daemon(project_id: str, user_id: str, sandbox: AsyncSandbox) -> None:
+    """Persistent agent daemon: runs iterations, sleeps when budget exhausted."""
+    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+    messages = await load_conversation_history(project_id)
+
+    while True:
+        # Check daily token budget before each iteration
+        budget = await get_token_budget(user_id)
+        if budget.daily_tokens_remaining <= 0:
+            # Sleep until next reset (midnight UTC)
+            await update_agent_status(project_id, "sleeping")
+            await asyncio.sleep(budget.seconds_until_reset)
+            continue
+
+        # Estimate tokens for this iteration before consuming them
+        token_estimate = await client.messages.count_tokens(
+            model=resolve_model(user_id),
+            tools=AGENT_TOOLS,
+            messages=messages,
+        )
+        if token_estimate.input_tokens > budget.daily_tokens_remaining:
+            await update_agent_status(project_id, "sleeping")
+            await asyncio.sleep(budget.seconds_until_reset)
+            continue
+
+        # Run one agent iteration
+        await update_agent_status(project_id, "active")
+        result = await run_agent_iteration(client, sandbox, messages, user_id)
+        messages = result.messages
+
+        if result.done or result.needs_founder_input:
+            await update_agent_status(project_id, "waiting" if result.needs_founder_input else "done")
+            break
+
+        # Pace between iterations — avoid bursts, give SSE events time to flush
+        await asyncio.sleep(2)
+
+
+# Register task in FastAPI lifespan or route
+@router.post("/agent/{project_id}/start")
+async def start_agent(project_id: str, background_tasks: BackgroundTasks, ...):
+    sandbox = await get_or_create_sandbox(project_id)
+    background_tasks.add_task(agent_daemon, project_id, user_id, sandbox)
+    return {"status": "started"}
+```
+
+**For tasks that must survive longer than the request lifetime**, register in the app's lifespan and store the `asyncio.Task` in a process-level registry keyed by project_id. This allows the route to check if a daemon is already running before starting a duplicate.
+
+---
+
+## Token Budget Integration with Existing Infrastructure
+
+The existing `app/queue/usage.py` `UsageTracker` tracks job counts against daily limits. The v0.7 token budget extends this pattern — track token counts in the same Redis key space.
+
+**Extend `UsageTracker` — add token budget methods:**
+
+```python
+# New methods to add to UsageTracker
+
+async def increment_token_usage(self, user_id: str, tokens: int) -> int:
+    """Increment daily token counter. Returns new total."""
+    today = datetime.now(UTC).date().isoformat()
+    key = f"cofounder:usage:{user_id}:{today}"
+    new_total = await self.redis.incrby(key, tokens)
+    await self.redis.expire(key, 90_000)  # 25h TTL
+    return new_total
+
+async def get_token_budget(self, user_id: str, tier: str) -> TokenBudget:
+    """Return remaining daily token budget and seconds until reset."""
+    today = datetime.now(UTC).date().isoformat()
+    key = f"cofounder:usage:{user_id}:{today}"
+    used = int(await self.redis.get(key) or 0)
+    daily_limit = TIER_DAILY_TOKEN_LIMIT[tier]  # Add to schemas.py
+    remaining = max(0, daily_limit - used)
+    reset_at = self._get_next_reset()
+    seconds_until_reset = int((reset_at - datetime.now(UTC)).total_seconds())
+    return TokenBudget(
+        daily_tokens_used=used,
+        daily_tokens_remaining=remaining,
+        seconds_until_reset=seconds_until_reset,
+    )
+```
+
+**The existing `resolve_llm_config()` and `_check_daily_token_limit()` in `llm_config.py` already tracks tokens in `cofounder:usage:{user_id}:{today}`. The daemon reads this key — no duplicate tracking.**
+
+---
+
+## Model Configuration Per Subscription Tier
+
+The existing `resolve_llm_config()` in `app/core/llm_config.py` resolves model per user+role from plan tier. For v0.7, add a single "agent" role:
+
+```python
+# In MODEL_COSTS — add new model IDs if not present
+MODEL_COSTS: dict[str, dict[str, int]] = {
+    "claude-opus-4-6": {"input": 15_000_000, "output": 75_000_000},
+    "claude-sonnet-4-6": {"input": 3_000_000, "output": 15_000_000},
 }
+
+# Tier mapping in plan seed data or PlanTier.default_models:
+# bootstrapper: {"agent": "claude-sonnet-4-6"}  # cost-efficient
+# partner:      {"agent": "claude-sonnet-4-6"}  # balanced
+# cto_scale:    {"agent": "claude-opus-4-6"}    # highest quality
 ```
 
 ---
 
-## Complete Dependency Delta
-
-### pyproject.toml
+## Complete Dependency Delta for pyproject.toml
 
 ```toml
-# ADD to [project] dependencies:
-"playwright>=1.58.0",
+# REMOVE (LangGraph pipeline replaced by direct Anthropic SDK):
+# "langgraph>=0.2.0",
+# "langgraph-checkpoint-postgres>=2.0.0",
+# "langchain-anthropic>=0.3.0",
+# "langchain-core>=0.3.0",
 
-# EXISTING — no changes needed:
-# "e2b-code-interpreter>=1.0.0",   # AsyncSandbox — already there
-# "anthropic>=0.40.0",              # AsyncAnthropic for doc gen — already there
-# "boto3>=1.35.0",                  # S3 upload via run_in_executor — already there
-# "redis>=5.2.0",                   # Redis Streams for new event types — already there
-# "fastapi>=0.115.0",               # StreamingResponse SSE — already there
-# "structlog>=25.0.0",              # Logging — already there
+# BUMP (already present — version upgrade only):
+# "anthropic>=0.40.0"  →  "anthropic>=0.83.0",
+
+# ADD (base E2B package for raw filesystem + command tools):
+# "e2b>=2.13.0",
+
+# AUDIT THEN DECIDE (keep if existing sandbox code uses it, remove after v0.7 migration):
+# "e2b-code-interpreter>=1.0.0",
+
+# KEEP UNCHANGED:
+# "fastapi>=0.115.0",
+# "redis>=5.2.0",
+# "pydantic>=2.10.0",
+# "playwright>=1.58.0",
+# "boto3>=1.35.0",
+# "structlog>=25.0.0",
+# ... all other existing deps
 ```
-
-### frontend/package.json
-
-```json
-// NO CHANGES — all capabilities covered by existing packages
-```
-
----
-
-## Integration Points
-
-### 1. E2B Screenshot Capture
-
-**Pattern:** Install Playwright inside the E2B sandbox via `run_command()`, then execute a Python screenshot script that captures the running dev server URL and writes the PNG to the sandbox filesystem. Read the bytes back with `files.read()`.
-
-```python
-# Step 1: Install Playwright inside sandbox (once per build session, after npm install)
-await runtime.run_command(
-    "pip install playwright==1.58.0 && playwright install chromium --with-deps",
-    timeout=120,
-    cwd="/home/user",
-)
-
-# Step 2: Screenshot script injected as a Python one-liner
-screenshot_script = (
-    "import asyncio; from playwright.async_api import async_playwright; "
-    "async def s(): "
-    "  async with async_playwright() as p: "
-    "    b = await p.chromium.launch(args=['--no-sandbox','--disable-dev-shm-usage']); "
-    "    pg = await b.new_page(); "
-    "    await pg.goto('http://localhost:3000', wait_until='networkidle', timeout=30000); "
-    "    await pg.screenshot(path='/home/user/screenshot.png', full_page=False); "
-    "    await b.close(); "
-    "asyncio.run(s())"
-)
-await runtime.run_command(f"python3 -c \"{screenshot_script}\"", timeout=30)
-
-# Step 3: Read PNG bytes back from sandbox
-png_bytes_str = await runtime.read_file("/home/user/screenshot.png")
-# read_file returns str — but for binary we need bytes via files.read() directly
-# Use sandbox._sandbox.files.read("/home/user/screenshot.png") to get bytes
-```
-
-**Why this approach:**
-- E2B `AsyncSandbox` (code-interpreter SDK) has no visual capture methods — confirmed against SDK reference at `e2b.dev/docs/sdk-reference/python-sdk/v2.2.4/sandbox_async` and `e2b.dev/docs/sdk-reference/code-interpreter-python-sdk/v1.0.1/sandbox`
-- E2B sandboxes run Ubuntu Linux, which supports headless Chromium without a display server. `--no-sandbox --disable-dev-shm-usage` flags are required in containerized Linux environments
-- Playwright 1.58.0 (released Jan 30, 2026) supports Ubuntu 22.04/24.04 on x86-64, matching E2B's base image
-- The sandbox already has the dev server running at port 3000 (or 5173 for Vite) — the screenshot URL targets localhost inside the sandbox, not the public E2B URL
-
-**Why not E2B Desktop sandbox:** Requires a different E2B template (`e2b-desktop` package), different billing tier, and different API. Current production `AsyncSandbox` is kept. The founder only needs a PNG of the web app — not interactive computer use. Desktop sandbox adds ~$0.10/min overhead.
-
-**Why not Puppeteer (Node.js):** Both Playwright and Puppeteer work in E2B's Linux sandbox. Python chosen because the screenshot script is injected as a Python string from the Python backend. Eliminates Node.js version management inside the sandbox.
-
----
-
-### 2. S3 Screenshot Storage + CloudFront Serving
-
-**Pattern:** Upload PNG bytes with sync `boto3` wrapped in `asyncio.run_in_executor()`. Return a CloudFront URL for the SSE `snapshot` event payload.
-
-```python
-import asyncio
-import boto3
-from app.core.config import get_settings
-
-async def upload_screenshot_to_s3(
-    png_bytes: bytes,
-    job_id: str,
-    stage: str,
-) -> str | None:
-    """Upload screenshot PNG to S3. Returns CloudFront URL, or None if bucket not configured."""
-    settings = get_settings()
-    if not settings.screenshots_bucket:
-        return None  # Non-fatal — screenshot feature disabled if bucket not configured
-
-    key = f"screenshots/{job_id}/{stage}.png"
-    loop = asyncio.get_running_loop()
-
-    def _put() -> None:
-        s3 = boto3.client("s3", region_name="us-east-1")
-        s3.put_object(
-            Bucket=settings.screenshots_bucket,
-            Key=key,
-            Body=png_bytes,
-            ContentType="image/png",
-            CacheControl="public, max-age=31536000, immutable",
-        )
-
-    await loop.run_in_executor(None, _put)
-    return f"https://{settings.screenshots_cloudfront_domain}/{key}"
-```
-
-**S3 + CloudFront setup:**
-- New S3 bucket (or `screenshots/` prefix in existing bucket) with private access
-- CloudFront distribution with OAC pointing to the bucket — same pattern as existing marketing site images
-- Screenshots are immutable once taken — `CacheControl: immutable` with 1-year TTL
-- No CloudFront signed URLs needed: screenshots show the founder's own app, not sensitive secrets. Obscurity via job_id path prefix is sufficient
-
-**Why `run_in_executor` not `aioboto3`:**
-- Upload frequency: 6 screenshots per build, non-concurrent
-- `run_in_executor` is idiomatic for occasional sync IO in async Python
-- Zero new dependencies vs. `aioboto3` which has a different session management API and would need `aioboto3>=13.3.0` + `types-aioboto3` for type hints
-
----
-
-### 3. Separate Claude API Calls for Documentation Generation
-
-**Pattern:** Direct `anthropic.AsyncAnthropic` call (not LangGraph) from within the generation worker, after each successful build stage. Model is Sonnet (cheaper than Opus used by Architect/Reviewer).
-
-```python
-import anthropic
-from app.core.config import get_settings
-
-async def generate_stage_documentation(
-    stage: str,
-    build_summary: str,
-    project_description: str,
-) -> str:
-    """Generate plain-English founder documentation for a build stage."""
-    settings = get_settings()
-    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
-
-    message = await client.messages.create(
-        model=settings.doc_generation_model,  # "claude-sonnet-4-20250514"
-        max_tokens=600,
-        messages=[{
-            "role": "user",
-            "content": (
-                f"You are building '{project_description}'. "
-                f"You just completed the '{stage}' stage. "
-                f"Write 2-3 sentences for the non-technical founder explaining what was just built. "
-                f"Be calm, specific, and jargon-free. No raw code, no error messages. "
-                f"Technical context: {build_summary[:500]}"
-            ),
-        }],
-    )
-    return message.content[0].text
-```
-
-**Why direct Anthropic SDK, not LangGraph:**
-- LangGraph is for multi-step agent orchestration with tool use, memory, and graph traversal
-- Doc generation is a single-shot stateless call — one prompt in, one response out
-- LangGraph would add ~200ms graph initialization overhead, checkpointing, and retry complexity for what is fundamentally `client.messages.create()`
-- The `anthropic.AsyncAnthropic` client is already available in `anthropic>=0.40.0` — no new import paths
-
-**Model choice:** `claude-sonnet-4-20250514` — same as Coder/Debugger. Sonnet is ~5x cheaper than Opus and adequate for this structured, short-form generation task. Architect/Reviewer use Opus because those tasks require deeper reasoning about architecture and code quality.
-
-**Token budget:** 600 max tokens = 2-3 sentences for the founder. Strict limit prevents verbose output that would overflow the right panel.
-
----
-
-### 4. Extended SSE Stream — Frontend Integration
-
-**Current `useBuildLogs.ts` handles:** `event: log`, `event: done`, `event: heartbeat`.
-
-**New branches to add:**
-
-```typescript
-// In useBuildLogs.ts connectSSE() — add after the existing "log" event handler:
-
-if (eventType === "snapshot") {
-  let snapshotData: { url: string; stage: string; ts: string };
-  try {
-    snapshotData = JSON.parse(dataStr);
-  } catch {
-    continue;
-  }
-  setState((s) => ({ ...s, latestSnapshot: snapshotData.url, snapshotStage: snapshotData.stage }));
-}
-
-if (eventType === "doc") {
-  let docData: { section: string; content: string; ts: string };
-  try {
-    docData = JSON.parse(dataStr);
-  } catch {
-    continue;
-  }
-  setState((s) => ({
-    ...s,
-    docSections: [...s.docSections, { section: docData.section, content: docData.content }],
-  }));
-}
-
-if (eventType === "stage") {
-  let stageData: { stage: string; narration: string; ts: string };
-  try {
-    stageData = JSON.parse(dataStr);
-  } catch {
-    continue;
-  }
-  setState((s) => ({ ...s, currentStageNarration: stageData.narration }));
-}
-```
-
-**New state fields added to `BuildLogsState`:**
-
-```typescript
-interface BuildLogsState {
-  // Existing fields — unchanged:
-  lines: LogLine[];
-  isConnected: boolean;
-  isDone: boolean;
-  doneStatus: "ready" | "failed" | null;
-  hasEarlierLines: boolean;
-  oldestId: string | null;
-  autoFixAttempt: number | null;
-
-  // New fields for v0.6:
-  latestSnapshot: string | null;       // CloudFront URL of latest E2B screenshot
-  snapshotStage: string | null;        // Which build stage the snapshot is from
-  docSections: DocSection[];           // Progressive documentation sections
-  currentStageNarration: string | null; // Human-readable current stage narration
-}
-```
-
----
-
-### 5. Three-Panel Build Page Layout
-
-**Pattern:** CSS Grid with Tailwind v4 utility classes. Fixed-width side panels with fluid center.
-
-```tsx
-// frontend/src/app/(dashboard)/projects/[id]/build/page.tsx
-// Replace current narrow max-w-xl centered layout with three-panel layout
-
-{/* Three-panel — collapses to single column on < lg screens */}
-<div className="grid grid-cols-1 lg:grid-cols-[280px_1fr_320px] h-[calc(100vh-64px)] overflow-hidden">
-
-  {/* Left panel: Activity feed (human-readable narration + sanitized log lines) */}
-  <aside className="border-r border-white/[0.06] overflow-y-auto p-4 hidden lg:block">
-    <ActivityFeed
-      lines={logLines}
-      narration={currentStageNarration}
-      autoFixAttempt={autoFixAttempt}
-    />
-  </aside>
-
-  {/* Center panel: Live E2B screenshot */}
-  <main className="overflow-hidden flex flex-col min-h-0">
-    <SnapshotViewer
-      snapshotUrl={latestSnapshot}
-      stage={snapshotStage}
-      isBuilding={isBuilding}
-    />
-    {/* Mobile: show progress bar below snapshot */}
-    <div className="lg:hidden px-4 pb-4">
-      <BuildProgressBar stageIndex={stageIndex} totalStages={totalStages} label={label} />
-    </div>
-  </main>
-
-  {/* Right panel: Auto-generated documentation */}
-  <aside className="border-l border-white/[0.06] overflow-y-auto p-4 hidden lg:block">
-    <DocPanel sections={docSections} isBuilding={isBuilding} />
-  </aside>
-
-</div>
-```
-
-**Responsive behavior:**
-- Desktop (`>= lg`, 1024px): All three panels visible
-- Mobile (`< lg`): Single column, left/right panels hidden with `hidden lg:block`
-- The center snapshot panel is always visible (the primary visual element)
-
-**Column widths rationale:**
-- Left (280px): Enough for log line text at 12-13px, fits ~40 characters per line
-- Center (1fr): Fluid, takes remaining space for the screenshot preview
-- Right (320px): Enough for 2-3 sentence doc sections with comfortable reading width
 
 ---
 
@@ -424,84 +400,54 @@ interface BuildLogsState {
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| `aioboto3` | S3 uploads are infrequent and non-concurrent — `run_in_executor` is sufficient | `asyncio.run_in_executor(None, boto3_put_object)` with existing `boto3` |
-| `e2b-desktop` package | Requires different E2B template, different billing — overkill for PNG screenshot | `playwright` installed inside existing `AsyncSandbox` via `run_command` |
-| `sse-starlette` | Redundant — existing `StreamingResponse` + `event_generator()` in `logs.py` is already in production | Extend existing `event_generator()` dispatch by `source` field |
-| `react-query` / `swr` | Heavy state management for data already flowing via SSE hooks | Extend existing `useBuildLogs.ts` with new state slices |
-| WebSockets | ALB 15s idle kill applies to WebSockets too; existing fetch-based SSE with heartbeats already works | Extend existing fetch() + ReadableStreamDefaultReader SSE pattern |
-| `puppeteer` / Node.js screenshot in sandbox | Cross-runtime complexity (Python backend + Node.js subprocess in sandbox) | `playwright` Python SDK (same runtime as backend) |
-| `sharp` or image processing libraries | Screenshots are raw PNG — no resizing or optimization needed before S3 upload | `boto3.put_object(Body=png_bytes, ContentType="image/png")` directly |
-| `react-resizable-panels` | Three-panel layout is fixed-width, not user-resizable — no drag handles needed | Tailwind v4 `grid-cols-[280px_1fr_320px]` |
-| CloudFront signed URLs for screenshots | Screenshots show the founder's own app, not secrets. Extra complexity with key pair management not justified | Public CloudFront URLs with `screenshots/{job_id}/` key prefix for obscurity |
-
----
-
-## Installation
-
-### Backend
-
-```bash
-# From /backend directory — add playwright to pyproject.toml then:
-pip install playwright>=1.58.0
-
-# IMPORTANT: Playwright browser binaries are NOT installed on the ECS Fargate host.
-# They are installed INSIDE each E2B sandbox at runtime via run_command:
-#   "pip install playwright==1.58.0 && playwright install chromium --with-deps"
-# This runs in the sandbox (Ubuntu Linux), not on the host.
-# The host only needs the playwright Python package for import resolution.
-```
-
-### Frontend
-
-```bash
-# No new packages. Config change only:
-# 1. Add CloudFront domain to next.config.js images.remotePatterns
-# 2. No other changes to package.json
-```
+| `langgraph`, `langchain-anthropic`, `langchain-core` | Adds graph abstraction between the autonomous loop and Claude's API. The agent's control flow comes from Claude's `stop_reason`, not a predefined graph. Removes 4 packages. | Direct `anthropic>=0.83.0` SDK |
+| `tiktoken` | OpenAI's tokenizer. Wrong library for Claude token counting. | `client.messages.count_tokens()` — built into Anthropic SDK, free, authoritative for Claude models |
+| `apscheduler` | Cron-style recurring job scheduler. The daemon is a per-session coroutine with dynamic sleep, not a recurring job at fixed intervals. | `asyncio.sleep()` inside `BackgroundTasks` or `asyncio.create_task()` |
+| `celery` | Distributed task queue requiring external worker process. Overkill for a single in-process async coroutine. | `asyncio.create_task()` — same event loop as FastAPI |
+| `rq` | Same objection as Celery. Redis Queue is for durable deferred tasks across processes, not in-process coroutines. | `asyncio.create_task()` |
+| `mem0ai` | Present in `pyproject.toml`. The autonomous agent manages context via the conversation `messages[]` array passed directly to Claude. The v0.7 agent doesn't need a separate memory layer — audit and remove if nothing calls mem0. | Conversation history in `messages[]` + existing `episodic.py` if needed |
+| MCP framework libraries | MCP is the right architecture for tools shared across multiple AI clients or hosted externally. The agent's tools are internal, co-located with FastAPI, and call E2B directly. | Custom tool functions dispatched in the agent loop |
+| `anthropic-tools` or similar wrappers | Non-official library. The Anthropic SDK's tool-use protocol is simple enough to implement directly with dicts. No wrapper needed. | Direct `client.messages.create(tools=[...])` |
 
 ---
 
 ## Alternatives Considered
 
-| Recommended | Alternative | Why Not |
-|-------------|-------------|---------|
-| Playwright (Python) in E2B sandbox via `run_command` | E2B Desktop sandbox (`e2b-desktop`) | Desktop needs a different E2B template (Xfce desktop), different Python package, different API, and significantly higher compute cost. Current `AsyncSandbox` is already in production |
-| `boto3` + `run_in_executor` | `aioboto3` | Avoids new dependency. 6 screenshots per build, non-concurrent. `run_in_executor` is idiomatic for occasional sync IO |
-| Direct `anthropic.AsyncAnthropic` for doc gen | LangGraph subgraph | Doc gen is a single-shot call with no tool use, memory, or graph traversal. LangGraph adds 200ms initialization overhead and checkpointing for zero benefit |
-| Extend existing Redis Stream with new `source` values | Second Redis Stream (`job:{job_id}:events`) | Single stream preserves ordering between log lines and snapshot events. Frontend already connects to one SSE stream. Two streams = two SSE connections = doubled ALB connections |
-| Tailwind v4 CSS Grid (existing) | `react-resizable-panels` | Layout is fixed — no drag handles needed. Tailwind grid is zero-dependency |
-| `next/image` (existing Next.js built-in) | Third-party image component | `next/image` already in use, handles lazy loading and `remotePatterns` allowlisting |
+| Recommended | Alternative | When to Use Alternative |
+|-------------|-------------|-------------------------|
+| Direct `anthropic` SDK agentic loop | LangGraph with Anthropic nodes | Use LangGraph when the pipeline is a fixed, predefined multi-node graph with human-in-the-loop checkpoints, persistent state across process restarts, and branching logic that doesn't come from the model itself. Not appropriate for an autonomous loop where Claude drives control flow. |
+| `e2b` base package | `e2b-code-interpreter` | Use `e2b-code-interpreter` when you need a stateful Jupyter-style Python REPL with variable persistence across executions. The agent's tool surface needs raw bash and file I/O, not a REPL session. |
+| `asyncio.sleep()` daemon | APScheduler | Use APScheduler when running recurring jobs on fixed cron schedules across multiple server instances with a shared job store. Not appropriate for a per-session coroutine with dynamic sleep duration. |
+| `client.messages.count_tokens()` | Heuristic estimation (tokens ~= chars / 4) | Use heuristic estimation only when you cannot make an API call (offline or latency-sensitive). The Anthropic token counting API is free and synchronous — use it for accurate pre-flight budget checks. |
+| Single `messages[]` array as context | Separate vector DB / RAG for agent memory | Use vector DB when the agent operates across multiple disconnected sessions with a large external knowledge base. The v0.7 agent operates within a single project session — the conversation history is the context, kept in Redis or PostgreSQL between daemon wake cycles. |
 
 ---
 
 ## Version Compatibility
 
-| Package | Version Constraint | Python / Node | Notes |
-|---------|-------------------|---------------|-------|
-| `playwright` (host) | `>=1.58.0` | Python 3.12 | Installed on ECS Fargate host for Python imports only |
-| `playwright` (sandbox) | `==1.58.0` pin | Ubuntu 22.04/24.04 x86-64 | Installed inside E2B sandbox at runtime via `pip install`; pin exact version for determinism |
-| `anthropic` | `>=0.40.0` (existing) | Python 3.12 | `AsyncAnthropic` already available in installed version |
-| `boto3` | `>=1.35.0` (existing) | Python 3.12 | `put_object` used for screenshot upload |
-| `tailwindcss` | `>=4.0.0` (existing) | Node.js 22 | `grid-cols-[...]` arbitrary value syntax supported in v4 |
+| Package | Version | Compatible With | Notes |
+|---------|---------|-----------------|-------|
+| `anthropic>=0.83.0` | 0.83.0 (2026-02-19) | Python 3.9+, FastAPI 0.115+ | Drops LangChain dependency chain entirely. No conflicts with remaining packages. |
+| `e2b>=2.13.0` | 2.13.3 (2026-02-21) | Python 3.10+, asyncio | Project requires Python 3.12 — no constraint issues. `e2b` and `e2b-code-interpreter` coexist in different namespaces. |
+| `asyncio` (stdlib) | Python 3.12 stdlib | FastAPI 0.115+, uvicorn 0.32+ | `asyncio.create_task()` and `BackgroundTasks` are the FastAPI-blessed patterns for in-process daemon tasks. No compatibility concerns. |
 
 ---
 
 ## Sources
 
-- E2B Python SDK reference v2.2.4 (`e2b.dev/docs/sdk-reference/python-sdk/v2.2.4/sandbox_async`) — `AsyncSandbox` has no screenshot methods — **HIGH confidence** (official docs)
-- E2B Code Interpreter Python SDK reference v1.0.1 (`e2b.dev/docs/sdk-reference/code-interpreter-python-sdk/v1.0.1/sandbox`) — confirmed no screenshot API in code-interpreter sandbox — **HIGH confidence** (official docs)
-- Playwright Python PyPI — v1.58.0 released Jan 30, 2026; Ubuntu 22.04/24.04 x86-64 supported — **HIGH confidence** (PyPI)
-- Playwright Python docs (`playwright.dev/python/docs/intro`) — headless Chromium supported on Linux — **HIGH confidence** (official docs)
-- `playwright.dev/python/docs/release-notes` — v1.58.0 is latest as of research date — **HIGH confidence** (official changelog)
-- Existing `backend/app/api/routes/logs.py` — SSE pattern with named events (`log`, `done`, `heartbeat`) in production — **HIGH confidence** (code review)
-- Existing `backend/app/sandbox/e2b_runtime.py` — `run_command` available for arbitrary shell execution in sandbox; `files.read()` returns str/bytes — **HIGH confidence** (code review)
-- Existing `backend/pyproject.toml` — `boto3>=1.35.0`, `anthropic>=0.40.0` confirmed present — **HIGH confidence** (code review)
-- Existing `frontend/package.json` — Tailwind v4, Framer Motion v12, Next.js 15 confirmed; `next/image` available — **HIGH confidence** (code review)
-- Existing `frontend/src/hooks/useBuildLogs.ts` — SSE client handles named events; state extension pattern clear — **HIGH confidence** (code review)
-- aioboto3 PyPI — v13.3.0 available; rejected for this use case — **MEDIUM confidence** (PyPI, not verified against changelog)
+- [Anthropic Python SDK — PyPI](https://pypi.org/project/anthropic/) — latest version 0.83.0 confirmed (released 2026-02-19) — **HIGH confidence**
+- [Anthropic SDK GitHub — Release History](https://github.com/anthropics/anthropic-sdk-python/releases) — v0.83.0 top-level cache control, v0.81.0 tool versions, v0.79.0 `count_tokens()` speed param — **HIGH confidence**
+- [Anthropic Tool Use — Official Docs](https://platform.claude.com/docs/en/docs/build-with-claude/tool-use/overview) — `stop_reason: tool_use`, `tool_result` protocol, parallel tool calls, tool pricing — **HIGH confidence** (official docs, fetched directly)
+- [E2B Documentation — e2b.dev/docs](https://e2b.dev/docs) — `sandbox.commands.run()` confirmed as primary bash execution method — **MEDIUM confidence** (official docs, some details indirect)
+- [E2B SDK Reference Python v1.0.4](https://e2b.dev/docs/sdk-reference/python-sdk/v1.0.4/sandbox_sync) — `filesystem.read/write/list/exists`, `commands.run/kill/list`, `Pty.create` — **MEDIUM confidence** (official docs)
+- [E2B PyPI](https://pypi.org/project/e2b/) — latest version 2.13.3 (released 2026-02-21) — **MEDIUM confidence** (PyPI, JS-disabled page returned error, version sourced from web search)
+- [FastAPI Background Tasks](https://fastapi.tiangolo.com/tutorial/background-tasks/) — `BackgroundTasks` + `asyncio.create_task()` daemon pattern — **HIGH confidence** (official FastAPI docs)
+- Existing `backend/app/core/llm_config.py` — token tracking in `cofounder:usage:{user_id}:{today}` Redis key — **HIGH confidence** (code review)
+- Existing `backend/app/queue/usage.py` — `UsageTracker` pattern for extension — **HIGH confidence** (code review)
+- Existing `backend/pyproject.toml` — confirmed current dependency versions and what to remove — **HIGH confidence** (code review)
 
 ---
 
-*Stack research for: v0.6 Live Build Experience — screenshot capture, S3 storage, progressive docs, extended SSE, three-panel layout*
-*Researched: 2026-02-23*
-*Supersedes: v0.5 STACK.md entries for E2B lifecycle, iframe, and SSE — those remain valid*
+*Stack research for: v0.7 Autonomous Claude Agent — direct SDK, E2B tool surface, asyncio daemon model*
+*Researched: 2026-02-24*
+*Supersedes: v0.6 STACK.md entries only for Anthropic SDK usage pattern and LangGraph dependencies — all v0.6 E2B/SSE/S3/Playwright entries remain valid*

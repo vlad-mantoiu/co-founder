@@ -1,315 +1,302 @@
 # Pitfalls Research
 
-**Domain:** Live Build Experience — E2B screenshot capture, S3 uploads from async worker, LLM doc generation during builds, multiple SSE event types, three-panel responsive layout — added to existing FastAPI + Next.js + LangGraph SaaS on ECS Fargate
-**Researched:** 2026-02-23
-**Confidence:** HIGH — verified against E2B SDK source, existing codebase (`backend/app/sandbox/e2b_runtime.py`, `backend/app/services/generation_service.py`, `backend/app/api/routes/logs.py`, `frontend/src/hooks/useBuildLogs.ts`), AWS documentation, FastAPI community, and web research.
+**Domain:** Autonomous Agent — replacing LangGraph with a direct Anthropic tool-use agentic loop, Claude Code-style tools in E2B, token budget pacing, sleep/wake daemon, SSE streaming, self-healing errors — added to existing FastAPI + Redis + PostgreSQL + E2B + Clerk + Stripe SaaS on ECS Fargate
+**Researched:** 2026-02-24
+**Confidence:** HIGH — verified against Anthropic official documentation, E2B GitHub issues, existing codebase (`backend/app/sandbox/e2b_runtime.py`, `backend/app/agent/`, `backend/app/queue/`, `backend/app/api/routes/agent.py`, `backend/app/core/llm_config.py`), AWS ALB documentation, and community sources.
 
-> **Scope:** This is a milestone-specific research file for v0.6 Live Build Experience. It covers integration pitfalls for ADDING (1) E2B screenshot capture mid-build, (2) S3 uploads from the async worker, (3) LLM doc generation calls during builds, (4) multiple SSE event types on the existing log stream, and (5) a three-panel build page layout — all onto the existing running system. Known constraints are documented in the codebase: ALB kills native EventSource at 15s (the system already uses `fetch + ReadableStreamDefaultReader`), E2B Hobby plan raises on pause (wrapped in try/except), E2B self-signed certs (`httpx verify=False`), port 3000 for dev servers.
+> **Scope:** This is milestone-specific research for v0.7 Autonomous Agent. It covers pitfalls for REPLACING LangGraph with a direct Anthropic tool-use agentic loop and ADDING: (1) Claude Code-style tools in E2B sandbox, (2) token budget pacing with sleep/wake daemon model, (3) SSE streaming of tool-level agent activity, (4) self-healing error model with 3 retries then escalate, (5) configurable model per subscription tier. Known existing constraints: E2B Hobby plan beta_pause limitation (already wrapped in try/except), ALB idle timeout (existing SSE uses heartbeat), token usage tracking already in `llm_config.py`. LangGraph node files and NarrationService/DocGenerationService will be REMOVED.
 
 ---
 
 ## Critical Pitfalls
 
-### Pitfall 1: Screenshot Timing — Capturing Before the Dev Server's First Paint Completes
+### Pitfall 1: Context Window Bloat — Tool Results Accumulate and Exhaust 200K Tokens Mid-Task
 
 **What goes wrong:**
-Screenshots taken immediately after `_wait_for_dev_server()` returns a 200 succeed in terms of HTTP status but capture a blank white page or a loading spinner. The dev server passes the health check as soon as the process listens on port 3000, but the first React render (with styles, fonts, component tree hydration) takes 2-5 additional seconds. The screenshot looks like an empty white rectangle.
+The autonomous agent loop appends every tool call and tool result to the message history. A full build involves dozens of tool calls — `bash` for running npm install (stdout: 2,000+ lines), `read` for reading source files (potentially 500-2,000 tokens each), `write` after each file modification. After 20-30 tool calls, the accumulated message history can approach or exceed the 200K token context window. Starting with Claude Sonnet 3.7+, Anthropic returns a validation error (not silent truncation) when the context window is exceeded. The agent crashes mid-build with a context error rather than completing gracefully.
 
 **Why it happens:**
-`_wait_for_dev_server()` polls with `httpx` until it gets `status_code < 500`. A Next.js dev server responds with 200 as soon as the HTTP server is up, before the JavaScript bundle loads and the component tree renders. The HTML at that moment is either the Next.js loading skeleton or a blank document awaiting hydration. There is no "paint complete" signal from the HTTP layer.
+Each tool result is a `tool_result` content block that stays in the message history for the entire session. A `bash` call running `npm install` can return 3,000+ tokens of stdout. A `read` call on a large file returns the entire content. After 10 bash calls with verbose output, the tool results alone can consume 30,000-50,000 tokens. The message history grows linearly — there is no automatic pruning in a naive agentic loop implementation.
 
 **How to avoid:**
-- Add a secondary wait after the HTTP 200: sleep 4-6 seconds before capturing the screenshot. This is inelegant but correct — dev servers rarely take longer than 5 seconds for first paint after the HTTP 200.
-- Alternatively, install Playwright inside the E2B sandbox (`pip install playwright && playwright install chromium --with-deps`) and use `page.wait_for_load_state("networkidle")` which fires after all network requests settle. This is accurate but adds 60-120 seconds to sandbox startup.
-- The simpler approach (fixed sleep) is recommended for v0.6. Document it as tech debt.
-- Run the screenshot command via `sandbox.run_command()`: `python3 -c "import playwright.sync_api as pw; p = pw.sync_playwright().start(); b = p.chromium.launch(args=['--no-sandbox']); page = b.new_page(); page.goto('{preview_url}'); page.wait_for_timeout(3000); page.screenshot(path='/tmp/screenshot.png'); b.close(); p.stop()"` then read `/tmp/screenshot.png` with `sandbox.files.read()`.
+- Truncate tool results at the source before adding to message history. For bash stdout/stderr: cap at 2,000 tokens per result, adding a `[truncated — {N} lines omitted]` suffix. For file reads: cap at 4,000 tokens, noting the file path for re-reading if needed.
+- Implement tool result clearing: periodically scan message history and replace `tool_result` content blocks older than the last 5 tool calls with a summary placeholder: `[tool_result cleared — {tool_name} completed successfully]`. Anthropic's context editing API supports this pattern (beta as of 2025).
+- Track approximate token count in the agent loop state. When the estimated context usage exceeds 150K tokens (75% of limit), trigger a compaction step: summarize older tool results into a structured "progress so far" note and clear the raw history.
+- Use Anthropic's context awareness feature (Claude Sonnet 4.5+ and Opus 4.6 inject `<system_warning>Token usage: N/200000; M remaining</system_warning>` after each tool call). Detect this warning and trigger compaction proactively.
 
 **Warning signs:**
-- Screenshots consistently show white or near-empty pages
-- `preview_url` returns 200 in `curl` but the page renders nothing in a real browser
-- No sleep between `_wait_for_dev_server()` return and screenshot call
+- `anthropic.BadRequestError: prompt is too long` appearing mid-build
+- Tool result payloads > 1,000 tokens (bash output, file reads) added to message history without truncation
+- Agent loop with no token counting or context window tracking
+- No tool result clearing or compaction logic in the agentic loop
 
-**Phase to address:** Screenshot Capture phase — write the timing logic with an explicit sleep constant (`SCREENSHOT_WAIT_AFTER_READY_SECONDS = 5`) that is documented and easily adjustable.
+**Phase to address:** Core agentic loop phase — implement tool result truncation and context management before any other tool is built. The loop is broken without this.
 
 ---
 
-### Pitfall 2: Playwright Inside E2B Requires `--no-sandbox` Flag and Chromium Takes 60-90 Seconds to Install
+### Pitfall 2: Infinite Tool-Use Loop — Agent Calls the Same Tool Repeatedly Without Progress
 
 **What goes wrong:**
-Playwright's Chromium launched inside the E2B sandbox fails with `Running as root without --no-sandbox is not supported`. E2B sandboxes run processes as root. Without `args=['--no-sandbox']`, Chromium exits immediately. Additionally, `playwright install chromium --with-deps` downloads ~200MB and takes 60-90 seconds on the E2B network — this runs inside `sandbox.run_command()` which has a 120-second default timeout. The install silently times out, Playwright is unusable, and the subsequent screenshot command raises a cryptic `ModuleNotFoundError` or `BrowserType.launch: Failed to launch`.
+The agent gets stuck in a loop: it calls `bash` to run a command, gets an error, attempts a fix, calls `bash` again, gets the same or similar error, attempts another fix from the same small set of strategies, and repeats indefinitely. Without a hard iteration cap, this loops until the context window is exhausted or costs spiral. Common triggers: a dependency installation fails for a network reason, a test fails but the agent's fixes are all wrong, a file path doesn't exist and the agent keeps trying the same path with minor variations.
 
 **Why it happens:**
-E2B sandboxes run as root for isolation reasons. Chromium's sandbox feature requires a non-root user or kernel-level privileges that aren't available inside the E2B container. The root-without-sandbox restriction is a Chromium safety guard, not an E2B restriction. The timeout issue stems from the existing `run_command()` signature defaulting to `timeout=120`.
+LangGraph enforced a maximum recursion depth via graph configuration. The direct Anthropic API agentic loop has no built-in iteration cap — it loops as long as `stop_reason == "tool_use"`. The agent's instruction to "retry up to 3 times with different approaches" must be enforced by the calling code, not by the LLM. Without explicit enforcement, the agent may "convince itself" it's making progress and continue looping.
 
 **How to avoid:**
-- Always pass `args=['--no-sandbox', '--disable-setuid-sandbox']` when launching Chromium inside E2B: `chromium.launch(args=['--no-sandbox', '--disable-setuid-sandbox'])`.
-- Increase the `run_command` timeout for the Playwright install step: `await sandbox.run_command("playwright install chromium --with-deps", timeout=300, ...)`.
-- Consider using a pre-built E2B template that includes Playwright+Chromium. This eliminates the install time per build. Create a custom E2B template with Playwright pre-installed via `e2b template build`.
-- If using the default template, cache the install check: before running `playwright install`, check if `chromium` binary exists at `~/.cache/ms-playwright/chromium-*/chrome-linux/chrome`.
+- Implement a hard outer iteration cap in the agentic loop: `MAX_TOOL_CALLS = 150` for a full build session. If the agent reaches this limit, surface a `budget_exceeded` escalation to the founder rather than silent failure.
+- Implement per-error retry tracking separately from the outer loop. The self-healing model (3 retries then escalate) must be enforced by the loop controller, not trusted to the LLM's self-assessment: maintain `retry_count_per_error: dict[str, int]` in agent state keyed by error signature (e.g., `{error_type}:{error_message_hash}`).
+- Add repetition detection: hash each `(tool_name, tool_input)` pair. If the same hash appears 3+ times in the last 10 tool calls, halt and escalate. This catches "trying the same thing repeatedly" loops.
+- Use `stop_reason` strictly: only continue the loop when `stop_reason == "tool_use"`. When `stop_reason == "end_turn"`, `stop_reason == "max_tokens"`, or `stop_reason == "stop_sequence"`, exit the loop cleanly.
+- Emit a heartbeat SSE event every N tool calls (e.g., every 10) so the frontend can detect stall (no heartbeat for 2 minutes = warn the founder).
 
 **Warning signs:**
-- `BrowserType.launch: Failed to launch` from within E2B sandbox
-- `Running as root without --no-sandbox` in E2B command output
-- `playwright install chromium` command exits with `exit_code: null` (timeout)
-- Screenshot command fails 100% of the time on fresh sandboxes but never tested end-to-end before ship
+- No `MAX_TOOL_CALLS` constant in the agentic loop
+- `retry_count` tracked globally (not per-error) — allows 3 retries total across all errors instead of 3 per distinct error
+- Same `(tool_name, tool_input)` appearing 3+ times in a single session in logs
+- No repetition detection hashing in the loop controller
 
-**Phase to address:** Screenshot Capture phase — test Playwright installation end-to-end in a real E2B sandbox before writing the production screenshot integration.
+**Phase to address:** Core agentic loop phase — iteration cap and repetition detection must be in the loop controller from day one. Add these before any tool implementations.
 
 ---
 
-### Pitfall 3: Reading Binary Screenshot File from E2B — `files.read()` Returns `bytes`, Not `str`
+### Pitfall 3: E2B Sandbox Lifecycle — Sandbox Expires Mid-Build When Token Budget Pacing Introduces Long Pauses
 
 **What goes wrong:**
-The existing `E2BSandboxRuntime.read_file()` method calls `sandbox.files.read(abs_path)` and decodes the result as `content.decode("utf-8")`. PNG files are binary. Calling `.decode("utf-8")` on PNG bytes raises `UnicodeDecodeError` and crashes the build pipeline. Even if the exception is caught, the returned content is garbage.
+The sleep/wake daemon model pauses the agent when the daily token budget is consumed. The agent resumes the next day. The E2B sandbox, however, has a continuous runtime limit: 1 hour (Hobby plan) or 24 hours (Pro plan). If the agent pauses for the day with the sandbox still "live" (not explicitly paused via `beta_pause()`), the sandbox expires overnight. On wake, `AsyncSandbox.connect(sandbox_id)` fails with a sandbox-not-found error. All build artifacts in the sandbox filesystem are lost.
 
 **Why it happens:**
-`read_file()` was designed for text files (Python, JavaScript, config files). PNG screenshots are binary. The existing code assumes UTF-8 decodability: `if isinstance(content, bytes): return content.decode("utf-8")`.
+The existing `e2b_runtime.py` code has `beta_pause()` implemented but it requires an explicit call. The sleep/wake daemon must explicitly pause the sandbox when transitioning to sleep state. There is also a known E2B bug (Issue #884): when a sandbox is paused and resumed multiple times, file changes made after the second resume are not persisted. This means the multi-day build pattern (wake, work, pause, wake, work, pause) has a known data loss risk after the first resume.
 
 **How to avoid:**
-- Add a `read_file_bytes()` method to `E2BSandboxRuntime` that returns raw `bytes` without decoding: `return content if isinstance(content, bytes) else content.encode("utf-8")`.
-- Use this method for screenshot files only. Keep `read_file()` as-is for text files.
-- Before uploading to S3, pass the raw bytes directly to `s3.put_object(Body=raw_bytes, ContentType="image/png")`.
-- Alternative: base64-encode the screenshot inside the sandbox with `base64 /tmp/screenshot.png` and read the text output. Decode in Python with `base64.b64decode(b64_string)`. This avoids the binary file reading problem but adds complexity.
+- Always call `beta_pause()` before the agent enters sleep state — never let the agent sleep with a live sandbox. Persist the `sandbox_id` to PostgreSQL (not Redis, which can evict) before sleeping.
+- Implement a sandbox health check on wake: after `connect(sandbox_id)`, verify the workspace is intact by reading a sentinel file written at the start of each session (e.g., `/home/user/project/.cofounder_session`). If the sentinel is missing, the sandbox state is corrupt — create a fresh sandbox and restore from the most recent git commit or file snapshot.
+- Due to E2B Issue #884 (multi-resume file loss), avoid relying on sandbox filesystem as the only artifact store. After each "commit" phase (agent writes code, installs deps), sync the project files to S3 as a snapshot. On resume, if the filesystem integrity check fails, restore from the S3 snapshot.
+- For E2B Hobby plan: `beta_pause()` is not supported — the sandbox always expires. The daemon model for Hobby plan users must recreate the sandbox on each wake and restore from S3/git snapshots. Gate the persistent sandbox feature behind the Pro plan tier.
 
 **Warning signs:**
-- `UnicodeDecodeError: 'utf-8' codec can't decode byte` during screenshot upload
-- `read_file()` called on `.png` paths anywhere in the codebase
-- S3 objects stored as text/plain containing garbled binary data
+- `SandboxError: Failed to connect to sandbox` on agent wake
+- `sandbox_id` stored only in Redis (can evict) rather than PostgreSQL
+- No sentinel file check after `connect()` to verify filesystem integrity
+- E2B Hobby plan users expecting multi-day sandbox persistence without explicit handling of the re-creation case
 
-**Phase to address:** Screenshot Capture phase — add `read_file_bytes()` before writing any screenshot upload code.
+**Phase to address:** Sleep/wake daemon phase — sandbox persistence strategy (pause vs recreate vs S3 restore) must be decided before implementing the daemon. This is an architectural decision, not a detail.
 
 ---
 
-### Pitfall 4: Boto3 S3 Upload Blocks the Async Event Loop in the Worker
+### Pitfall 4: Token Budget Pacing — Daily Budget Calculated on Tokens Remaining, But Anthropic Charges Input + Output Separately
 
 **What goes wrong:**
-The existing `_archive_logs_to_s3()` in `worker.py` uses synchronous `boto3.client("s3").put_object(...)`. This blocks the FastAPI asyncio event loop for the duration of the S3 upload (typically 200ms-2s for a PNG). Adding screenshot uploads to `generation_service.py` using the same pattern blocks the event loop mid-build. Under concurrent builds, this creates queuing delays across all active requests — the `/api/health` endpoint becomes slow or times out during builds.
+The token budget pacing logic divides `tokens_remaining ÷ days_until_renewal` to determine the daily allowance. The existing `llm_config.py` tracks total tokens (input + output) in Redis. This is correct for counting, but the cost calculation is wrong if the pacing assumes output tokens and input tokens are equally expensive. For Claude Opus: output costs 5x more than input ($75 vs $15 per million). A session that generates a lot of code (high output token ratio) will exhaust the budget 2-5x faster than a session that reads many files (high input ratio). The pacing model under-estimates cost for code-heavy sessions.
 
 **Why it happens:**
-`boto3` is entirely synchronous. `s3.put_object()` blocks the calling thread. In an async context (FastAPI background task on the asyncio event loop), a blocking call blocks the entire event loop — no other coroutines can run until the upload completes. The existing log archive call in `worker.py` gets away with this because it runs after the build is complete (not mid-build) and is rare. Screenshot uploads happen multiple times per build.
+Simple token counting treats all tokens as equal. The daily budget `tokens_remaining ÷ days_until_renewal` gives a token allowance, but the effective cost depends on the input/output split. A 100K token session with 20K input / 80K output costs ~6x more than a session with 80K input / 20K output at Opus pricing.
 
 **How to avoid:**
-- Wrap all S3 uploads in `asyncio.to_thread()` (Python 3.9+, already available in Python 3.12): `await asyncio.to_thread(s3_client.put_object, Bucket=bucket, Key=key, Body=data, ContentType="image/png")`.
-- This runs the blocking boto3 call in the default thread pool executor without blocking the event loop.
-- Do NOT use `aioboto3` — it adds a dependency and the existing `boto3` pattern with `asyncio.to_thread()` achieves the same result with zero new dependencies.
-- Apply the same fix to the existing `_archive_logs_to_s3()` in `worker.py` as a side improvement.
+- Pace on cost (microdollars), not raw token count. The existing `_calculate_cost()` function in `llm_config.py` already computes cost per call. Store cumulative cost in Redis alongside token counts. Pace on `cost_remaining ÷ days_until_renewal` where `cost_remaining = subscription_cost_allowance - cost_used_this_window`.
+- If cost-based pacing is too complex for the MVP, use a conservative token estimate: weight output tokens at 4x for budget purposes. `effective_tokens = input_tokens + (4 * output_tokens)`. This approximates the relative cost ratio for Opus.
+- Set a hard per-session cost cap as a circuit breaker: `MAX_SESSION_COST_MICRODOLLARS`. If a single agentic loop iteration exceeds this (e.g., $2 for a bootstrapper tier user), halt and escalate before the session burns the entire week's budget.
 
 **Warning signs:**
-- `/api/health` response time spikes during active screenshot uploads
-- Multiple concurrent builds complete slower-than-expected when screenshots are enabled
-- Any `s3.put_object()` call outside `asyncio.to_thread()` in async code paths
-- No `await asyncio.to_thread(...)` wrapping around S3 calls in `generation_service.py`
+- Budget pacing logic uses `total_tokens` without distinguishing input/output
+- No cost-based tracking alongside token tracking
+- Single session can consume more than 25% of a user's monthly budget in one run
+- Bootstrapper tier users receiving Sonnet (cheaper) while CTO tier users receive Opus (5x costlier output) — but budget limit is the same raw token count for both
 
-**Phase to address:** Screenshot Capture and S3 Integration phase — wrap before the first screenshot upload ships.
+**Phase to address:** Token budget and sleep/wake phase — cost weighting must be part of the initial pacing design. Fix later requires data migration and logic rewrite.
 
 ---
 
-### Pitfall 5: S3 Screenshot Objects Served Without CloudFront — Generates Signed URL That Expires, Breaking History
+### Pitfall 5: SSE Connection Killed by ALB After 60 Seconds of Idle — Appears to Work in Local Dev But Fails in Production
 
 **What goes wrong:**
-If screenshots are uploaded to S3 and served via `s3.generate_presigned_url()`, the URL expires after a set window (default 1 hour, max 7 days). The build history page shows screenshot thumbnails with expired URLs after the expiry. Users revisiting their build history see broken images. Alternatively, if screenshots are stored in the same S3 bucket as the app logs but without a CloudFront behavior covering them, the direct S3 URL requires bucket public access which conflicts with the existing OAC (Origin Access Control) setup.
+The autonomous agent loop involves long-running tool calls: `npm install` can take 2-5 minutes, a full test suite can take 30-120 seconds. During these tool calls, the agent is waiting for the E2B sandbox command to complete and emitting no SSE events. The ALB idle timeout (60 seconds by default) kills the connection after 60 seconds of no data. The client-side SSE reconnects but misses all tool activity during the gap. The frontend shows the agent "frozen" for minutes, then suddenly jumps to a later state.
 
 **Why it happens:**
-S3 objects are private by default with OAC. Getting permanent public URLs requires either making objects public (bad) or routing through CloudFront (correct). The existing CloudFront setup has a specific `images/*` behavior with 1-year cache and `screenshots/*` is not yet in any behavior. Presigned URLs are the easy shortcut that creates expiry problems.
+The existing `agent.py` SSE streaming route already uses `StreamingResponse` with `"Connection": "keep-alive"`. The heartbeat mechanism from v0.6 exists. However, if the tool execution loop doesn't emit heartbeat events during long E2B command execution (because the code is `await sandbox.run_command(...)` which blocks until the command completes), the heartbeat generator never fires. The ALB sees silence for >60 seconds and closes the TCP connection.
 
 **How to avoid:**
-- Add a `screenshots/*` behavior to the existing CloudFront distribution in CDK: same pattern as the existing `images/*` behavior with 1-year TTL. Screenshots are immutable per build — once generated, they never change. So `Cache-Control: max-age=31536000, immutable` is correct.
-- Store screenshots at: `s3://cofounder-builds/screenshots/{job_id}/{stage}.png` and serve via `https://{cloudfront-domain}/screenshots/{job_id}/{stage}.png`.
-- The CloudFront domain for the app distribution is NOT `getinsourced.ai` (that's marketing) — it's the API/app CloudFront distribution. Check CDK stack for the correct distribution ID.
-- Use the CloudFront URL (not a presigned URL) as the `snapshot_url` stored in the database. CloudFront URL is permanent and never expires.
+- Never `await` long E2B commands synchronously in the SSE generator. Use `asyncio.create_task()` to run the E2B command as a background task. The SSE generator yields heartbeat events while the task runs: `while not task.done(): yield heartbeat_event; await asyncio.sleep(5)`.
+- Set the ALB idle timeout to 300+ seconds in CDK: `loadBalancer.setAttribute("idle_timeout.timeout_seconds", "300")`. This is a one-line CDK change and eliminates the problem for commands up to 5 minutes.
+- Add `X-Accel-Buffering: no` response header to prevent nginx proxy buffering (relevant if nginx is in the ECS task's sidecar). Without this, nginx buffers SSE events and the client sees events in bursts rather than a stream.
+- Emit a `tool_started` SSE event immediately when a tool call begins (before the actual execution), then a `tool_completed` event when it finishes. This keeps the SSE stream active even during long tool calls.
 
 **Warning signs:**
-- `generate_presigned_url()` appears anywhere in screenshot-related code
-- Screenshot URLs start with `https://{bucket}.s3.amazonaws.com/` (direct S3) instead of a CloudFront domain
-- Build history shows broken images 1-7 days after builds complete
+- SSE route `await`s E2B sandbox commands inline without concurrently emitting heartbeats
+- ALB `idle_timeout.timeout_seconds` not set in CDK (defaults to 60)
+- Frontend shows agent "frozen" for 2+ minutes then a burst of events
+- Heartbeat events stop emitting during E2B `run_command()` calls
 
-**Phase to address:** Screenshot Capture and S3 Integration phase — CloudFront CDK update must deploy before any screenshots are stored in S3.
+**Phase to address:** SSE streaming phase — ALB timeout CDK change is a one-line fix that must deploy before the SSE agent stream is enabled in production.
 
 ---
 
-### Pitfall 6: LLM Doc Generation Call Blocks the Build Stage It's Called From — Adds 15-30 Seconds per Stage
+### Pitfall 6: LangGraph Removal — Orphaned Imports and Runner Protocol Mismatch Break Existing Endpoints
 
 **What goes wrong:**
-Adding `await anthropic_client.messages.create(...)` (Claude API call) inside `generation_service.py` after each build stage transition introduces 10-30 second latency per call. The build pipeline already takes 5-10 minutes. Adding 3-4 doc generation calls inline multiplies the wait. Worse: if the doc generation call raises (rate limit, network error, Anthropic API 500), the entire build pipeline raises and the job transitions to FAILED — the founder loses their build because a documentation call failed.
+The existing `agent.py` route imports from `app.agent.graph` (`create_cofounder_graph`, `create_production_graph`). Removing the LangGraph nodes without updating `agent.py` causes immediate import errors — all agent endpoints 500 on startup. Additionally, the existing `Runner` Protocol in `runner.py` defines 13 methods that the new autonomous agent must implement, but those method signatures are oriented around the old LangGraph pipeline (e.g., `run()` executes "Architect -> Coder -> Executor -> Debugger -> Reviewer -> GitManager"). The new agent has a single loop, not 6 nodes — the protocol shape is wrong.
 
 **Why it happens:**
-The natural implementation puts the doc generation call immediately after the build stage it documents ("stage DEPS complete → generate installation docs"). This couples the critical path (build) to a non-critical path (docs). Any latency or failure in the doc call directly impacts the build.
+The Runner Protocol was designed as an abstraction over LangGraph. With LangGraph gone, the abstraction is now the wrong shape. The 13-method Protocol makes sense for the discrete node pipeline but becomes awkward for a single autonomous loop. Partial removal (deleting node files but keeping `agent.py` imports) causes startup failures across all agent routes, not just the build route.
 
 **How to avoid:**
-- Decouple doc generation from the build pipeline entirely. After each stage transition, publish the stage completion event to a Redis channel or append to a Redis list: `await redis.rpush(f"job:{job_id}:completed_stages", json.dumps({"stage": "deps", "context": {...}}))`.
-- Run a separate async task that reads from the completed stages list and generates documentation asynchronously. This task runs concurrently with the next build stage, not blocking it.
-- The doc generation task must be wrapped in try/except with non-fatal error handling — a failed doc call must NEVER propagate to the build pipeline.
-- Set aggressive timeouts on Claude API calls: `timeout=httpx.Timeout(30.0)`. If the call takes longer than 30 seconds, skip and log a warning.
-- Log doc generation failures to CloudWatch with a metric — failed doc calls should alert but not fail builds.
+- Remove all LangGraph dependencies atomically in a single PR: `app/agent/graph.py`, `app/agent/nodes/` directory (architect, coder, executor, debugger, reviewer, git_manager), `app/agent/state.py` (replace with new state schema), and all imports in `agent.py`. Do not do partial removals.
+- Before removing, update `agent.py` to import from the new autonomous agent module. The new module must implement the Runner Protocol or the Protocol must be updated to reflect the new interface.
+- The Runner Protocol should be updated to: `run_autonomous(goal: str, project_id: str, sandbox_id: str | None, budget: BudgetConfig) -> AsyncGenerator[AgentEvent, None]`. Single method, streaming output. Retire the 13-method Protocol or keep it for backward compatibility with RunnerFake tests.
+- Run the full test suite (`pytest`) after removing LangGraph to catch all import dependencies that aren't obvious from grep.
+- NarrationService and DocGenerationService removal must similarly be atomic — check all import sites first.
 
 **Warning signs:**
-- Doc generation `await` calls directly inside `generate_service.execute_build()` flow
-- Build FAILED jobs where `error_message` references Anthropic API errors or rate limits
-- Build duration metrics spike by exactly 30 seconds (doc call timeout) when Anthropic is slow
-- No separate try/except isolation around doc generation calls
+- `ImportError: cannot import name 'create_cofounder_graph' from 'app.agent.graph'` on app startup
+- Any test or route still importing from `app.agent.nodes.*` after node files are deleted
+- `runner.py` Protocol still showing 13 LangGraph-era methods after the switch
+- LangChain/LangGraph packages still in `requirements.txt` after removal (unnecessary dependencies cause startup overhead)
 
-**Phase to address:** LLM Doc Generation phase — architecture decision (decouple from build pipeline) must be made before any doc generation code is written.
+**Phase to address:** LangGraph removal phase (first phase of v0.7) — must be done as atomic cleanup before building the new agent. Never mix LangGraph removal with new agent construction in the same PR.
 
 ---
 
-### Pitfall 7: Claude API Rate Limits Hit When Every Build Stage Triggers a Doc Generation Call
+### Pitfall 7: Self-Healing Error Model — Retry Counter Resets on Agent Sleep/Wake, Allowing Infinite Retries Across Sessions
 
 **What goes wrong:**
-With 5 build stages and concurrent builds from multiple users, doc generation calls multiply quickly. Anthropic's rate limits are per-API-key, not per-user. If 3 users build simultaneously (5 stages each), that's 15 Claude API calls in quick succession. The rate limit for claude-sonnet is typically 500 requests/minute but with token-based limits as well. Short doc generation prompts may not hit token limits but request-rate limits can still trigger 429 errors. When the doc generation task raises a 429, if it's not properly handled, it can propagate upstream.
+The self-healing model specifies 3 retries per error before escalating to the founder. The retry counter lives in agent state (currently `retry_count: int` in `state.py`). When the agent sleeps (daily budget exhausted) and wakes the next day, the state is reloaded from Redis or PostgreSQL. If `retry_count` is reset to 0 on wake (because the sleep/wake state serialization doesn't preserve it, or it's reset intentionally), the agent will retry the same failing operation indefinitely — 3 retries per day, every day, never escalating.
 
 **Why it happens:**
-The existing LangGraph pipeline already makes Claude API calls (Architect → Coder → Debugger → Reviewer). Doc generation adds additional calls on top of the existing load. The combined call rate is higher than any single pipeline suggests.
+The sleep transition serializes "what was I doing" (current task, file state) but the developer might not think to persist "how many times have I already failed at this specific thing." The counter resets because it feels like "starting fresh" after sleep. In practice, the agent wakes up, sees the same error it left with, and tries the same 3 approaches again, forever.
 
 **How to avoid:**
-- Use a separate Claude API key for doc generation calls — keep it separate from the LangGraph pipeline key. Rate limits are per-key, so two keys double the effective limit.
-- Implement exponential backoff with jitter for doc generation: retry up to 3 times with 2s, 4s, 8s delays on 429 responses.
-- Alternatively, batch doc generation: don't call Claude after every stage, call it once after all stages complete (at job READY state) with the full build context. One call per build instead of 5.
-- Cache doc prompts by stage type — if two users build similar projects, the stage-specific docs will be similar. A Redis cache with a 1-hour TTL keyed by `{stage}:{goal_hash}` can serve repeat calls without hitting Claude.
+- Persist error retry state in PostgreSQL (not just in-memory Redis-cached state) against the specific error signature: `{project_id}:{error_type}:{error_hash}`. This persists across sleep/wake cycles.
+- When the agent wakes and resumes a task, check the persisted error retry table before attempting any operation that previously failed. If `retry_count >= 3` for that error signature, immediately escalate without retrying.
+- Clear error retry state only when the underlying condition changes — not on wake. The error state clears when: (a) the agent successfully completes the step that was failing, (b) the founder provides new direction via escalation response.
+- Add a `last_error_at` timestamp to the error state. If the same error hasn't been retried in 24+ hours and the retry count is below the max, allow a single retry (giving the error a chance to resolve over time — e.g., a transient network error).
 
 **Warning signs:**
-- `anthropic.RateLimitError` in build logs when multiple users build simultaneously
-- Doc generation calls with no retry logic or backoff
-- 5+ Claude API calls being made per build in the doc generation path
-- No separate API key for doc generation vs. LangGraph generation
+- `retry_count` stored only in the in-memory agent state dict (not persisted to PostgreSQL)
+- `retry_count` reset to 0 in the wake-up code path
+- No error signature (hash of error_type + error_message) in the persisted retry state
+- Agent retrying the same exact operation (same file, same command) on consecutive days
 
-**Phase to address:** LLM Doc Generation phase — rate limit strategy must be specified before implementation.
+**Phase to address:** Self-healing error model phase — error state persistence design must be in the schema before building the retry logic.
 
 ---
 
-### Pitfall 8: Adding New SSE Event Types Breaks the Existing Client Parser
+### Pitfall 8: Configurable Model Per Tier — Model Switch Mid-Session Changes Token Cost Assumptions Without Updating Budget Pacing
 
 **What goes wrong:**
-The existing `useBuildLogs.ts` SSE client parser handles three event types: `heartbeat`, `done`, and `log`. Any event type not in this list is silently ignored — the `if (eventType === "heartbeat")` / `if (eventType === "done")` / `if (eventType === "log")` chain falls through without action. Adding new event types (`build.stage.started`, `snapshot.updated`, `documentation.updated`) to the backend SSE stream without simultaneously updating the frontend parser means the new events are silently dropped. The feature appears not to work. No error is thrown.
+A CTO-tier user starts a session with Claude Opus. The existing `resolve_llm_config()` resolves the model at the start of each call. If the user's tier changes mid-subscription (e.g., they downgrade), the next wake cycle resolves to Claude Sonnet. The token budget was calculated with Opus costs; Sonnet is 5x cheaper per output token. The budget pacing becomes overly conservative — the agent sleeps early because it "thinks" it's burning Opus budget but is actually burning Sonnet budget. The reverse (upgrade mid-session) is the dangerous case: the pacing was set for Sonnet costs but now Opus is running, potentially burning through the week's budget in one session.
 
 **Why it happens:**
-The existing parser is exhaustive — it handles exactly the event types that exist today. Adding server-side events without client-side parser updates is a deployment ordering error. The backend deploy adds new events; the frontend hasn't received them yet. Even after a simultaneous deploy, if any cached frontend JS is served, old parser code runs against new events.
+The model is resolved per API call but the budget pacing is calculated once at session start (or at sleep/wake boundaries). If the two operate from different model assumptions, the cost estimates diverge.
 
 **How to avoid:**
-- Deploy the frontend parser update before or simultaneously with the backend event emission changes. Never deploy the backend event changes before the frontend.
-- Add an explicit default handler at the bottom of the event type chain that logs unknown events to the browser console (not silently drops them): `else { console.debug("[SSE] unknown event type:", eventType, dataStr); }`. This makes debugging mismatches instant.
-- When adding new event types, add them to `useBuildLogs.ts` first (as no-op handlers), deploy the frontend, then add emission to the backend. This makes the deploy safe in both directions.
-- Never use SSE event type names with dots (e.g., `build.stage.started`) if using the native `EventSource` API — the `addEventListener("build.stage.started", ...)` form doesn't work correctly in all browsers with dot-separated names. Since the system uses `ReadableStreamDefaultReader` (not `EventSource`), this isn't a browser limitation, but it's still good practice to use underscores: `build_stage_started`.
+- Resolve the model at session start and persist it to the session state. Do not allow the model to change mid-session (within a single awake period). The model is fixed from wake to sleep.
+- On each wake, re-resolve the model (in case tier changed during sleep), then recalculate the remaining budget pacing using the current model's cost profile.
+- Store the model used in each session in the usage log (already done via `model_used` field in `UsageLog`). The budget pacing reads the actual cost from the usage log, not an estimate — this eliminates model drift entirely. The pacing is: `actual_cost_used = sum(UsageLog.cost_microdollars WHERE date >= renewal_date)`.
+- Add an alert: if a single session's actual cost exceeds 3x the expected cost for that tier (model mismatch signal), log a warning to CloudWatch.
 
 **Warning signs:**
-- New SSE events are emitted from the backend but no UI updates occur
-- Browser console shows no errors but the new panel doesn't update
-- `eventType` in the parser never matches the new event types
-- Backend log shows events being yielded, frontend network tab shows them received, but no state update
+- Token budget pacing using estimated cost per token based on model resolved at plan start, not actual cost from UsageLog
+- No recalculation of pacing on wake after a tier change
+- `create_tracked_llm()` called with a role and model that might differ between sessions
+- Same budget limit (`max_tokens_per_day`) applied to both Sonnet and Opus users without cost weighting
 
-**Phase to address:** SSE Extension phase — update the frontend parser first, deploy, then add backend emission.
+**Phase to address:** Token budget and sleep/wake phase — pacing must use actual cost from UsageLog, not estimated tokens. The UsageLog table already exists and tracks cost_microdollars.
 
 ---
 
-### Pitfall 9: SSE Backpressure — Backend Yields Events Faster Than Client Can Process, Overflowing Buffer
+### Pitfall 9: E2B Sandbox Tool — Bash Output Truncation Causes Agent to Make Wrong Decisions
 
 **What goes wrong:**
-The existing SSE stream from `logs.py` is low-frequency (log lines at human typing speed). Adding `snapshot.updated` events (triggered by screenshot captures) and `documentation.updated` events (triggered by LLM responses) increases SSE throughput significantly. If both events are emitted rapidly (e.g., 3 screenshots captured in 10 seconds, 2 doc updates in the same window), the generator yields multiple events quickly. If the frontend React state update inside `useBuildLogs` runs an expensive re-render on each event (e.g., rendering large documentation Markdown on every `documentation.updated`), the browser can become unresponsive.
+The agent runs `npm test` or `npm run build` inside the E2B sandbox. The command produces 500+ lines of output, but the tool result is truncated to 2,000 tokens (a necessary guard against context bloat). The truncation cuts off the tail of the output, which is where build errors typically appear (at the end of the output). The agent sees truncated output with no visible error, concludes the command succeeded, and proceeds to the next step. The build is silently broken.
 
 **Why it happens:**
-The generator in `event_generator()` in `logs.py` yields as fast as data is available. The frontend processes each event synchronously inside a `while(true)` read loop. If a `documentation.updated` event carries a large Markdown payload (2000+ characters) and the frontend re-renders the entire documentation panel on receipt, re-renders can take 50-100ms each. With 3 rapid events, this chains to 150-300ms of JS execution blocking the main thread.
+Build tools (npm, webpack, pytest, jest) print their summary at the end. Truncation from the beginning preserves the end, but truncation from the end (most natural in a streaming/buffering implementation) loses the error summary. A naive "take first N characters" truncation hides errors.
 
 **How to avoid:**
-- Limit Markdown payload size in `documentation.updated` events. Send only incremental updates or a URL pointing to the full doc, not the full doc content inline in the SSE event. Example: `{"type": "documentation.updated", "section": "installation", "doc_url": "/api/jobs/{job_id}/docs/installation"}`. The frontend fetches the full content when needed.
-- Throttle snapshot updates on the frontend: debounce `snapshot.updated` state updates to at most once per 2 seconds using `useRef` + `setTimeout`. Multiple snapshot events within 2 seconds collapse into one re-render.
-- Use `React.memo()` on the documentation panel and snapshot panel components to prevent re-renders when other panel data changes.
-- If doc content is sent inline, use `useDeferredValue` on the documentation state to deprioritize re-renders when other more-critical updates (log lines, stage changes) arrive simultaneously.
+- For bash tool truncation: always preserve the last 500 tokens of output, regardless of total length. Truncate from the middle: keep the first 500 tokens and the last 500 tokens, replacing the middle with `[{N} lines omitted]`. This preserves both the command invocation context and the error summary.
+- For commands known to produce structured output (build tools, test runners): capture stderr separately from stdout. Build errors typically go to stderr. Never truncate stderr. Truncate stdout independently.
+- Add exit code checking as the primary success signal — not output parsing. `exit_code == 0` means success regardless of output content. The agent should check exit code first, then analyze output only if `exit_code != 0`.
+- Include `exit_code` in every bash tool result, not just the output text. The agent's tool call response format: `{"stdout": "...", "stderr": "...", "exit_code": 0}`.
 
 **Warning signs:**
-- Browser becomes sluggish during the "checking" / "deps" phase when multiple screenshots are captured
-- React DevTools Profiler shows repeated 100ms+ renders on doc/snapshot panels
-- `documentation.updated` SSE events carry multi-KB payloads
+- Bash tool result is a single string concatenation of stdout+stderr without exit_code
+- Truncation implemented as `output[:MAX_CHARS]` (beginning preserved, end lost)
+- Agent using presence of "error" keyword in output to determine success/failure (fragile)
+- No separate tracking of stderr vs stdout in E2B `run_command()` results
 
-**Phase to address:** Three-Panel Layout phase AND SSE Extension phase — coordinate to avoid delivering large payloads inline.
+**Phase to address:** Tool implementation phase (bash tool specifically) — truncation strategy and exit code handling must be defined in the tool spec before writing the tool.
 
 ---
 
-### Pitfall 10: Three-Panel Layout Breaks on 1024-1280px Screens — The "Lost Middle" Viewport
+### Pitfall 10: State Serialization — Agent State Too Large for Redis, Causing Silent Truncation or Eviction
 
 **What goes wrong:**
-A three-column grid (activity feed | snapshot | docs) requires ~1200px to be usable at minimum column widths (300px each with gutters). At 1024-1280px (common laptop viewport), the layout either overflows horizontally (creating unwanted scrollbars) or collapses prematurely. The typical fix is `grid-template-columns: 1fr 2fr 1fr` but the center snapshot panel (which contains a screenshot or iframe) needs a minimum width to be useful. At 1024px, `1fr` columns are ~330px, which makes the screenshot thumbnail too small to provide meaningful visual feedback.
+The agent state in the sleep/wake model must be serialized to persistent storage. The state includes: message history (which can be 100K+ tokens of text), working file contents (dozens of files written), error history, and retry state. JSON-serialized, this can exceed 50MB for a long-running build. Redis has a max value size (512MB per key), and the current session storage in `agent.py` uses `json.dumps(session, default=str)` — this works for small sessions but fails or becomes extremely slow for large ones. Additionally, ElastiCache on the t3.small tier has 1.5GB total memory; a dozen large sessions can exhaust it and trigger eviction.
 
 **Why it happens:**
-CSS Grid `fr` units distribute available space but don't enforce minimum usability. A 330px snapshot panel is technically "valid" CSS but visually inadequate for a browser preview or screenshot. The designer instinct is to use `min-width` on the center column, but this forces overflow if the total `min-width` exceeds the viewport.
+The current session TTL is 3,600 seconds (1 hour). The existing sessions are small (LangGraph state with a few fields). Autonomous agent sessions are orders of magnitude larger due to accumulated tool call history and file contents.
 
 **How to avoid:**
-- Use a two-tier responsive strategy: three-column at 1280px+, two-column at 768-1279px (stack docs below, keep feed + snapshot), single-column below 768px.
-- Tailwind: `grid-cols-1 md:grid-cols-2 xl:grid-cols-3` with the docs panel having `md:col-span-2 xl:col-span-1` at medium breakpoint.
-- At 1280px+ use: `grid-template-columns: 280px 1fr 320px` — fixed-width side panels, flexible center. This gives the snapshot panel maximum available space.
-- Test explicitly at 1280px, 1440px, 1920px, and mobile (375px). The 1280px case is the critical one.
+- Store large session components in PostgreSQL (file contents, full message history), not Redis. Use Redis only for hot state: `{session_id} -> {project_id, sandbox_id, budget_remaining, sleep_state, last_activity}`. The full message history and file snapshots live in PostgreSQL.
+- Implement a two-tier state model: "hot state" (Redis, small, fast) and "cold state" (PostgreSQL, full history). The agent loads hot state on each tool call; full state is only loaded at wake time.
+- Never store actual file content in agent state. Store file paths and a reference to the S3 snapshot or the sandbox file system. The agent re-reads files from the sandbox as needed.
+- Apply a 24-hour TTL to agent session state in Redis, not 1 hour. The sleep/wake model requires state to survive overnight; 1-hour TTL is too short.
 
 **Warning signs:**
-- Horizontal scrollbar appears on the build page at any viewport width
-- Three columns visible at 1024px but center panel is visually useless (too narrow for screenshots)
-- Only tested at 1920px and mobile; 1280px not in the test matrix
+- `json.dumps(session)` called on a dict containing `messages` (full tool call history)
+- File contents stored as `working_files: dict[str, str]` in the session state dict
+- Redis key for a session exceeding 1MB (detectable via `redis-cli DEBUG OBJECT {key}`)
+- Session TTL set to 3,600 seconds (1 hour) in the sleep/wake model
 
-**Phase to address:** Three-Panel Layout phase — define breakpoint behavior in the design spec before implementation.
+**Phase to address:** Sleep/wake daemon phase — two-tier state architecture must be designed before implementing the daemon. Retrofitting later requires a data migration.
 
 ---
 
-### Pitfall 11: Independent Panel Scrolling Breaks Without `min-height: 0` on Grid Children
+### Pitfall 11: Cost Runaway — Single Autonomous Session Burns the Entire Monthly Budget Before the Founder Notices
 
 **What goes wrong:**
-Each panel in the three-column layout needs to scroll independently — the activity feed can be longer than the viewport while the snapshot panel stays fixed-height. Using `overflow-y: auto` on grid children doesn't work until the parent container has a defined height AND the grid children have `min-height: 0`. Without `min-height: 0`, the browser uses the default `min-height: auto` for grid items, which causes the grid item to expand to its content height rather than being constrained to the grid track. The result: panels don't scroll — they just expand the page height, all three panels scroll together as one long page.
+A complex build (full-stack app with auth, database, deployment) can require 200+ tool calls across multiple wake cycles. Without hard cost caps, a CTO-tier user on Opus can burn $50+ in a single week's build. The subscription model promises a bounded cost — founders expect "the AI works on my project this month for $X" not "this build cost $200 in API fees." There is no mechanism in the current system to stop the agent when cumulative costs for a specific project exceed a threshold.
 
 **Why it happens:**
-This is a CSS Grid fundamental: grid items have `min-height: auto` by default. This allows content to overflow the grid track. Adding `overflow: hidden` or `overflow-y: auto` to the grid item alone is insufficient — the browser still expands the item to fit content because `min-height: auto` overrides the overflow constraint.
+The existing `_check_daily_token_limit()` enforces a daily limit per user, but it doesn't account for per-project costs or alert before the limit is reached. It only enforces after the fact (raises PermissionError when the limit is hit). If the limit is set too high, or the user has an override, there's no early warning.
 
 **How to avoid:**
-- On each panel `div` that should scroll independently: add `min-h-0 overflow-y-auto` (Tailwind). The `min-h-0` is `min-height: 0` which allows the browser to constrain the panel to its grid track.
-- The parent grid must have a defined height: `h-screen` (full viewport) or `h-[calc(100vh-64px)]` (full viewport minus nav height). Without a parent height constraint, there's nothing to scroll relative to.
-- Test by inserting 200+ log lines into the activity feed and verifying only that panel scrolls, not the whole page.
+- Implement a cost circuit breaker in the agentic loop: before each API call, check `if estimated_session_cost > MAX_SESSION_COST_FOR_TIER: pause and notify`. This is separate from the daily token limit — it's a per-session guard.
+- Add a cost forecast to the sleep event: before sleeping, log `"estimated total project cost at current pace: ${N}"` and surface this to the founder in the dashboard. Founders need visibility before the bill arrives.
+- Implement a "cost alert" threshold: when cumulative project cost reaches 50% of the monthly budget, send an in-app notification. When it reaches 80%, require explicit founder confirmation to continue.
+- Store per-project cumulative cost in PostgreSQL (aggregated from `UsageLog` by `project_id`). Surface in the dashboard's project card as "Build cost this month: $X.XX".
+- Hard cap: the agentic loop must refuse to continue if `per_project_cost > tier_monthly_budget * 0.9`. This is non-negotiable — cost runaway destroys the business model.
 
 **Warning signs:**
-- All three panels scroll together instead of independently
-- Adding `overflow-y: auto` to a panel has no visible effect
-- Panel heights expand to content height instead of being contained within grid rows
+- No per-project cost tracking in the dashboard
+- `_check_daily_token_limit()` is the only cost guard (per-user daily only)
+- No cost forecast surfaced in the sleep event notification to the founder
+- CTO-tier users with `override_max_tokens_per_day = -1` (unlimited) and no per-project hard cap
 
-**Phase to address:** Three-Panel Layout phase — write this as a first-run integration test (inject fake data, verify independent scrolling).
+**Phase to address:** Token budget phase — hard cost cap must be implemented before any autonomous agent runs against real API keys. Test with fake usage data that exceeds the cap.
 
 ---
 
-### Pitfall 12: Snapshot Panel Shows Stale Screenshot When Polling Misses an Update
+### Pitfall 12: Streaming Activity Feed — Tool-Level Detail Overwhelms the SSE Connection With High-Frequency Events
 
 **What goes wrong:**
-The snapshot panel displays the most recent screenshot. If the SSE connection drops and reconnects (as it does mid-build), the reconnect starts from `last_id="$"` (current end of stream). Any `snapshot.updated` events emitted during the disconnected window are permanently missed. The snapshot panel shows the screenshot from before the disconnect. The user sees a stale screenshot that doesn't reflect the latest build stage. This is particularly confusing because the activity feed catches up (via the existing REST paginated log endpoint) but the snapshot panel has no catch-up mechanism.
+The agent's verbose activity feed emits one SSE event per tool call. During npm install (which the agent calls once but which takes 3-5 minutes), there may be no events. During code scaffolding, the agent calls `write` 20-30 times in rapid succession. Each `write` emits a `tool_called` event and a `tool_completed` event — 40-60 SSE events in under 30 seconds. The frontend processes each event as a state update, potentially triggering 40-60 React re-renders. On slower hardware, this degrades the build page's responsiveness.
 
 **Why it happens:**
-The existing SSE stream in `logs.py` is live-only (`last_id = "$"` on connect). This is correct for log lines (showing all historical logs via the REST endpoint). But for snapshot and documentation state, there's no REST endpoint to query "what was the last snapshot URL?". The SSE stream is the only delivery mechanism, so a missed event means permanently stale state until the next event arrives.
+The "verbose toggle" in the spec allows tool-level detail. But the implementation of "emit per-tool events" without rate limiting creates an event burst during intensive coding phases. The SSE stream is not buffered — each `yield event` in the FastAPI generator is immediately sent.
 
 **How to avoid:**
-- For snapshot state: store the latest `snapshot_url` in the job's Redis hash alongside `preview_url` and `sandbox_paused`. The `GET /api/generation/{job_id}/status` endpoint already returns job state — add `snapshot_url` to the response schema.
-- On SSE reconnect (when `useBuildLogs` fires `connectSSE()` again), also re-fetch the status endpoint to get the latest `snapshot_url`. This is the same pattern `useBuildProgress` uses — polling + SSE as dual sources.
-- For documentation state: store the latest generated doc sections in the jobs table or a separate `build_docs` table. Fetch on page load and on reconnect.
-- The principle: SSE events are for incremental updates; REST is for initial state and reconnect recovery. Don't rely on SSE as the only source of truth for stateful data.
+- Debounce `tool_called`/`tool_completed` events on the server side: if a `write` tool is called 5 times in under 2 seconds, batch them into a single `tools_batched` event: `{"type": "tools_batched", "tools": [...], "count": 5}`. Only emit one event for the batch.
+- By default (verbose=false), emit only phase-level events: `phase_started`, `phase_completed`, `escalation_required`. Verbose mode emits individual tool events. The verbose toggle applies on the client side — the server always emits full events, but the client filters them. This avoids re-renders when verbose mode is off.
+- Alternatively, apply the verbose filter on the server: query `user.verbose_mode` from Redis before the session and only yield tool-level events if verbose is enabled. This reduces SSE traffic by 10x in default mode.
+- Limit the activity feed to the last 200 events client-side. Never allow the feed to grow unbounded — it causes memory pressure on the frontend after long builds.
 
 **Warning signs:**
-- SSE disconnect + reconnect leaves the snapshot panel showing a stale screenshot
-- `snapshot_url` not in the job's Redis hash or status API response
-- No REST fallback for snapshot/doc state on reconnect
+- Each `write` tool call emits 2 SSE events without batching
+- 50+ SSE events in 10 seconds during scaffolding phases visible in browser network tab
+- Activity feed re-renders triggered by every `tool_called` event even in non-verbose mode
+- No `MAX_FEED_ITEMS` limit in the frontend activity feed state
 
-**Phase to address:** SSE Extension phase — design the state recovery mechanism before implementing the events.
-
----
-
-### Pitfall 13: E2B Screenshot After `beta_pause()` — Sandbox Cannot Be Resumed Fast Enough
-
-**What goes wrong:**
-The worker calls `beta_pause()` after the build completes (visible in `worker.py` lines 119-135). If a screenshot is triggered AFTER the pause (e.g., as a post-build artifact), `connect()` must be called to resume the paused sandbox. On E2B Hobby plan, `beta_pause()` is not supported (wrapped in try/except). On paid plans, the resume takes 4-8 seconds per GB of sandbox memory. If the screenshot attempt races with the pause, it either: (a) succeeds before pause completes (timing-dependent), or (b) fails with a sandbox-not-available error after pause.
-
-**Why it happens:**
-The existing pipeline pauses the sandbox at job READY state. Screenshots are a new feature being added to the build pipeline. The natural insertion point is after the dev server is running (`start_dev_server()` returns) — at that point the sandbox is still running. But if screenshots are added AFTER `beta_pause()` is called (incorrect ordering), the sandbox is unavailable.
-
-**How to avoid:**
-- Capture screenshots BEFORE `beta_pause()` is called — inside `generation_service.execute_build()`, immediately after `start_dev_server()` returns and before the function returns its result dict. The sandbox is live at this point.
-- Never trigger screenshot capture from `worker.py` after the build result dict is returned — that's after the pause logic runs.
-- The correct call order in `execute_build()`: `preview_url = await sandbox.start_dev_server(...)` → screenshot capture → return result → worker calls `beta_pause()`.
-
-**Warning signs:**
-- Screenshot code runs inside `worker.py` after `build_result` is received
-- `SandboxError: Failed to connect to sandbox` during screenshot attempts
-- Screenshot capture timing is not tested against the existing `beta_pause()` call location
-
-**Phase to address:** Screenshot Capture phase — the insertion point in `generate_service.execute_build()` must be explicitly documented in the implementation spec.
+**Phase to address:** SSE streaming and activity feed phase — event batching and verbose filter must be specced before the first tool events are emitted.
 
 ---
 
@@ -319,13 +306,13 @@ Shortcuts that seem reasonable but create long-term problems.
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Fixed sleep (5s) after dev server ready before screenshot | Simple, no dependencies | Occasionally captures incomplete renders on slow projects | MVP only — replace with `page.wait_for_load_state("networkidle")` post-v0.6 |
-| Synchronous boto3 S3 upload (not wrapped in asyncio.to_thread) | Works for single user | Blocks event loop under concurrent builds | **Never** — always use `asyncio.to_thread()` |
-| Doc generation inline in build pipeline (same try/except) | Simple code path | Doc failure = build failure; unacceptable coupling | **Never** — always decouple docs from build |
-| Presigned S3 URLs for screenshots | Works immediately, no CDK change | URLs expire after 7 days max; build history shows broken images | **Never** — use CloudFront URLs |
-| Sending full Markdown doc content in SSE event payload | No extra REST endpoint needed | Large payload + frequent re-renders blocks browser main thread | **Never for large docs** — send URL reference, fetch on demand |
-| Three fixed-width columns at all viewport sizes | Consistent look | Overflows at 1024-1280px; horizontal scroll breaks usability | **Never** — always implement responsive column collapsing |
-| Screenshot after beta_pause() | Simpler code flow | Sandbox unavailable; screenshot fails 100% of the time | **Never** — screenshot must precede pause |
+| Storing full message history in Redis session | Simple serialization | Redis eviction loses agent context mid-build; 50MB+ sessions degrade performance | **Never** — always use two-tier (Redis hot state + PostgreSQL cold storage) |
+| Resetting `retry_count` to 0 on wake | Clean slate feeling | Agent retries same failing operation indefinitely across days | **Never** — persist retry state per error signature to PostgreSQL |
+| Pacing on raw token count instead of cost | Simpler calculation | Under-counts Opus output cost by 5x; CTO tier users hit limits too fast or too slow | MVP only — replace with cost-based pacing before public launch |
+| Truncating bash output from the front | Simple slice | Hides build errors that appear at end of output | **Never** — always truncate from middle, preserve first + last chunks |
+| Single `retry_count` integer for all errors | Simpler state | 3 global retries covers the entire session, not 3 retries per error | **Never** — track retries per error signature |
+| Emitting individual tool events per write call | Complete visibility | 40-60 events/30s during scaffolding; frontend becomes unresponsive | MVP only — add batching before load testing |
+| Using SQLite for local dev but PostgreSQL in prod | Easier local setup | Schema differences (JSON columns, array types) cause bugs that only appear in production | **Never** — always use PostgreSQL locally via Docker |
 
 ---
 
@@ -335,16 +322,15 @@ Common mistakes when connecting to external services in this milestone.
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| **E2B + Playwright** | Launching Chromium without `--no-sandbox` | Always pass `args=['--no-sandbox', '--disable-setuid-sandbox']` to `chromium.launch()` in E2B |
-| **E2B `files.read()` for PNG** | Using `read_file()` which decodes as UTF-8 | Add `read_file_bytes()` that returns raw `bytes`; use for PNG screenshot files only |
-| **boto3 S3 upload in async** | Calling `s3.put_object()` directly in async function | Wrap in `await asyncio.to_thread(s3.put_object, ...)` to avoid blocking the event loop |
-| **S3 screenshot URLs** | Using `generate_presigned_url()` | Add `screenshots/*` CloudFront behavior; store and serve CloudFront URLs (permanent, no expiry) |
-| **Anthropic API in build pipeline** | Calling Claude inline in `execute_build()` | Decouple: publish stage completion to Redis; separate async task handles doc generation |
-| **SSE new event types** | Adding backend emission without updating frontend parser | Update `useBuildLogs.ts` first, deploy, then add backend emission. Never deploy backend-first. |
-| **CSS Grid independent scrolling** | `overflow-y: auto` without `min-height: 0` | Add `min-h-0` Tailwind class to each scrollable grid child; parent must have defined height |
-| **Snapshot state on SSE reconnect** | Treating SSE as only source of snapshot truth | Store `snapshot_url` in job Redis hash; fetch from `GET /api/generation/{job_id}/status` on reconnect |
-| **Screenshot timing in pipeline** | Capturing screenshot after `beta_pause()` runs | Screenshot must be captured inside `execute_build()` after `start_dev_server()`, before function returns |
-| **Playwright install timeout** | Using default `timeout=120` for `playwright install chromium` | Set `timeout=300` for Playwright install command; it reliably takes 90-120 seconds on E2B |
+| **Anthropic tool-use API** | Not checking `stop_reason` — assuming `tool_use` after every response | Always branch on `stop_reason`: `tool_use` → execute tools; `end_turn` → loop complete; `max_tokens` → context management needed; other → error |
+| **Anthropic tool-use API** | Adding raw E2B file contents to tool results without truncation | Always truncate tool results: max 2,000 tokens, middle-truncation strategy, preserve exit_code separately |
+| **Anthropic tool-use API** | Using LangChain's `ChatAnthropic` for the agentic loop | Use `anthropic` SDK directly for the tool-use loop — LangChain adds overhead and abstracts away `stop_reason` handling. LangChain is fine for simple LLM calls but not for a custom agentic loop |
+| **E2B sandbox** | Awaiting `sandbox.commands.run()` synchronously inside the SSE generator | Use `asyncio.create_task()` for E2B commands; emit heartbeats while waiting |
+| **E2B sandbox** | Relying on `beta_pause()` as the only file persistence mechanism | Additionally sync project files to S3 after each commit step; E2B Issue #884 causes file loss on multi-resume |
+| **E2B sandbox** | Creating a new sandbox per session rather than reconnecting | Persist `sandbox_id` to PostgreSQL; use `AsyncSandbox.connect(sandbox_id)` on wake |
+| **Redis** | 3,600-second (1 hour) session TTL for sleep/wake sessions | Set TTL to 86,400 seconds (24 hours) minimum; the agent may be asleep for 8-16 hours |
+| **PostgreSQL** | Not indexing `usage_log` by `project_id` for per-project cost queries | Add compound index `(project_id, created_at)` before enabling per-project cost tracking |
+| **ALB** | Default idle timeout (60s) with long-running E2B tool calls | Set `idle_timeout.timeout_seconds = 300` in CDK; emit heartbeat events during all long tool executions |
 
 ---
 
@@ -354,12 +340,12 @@ Patterns that work at small scale but fail as usage grows.
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| **Playwright install per build** | 90-120 seconds added to every build | Pre-build E2B template with Playwright + Chromium; or check if already installed before running | Immediately — every build is slow |
-| **Doc generation calls per build stage** | 5x more Claude API calls per build; rate limits hit under concurrent load | Batch to one call at job READY; or decouple to async task | At 3+ concurrent builds |
-| **Full doc content in SSE events** | Frontend freezes during rapid doc updates; >1KB per event causes render blocking | Send doc URL reference; fetch content on demand | At 2KB+ doc payloads per event |
-| **Three panel re-renders on every log line** | Build page lags during high-volume log output (npm install phase) | `React.memo()` on snapshot/doc panels; only log panel re-renders on `log` events | During npm install (100+ lines/second) |
-| **Synchronous boto3 in async worker** | API health endpoint slows during builds; cascading timeouts | `asyncio.to_thread()` wrapping all boto3 calls | 2+ concurrent builds with screenshots |
-| **No screenshot CDN caching** | S3 origin hit on every screenshot view | CloudFront `screenshots/*` behavior with 1-year TTL; screenshots are immutable | After the first duplicate page view (immediate) |
+| **Full message history in memory** | Startup time increases per wake; memory pressure on ECS tasks | Two-tier state: Redis for hot state, PostgreSQL for cold history | At 20+ tool calls (~30K tokens of history) |
+| **Synchronous tool execution in SSE generator** | ALB kills SSE connection during long E2B commands; frontend shows agent frozen | `asyncio.create_task()` for tools; heartbeat loop while waiting | First `npm install` call (2-5 min) |
+| **Per-tool SSE events without batching** | Frontend React re-renders 40-60x during scaffolding phase | Server-side event batching or client-side verbose filter | During any code generation phase (>10 writes) |
+| **Token-count budget pacing without cost weighting** | CTO tier users (Opus) exhaust budget 5x faster than calculated | Cost-based pacing from `UsageLog.cost_microdollars` | First Opus user runs a large build |
+| **No hard iteration cap in agentic loop** | Agent loops indefinitely on a stubborn error; cost runaway | `MAX_TOOL_CALLS = 150` in loop controller | First unrecoverable error the agent encounters |
+| **Retry counter reset on wake** | Agent retries same failing operation daily; never escalates | Persist `retry_state` per error signature to PostgreSQL | First multi-day build with a persistent error |
 
 ---
 
@@ -369,11 +355,12 @@ Domain-specific security issues relevant to this milestone.
 
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| **Screenshot includes dev environment secrets** | E2B sandbox may render environment variable values visible in the UI (e.g., debug panels, error overlays) | Screenshot the production-equivalent URL path, not a debug path; add a visual check before upload — if screenshot contains visible API key patterns (`sk-`, `AKIA`), discard and log |
-| **Snapshot URL exposed without auth check** | `snapshot_url` from `GET /api/generation/{job_id}/status` is a CloudFront URL accessible to anyone with the URL | CloudFront URLs for screenshots should not be guessable — use `{job_id}/{stage}/{uuid}.png` as the S3 key, not sequential numbering |
-| **Documentation content generated from untrusted LLM output reflected verbatim** | Claude doc generation receives build context that may include user-provided goal strings — prompt injection could cause doc output to include malicious content rendered in the UI | Sanitize doc output before storing — strip HTML tags; render Markdown with a safe renderer that disallows raw HTML (`rehype-sanitize`); never use `dangerouslySetInnerHTML` for doc content |
-| **Raw E2B command errors in doc generation context** | Debug output from the sandbox (including potential secrets from npm output) passed to Claude for doc generation | Strip secrets from the build context before passing to Claude for doc generation — apply the same `_redact_secrets()` patterns from `LogStreamer` |
-| **CloudFront signed URLs for screenshots** | If the team adds CloudFront signed URLs for access control, the signing secret in Lambda@Edge is exposed if the Lambda is misconfigured | Use CloudFront + S3 OAC with opaque non-guessable keys instead of signed URLs — simpler and more secure for this use case |
+| **Agent writes files outside sandbox** | LLM prompt injection could cause agent to attempt file writes to ECS task filesystem | The `path_safety.py` already exists — apply it to every file path in every tool call; validate paths against sandbox root before execution |
+| **Tool results contain API keys or secrets** | E2B sandbox may echo secrets from `.env` files in bash output; these enter the message history sent to Anthropic | Apply the existing safety pattern filter from v0.6 (`_redact_secrets()`) to all tool results before adding to message history |
+| **SSE stream exposes internal agent state** | Tool-level events may contain file paths, error details, or stack traces visible in browser DevTools network tab | Apply safety filters to SSE event payloads; never include raw error messages, internal paths, or stack traces in events surfaced to the frontend |
+| **Sandbox ID as capability** | If `sandbox_id` is guessable or predictable, a malicious user could connect to another user's sandbox | Verify `sandbox_id` belongs to the authenticated user's project before calling `connect()`; store `user_id → sandbox_id` mapping in PostgreSQL and check on every reconnect |
+| **Budget check bypass** | If the budget check runs only at session start (not per API call), an agent that starts under-budget can run indefinitely after the check passes | Run budget check before EVERY Anthropic API call in the loop, not just at session initialization |
+| **LangGraph removal exposes old endpoints** | Removing graph.py may leave agent endpoints returning 500 errors, potentially leaking error details | Update agent endpoints atomically; add error handling that returns sanitized 503 responses during the transition |
 
 ---
 
@@ -383,12 +370,11 @@ Common user experience mistakes for this domain.
 
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
-| **Snapshot panel shows "Loading..." with no screenshot for first 2-3 minutes** | Founder thinks the feature is broken; loses confidence in the build | Show a placeholder with the text "Your app preview will appear here once the first stage completes" with a subtle animation; no broken image icon |
-| **Documentation panel starts empty and then jumps to full content** | Content flash; jarring UX | Animate doc content in with a fade (`animate-in fade-in duration-500`); show a skeleton placeholder while doc content is being generated |
-| **Three panels competing for attention simultaneously** | Cognitive overload; founder doesn't know where to look | Activity feed (left) is the primary focus during active build; snapshot and docs are secondary. Visually de-emphasize them with lower contrast until their content updates — then briefly highlight the updated panel |
-| **Raw agent stage names in activity feed** ("DEPS", "CHECKS", "SCAFFOLD") | Non-technical founders read "SCAFFOLD" and are confused | Map all stage names to human narration: "Installing your app's dependencies" (DEPS), "Running final checks" (CHECKS), "Setting up the project workspace" (SCAFFOLD) |
-| **Snapshot shows blank screenshot from wrong timing** | Founder sees a white rectangle and thinks something broke | Show the snapshot only after it has meaningful content; hide it (or show the placeholder) if the screenshot file size is below a threshold (< 5KB is likely blank) |
-| **Long-build reassurance missing at 2min and 5min thresholds** | Founder assumes the build is stuck and cancels | Add time-aware messages: after 120s show "Still working — installing dependencies usually takes 2-4 minutes"; after 300s show "Almost there — the final checks can take a few more minutes" |
+| **Agent sleeps with no explanation** | Founder opens dashboard to find build paused with no indication of why or when it will resume | Show "Resting — daily work session complete. Resuming tomorrow at 9am UTC" with a countdown timer in the build status card |
+| **Escalation notification is unclear about what action is required** | Founder sees "Agent needs input" but doesn't understand what decision to make | Escalation must include: what the agent tried (3 specific attempts), what failed, and a concrete decision prompt with options (e.g., "Try a different approach", "Skip this feature", "Provide guidance") |
+| **Verbose mode shows raw tool names** (`bash`, `write`, `read`) | Non-technical founders are confused by tool-level jargon | Map tool names to human language: "Running your app's test suite" (bash → npm test), "Writing authentication logic" (write → auth file), "Reviewing existing code" (read) |
+| **Progress appears to stop during npm install** | Founder thinks build is stuck for 3-5 minutes with no activity feed updates | Emit a "Installing dependencies — this takes a few minutes" phase event at the start of npm install, then heartbeat events every 30 seconds with elapsed time |
+| **Activity feed grows infinitely during long builds** | Browser tab memory usage grows unbounded over a multi-hour build | Cap feed at 200 visible entries; older entries collapse into "N earlier activities" summary |
 
 ---
 
@@ -396,17 +382,17 @@ Common user experience mistakes for this domain.
 
 Things that appear complete but are missing critical pieces.
 
-- [ ] **Screenshot timing:** Screenshot is captured with a post-ready sleep (5s minimum) — verify by inspecting the PNG: it should show actual rendered UI, not a blank white page.
-- [ ] **Playwright no-sandbox:** `--no-sandbox` flag present in Playwright launch args — verify by searching for `chromium.launch` in all screenshot-related code.
-- [ ] **Binary file read:** `read_file_bytes()` used for PNG files, not `read_file()` — verify by checking for `decode("utf-8")` in any code path that reads screenshot files.
-- [ ] **Async S3 upload:** All `s3.put_object()` calls wrapped in `asyncio.to_thread()` — verify by searching for `put_object` not preceded by `await asyncio.to_thread`.
-- [ ] **CloudFront behavior:** `screenshots/*` behavior exists in CDK — verify with `aws cloudfront get-distribution-config --id {dist_id} | jq '.DistributionConfig.CacheBehaviors'`.
-- [ ] **Doc decoupled from build:** No `await anthropic...` calls inside `execute_build()` or `execute_iteration_build()` — verify by checking those methods have no Anthropic imports or calls.
-- [ ] **SSE frontend-first deploy:** `useBuildLogs.ts` updated to handle all new event types before backend emission is deployed — verify in staging by inspecting the SSE stream.
-- [ ] **Panel independent scrolling:** `min-h-0` on all scrollable panel divs — verify by inserting 200 fake log lines and confirming only the activity panel scrolls.
-- [ ] **Snapshot URL in status API:** `GET /api/generation/{job_id}/status` returns `snapshot_url` field — verify with `curl` after a build completes.
-- [ ] **Screenshot before pause:** Screenshot capture runs inside `execute_build()` before the function returns — verify by adding a log line and confirming it appears before `sandbox_auto_paused` in CloudWatch.
-- [ ] **Doc generation non-fatal:** Doc generation failure (404, 429, timeout) does not set job status to FAILED — verify by mocking a Claude API 500 during a test build and confirming the build still reaches READY.
+- [ ] **Agentic loop**: Hard `MAX_TOOL_CALLS` cap implemented and tested — verify with a mock that loops indefinitely until cap triggers.
+- [ ] **Tool result truncation**: Middle-truncation (not beginning) implemented for bash output — verify by running a command that produces 1,000+ lines and checking the tool result length.
+- [ ] **Budget pacing**: Uses cost (microdollars) from `UsageLog`, not raw token count — verify by simulating an Opus session and checking the remaining budget calculation.
+- [ ] **Sleep/wake sandbox**: `sandbox_id` persisted to PostgreSQL before sleep — verify the field is in the job/session database table, not only in Redis.
+- [ ] **Retry state**: Persisted per error signature in PostgreSQL — verify that retry count survives a simulated sleep/wake cycle (serialize state, deserialize, confirm count is preserved).
+- [ ] **LangGraph removal**: All LangGraph imports gone from `requirements.txt`, `agent.py`, and all test files — verify with `grep -r "langgraph\|langchain" backend/`.
+- [ ] **ALB timeout**: `idle_timeout.timeout_seconds = 300` set in CDK stack — verify with `aws elbv2 describe-load-balancer-attributes`.
+- [ ] **Heartbeat during tools**: SSE generator emits heartbeat while awaiting long E2B commands — verify by running `npm install` in sandbox and observing SSE stream doesn't go silent for more than 10 seconds.
+- [ ] **E2B file sync**: Project files synced to S3 after each commit step, not only persisted in sandbox — verify by force-killing sandbox and confirming files are recoverable from S3.
+- [ ] **Cost circuit breaker**: Agentic loop refuses to continue when project cost exceeds tier cap — verify by setting a low cap and confirming the loop halts.
+- [ ] **Safety filtering on tool results**: Secrets patterns stripped from tool results before entering message history — verify by writing a fake `.env` file in sandbox and confirming the tool result has redacted patterns.
 
 ---
 
@@ -416,12 +402,13 @@ When pitfalls occur despite prevention.
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| **Blank screenshots shipped to users** | LOW | 1. Add file-size check before upload (< 5KB = discard) 2. Re-deploy backend with check 3. Delete existing blank screenshots from S3 4. No re-build needed — next build generates correct screenshots |
-| **Doc generation blocking builds** | MEDIUM | 1. Immediately wrap doc calls in try/except with non-fatal handling 2. Remove inline doc calls from build pipeline temporarily 3. Move to async task 4. Re-deploy 5. In-flight builds complete without docs; next builds generate docs asynchronously |
-| **S3 presigned URLs in build history (expiry)** | MEDIUM | 1. Add CloudFront behavior in CDK 2. Deploy CDK 3. Backfill: re-generate screenshots for recent builds (if sandbox still alive) or accept that old screenshots have expired 4. New builds use CloudFront URLs |
-| **SSE event types silently dropped** | LOW | 1. Add console.debug logging for unknown event types 2. Deploy frontend with new event type handlers 3. Existing in-flight builds continue — events start being processed on next SSE reconnect |
-| **Three-panel layout overflows at 1280px** | LOW | 1. Add responsive breakpoints 2. Deploy frontend fix 3. No backend changes needed |
-| **Playwright install timeout per build** | HIGH | 1. Build custom E2B template with Playwright pre-installed 2. Update `E2BSandboxRuntime.start()` to use new template ID 3. Existing in-flight builds finish with old template; new builds use pre-installed Playwright |
+| **Context window exhausted mid-build** | MEDIUM | 1. Add tool result truncation + clearing logic 2. Re-deploy backend 3. In-flight sessions that hit the error: load from last checkpoint in PostgreSQL, trim message history, resume |
+| **Agent stuck in infinite loop (cost spike)** | HIGH | 1. Manually set agent status to `paused` in PostgreSQL 2. Emit escalation SSE event 3. Add iteration cap to code 4. Re-deploy 5. Audit API costs in Anthropic console; dispute if runaway cost from a bug |
+| **Sandbox expired mid-build (file loss)** | MEDIUM | 1. Create new sandbox 2. Restore files from S3 snapshot (if implemented) or from last git commit in sandbox 3. Resume agent from last checkpoint 4. If no S3 sync was implemented, build restarts from beginning |
+| **LangGraph removal breaks endpoints** | LOW | 1. Identify all import failures in ECS task logs 2. Fix imports in agent.py to point to new module 3. Re-deploy 4. If rollback needed, revert the PR (LangGraph files should still be in git history) |
+| **Cost runaway before circuit breaker is implemented** | HIGH | 1. Immediately set `max_tokens_per_day = 1000` override for affected users in admin panel 2. Add circuit breaker to code 3. Re-deploy 4. Contact Anthropic support if charges are clearly from a bug |
+| **Retry counter reset (agent loops across days)** | LOW | 1. Add error signature tracking to PostgreSQL 2. Migrate existing sessions to include error state 3. Manually trigger escalation for affected users' stuck builds |
+| **SSE connection killed by ALB timeout** | LOW | 1. Update CDK to set idle timeout to 300s 2. Deploy CDK change 3. In-flight SSE connections will reconnect automatically via client-side reconnect logic |
 
 ---
 
@@ -431,54 +418,58 @@ How roadmap phases should address these pitfalls.
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| Screenshot captures blank page (timing) | Screenshot Capture | Test: open screenshot PNG after capture; check for non-white content (file > 5KB) |
-| Playwright --no-sandbox missing | Screenshot Capture | Unit test: mock sandbox run and verify `--no-sandbox` in command args |
-| Binary file read crashes on PNG | Screenshot Capture | Unit test: `read_file_bytes()` on a known PNG; assert returns bytes, not string |
-| Async S3 upload blocks event loop | S3 Integration | Load test: 3 concurrent builds with screenshots; `/api/health` must respond in <200ms |
-| Presigned URLs expire | S3 Integration | CDK review: `screenshots/*` CloudFront behavior present before first deployment |
-| Doc generation blocks build pipeline | Doc Generation | Architecture review: no Anthropic client calls inside `execute_build()` |
-| Claude rate limits on concurrent builds | Doc Generation | Staging test: 3 simultaneous builds; no `RateLimitError` in logs; separate API key configured |
-| New SSE event types silently dropped | SSE Extension | Deploy frontend first: verify new event handlers in `useBuildLogs.ts` before backend emission |
-| SSE backpressure / browser main thread block | SSE Extension + Three-Panel Layout | Performance test: React Profiler during active build; no render > 50ms |
-| Three-panel layout overflows at 1280px | Three-Panel Layout | Manual test matrix: 1280px, 1440px, 1920px, 375px (mobile) |
-| Independent panel scrolling broken | Three-Panel Layout | Integration test: inject 200 fake log lines; verify only activity panel scrolls |
-| Stale snapshot on SSE reconnect | SSE Extension | Test: disconnect SSE mid-build; reconnect; verify snapshot URL matches latest from status API |
-| Screenshot captured after beta_pause | Screenshot Capture | Code review: screenshot call is inside `execute_build()` before return, not in `worker.py` after return |
+| Context window bloat (tool results) | Core agentic loop | Test: run 30 tool calls with 500-token results; verify message history stays under 150K tokens |
+| Infinite tool-use loop | Core agentic loop | Test: mock agent that always returns tool errors; verify loop halts at MAX_TOOL_CALLS |
+| E2B sandbox expiry mid-build | Sleep/wake daemon | Test: pause agent, wait for sandbox TTL, wake agent; verify sandbox reconnects or recreates gracefully |
+| Token budget pacing cost vs tokens | Token budget phase | Test: simulate Opus session vs Sonnet session same number of tokens; verify different budget consumption |
+| SSE connection killed by ALB | SSE streaming phase | Test: run a 3-minute E2B command; verify SSE stream stays alive and emits heartbeats |
+| LangGraph removal breaking imports | LangGraph removal phase (first) | Test: `pytest` full suite immediately after removal; zero import errors |
+| Retry counter reset on wake | Self-healing error model | Test: inject persistent error; sleep/wake agent; verify retry count preserved after wake |
+| Model switch mid-session cost drift | Token budget phase | Test: change user tier mid-session in database; verify wake recalculates pacing with new model |
+| Bash output truncation hides errors | Tool implementation (bash) | Test: run command with error at line 500; verify error appears in truncated result |
+| Redis state too large for eviction | Sleep/wake daemon | Test: serialize agent state with 50+ tool calls; verify hot state is <10KB in Redis |
+| Cost runaway (no circuit breaker) | Token budget phase | Test: set low cost cap; verify loop halts when cap is hit; verify founder notification sent |
+| Activity feed event storm | SSE streaming phase | Test: run 30 write tool calls in sequence; verify <10 SSE events emitted (batching) |
 
 ---
 
 ## Sources
 
-**E2B SDK and Sandbox Behavior (codebase inspection):**
-- `backend/app/sandbox/e2b_runtime.py` — identified: `read_file()` decodes as UTF-8 (breaks for binary), `_wait_for_dev_server()` polls for HTTP 200 only (no paint-complete check), `beta_pause()` call location
-- `backend/app/services/generation_service.py` — identified: `execute_build()` pipeline stages, `beta_pause()` called by worker after function return, correct screenshot insertion point
-- `backend/app/queue/worker.py` — identified: `_archive_logs_to_s3()` uses synchronous boto3 (confirmed anti-pattern), `beta_pause()` sequence after build completes
-- `backend/app/api/routes/logs.py` — identified: SSE event types (`heartbeat`, `log`, `done`), `last_id="$"` live-only reconnect behavior
-- `frontend/src/hooks/useBuildLogs.ts` — identified: event type handling chain (exhaustive; no default handler), reconnect logic
+**Anthropic Official Documentation (HIGH confidence):**
+- [Context windows — Claude API Docs](https://platform.claude.com/docs/en/build-with-claude/context-windows) — 200K token limit, validation errors on overflow, context awareness in Claude 4.5+ models, tool result clearing
+- [How to implement tool use — Claude API Docs](https://platform.claude.com/docs/en/agents-and-tools/tool-use/implement-tool-use) — stop_reason handling, tool_use vs end_turn branching
+- [Handling stop reasons — Claude API Docs](https://platform.claude.com/docs/en/build-with-claude/handling-stop-reasons) — stop_reason values and their semantics
+- [Effective harnesses for long-running agents — Anthropic Engineering](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents) — context exhaustion mid-task, feature registry pattern, session continuity challenges
+- [Effective context engineering for AI agents — Anthropic Engineering](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents) — tool result pruning, progressive pruning strategy, compaction guidance
+- [Advanced tool use — Anthropic Engineering](https://www.anthropic.com/engineering/advanced-tool-use) — Tool Search Tool, deferred tool loading, token reduction patterns
 
-**E2B SDK External:**
-- [E2B GitHub e2b-dev/code-interpreter](https://github.com/e2b-dev/code-interpreter) — AsyncSandbox API, no built-in screenshot method
-- [E2B GitHub Issue #884: Paused sandbox not persisting file changes after second resume](https://github.com/e2b-dev/E2B/issues/884) — beta_pause limitation confirmed
+**E2B SDK and Known Issues (HIGH confidence):**
+- [E2B Sandbox Lifecycle docs](https://e2b.dev/docs/sandbox) — 1-hour Hobby / 24-hour Pro runtime limits
+- [E2B Sandbox Persistence docs](https://e2b.dev/docs/sandbox/persistence) — pause/resume plan restrictions, 4s/GiB pause time, continuous runtime reset on resume
+- [E2B GitHub Issue #884: Paused sandbox file loss on multi-resume](https://github.com/e2b-dev/E2B/issues/884) — confirmed file persistence bug on 2nd+ resume
+- [E2B GitHub Issue #879: Sandbox not honoring timeout](https://github.com/e2b-dev/e2b/issues/879) — timeout enforcement issues
+- [E2B GitHub Issue #875: autoPause overridden on connect](https://github.com/e2b-dev/e2b/issues/875) — autoPause behavior bug
 
-**Playwright in Containers:**
-- [Playwright Issue #3191: Chromium on root without --no-sandbox](https://github.com/microsoft/playwright/issues/3191) — confirmed; `--no-sandbox` required for root processes
-- [Playwright Docker docs](https://playwright.dev/docs/docker) — `--ipc=host` and `--no-sandbox` requirements for containerized environments
-- [Playwright MCP WSL Chromium Sandboxing Issues 2025](https://markaicode.com/playwright-mcp-wsl-chromium-sandboxing-fixes/) — current state of --no-sandbox requirement
+**Agentic Loop and Loop Detection (MEDIUM confidence — multiple corroborating sources):**
+- [Why AI Agents Get Stuck in Loops — fixbrokenaiapps.com](https://www.fixbrokenaiapps.com/blog/ai-agents-infinite-loops) — loop drift mechanisms, repetition detection approaches
+- [Claude Code Issue #4277: Agentic Loop Detection Service](https://github.com/anthropics/claude-code/issues/4277) — loop detection patterns from Claude Code project
+- [Error Handling in Agentic Systems — agentsarcade.com](https://agentsarcade.com/blog/error-handling-agentic-systems-retries-rollbacks-graceful-failure) — retry/escalation patterns, state divergence risk
 
-**S3 Async Upload:**
-- [boto3 GitHub Issue #1512: Reusing S3 Connection in Threads](https://github.com/boto/boto3/issues/1512) — thread safety confirmed
-- [FastAPI GitHub Discussion #11210: BackgroundTasks blocks entire FastAPI application](https://github.com/fastapi/fastapi/discussions/11210) — event loop blocking pattern confirmed
-- [Python asyncio.to_thread documentation](https://docs.python.org/3/library/asyncio-task.html#asyncio.to_thread) — correct pattern for wrapping blocking calls
+**Infrastructure (HIGH confidence):**
+- AWS ALB documentation — default idle timeout 60 seconds, max 300 seconds without support request
+- [State Management Patterns for Long-Running AI Agents](https://dev.to/inboryn_99399f96579fcd705/state-management-patterns-for-long-running-ai-agents-redis-vs-statefulsets-vs-external-databases-39c5) — Redis vs PostgreSQL trade-offs for agent state
+- [Redis persistence documentation](https://redis.io/docs/latest/operate/oss_and_stack/management/persistence/) — RDB vs AOF persistence guarantees
 
-**SSE Multiple Event Types:**
-- [MDN Server-Sent Events: Using server-sent events](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events) — event type handling with `event:` field
-- [SSE browser connection limit (6 per domain)](https://developer.mozilla.org/en-US/docs/Web/API/EventSource) — not applicable (system uses ReadableStreamDefaultReader, not EventSource)
-
-**CSS Grid Independent Scrolling:**
-- [CSS Grid Layout: Independent Scrolling Panels](https://tech-champion.com/design/css-grid-layout-design-creating-a-fixed-height-browser-page-with-independent-scrolling-panels/) — `min-height: 0` requirement for grid children
-- [Medium: Fixing Grid Layout Overflow: Making a Grid Item Scrollable Without Breaking Everything](https://medium.com/@adrishy108/fixing-grid-layout-overflow-making-a-grid-item-scrollable-without-breaking-everything-e4521a393cae) — `min-height: 0` confirmed as the fix
+**Codebase (HIGH confidence — direct inspection):**
+- `backend/app/sandbox/e2b_runtime.py` — confirmed: `beta_pause()` implementation, `run_command()` timeout, path handling, `_background_processes` tracking
+- `backend/app/core/llm_config.py` — confirmed: `UsageTrackingCallback`, `_calculate_cost()`, daily token limit check pattern
+- `backend/app/queue/usage.py` — confirmed: daily job usage tracking, midnight UTC reset pattern
+- `backend/app/api/routes/agent.py` — confirmed: LangGraph imports (`create_cofounder_graph`), 3600s session TTL, Redis session storage with `json.dumps`
+- `backend/app/agent/runner.py` — confirmed: 13-method LangGraph-oriented Protocol shape
+- `backend/app/agent/state.py` — confirmed: global `retry_count: int` (not per-error), `max_retries = 5` (not 3 as specified in v0.7 goal)
+- `backend/app/agent/path_safety.py` — confirmed: path traversal guard exists, must be applied to all new tools
 
 ---
 
-*Pitfalls research for: Live Build Experience (v0.6) — E2B screenshot capture, S3 uploads from async worker, LLM doc generation during builds, multiple SSE event types, three-panel responsive layout — FastAPI + Next.js + LangGraph on ECS Fargate*
-*Researched: 2026-02-23*
+*Pitfalls research for: v0.7 Autonomous Agent — replacing LangGraph multi-agent pipeline with direct Anthropic tool-use agentic loop, Claude Code-style tools in E2B sandbox, token budget pacing with sleep/wake daemon, SSE streaming activity feed, self-healing error model — existing FastAPI + Redis + PostgreSQL + E2B + Clerk SaaS on ECS Fargate*
+*Researched: 2026-02-24*
