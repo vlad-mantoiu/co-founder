@@ -79,7 +79,7 @@ async def reviewer_node(state: CoFounderState) -> dict:
             ],
         }
     else:
-        # Add review issues as errors for the debugger
+        # Add review issues as errors for the coder to fix
         errors = [
             {
                 "step_index": state["current_step_index"],
@@ -92,14 +92,34 @@ async def reviewer_node(state: CoFounderState) -> dict:
             for issue in review["issues"]
         ]
 
+        new_retry_count = state.get("retry_count", 0) + 1
+        max_retries = state.get("max_retries", 5)
+        retry_limit_exceeded = new_retry_count >= max_retries
+
+        status_msg = (
+            f"Code review rejected after {new_retry_count} attempts — escalating to human review"
+            if retry_limit_exceeded
+            else f"Code review found {len(review['issues'])} issues (attempt {new_retry_count}/{max_retries})"
+        )
+
         return {
             "active_errors": errors,
+            "retry_count": new_retry_count,
+            "needs_human_review": retry_limit_exceeded,
             "current_node": "reviewer",
-            "status_message": f"Code review found {len(review['issues'])} issues",
+            "status_message": status_msg,
             "messages": [
                 {
                     "role": "assistant",
-                    "content": "Code review found issues:\n" + "\n".join(f"- {i}" for i in review["issues"]),
+                    "content": (
+                        f"Code review found issues (attempt {new_retry_count}/{max_retries}):\n"
+                        + "\n".join(f"- {i}" for i in review["issues"])
+                        + (
+                            "\n\nMax review attempts reached — escalating to human review."
+                            if retry_limit_exceeded
+                            else ""
+                        )
+                    ),
                     "node": "reviewer",
                 }
             ],

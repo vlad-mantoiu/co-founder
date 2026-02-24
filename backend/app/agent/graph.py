@@ -55,13 +55,17 @@ def should_continue_after_reviewer(state: CoFounderState) -> str:
         # All steps done, commit and finish
         return "git_manager"
 
+    if state.get("needs_human_review"):
+        # Reviewer rejection limit exceeded, escalate to human
+        return "end"
+
     errors = state.get("active_errors", [])
     if errors:
-        # Review found issues, go back to coder
+        # Review found issues, go back to coder for fixes
         return "coder"
 
-    # More steps to do, continue to coder
-    return "coder"
+    # Current step approved, move to executor to run tests for next step
+    return "executor"
 
 
 def should_continue_after_architect(state: CoFounderState) -> str:
@@ -132,7 +136,9 @@ def create_cofounder_graph(checkpointer=None):
         should_continue_after_reviewer,
         {
             "coder": "coder",
+            "executor": "executor",
             "git_manager": "git_manager",
+            "end": END,
         },
     )
 
