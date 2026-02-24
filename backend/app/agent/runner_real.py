@@ -1056,3 +1056,20 @@ risk log references brief assumptions)."""
             model=llm.model,
         )
         return result
+
+    async def run_agent_loop(self, context: dict) -> dict:
+        """Execute the autonomous TAOR agent loop for a build session.
+
+        Phase 41 will implement the full TAOR loop here.
+        RunnerReal delegates to the LangGraph pipeline until Phase 41 replaces it.
+
+        Args:
+            context: Dict with keys: project_id, user_id, idea_brief, execution_plan
+
+        Returns:
+            Dict with keys: status, project_id, phases_completed, result
+
+        Raises:
+            NotImplementedError: Full TAOR implementation in Phase 41
+        """
+        raise NotImplementedError("RunnerReal.run_agent_loop() not yet implemented — Phase 41")

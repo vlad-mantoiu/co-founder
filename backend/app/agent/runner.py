@@ -216,3 +216,14 @@ class Runner(Protocol):
             breakdown), integration_recommendations (list of str)
         """
         ...
+
+    async def run_agent_loop(self, context: dict) -> dict:
+        """Execute the autonomous TAOR agent loop for a build session.
+
+        Args:
+            context: Dict with keys: project_id, user_id, idea_brief, execution_plan
+
+        Returns:
+            Dict with keys: status, project_id, phases_completed, result
+        """
+        ...
