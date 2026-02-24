@@ -37,6 +37,7 @@ async def debugger_node(state: CoFounderState) -> dict:
         return {
             "retry_count": new_retry_count,
             "needs_human_review": True,
+            "active_errors": [],  # Clear so router doesn't override needs_human_review
             "current_node": "debugger",
             "status_message": f"Retry limit ({state['max_retries']}) exceeded. Needs human review.",
             "messages": [
