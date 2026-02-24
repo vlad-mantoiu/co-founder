@@ -5,20 +5,26 @@ Architecture:
 - asyncio.wait_for(timeout=NARRATION_TIMEOUT_SECONDS) wraps the API call
 - One retry with 2.5s backoff on RateLimitError, APITimeoutError, asyncio.TimeoutError
 - Emits enriched build.stage.started SSE event per stage via JobStateMachine.publish_event()
+  when event_emitter is provided — standalone mode (no emitter) just returns the narration text
 - Safety filter reuses _SAFETY_PATTERNS from doc_generation_service (no duplication)
 - narrate() NEVER raises — safe for asyncio.create_task() fire-and-forget
 - Fallback narration emitted on any failure — build is never blocked
 
+Standalone mode (for autonomous agent use in Phase 41+):
+    ns = NarrationService()            # no event emitter
+    ns = NarrationService(emitter)     # with JobStateMachine emitter
+
 Phase 36 plan 01: TDD implementation.
+Phase 40 plan 02: Simplified constructor for standalone use.
 """
 
 import asyncio
+from typing import Any
 
 import anthropic
 import structlog
 
 from app.core.config import get_settings
-from app.queue.state_machine import JobStateMachine, SSEEventType
 from app.services.doc_generation_service import _SAFETY_PATTERNS
 
 logger = structlog.get_logger(__name__)
@@ -77,12 +83,58 @@ _SYSTEM_PROMPT: str = (
 class NarrationService:
     """Generates one Claude Haiku sentence per build stage transition.
 
-    Public API:
-        narrate(job_id, stage, spec, redis) -> None
+    Can operate in two modes:
+
+    1. Wired mode (existing behavior — for build pipeline):
+       service = NarrationService()
+       await service.narrate(job_id, stage, spec, redis)
+       # Emits build.stage.started SSE event via JobStateMachine(redis)
+
+    2. Standalone mode (for autonomous agent in Phase 41+):
+       service = NarrationService()
+       text = await service.get_narration(stage, spec)
+       # Returns narration string directly — no SSE side effects
+
+    The event_emitter parameter in __init__ is provided for dependency injection
+    in wired mode — if None (default), narrate() creates JobStateMachine from redis
+    per-call (backward compatible). Standalone callers use get_narration() instead.
 
     Never raises. Falls back to generic sentence on any failure.
-    Always emits a build.stage.started SSE event (real narration or fallback).
     """
+
+    def __init__(self, event_emitter: Any = None) -> None:
+        """Initialize NarrationService.
+
+        Args:
+            event_emitter: Optional pre-wired SSE event emitter (JobStateMachine instance).
+                           If None (default), narrate() creates one from redis per-call.
+                           Standalone callers (autonomous agent) pass None and use
+                           get_narration() instead of narrate().
+        """
+        self._event_emitter = event_emitter
+
+    async def get_narration(self, stage: str, spec: str) -> str:
+        """Return narration text for a stage — no SSE emission.
+
+        Standalone mode entry point for autonomous agent use (Phase 41+).
+        Never raises. Falls back to _FALLBACK_NARRATIONS[stage] on failure.
+
+        Args:
+            stage: Build stage name (scaffold / code / deps / checks / ready)
+            spec:  Founder's product spec (truncated to 300 chars internally)
+
+        Returns:
+            Narration text string (either from Claude or fallback)
+        """
+        truncated_spec = spec[:300]
+        try:
+            narration_text = await asyncio.wait_for(
+                self._call_claude(stage, truncated_spec),
+                timeout=NARRATION_TIMEOUT_SECONDS,
+            )
+            return self._apply_safety_filter(narration_text)
+        except Exception:
+            return _FALLBACK_NARRATIONS.get(stage, "We're making progress on your build.")
 
     async def narrate(
         self,
@@ -102,6 +154,8 @@ class NarrationService:
             spec:   Founder's product spec (truncated to 300 chars internally)
             redis:  Async Redis client
         """
+        from app.queue.state_machine import JobStateMachine, SSEEventType
+
         try:
             truncated_spec = spec[:300]
             try:
@@ -113,8 +167,8 @@ class NarrationService:
             except Exception:
                 narration_text = _FALLBACK_NARRATIONS.get(stage, "We're making progress on your build.")
 
-            state_machine = JobStateMachine(redis)  # type: ignore[arg-type]
-            await state_machine.publish_event(
+            emitter = self._event_emitter if self._event_emitter is not None else JobStateMachine(redis)  # type: ignore[arg-type]
+            await emitter.publish_event(
                 job_id,
                 {
                     "type": SSEEventType.BUILD_STAGE_STARTED,

@@ -10,19 +10,24 @@ Architecture:
 - All failures are non-fatal — exceptions logged as warnings, None returned
 - generate() NEVER raises — safe for asyncio.create_task() fire-and-forget
 
+Standalone mode (for autonomous agent use in Phase 41+):
+    ds = DocGenerationService()               # no event emitter
+    ds = DocGenerationService(emitter)        # with JobStateMachine emitter
+
 Phase 35 plan 01: TDD implementation.
+Phase 40 plan 02: Simplified constructor for standalone use.
 """
 
 import asyncio
 import json
 import re
+from typing import Any
 
 import anthropic
 import structlog
 
 from app.agent.llm_helpers import _strip_json_fences
 from app.core.config import get_settings
-from app.queue.state_machine import JobStateMachine, SSEEventType
 
 logger = structlog.get_logger(__name__)
 
@@ -126,8 +131,21 @@ _SAFETY_PATTERNS: list[tuple[re.Pattern, str]] = [
 class DocGenerationService:
     """Generates end-user documentation for a build via Claude Haiku.
 
-    Public API:
-        generate(job_id, spec, redis) -> None
+    Can operate in two modes:
+
+    1. Wired mode (existing behavior — for build pipeline):
+       service = DocGenerationService()
+       await service.generate(job_id, spec, redis)
+       # Writes sections to Redis and emits DOCUMENTATION_UPDATED SSE events
+
+    2. Standalone mode (for autonomous agent in Phase 41+):
+       service = DocGenerationService()
+       sections = await service.generate_sections(spec)
+       # Returns dict of section content directly — no Redis/SSE side effects
+
+    The event_emitter parameter in __init__ is provided for dependency injection
+    in wired mode — if None (default), generate() creates JobStateMachine from redis
+    per-call (backward compatible). Standalone callers use generate_sections() instead.
 
     Never raises. All failures logged as structlog warnings.
     _status key in job:{id}:docs hash tracks progress:
@@ -135,8 +153,45 @@ class DocGenerationService:
         generating  -> set after first successful section write
         complete    -> all 4 sections written
         partial     -> 1-3 sections written
-        failed      -> 0 sections written, or API/parse error
+        failed      -> 0 sections written
     """
+
+    def __init__(self, event_emitter: Any = None) -> None:
+        """Initialize DocGenerationService.
+
+        Args:
+            event_emitter: Optional pre-wired SSE event emitter (JobStateMachine instance).
+                           If None (default), generate() creates one from redis per-call.
+                           Standalone callers (autonomous agent) pass None and use
+                           generate_sections() instead of generate().
+        """
+        self._event_emitter = event_emitter
+
+    async def generate_sections(self, spec: str) -> dict[str, str]:
+        """Generate documentation sections standalone — no Redis/SSE side effects.
+
+        Standalone mode entry point for autonomous agent use (Phase 41+).
+        Never raises. Returns empty dict on any failure.
+
+        Args:
+            spec: Founder's product spec / goal string (may be empty)
+
+        Returns:
+            Dict with section keys (overview, features, getting_started, faq)
+            and filtered string values. Empty dict on failure.
+        """
+        try:
+            system_prompt, messages = self._build_prompt(spec)
+            raw_dict = await self._call_claude_with_retry(system_prompt, messages)
+            sections = self._parse_sections(raw_dict)
+            return {key: self._apply_safety_filter(val) for key, val in sections.items()}
+        except Exception as exc:
+            logger.warning(
+                "doc_generation_standalone_failed",
+                error=str(exc),
+                error_type=type(exc).__name__,
+            )
+            return {}
 
     async def generate(self, job_id: str, spec: str, redis: object) -> None:
         """Entry point. Called via asyncio.create_task(). Never raises.
@@ -278,7 +333,9 @@ class DocGenerationService:
             sections: Dict of valid section key -> content string
             redis:    Async Redis client
         """
-        state_machine = JobStateMachine(redis)  # type: ignore[arg-type]
+        from app.queue.state_machine import JobStateMachine, SSEEventType
+
+        emitter = self._event_emitter if self._event_emitter is not None else JobStateMachine(redis)  # type: ignore[arg-type]
         written_count: int = 0
 
         for key in SECTION_ORDER:
@@ -289,7 +346,7 @@ class DocGenerationService:
                 if written_count == 0:
                     # First write — update status to generating
                     await redis.hset(f"job:{job_id}:docs", "_status", "generating")  # type: ignore[attr-defined]
-                await state_machine.publish_event(
+                await emitter.publish_event(
                     job_id,
                     {
                         "type": SSEEventType.DOCUMENTATION_UPDATED,
@@ -327,6 +384,8 @@ class DocGenerationService:
             build_version: Current build version (e.g. "build_v0_2")
             redis: Async Redis client
         """
+        from app.queue.state_machine import JobStateMachine, SSEEventType
+
         try:
             # Extract version label: build_v0_2 -> v0.2
             parts = build_version.split("_")
@@ -356,8 +415,8 @@ class DocGenerationService:
             if isinstance(changelog_text, str) and changelog_text.strip():
                 safe_content = self._apply_safety_filter(changelog_text)
                 await redis.hset(f"job:{job_id}:docs", "changelog", safe_content)  # type: ignore[attr-defined]
-                state_machine = JobStateMachine(redis)  # type: ignore[arg-type]
-                await state_machine.publish_event(
+                emitter = self._event_emitter if self._event_emitter is not None else JobStateMachine(redis)  # type: ignore[arg-type]
+                await emitter.publish_event(
                     job_id,
                     {
                         "type": SSEEventType.DOCUMENTATION_UPDATED,
