@@ -2,19 +2,19 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-23)
+See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** v0.6 Live Build Experience — Phase 36 COMPLETE (all 4 plans shipped)
+**Current focus:** v0.7 Autonomous Agent — Defining requirements
 
 ## Current Position
 
-Phase: 36 of 39 (GenerationService Wiring & API Routes)
-Plan: 04 complete (Phase 36 complete — all 4 plans shipped)
-Status: In progress
-Last activity: 2026-02-24 — Phase 36 Plan 04 complete: Extended _SAFETY_PATTERNS with workspace paths, stack traces, and secret-shaped strings (NARR-08 closed)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-02-24 — Milestone v0.7 started (v0.6 abandoned at phase 36/39)
 
-Progress: [████░░░░░░] ~20% (v0.6 in progress — 9 plans shipped)
+Progress: [░░░░░░░░░░] 0% (v0.7 defining requirements)
 
 ## Performance Metrics
 
@@ -129,8 +129,8 @@ None blocking Phase 34 Plan 02.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 36-04-PLAN.md — Extended _SAFETY_PATTERNS with workspace paths, stack traces, and secret-shaped strings (NARR-08 gap closure)
-Resume: `/gsd:execute-phase 37` (Phase 37 — next phase)
+Stopped at: v0.7 milestone started — defining requirements
+Resume: Continue requirements definition and roadmap creation
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*

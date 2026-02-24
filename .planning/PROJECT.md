@@ -10,9 +10,9 @@ A non-technical founder can go from idea to running MVP preview in under 10 minu
 
 ## Current State
 
-**Shipped:** v0.4 Marketing Speed & SEO (2026-02-22)
+**Shipped:** v0.5 Sandbox Integration (2026-02-22), v0.6 partial (phases 33-36 of 39, abandoned at phase 36)
 **Codebase:** ~19,500 LOC Python + ~13,500 LOC tests + ~19,900 LOC TypeScript (app ~15,700 + marketing ~4,200)
-**Stack:** FastAPI + Next.js 14 + LangGraph + E2B + Neo4j + PostgreSQL + Redis + Clerk + AWS ECS Fargate + CloudFront + S3
+**Stack:** FastAPI + Next.js 14 + Anthropic API (tool use) + E2B + Neo4j + PostgreSQL + Redis + Clerk + AWS ECS Fargate + CloudFront + S3
 
 **What's live:**
 - Full founder flow: onboarding -> understanding interview -> decision gates -> build -> deploy readiness
@@ -22,7 +22,6 @@ A non-technical founder can go from idea to running MVP preview in under 10 minu
 - Auto-generated Strategy Graph, MVP Timeline, and Architecture artifacts from real user data with guided walkthrough
 - Neo4j strategy graph with interactive visualization + Kanban timeline
 - Worker capacity model with tier-based queue, concurrency limits, usage counters
-- Real LLM integration with RunnerReal wired to LangGraph
 - Full Stripe billing with checkout, webhooks, tier enforcement, portal
 - CI/CD pipeline with GitHub Actions test gate + automated ECS deploy
 - CloudWatch monitoring with SNS alerts and structured logging
@@ -30,10 +29,13 @@ A non-technical founder can go from idea to running MVP preview in under 10 minu
 - Authenticated app at cofounder.getinsourced.ai — marketing routes stripped, root redirects to dashboard/sign-in
 - Marketing CI/CD — auto-deploys to S3 on push to /marketing
 - Premium loading: branded splash screen, route progress bar, skeleton placeholders, content crossfade
-- Full SEO: per-page metadata, OG images, canonical URLs, sitemap, robots.txt, JSON-LD (Organization, WebSite, SoftwareApplication, FAQPage)
-- GEO optimization: answer-format content, FAQ sections, llms.txt, AI crawler rules (GPTBot, ClaudeBot, PerplexityBot)
+- Full SEO: per-page metadata, OG images, canonical URLs, sitemap, robots.txt, JSON-LD
+- GEO optimization: answer-format content, FAQ sections, llms.txt, AI crawler rules
 - Build-time image pipeline: WebP conversion, CloudFront images/* behavior with 1-year cache
 - Custom CSP response headers policy in CDK source control
+- SSE streaming infrastructure with heartbeat (from v0.6)
+- S3 + CloudFront screenshot storage infrastructure (from v0.6)
+- Safety pattern filtering — no secrets, raw errors, or internal paths in output (from v0.6)
 
 ## Requirements
 
@@ -41,7 +43,7 @@ A non-technical founder can go from idea to running MVP preview in under 10 minu
 
 - ✓ Clerk authentication with JWT verification — existing
 - ✓ FastAPI backend with async PostgreSQL + Redis — existing
-- ✓ LangGraph multi-agent pipeline (Architect -> Coder -> Executor -> Debugger -> Reviewer -> GitManager) — existing
+- ✓ LangGraph multi-agent pipeline (Architect -> Coder -> Executor -> Debugger -> Reviewer -> GitManager) — existing (replaced by autonomous agent in v0.7)
 - ✓ E2B sandbox for isolated code execution — existing
 - ✓ Neo4j knowledge graph integration — existing
 - ✓ Subscription tiers with usage tracking (bootstrapper/partner/cto_scale) — existing
@@ -71,7 +73,7 @@ A non-technical founder can go from idea to running MVP preview in under 10 minu
 - ✓ Response contract stability with empty arrays (not null) — v0.1
 - ✓ Chat interface preserved as secondary input method (de-emphasized) — v0.1
 - ✓ Deep Research button stub (returns 402) — v0.1
-- ✓ Real LLM integration with RunnerReal wired to LangGraph — v0.2
+- ✓ Real LLM integration with RunnerReal wired to LangGraph — v0.2 (replaced by autonomous agent in v0.7)
 - ✓ Full Stripe billing with checkout, webhooks, tier enforcement, portal — v0.2
 - ✓ CI/CD pipeline with GitHub Actions and automated ECS deploy — v0.2
 - ✓ AWS CloudWatch monitoring with SNS alerts — v0.2
@@ -108,19 +110,21 @@ A non-technical founder can go from idea to running MVP preview in under 10 minu
 
 ### Active
 
-**Current Milestone: v0.6 Live Build Experience**
+**Current Milestone: v0.7 Autonomous Agent**
 
-**Goal:** Transform the build page from a loading screen into a live co-founder experience — founders see their product evolve visually, read generated documentation, and feel like a real engineering team is building for them.
+**Goal:** Replace the rigid LangGraph multi-agent pipeline with a single autonomous Claude agent that operates like Claude Code inside E2B — consuming the founder's Idea Brief, autonomously planning and executing a GSD-like workflow, streaming progress to the UI, pacing work against the subscription token budget, and only stopping when it genuinely needs the founder.
 
 **Target features:**
-- Three-panel build page: activity feed (left), live snapshot (center), auto-generated docs (right)
-- Human-readable agent narration replacing raw logs — calm, competent, jargon-free
-- E2B screenshot capture after each successful build stage, stored in S3, served via CloudFront
-- Progressive end-user documentation generated by separate Claude API calls during build
-- Extended SSE event stream: build.stage.started/completed, snapshot.updated, documentation.updated
-- Long-build reassurance UX (2min/5min thresholds)
-- Polished completion state: launch button, build history, download docs, changelog
-- Safety guardrails: no secrets, raw errors, or internal paths surfaced to founders
+- Autonomous agentic loop replacing LangGraph: discuss → plan → execute → verify, all autonomous
+- Claude Code-style tool surface operating inside E2B: read, write, edit, bash, grep, glob, take_screenshot
+- Configurable model per subscription tier (Opus for CTO, Sonnet for Bootstrapper)
+- GSD phases recorded on Kanban Timeline with live status updates
+- Activity feed with verbose toggle: phase summaries by default, tool-level detail on demand
+- Token budget pacing: agent distributes work across subscription window (tokens remaining ÷ days until renewal)
+- Sleep/wake daemon: agent state is "sleeping" when daily budget consumed, wakes on refresh
+- Self-healing error model: 3 retries with different approaches, then escalate to founder
+- Agent handles narration, documentation, and screenshots natively — no separate services
+- Fits into existing three-panel UI via SSE streaming
 
 ### Out of Scope
 
@@ -132,16 +136,16 @@ A non-technical founder can go from idea to running MVP preview in under 10 minu
 - Export to Figma/design tools — PDF and Markdown cover sharing needs
 - Multi-project concurrent builds — one active build per project for MVP
 - Stripe one-time purchases — subscriptions only
-- Iteration/rebuild cycle — deferred to future milestone (v0.5 is first working build only)
 - GitHub repo push for generated code — deferred to future milestone (sandbox-only for now)
+- v0.6 frontend UI (phases 37-39) — abandoned; three-panel layout, completion state, and long-build reassurance deferred
 
 ## Context
 
-**Shipped v0.4 Marketing Speed & SEO (2026-02-22):**
-Marketing site now loads with premium UX: branded splash screen on first visit, route progress bar, skeleton placeholders, content crossfade. Full SEO: per-page metadata, OG images, canonical URLs, sitemap, robots.txt, 9 JSON-LD schemas across 3 pages with build-time validation. GEO: answer-format content, FAQ sections with FAQPage JSON-LD, llms.txt for AI crawlers, explicit bot rules for GPTBot/ClaudeBot/PerplexityBot. Image pipeline ready for WebP conversion when raster images are added.
+**v0.6 partial (phases 33-36 shipped, 37-39 abandoned):**
+Backend services built: ScreenshotService (Playwright), DocGenerationService, NarrationService, SSE streaming with heartbeat, S3+CloudFront screenshot infrastructure, safety pattern filtering. Frontend three-panel UI and completion state were NOT built (abandoned phases). v0.7 replaces the service layer with an autonomous agent that handles narration/docs/screenshots natively, but keeps the SSE and storage infrastructure.
 
-**Architecture:**
-Two deployment targets: (1) Static marketing site at getinsourced.ai — Next.js static export on CloudFront + S3, (2) Authenticated app at cofounder.getinsourced.ai — Next.js + FastAPI on ECS Fargate. Structured state machine drives founder through stages -> decisions are recorded via gates -> generation happens in background via Runner -> artifacts and dashboard reflect progress.
+**Architecture (v0.7 pivot):**
+Two deployment targets: (1) Static marketing site at getinsourced.ai — Next.js static export on CloudFront + S3, (2) Authenticated app at cofounder.getinsourced.ai — Next.js + FastAPI on ECS Fargate. The LangGraph multi-agent pipeline (Architect->Coder->Executor->Debugger->Reviewer->GitManager) is being replaced by a single autonomous Claude agent with Claude Code-style tools operating inside E2B. The agent runs as a persistent daemon, pacing work against the user's subscription token budget with sleep/wake cycles.
 
 **Target User:**
 Non-technical, product-led founders who think in roadmaps, reports, and artifacts. They want to make product decisions, not coding decisions.
@@ -149,16 +153,18 @@ Non-technical, product-led founders who think in roadmaps, reports, and artifact
 **Known Tech Debt:**
 - Neo4j dual-write non-fatal — graph empty when Neo4j not configured (medium, from v0.1)
 - Dashboard layout retains force-dynamic for useSearchParams() — documented deviation (low, from v0.3)
-- SEO-10 WebSite JSON-LD omits SearchAction — site has no search feature (low, accepted v0.4)
-- Image srcset generation not implemented — no raster images in marketing site yet (low, from v0.4)
+- LangGraph node files (architect, coder, executor, debugger, reviewer, git_manager) to be removed after v0.7 agent replaces them
+- NarrationService, DocGenerationService to be removed after v0.7 agent handles natively
+- v0.6 phases 37-39 frontend work never built — three-panel UI deferred
 
 ## Constraints
 
-- **Tech Stack**: FastAPI + Next.js + LangGraph + E2B + Neo4j + Clerk + AWS ECS Fargate + CloudFront + S3
+- **Tech Stack**: FastAPI + Next.js + Anthropic API (tool use) + E2B + Neo4j + Clerk + AWS ECS Fargate + CloudFront + S3
 - **TDD**: All stories must have tests written before implementation
-- **Cost**: Worker capacity model mandatory — bounded compute per request
+- **Cost**: Token budget pacing mandatory — agent distributes work across subscription window
 - **Deployment**: AWS ECS Fargate (app) + CloudFront + S3 (marketing)
 - **Auth**: Clerk remains the auth provider
+- **Model**: Configurable per subscription tier — Opus/Sonnet selectable
 
 ## Key Decisions
 
@@ -192,5 +198,12 @@ Non-technical, product-led founders who think in roadmaps, reports, and artifact
 | Two-pass S3 sync in deploy pipeline | First pass syncs HTML/assets with --delete; second pass syncs images/ with immutable cache headers | ✓ Good — prevents image deletion race, correct cache headers |
 | Allow all AI crawlers including training crawlers | User decision: maximize discoverability, no Disallow entries for any bot | ✓ Good — all AI engines can index and cite content |
 
+| Replace LangGraph with autonomous Claude agent | LangGraph is a rigid predefined graph; autonomous agent with tools is more flexible, handles narration/docs/screenshots natively, matches GSD workflow pattern | — Pending |
+| Token budget pacing over one-shot builds | Agent runs 24/7 at paced capacity, distributing work across subscription window — gives impression of persistent co-founder | — Pending |
+| Claude Code-style tools in E2B | Full tool suite (read, write, edit, bash, grep, glob) gives agent maximum flexibility inside sandbox | — Pending |
+| Configurable model per subscription tier | Opus for premium tiers, Sonnet for budget — balances quality and cost | — Pending |
+| Sleep/wake daemon model | Agent sleeps when daily token budget consumed, wakes on refresh — sustainable 24/7 presence | — Pending |
+| Self-heal then escalate error model | 3 retries with different approaches before asking founder — minimizes interruptions | — Pending |
+
 ---
-*Last updated: 2026-02-23 after v0.6 milestone started*
+*Last updated: 2026-02-24 after v0.7 milestone started*
