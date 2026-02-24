@@ -25,11 +25,16 @@ from app.queue.state_machine import JobStateMachine
 from app.sandbox.e2b_runtime import E2BSandboxRuntime
 from app.services.doc_generation_service import DocGenerationService
 from app.services.log_streamer import LogStreamer
+from app.services.narration_service import NarrationService
+from app.services.screenshot_service import ScreenshotService
 
 logger = structlog.get_logger(__name__)
 
 # DOCS-03: Module-level singleton — one instance reused across all builds
 _doc_generation_service = DocGenerationService()
+# NARR-02: Module-level singletons — one instance reused across all builds
+_narration_service = NarrationService()
+_screenshot_service = ScreenshotService()
 
 
 class GenerationService:
@@ -91,6 +96,9 @@ class GenerationService:
             streamer = _NullStreamer()  # type: ignore[assignment]
 
         try:
+            # Resolve settings once before first stage — needed for all feature flag gates below
+            _settings = _get_settings()
+
             # 1. STARTING
             await state_machine.transition(job_id, JobStatus.STARTING, "Starting generation pipeline")
             await streamer.write_event("--- Starting generation pipeline ---")
@@ -109,7 +117,6 @@ class GenerationService:
             # DOCS-03: Start doc generation as background task after scaffold completes
             # Fire-and-forget — task handles its own errors, never blocks the build
             # Only launched when Redis is available (no-op in unit tests without Redis)
-            _settings = _get_settings()
             if _settings.docs_generation_enabled and _redis is not None:
                 asyncio.create_task(
                     _doc_generation_service.generate(
@@ -119,10 +126,33 @@ class GenerationService:
                     )
                 )
 
+            # NARR-02: Fire-and-forget narration for SCAFFOLD stage
+            if _settings.narration_enabled and _redis is not None:
+                asyncio.create_task(
+                    _narration_service.narrate(
+                        job_id=job_id,
+                        stage="scaffold",
+                        spec=job_data.get("goal", "")[:300],
+                        redis=_redis,
+                    )
+                )
+
             # 3. CODE — run the Runner pipeline
             await state_machine.transition(job_id, JobStatus.CODE, "Running LLM code generation pipeline")
             streamer._phase = "code"
             await streamer.write_event("--- Running LLM code generation ---")
+
+            # NARR-02: Fire-and-forget narration for CODE stage
+            if _settings.narration_enabled and _redis is not None:
+                asyncio.create_task(
+                    _narration_service.narrate(
+                        job_id=job_id,
+                        stage="code",
+                        spec=job_data.get("goal", "")[:300],
+                        redis=_redis,
+                    )
+                )
+
             final_state = await self.runner.run(agent_state)
 
             # Emit auto-fix signal to log stream if debugger retried
@@ -141,6 +171,18 @@ class GenerationService:
             )
             streamer._phase = "install"
             await streamer.write_event("--- Provisioning sandbox and installing dependencies ---")
+
+            # NARR-02: Fire-and-forget narration for DEPS stage
+            if _settings.narration_enabled and _redis is not None:
+                asyncio.create_task(
+                    _narration_service.narrate(
+                        job_id=job_id,
+                        stage="deps",
+                        spec=job_data.get("goal", "")[:300],
+                        redis=_redis,
+                    )
+                )
+
             sandbox = self.sandbox_runtime_factory()
             await sandbox.start()
 
@@ -157,6 +199,18 @@ class GenerationService:
             await state_machine.transition(job_id, JobStatus.CHECKS, "Running health checks")
             streamer._phase = "checks"
             await streamer.write_event("--- Running health checks ---")
+
+            # NARR-02: Fire-and-forget narration for CHECKS stage
+            if _settings.narration_enabled and _redis is not None:
+                asyncio.create_task(
+                    _narration_service.narrate(
+                        job_id=job_id,
+                        stage="checks",
+                        spec=job_data.get("goal", "")[:300],
+                        redis=_redis,
+                    )
+                )
+
             await sandbox.run_command(
                 "echo 'health-check-ok'",
                 cwd=workspace_path,
@@ -173,6 +227,25 @@ class GenerationService:
                 on_stdout=streamer.on_stdout,
                 on_stderr=streamer.on_stderr,
             )
+
+            # SNAP-03: Fire-and-forget screenshot captures after dev server is live
+            if _settings.screenshot_enabled and _redis is not None:
+                asyncio.create_task(
+                    _screenshot_service.capture(
+                        preview_url=preview_url,
+                        job_id=job_id,
+                        stage="checks",
+                        redis=_redis,
+                    )
+                )
+                asyncio.create_task(
+                    _screenshot_service.capture(
+                        preview_url=preview_url,
+                        job_id=job_id,
+                        stage="ready",
+                        redis=_redis,
+                    )
+                )
 
             # 6. Compute build result fields
             sandbox_id = sandbox.sandbox_id
@@ -261,6 +334,7 @@ class GenerationService:
         user_id = job_data.get("user_id", "")
         project_id = job_data.get("project_id", "")
         previous_sandbox_id = job_data.get("previous_sandbox_id", None)
+        _redis = None  # resolved below; None when Redis unavailable (test env)
         try:
             _redis = redis if redis is not None else get_redis()
             streamer: LogStreamer = LogStreamer(redis=_redis, job_id=job_id, phase="scaffold")
@@ -269,6 +343,9 @@ class GenerationService:
             streamer = _NullStreamer()  # type: ignore[assignment]
 
         try:
+            # Resolve settings once before first stage — needed for all feature flag gates below
+            _settings = _get_settings()
+
             # 1. STARTING
             await state_machine.transition(job_id, JobStatus.STARTING, "Starting iteration build pipeline")
             await streamer.write_event("--- Starting iteration build pipeline ---")
@@ -305,10 +382,42 @@ class GenerationService:
             # Extend sandbox lifetime
             await sandbox.set_timeout(3600)
 
+            # DOCS-03: Start doc generation as background task after scaffold completes (iteration builds)
+            if _settings.docs_generation_enabled and _redis is not None:
+                asyncio.create_task(
+                    _doc_generation_service.generate(
+                        job_id=job_id,
+                        spec=job_data.get("goal", ""),
+                        redis=_redis,
+                    )
+                )
+
+            # NARR-02: Fire-and-forget narration for SCAFFOLD stage
+            if _settings.narration_enabled and _redis is not None:
+                asyncio.create_task(
+                    _narration_service.narrate(
+                        job_id=job_id,
+                        stage="scaffold",
+                        spec=job_data.get("goal", "")[:300],
+                        redis=_redis,
+                    )
+                )
+
             # 3. CODE — run Runner with change_request context
             await state_machine.transition(job_id, JobStatus.CODE, "Running LLM patch generation")
             streamer._phase = "code"
             await streamer.write_event("--- Running LLM patch generation ---")
+
+            # NARR-02: Fire-and-forget narration for CODE stage
+            if _settings.narration_enabled and _redis is not None:
+                asyncio.create_task(
+                    _narration_service.narrate(
+                        job_id=job_id,
+                        stage="code",
+                        spec=job_data.get("goal", "")[:300],
+                        redis=_redis,
+                    )
+                )
 
             # Build agent state that includes the change request context
             agent_state = create_initial_state(
@@ -341,6 +450,18 @@ class GenerationService:
             )
             streamer._phase = "install"
             await streamer.write_event("--- Writing patched files to sandbox ---")
+
+            # NARR-02: Fire-and-forget narration for DEPS stage
+            if _settings.narration_enabled and _redis is not None:
+                asyncio.create_task(
+                    _narration_service.narrate(
+                        job_id=job_id,
+                        stage="deps",
+                        spec=job_data.get("goal", "")[:300],
+                        redis=_redis,
+                    )
+                )
+
             workspace_path = "/home/user/project"
             for rel_path, file_change in working_files.items():
                 content = file_change.get("new_content", "") if isinstance(file_change, dict) else str(file_change)
@@ -351,6 +472,17 @@ class GenerationService:
             await state_machine.transition(job_id, JobStatus.CHECKS, "Running health checks on patched build")
             streamer._phase = "checks"
             await streamer.write_event("--- Running health checks on patched build ---")
+
+            # NARR-02: Fire-and-forget narration for CHECKS stage
+            if _settings.narration_enabled and _redis is not None:
+                asyncio.create_task(
+                    _narration_service.narrate(
+                        job_id=job_id,
+                        stage="checks",
+                        spec=job_data.get("goal", "")[:300],
+                        redis=_redis,
+                    )
+                )
 
             check_result = await sandbox.run_command(
                 "echo 'health-check-ok'",
@@ -407,6 +539,25 @@ class GenerationService:
                 on_stdout=streamer.on_stdout,
                 on_stderr=streamer.on_stderr,
             )
+
+            # SNAP-03: Fire-and-forget screenshot captures after dev server is live
+            if _settings.screenshot_enabled and _redis is not None:
+                asyncio.create_task(
+                    _screenshot_service.capture(
+                        preview_url=preview_url,
+                        job_id=job_id,
+                        stage="checks",
+                        redis=_redis,
+                    )
+                )
+                asyncio.create_task(
+                    _screenshot_service.capture(
+                        preview_url=preview_url,
+                        job_id=job_id,
+                        stage="ready",
+                        redis=_redis,
+                    )
+                )
 
             # 6. Compute remaining build result fields
             sandbox_id = sandbox.sandbox_id

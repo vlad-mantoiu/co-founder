@@ -70,6 +70,7 @@ class Settings(BaseSettings):
     # Screenshots & documentation infrastructure (Phase 33: INFRA-04, INFRA-05)
     screenshot_enabled: bool = True         # env: SCREENSHOT_ENABLED
     docs_generation_enabled: bool = True    # env: DOCS_GENERATION_ENABLED
+    narration_enabled: bool = True          # env: NARRATION_ENABLED
     screenshots_bucket: str = ""            # env: SCREENSHOTS_BUCKET
     screenshots_cloudfront_domain: str = "" # env: SCREENSHOTS_CLOUDFRONT_DOMAIN
 
