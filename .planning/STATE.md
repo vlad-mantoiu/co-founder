@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 35 of 39 (DocGenerationService)
-Plan: 01 complete
+Plan: 02 complete
 Status: In progress
-Last activity: 2026-02-24 — Phase 35 Plan 01 complete: DocGenerationService with Claude Haiku, progressive Redis writes, safety filter
+Last activity: 2026-02-24 — Phase 35 Plan 02 complete: asyncio.create_task() wiring for DocGenerationService in execute_build()
 
 Progress: [█░░░░░░░░░] ~5% (v0.6 in progress — 5 plans shipped)
 
@@ -32,6 +32,7 @@ Progress: [█░░░░░░░░░] ~5% (v0.6 in progress — 5 plans shi
 | v0.4 Marketing Speed & SEO | 7 | 21 | 3 days (2026-02-20 to 2026-02-22) |
 | v0.5 Sandbox Integration | 5 | 15 | 1 day (2026-02-22) |
 | v0.6 Phase 34 Plan 03 | 1 plan | 1 task | 2 files | ~1min |
+| Phase 35 P02 | 5min | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -83,6 +84,9 @@ Key v0.6 decisions (from Phase 33 Plan 02):
 - [Phase 35-docgenerationservice]: Module-level _SAFETY_PATTERNS compiled at import — avoids re-compile overhead per section write
 - [Phase 35-docgenerationservice]: generate() returns None — consistent with fire-and-forget asyncio.create_task pattern
 - [Phase 35-docgenerationservice]: _status flow: pending -> generating (first write) -> complete/partial/failed
+- [Phase 35-docgenerationservice]: Patch _doc_generation_service.generate (not class) for test isolation — singleton created at import time
+- [Phase 35-docgenerationservice]: _redis = None guard before try block prevents UnboundLocalError in no-Redis test environments
+- [Phase 35-docgenerationservice]: create_task gate: docs_generation_enabled AND _redis is not None — doc gen requires Redis
 
 ### Pending Todos
 
@@ -100,8 +104,8 @@ None blocking Phase 34 Plan 02.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 35-01-PLAN.md — DocGenerationService with Claude Haiku, progressive Redis writes, safety filter
-Resume: `/gsd:execute-phase 35` (continue with plan 02)
+Stopped at: Completed 35-02-PLAN.md — asyncio.create_task() wiring for DocGenerationService in execute_build()
+Resume: `/gsd:execute-phase 36` (next phase)
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*

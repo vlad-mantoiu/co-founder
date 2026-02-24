@@ -90,7 +90,7 @@
 
 - [x] **Phase 33: Infrastructure & Configuration** - S3 screenshots bucket, CloudFront OAC behavior, IAM grants, Settings env vars (completed 2026-02-23)
 - [x] **Phase 34: ScreenshotService** - Playwright capture from ECS worker, S3 upload, non-fatal error handling (completed 2026-02-23)
-- [ ] **Phase 35: DocGenerationService** - Claude-powered doc generation, Redis hash storage, asyncio.create_task decoupling
+- [x] **Phase 35: DocGenerationService** - Claude-powered doc generation, Redis hash storage, asyncio.create_task decoupling (completed 2026-02-24)
 - [ ] **Phase 36: GenerationService Wiring & API Routes** - Wire services into build pipeline, new SSE and REST endpoints, narration generation
 - [ ] **Phase 37: Frontend Hooks** - useBuildEvents SSE consumer, useDocGeneration, snapshot and doc state management
 - [ ] **Phase 38: Panel Components** - ActivityFeed, LiveSnapshot, DocPanel — three-panel build experience
@@ -210,7 +210,7 @@ Plans:
   3. Documentation content contains no code blocks, CLI commands, internal file paths, or architecture implementation details — only founder-readable product description
   4. If the Claude API returns a rate limit error, times out, or the Redis write fails, the build job continues normally — doc generation failure never sets job status to FAILED
   5. Documentation sections arrive progressively in the Redis hash — `overview` is written first, remaining sections follow — enabling progressive display even before all sections complete
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [ ] 35-01-PLAN.md — TDD DocGenerationService: Claude Haiku API call, JSON parse, progressive Redis writes, safety filter, failure handling (DOCS-01, DOCS-02, DOCS-07, DOCS-08)
 - [ ] 35-02-PLAN.md — Wire DocGenerationService into execute_build() via asyncio.create_task() (DOCS-03)
@@ -304,7 +304,7 @@ Plans:
 | 32. Sandbox Snapshot Lifecycle | v0.5 | 4/4 | Complete | 2026-02-22 |
 | 33. Infrastructure & Configuration | 2/3 | Complete    | 2026-02-23 | - |
 | 34. ScreenshotService | 3/3 | Complete    | 2026-02-23 | - |
-| 35. DocGenerationService | 1/2 | In Progress|  | - |
+| 35. DocGenerationService | 2/2 | Complete   | 2026-02-24 | - |
 | 36. GenerationService Wiring & API Routes | v0.6 | 0/TBD | Not started | - |
 | 37. Frontend Hooks | v0.6 | 0/TBD | Not started | - |
 | 38. Panel Components | v0.6 | 0/TBD | Not started | - |
