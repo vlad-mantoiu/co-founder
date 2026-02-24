@@ -67,6 +67,7 @@ async def reviewer_node(state: CoFounderState) -> dict:
             "current_node": "reviewer",
             "status_message": "Code review passed",
             "is_complete": all_steps_complete,
+            "active_errors": [],  # Clear errors so router doesn't re-enter fix loop
             "retry_count": 0,  # Reset retry count for next step
             "messages": [
                 {
