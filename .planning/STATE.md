@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 ## Current Position
 
 Phase: 40 of 46 (LangGraph Removal + Protocol Extension)
-Plan: 2 of 4 complete
+Plan: 3 of 4 complete
 Status: In progress
-Last activity: 2026-02-24 — Plan 40-02 complete: NarrationService and DocGenerationService extracted to standalone utilities
+Last activity: 2026-02-24 — Plan 40-03 complete: LangGraph/LangChain fully removed, RunnerReal rewritten for direct Anthropic SDK
 
-Progress: [█░░░░░░░░░] 8% (v0.7: 2/24 plans done)
+Progress: [█░░░░░░░░░] 12% (v0.7: 3/24 plans done)
 
 ## Performance Metrics
 
@@ -52,6 +52,10 @@ Progress: [█░░░░░░░░░] 8% (v0.7: 2/24 plans done)
 - [40-01] RunnerReal.run_agent_loop() also NotImplementedError — restores protocol compliance until Phase 41
 - [40-02] NarrationService/DocGenerationService stay in app/services/; standalone = optional emitter constructor + new pure-return methods (get_narration, generate_sections)
 - [40-02] JobStateMachine imported locally inside service methods — patch target for tests is app.queue.state_machine.JobStateMachine, not app.services.X.JobStateMachine
+- [40-03] TrackedAnthropicClient wraps anthropic.AsyncAnthropic and tracks usage via response.usage (not LangChain callbacks)
+- [40-03] _invoke_with_retry signature changed from (llm, messages) to (client, system, messages, max_tokens=4096)
+- [40-03] agent.py /chat and /chat/stream stub to 503 until Phase 41 AutonomousRunner replaces LangGraph pipeline
+- [40-03] Removed langgraph namespace remnant from pyenv site-packages — pip uninstall left empty dirs (cache/, checkpoint/, store/) creating importable namespace package
 
 ### Key Research Flags (check before planning)
 
@@ -72,9 +76,9 @@ None blocking Phase 40.
 
 ## Session Continuity
 
-Last session: 2026-02-24
-Stopped at: Phase 40 Plan 02 complete — NarrationService and DocGenerationService extracted to standalone utilities (565 unit tests green)
-Resume: `/gsd:execute-phase 40` to continue with Plan 40-03
+Last session: 2026-02-24 (plan 40-03)
+Stopped at: Phase 40 Plan 03 complete — LangGraph/LangChain fully removed, RunnerReal on direct Anthropic SDK (533 unit tests green)
+Resume: `/gsd:execute-phase 40` to continue with Plan 40-04
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
