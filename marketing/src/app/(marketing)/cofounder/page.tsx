@@ -28,7 +28,7 @@ export default function CofounderPage() {
             '@context': 'https://schema.org',
             '@type': 'SoftwareApplication',
             name: 'Co-Founder.ai',
-            url: 'https://cofounder.getinsourced.ai',
+            url: `${SITE_URL}/cofounder`,
             applicationCategory: 'BusinessApplication',
             operatingSystem: 'Web',
             offers: {

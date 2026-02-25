@@ -62,12 +62,12 @@ function InsourcedHero() {
           </p>
 
           <div className="mt-12 flex flex-col sm:flex-row gap-4 justify-center">
-            <a
-              href="https://cofounder.getinsourced.ai/onboarding"
+            <Link
+              href="/waitlist"
               className="inline-flex items-center justify-center px-10 py-4.5 bg-brand text-white font-semibold rounded-xl hover:bg-brand-dark transition-all duration-200 shadow-glow hover:shadow-glow-lg text-lg"
             >
-              Start with Co-Founder.ai
-            </a>
+              Join the Waitlist
+            </Link>
             <a
               href="#suite"
               className="inline-flex items-center justify-center gap-2 px-10 py-4.5 glass text-white font-medium rounded-xl hover:bg-white/5 transition-all duration-200 text-lg"
@@ -153,13 +153,13 @@ function FlagshipProduct() {
                 </div>
 
                 <div className="flex items-center gap-4">
-                  <a
-                    href="https://cofounder.getinsourced.ai/onboarding"
+                  <Link
+                    href="/waitlist"
                     className="inline-flex items-center gap-2 px-8 py-4 bg-brand text-white font-semibold rounded-xl hover:bg-brand-dark transition-all duration-200 shadow-glow hover:shadow-glow-lg text-lg"
                   >
-                    Start Building with Co-Founder.ai
+                    Join the Waitlist
                     <ArrowRight className="h-5 w-5" />
-                  </a>
+                  </Link>
                   <Link href="/cofounder" className="text-sm text-brand hover:text-brand-light transition-colors">
                     Learn more →
                   </Link>
@@ -344,12 +344,12 @@ function BottomCTA() {
                 reviewed, deployable code.
               </p>
               <div className="mt-10">
-                <a
-                  href="https://cofounder.getinsourced.ai/onboarding"
+                <Link
+                  href="/waitlist"
                   className="inline-flex items-center justify-center px-10 py-4 bg-brand text-white font-semibold rounded-xl hover:bg-brand-dark transition-all duration-200 shadow-glow hover:shadow-glow-lg text-lg"
                 >
-                  Build with Co-Founder.ai
-                </a>
+                  Join the Waitlist
+                </Link>
               </div>
             </div>
           </div>

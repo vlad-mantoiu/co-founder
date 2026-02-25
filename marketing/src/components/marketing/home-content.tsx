@@ -89,12 +89,12 @@ function HeroSection() {
               </p>
 
               <div className="mt-10 flex flex-col sm:flex-row gap-4">
-                <a
-                  href="https://cofounder.getinsourced.ai/onboarding"
+                <Link
+                  href="/waitlist"
                   className="inline-flex items-center justify-center px-8 py-4 bg-brand text-white font-semibold rounded-xl hover:bg-brand-dark transition-all duration-200 shadow-glow hover:shadow-glow-lg text-lg"
                 >
-                  Start Building with Co-Founder.ai
-                </a>
+                  Join the Waitlist
+                </Link>
                 <Link
                   href="/cofounder/how-it-works"
                   className="inline-flex items-center justify-center gap-2 px-8 py-4 glass text-white font-medium rounded-xl hover:bg-white/5 transition-all duration-200 text-lg"
@@ -652,12 +652,12 @@ function CTASection() {
                 production-ready changes faster.
               </p>
               <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
-                <a
-                  href="https://cofounder.getinsourced.ai/onboarding"
+                <Link
+                  href="/waitlist"
                   className="inline-flex items-center justify-center px-8 py-4 bg-brand text-white font-semibold rounded-xl hover:bg-brand-dark transition-all duration-200 shadow-glow hover:shadow-glow-lg text-lg"
                 >
-                  Start Building with Co-Founder.ai
-                </a>
+                  Join the Waitlist
+                </Link>
                 <Link
                   href="/pricing"
                   className="inline-flex items-center justify-center gap-2 px-8 py-4 glass text-white font-medium rounded-xl hover:bg-white/5 transition-all duration-200 text-lg"
