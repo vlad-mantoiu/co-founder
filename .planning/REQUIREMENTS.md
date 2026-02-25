@@ -9,12 +9,12 @@ Requirements for v0.7 Autonomous Agent. Each maps to roadmap phases.
 
 ### Agent Core
 
-- [ ] **AGNT-01**: Agent executes a TAOR (Think-Act-Observe-Repeat) loop using Anthropic tool-use API, autonomously deciding next actions until build is complete or human input needed
+- [x] **AGNT-01**: Agent executes a TAOR (Think-Act-Observe-Repeat) loop using Anthropic tool-use API, autonomously deciding next actions until build is complete or human input needed
 - [x] **AGNT-02**: Agent consumes Understanding Interview QnA + Idea Brief as input context, using it to make autonomous product/architecture decisions
 - [ ] **AGNT-03**: Agent has 7 Claude Code-style tools operating inside E2B sandbox: read_file, write_file, edit_file, bash, grep, glob, take_screenshot
 - [ ] **AGNT-04**: Agent handles narration natively via narrate() tool — first-person co-founder voice describing what it's doing and why
 - [ ] **AGNT-05**: Agent handles documentation generation natively as part of its workflow — no separate DocGenerationService
-- [ ] **AGNT-06**: Agent loop has iteration cap (MAX_TOOL_CALLS), repetition detection, and context window management (middle-truncation of large tool results)
+- [x] **AGNT-06**: Agent loop has iteration cap (MAX_TOOL_CALLS), repetition detection, and context window management (middle-truncation of large tool results)
 - [ ] **AGNT-07**: Agent retries failed operations 3 times with different approaches per error signature before escalating to founder with structured context
 - [ ] **AGNT-08**: Agent escalation surfaces problem description, what was tried, and recommended action to founder via existing DecisionConsole pattern
 

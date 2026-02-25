@@ -380,8 +380,8 @@ Plans:
 | 37. Frontend Hooks | v0.6 | — | Abandoned | - |
 | 38. Panel Components | v0.6 | — | Abandoned | - |
 | 39. BuildPage Refactor & Completion State | v0.6 | — | Abandoned | - |
-| 40. LangGraph Removal + Protocol Extension | v0.7 | Complete    | 2026-02-24 | 2026-02-24 |
-| 41. Autonomous Runner Core (TAOR Loop) | 3/3 | Complete   | 2026-02-25 | - |
+| 40. LangGraph Removal + Protocol Extension | v0.7 | 4/4 | Complete | 2026-02-24 |
+| 41. Autonomous Runner Core (TAOR Loop) | v0.7 | 3/3 | Complete | 2026-02-25 |
 | 42. E2B Tool Dispatcher | v0.7 | 0/TBD | Not started | - |
 | 43. Token Budget + Sleep/Wake Daemon | v0.7 | 0/TBD | Not started | - |
 | 44. Native Agent Capabilities | v0.7 | 0/TBD | Not started | - |
