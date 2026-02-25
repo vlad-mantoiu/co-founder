@@ -100,18 +100,12 @@ export function Navbar() {
         </div>
 
         <div className="hidden md:flex items-center gap-3">
-          <a
-            href="https://cofounder.getinsourced.ai/signin"
-            className="px-4 py-2 text-sm font-medium text-white/70 hover:text-white transition-colors"
-          >
-            Sign In
-          </a>
-          <a
-            href="https://cofounder.getinsourced.ai/onboarding"
+          <Link
+            href="/waitlist"
             className="px-5 py-2.5 bg-brand text-white text-sm font-semibold rounded-xl hover:bg-brand-dark transition-all duration-200 shadow-glow hover:shadow-glow-lg"
           >
-            Start with Co-Founder.ai
-          </a>
+            Join the Waitlist
+          </Link>
         </div>
 
         <button
@@ -148,18 +142,12 @@ export function Navbar() {
                 </Link>
               ))}
               <hr className="border-white/10 my-2" />
-              <a
-                href="https://cofounder.getinsourced.ai/signin"
-                className="text-sm font-medium text-white/60 hover:text-white py-3 px-3 rounded-lg"
-              >
-                Sign In
-              </a>
-              <a
-                href="https://cofounder.getinsourced.ai/onboarding"
+              <Link
+                href="/waitlist"
                 className="mt-2 text-center px-5 py-3 bg-brand text-white text-sm font-semibold rounded-xl hover:bg-brand-dark transition-colors"
               >
-                Start with Co-Founder.ai
-              </a>
+                Join the Waitlist
+              </Link>
             </div>
           </motion.div>
         )}

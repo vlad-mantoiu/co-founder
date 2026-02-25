@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Check, Zap, Star, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FadeIn, StaggerContainer, StaggerItem } from "./fade-in";
@@ -70,9 +71,8 @@ const plans = [
   },
 ];
 
-function getPricingHref(slug: string, annual: boolean): string {
-  const interval = annual ? "annual" : "monthly";
-  return `https://cofounder.getinsourced.ai/dashboard?plan=${slug}&interval=${interval}`;
+function getPricingHref(): string {
+  return "/waitlist";
 }
 
 export default function PricingContent() {
@@ -220,8 +220,8 @@ export default function PricingContent() {
                     ))}
                   </ul>
 
-                  <a
-                    href={getPricingHref(plan.slug, annual)}
+                  <Link
+                    href={getPricingHref()}
                     className={cn(
                       "block w-full text-center py-3.5 rounded-xl font-semibold text-sm transition-all duration-200",
                       plan.popular
@@ -230,7 +230,7 @@ export default function PricingContent() {
                     )}
                   >
                     Choose {plan.name}
-                  </a>
+                  </Link>
                 </div>
               </StaggerItem>
             ))}
