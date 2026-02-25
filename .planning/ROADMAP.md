@@ -105,7 +105,7 @@
 **Milestone Goal:** Replace the rigid LangGraph multi-agent pipeline with a single autonomous Claude agent that operates inside E2B, consuming the founder's Idea Brief, autonomously planning and executing a GSD-like workflow, streaming progress to the UI, pacing work against the subscription token budget, and only stopping when it genuinely needs the founder.
 
 - [x] **Phase 40: LangGraph Removal + Protocol Extension** - Atomic removal of LangGraph/LangChain; feature flag scaffold; Runner protocol extended with run_agent_loop()
-- [ ] **Phase 41: Autonomous Runner Core (TAOR Loop)** - AutonomousRunner implementing the TAOR loop with input context consumption, iteration cap, repetition detection, and context management
+- [x] **Phase 41: Autonomous Runner Core (TAOR Loop)** - AutonomousRunner implementing the TAOR loop with input context consumption, iteration cap, repetition detection, and context management (completed 2026-02-25)
 - [ ] **Phase 42: E2B Tool Dispatcher** - All 7 Claude Code-style tools dispatched to E2B sandbox; E2B file sync to S3 after each phase commit
 - [ ] **Phase 43: Token Budget + Sleep/Wake Daemon** - Daily token budget pacing, sleep/wake lifecycle with PostgreSQL persistence, model-per-tier config, cost tracking and circuit breakers
 - [ ] **Phase 44: Native Agent Capabilities** - narrate() tool replacing NarrationService; documentation generation native to agent workflow
@@ -271,7 +271,7 @@ Plans:
   3. With `MAX_TOOL_CALLS` set to 5 in test config, a loop exceeding the cap terminates with a structured "iteration limit reached" escalation rather than running indefinitely
   4. Repeating the same tool call with the same arguments 3 times within a 10-call window triggers repetition detection — the loop halts and logs the repeated call signature
   5. Tool results exceeding 1000 tokens are middle-truncated before being appended to the message history — the first 500 and last 500 tokens are preserved with a `[N lines omitted]` marker
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 Plans:
 - [ ] 41-01-PLAN.md — TDD: IterationGuard safety guards + ToolDispatcher protocol + InMemoryToolDispatcher + tool definitions (AGNT-06)
 - [ ] 41-02-PLAN.md — TDD: System prompt builder with verbatim idea brief + QnA injection (AGNT-02)
@@ -381,7 +381,7 @@ Plans:
 | 38. Panel Components | v0.6 | — | Abandoned | - |
 | 39. BuildPage Refactor & Completion State | v0.6 | — | Abandoned | - |
 | 40. LangGraph Removal + Protocol Extension | v0.7 | Complete    | 2026-02-24 | 2026-02-24 |
-| 41. Autonomous Runner Core (TAOR Loop) | 2/3 | In Progress|  | - |
+| 41. Autonomous Runner Core (TAOR Loop) | 3/3 | Complete   | 2026-02-25 | - |
 | 42. E2B Tool Dispatcher | v0.7 | 0/TBD | Not started | - |
 | 43. Token Budget + Sleep/Wake Daemon | v0.7 | 0/TBD | Not started | - |
 | 44. Native Agent Capabilities | v0.7 | 0/TBD | Not started | - |

@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** v0.7 Autonomous Agent — Phase 41: Autonomous Runner Core (TAOR Loop) — Plan 2/3 complete
+**Current focus:** v0.7 Autonomous Agent — Phase 41: Autonomous Runner Core (TAOR Loop) — COMPLETE (3/3 plans)
 
 ## Current Position
 
-Phase: 41 of 46 (Autonomous Runner Core — TAOR Loop) — IN PROGRESS
-Plan: 2 of 3 complete
-Status: Plan 41-02 complete — system prompt builder TDD'd, ready for Plan 41-03 (TAOR loop core)
-Last activity: 2026-02-25 — Plan 41-02 complete: build_system_prompt() pure function, 8 tests passing, verbatim founder context injection
+Phase: 41 of 46 (Autonomous Runner Core — TAOR Loop) — COMPLETE
+Plan: 3 of 3 complete
+Status: Phase 41 complete — TAOR loop implemented with safety guards, tool dispatch, streaming narration, 36 tests passing
+Last activity: 2026-02-25 — Phase 41 all plans complete: IterationGuard (17 tests), build_system_prompt (8 tests), run_agent_loop (11 tests)
 
-Progress: [█░░░░░░░░░] 25% (v0.7: 6/24 plans done)
+Progress: [██░░░░░░░░] 33% (v0.7: 7/24 plans done)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 99 (v0.1: 47, v0.2: 20, v0.3: 9, v0.4: 21, v0.5: 15, v0.6: 12, v0.7: 6)
+- Total plans completed: 100 (v0.1: 47, v0.2: 20, v0.3: 9, v0.4: 21, v0.5: 15, v0.6: 12, v0.7: 7)
 - Total phases shipped: 36 (across 6 milestones; 37-39 abandoned)
 
 **By Milestone:**
@@ -62,6 +62,10 @@ Progress: [█░░░░░░░░░] 25% (v0.7: 6/24 plans done)
 - [41-02] build_system_prompt() is a pure function (no I/O, no side effects) — verbatim json.dumps(indent=2) for Idea Brief and Build Plan; Q:/A: pairs for QnA
 - [41-02] _PERSONA_SECTION is a module-level constant — single source of truth for co-founder persona copy, no coupling to call site
 - [41-02] Critical guardrails minimal and catastrophic-action-only: no data deletion, no external prod API calls — trust tool-level sandbox safety for everything else
+- [41-03] Raw AsyncAnthropic (not TrackedAnthropicClient) for TAOR streaming — TrackedAnthropicClient doesn't support streaming
+- [41-03] Two-strike repetition: first RepetitionError steers with injected tool_result + clears window; second terminates with "repetition_detected"
+- [41-03] Sentence-boundary narration flushing — accumulate text, flush on ". ! ? \n" — no per-token Redis writes
+- [41-03] Dispatcher injected via context["dispatcher"] — InMemoryToolDispatcher default, E2B swap in Phase 42
 
 ### Key Research Flags (check before planning)
 
@@ -82,9 +86,9 @@ None blocking Phase 41.
 
 ## Session Continuity
 
-Last session: 2026-02-25 (plan 41-01 + 41-02 — Wave 1 complete)
-Stopped at: Wave 1 done — 41-01 (safety+dispatcher, 17 tests) and 41-02 (system prompt, 8 tests) both GREEN. 41-01 needs SUMMARY.md created. Wave 2 (41-03 TAOR loop) not started. Context ran out mid-execute-phase.
-Resume: `/gsd:execute-phase 41` — will skip 41-02 (has SUMMARY), re-execute 41-01 SUMMARY creation, then run 41-03
+Last session: 2026-02-25 (Phase 41 complete — all 3 plans executed)
+Stopped at: Phase 41 execution complete. Verification pending.
+Resume: Run verification step, then proceed to Phase 42 (E2B Sandbox Dispatcher)
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
