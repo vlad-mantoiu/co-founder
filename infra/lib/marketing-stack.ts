@@ -88,7 +88,7 @@ export class MarketingStack extends cdk.Stack {
               "style-src 'self' 'unsafe-inline'",   // Framer Motion: sets opacity/transform via inline style=
               "font-src 'self'",                    // Geist/Space Grotesk self-hosted via next/font
               "img-src 'self' data:",               // data: for any future base64 images
-              "connect-src 'self'",
+              "connect-src 'self' https://formsubmit.co",
               "media-src 'none'",
               "object-src 'none'",
               "child-src 'none'",
