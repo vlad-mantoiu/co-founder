@@ -13,7 +13,7 @@ const TOTAL_DISCOUNT_SPOTS = 200;
 const CLAIMED_SPOTS = 36;
 
 const FORMSUBMIT_URL =
-  "https://formsubmit.co/ajax/vmantoiu@protonmail.ch";
+  "https://formsubmit.co/ajax/002df2771de3e721afa6f861db2fdf4a";
 
 const MAP_MARKERS = [
   { top: "30%", left: "22%", delay: "0s" },
