@@ -9,8 +9,10 @@ import { Lock, ArrowRight, Mail } from "lucide-react";
 // ---------------------------------------------------------------------------
 
 const LAUNCH_DATE = new Date("2026-03-15T00:00:00Z");
+const CAMPAIGN_START = new Date("2026-02-25T00:00:00Z");
 const TOTAL_DISCOUNT_SPOTS = 200;
-const CLAIMED_SPOTS = 36;
+const SPOTS_AT_START = 164; // 200 - 36 claimed at campaign start
+const SPOTS_AT_END = 2;
 
 const FORMSUBMIT_URL =
   "https://formsubmit.co/ajax/002df2771de3e721afa6f861db2fdf4a";
@@ -59,7 +61,8 @@ function WorldMapSvg() {
   return (
     <svg
       viewBox="0 0 1000 500"
-      className="w-full h-full opacity-40"
+      preserveAspectRatio="xMidYMid slice"
+      className="absolute inset-0 w-full h-full opacity-40"
       xmlns="http://www.w3.org/2000/svg"
     >
       <defs>
@@ -180,9 +183,25 @@ export function WaitlistContent() {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [spotsRemaining, setSpotsRemaining] = useState(SPOTS_AT_START);
 
-  const spotsRemaining = TOTAL_DISCOUNT_SPOTS - CLAIMED_SPOTS;
-  const progressPercent = (CLAIMED_SPOTS / TOTAL_DISCOUNT_SPOTS) * 100;
+  // Spots count down from SPOTS_AT_START to SPOTS_AT_END over the campaign
+  useEffect(() => {
+    const update = () => {
+      const totalMs = LAUNCH_DATE.getTime() - CAMPAIGN_START.getTime();
+      const elapsedMs = Math.max(0, Date.now() - CAMPAIGN_START.getTime());
+      const fraction = Math.min(1, elapsedMs / totalMs);
+      setSpotsRemaining(
+        Math.round(SPOTS_AT_START - (SPOTS_AT_START - SPOTS_AT_END) * fraction)
+      );
+    };
+    update();
+    const id = setInterval(update, 30_000); // refresh every 30s
+    return () => clearInterval(id);
+  }, []);
+
+  const claimed = TOTAL_DISCOUNT_SPOTS - spotsRemaining;
+  const progressPercent = (claimed / TOTAL_DISCOUNT_SPOTS) * 100;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -291,11 +310,9 @@ export function WaitlistContent() {
             </div>
             <div className="h-2 w-full bg-white/5 rounded-full mb-6 overflow-hidden">
               <div
-                className="h-full bg-emerald-500 glow-green rounded-full relative transition-all duration-1000"
+                className="h-full bg-emerald-500 glow-green rounded-full transition-all duration-1000"
                 style={{ width: `${100 - progressPercent}%` }}
-              >
-                <div className="absolute inset-0 bg-white/20 animate-shimmer" />
-              </div>
+              />
             </div>
 
             <AnimatePresence mode="wait">
@@ -376,10 +393,8 @@ export function WaitlistContent() {
 
       {/* ---- Right Column: Globe Map ---- */}
       <div className="lg:w-[45%] xl:w-[40%] relative min-h-[400px] lg:min-h-auto flex flex-col bg-obsidian-light border-l border-white/5 overflow-hidden">
-        {/* SVG world map */}
-        <div className="absolute inset-0 flex items-center justify-center p-8">
-          <WorldMapSvg />
-        </div>
+        {/* SVG world map — fills container */}
+        <WorldMapSvg />
 
         {/* Gradient overlay for depth */}
         <div className="absolute inset-0 bg-gradient-to-b from-obsidian/40 via-transparent to-obsidian pointer-events-none" />
