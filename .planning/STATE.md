@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** v0.7 Autonomous Agent — Phase 43: Token Budget + Sleep/Wake Daemon — Plan 02 of 04 complete
+**Current focus:** v0.7 Autonomous Agent — Phase 43: Token Budget + Sleep/Wake Daemon — Plan 03 of 04 complete
 
 ## Current Position
 
-Phase: 43 of 46 (Token Budget + Sleep/Wake Daemon) — Plan 02/04 complete
-Plan: 2 of 4 complete
-Status: Phase 43 Plan 02 complete — BudgetService with 5 methods, MODEL_COST_WEIGHTS, BudgetExceededError; 26 tests passing
-Last activity: 2026-02-26 — Phase 43 Plan 02 complete: BudgetService (26 tests), BDGT-01/06/07 satisfied
+Phase: 43 of 46 (Token Budget + Sleep/Wake Daemon) — Plan 03/04 complete
+Plan: 3 of 4 complete
+Status: Phase 43 Plan 03 complete — WakeDaemon (asyncio.Event sleep/wake), CheckpointService (PostgreSQL upsert/restore/delete), 4 SSEEventType agent constants; 13 new tests, 151 total passing
+Last activity: 2026-02-26 — Phase 43 Plan 03 complete: WakeDaemon, CheckpointService, SSEEventType extensions (BDGT-02/03 satisfied)
 
-Progress: [████░░░░░░] 46% (v0.7: 11/24 plans done)
+Progress: [████░░░░░░] 50% (v0.7: 12/24 plans done)
 
 ## Performance Metrics
 
@@ -83,6 +83,11 @@ Progress: [████░░░░░░] 46% (v0.7: 11/24 plans done)
 - [43-02] check_runaway uses strictly-greater-than (>) for 110% threshold — equal-to does NOT trigger BudgetExceededError
 - [43-02] is_at_graceful_threshold uses int(daily_budget * 0.9) integer comparison — avoids float precision edge cases
 - [43-02] fail-open strategy for check_runaway Redis failures — Redis down means continue (do not block agent)
+- [43-03] WakeDaemon polls Redis every 60s (not tight loop) — asyncio.Event set on Redis signal or UTC midnight (hour==0, minute<2)
+- [43-03] trigger_immediate_wake() sets Redis key (24h TTL) + in-process wake_event.set() for instant wake from webhook handler
+- [43-03] CheckpointService.save() is non-fatal — catches all exceptions, logs with structlog, never raises to TAOR loop
+- [43-03] Upsert via query-then-update pattern — avoids dialect-specific ON CONFLICT; delete key after Redis wake_signal detection
+- [43-03] 4 new SSEEventType constants: AGENT_SLEEPING, AGENT_WAKING, AGENT_BUDGET_EXCEEDED, AGENT_BUDGET_UPDATED
 
 ### Key Research Flags (check before planning)
 
@@ -103,9 +108,9 @@ None blocking Phase 41.
 
 ## Session Continuity
 
-Last session: 2026-02-26 (Phase 43 Plan 02 complete — BudgetService, 26 tests, BDGT-01/06/07 satisfied)
-Stopped at: Completed Phase 43 Plan 02 — 43-02-PLAN.md
-Resume file: .planning/phases/43-token-budget-sleep-wake-daemon/43-03-PLAN.md (WakeDaemon)
+Last session: 2026-02-26 (Phase 43 Plan 03 complete — WakeDaemon, CheckpointService, 13 new tests, BDGT-02/03 satisfied)
+Stopped at: Completed Phase 43 Plan 03 — 43-03-PLAN.md
+Resume file: .planning/phases/43-token-budget-sleep-wake-daemon/43-04-PLAN.md (TAOR loop integration)
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*

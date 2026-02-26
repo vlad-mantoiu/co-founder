@@ -303,7 +303,7 @@ Plans:
   5. Selecting `cto_scale` tier routes the agent to Opus; `bootstrapper` and `partner` tiers route to Sonnet — model selection is fixed at session start and logged to the AgentSession record
   6. Every Anthropic API call records input tokens, output tokens, and cost in microdollars to a per-session Redis key — the activity feed can display cumulative session cost
   7. If a single day's API spend exceeds the daily budget by more than 10%, the loop is killed immediately and the agent transitions to a "budget_exceeded" error state surfaced to the founder
-**Plans:** 2/4 plans executed
+**Plans:** 3/4 plans executed
 Plans:
 - [ ] 43-01-PLAN.md — DB models (AgentCheckpoint + AgentSession) + UserSettings extension + SESSION_TTL fix (BDGT-04, BDGT-05)
 - [ ] 43-02-PLAN.md — TDD: BudgetService — cost calculation, daily budget, circuit breaker (BDGT-01, BDGT-06, BDGT-07)
@@ -391,7 +391,7 @@ Plans:
 | 40. LangGraph Removal + Protocol Extension | v0.7 | 4/4 | Complete | 2026-02-24 |
 | 41. Autonomous Runner Core (TAOR Loop) | v0.7 | 3/3 | Complete | 2026-02-25 |
 | 42. E2B Tool Dispatcher | 2/2 | Complete    | 2026-02-26 | - |
-| 43. Token Budget + Sleep/Wake Daemon | 2/4 | In Progress|  | - |
+| 43. Token Budget + Sleep/Wake Daemon | 3/4 | In Progress|  | - |
 | 44. Native Agent Capabilities | v0.7 | 0/TBD | Not started | - |
 | 45. Self-Healing Error Model | v0.7 | 0/TBD | Not started | - |
 | 46. UI Integration | v0.7 | 0/TBD | Not started | - |
