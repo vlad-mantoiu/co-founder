@@ -23,6 +23,12 @@ class SSEEventType:
     SNAPSHOT_UPDATED = "snapshot.updated"
     DOCUMENTATION_UPDATED = "documentation.updated"
 
+    # Agent sleep/wake lifecycle events (Phase 43 — Token Budget + Sleep/Wake Daemon)
+    AGENT_SLEEPING = "agent.sleeping"
+    AGENT_WAKING = "agent.waking"
+    AGENT_BUDGET_EXCEEDED = "agent.budget_exceeded"
+    AGENT_BUDGET_UPDATED = "agent.budget_updated"
+
 
 # Human-readable stage labels for SSE events
 # Mirrors the STAGE_LABELS in generation.py but defined here to avoid circular imports
