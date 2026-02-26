@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Lock, ArrowRight, Mail } from "lucide-react";
+import { trackWaitlistSignup } from "@/lib/analytics";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -226,6 +227,7 @@ export function WaitlistContent() {
       });
 
       if (!res.ok) throw new Error("Submission failed");
+      trackWaitlistSignup(email);
       setSubmitted(true);
     } catch {
       setError("Something went wrong. Please try again.");
