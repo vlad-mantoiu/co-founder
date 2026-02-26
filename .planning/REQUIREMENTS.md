@@ -23,8 +23,8 @@ Requirements for v0.7 Autonomous Agent. Each maps to roadmap phases.
 - [x] **BDGT-01**: Token budget daemon calculates daily allowance from remaining tokens and days until subscription renewal
 - [ ] **BDGT-02**: Agent transitions to "sleeping" state when daily token budget is consumed
 - [ ] **BDGT-03**: Agent wakes automatically when daily budget refreshes (next calendar day or subscription reset)
-- [ ] **BDGT-04**: Agent state persists across sleep/wake cycles — conversation history stored in PostgreSQL (AgentCheckpoint table)
-- [ ] **BDGT-05**: Model is configurable per subscription tier — Opus for premium, Sonnet for budget tiers
+- [x] **BDGT-04**: Agent state persists across sleep/wake cycles — conversation history stored in PostgreSQL (AgentCheckpoint table)
+- [x] **BDGT-05**: Model is configurable per subscription tier — Opus for premium, Sonnet for budget tiers
 - [x] **BDGT-06**: Per-tool cost tracking records input/output tokens and cost per API call in Redis
 - [x] **BDGT-07**: Cost runaway prevention — hard daily ceiling kills agent loop if budget exceeded by >10%
 
@@ -129,8 +129,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BDGT-01 | Phase 43 | Complete |
 | BDGT-02 | Phase 43 | Pending |
 | BDGT-03 | Phase 43 | Pending |
-| BDGT-04 | Phase 43 | Pending |
-| BDGT-05 | Phase 43 | Pending |
+| BDGT-04 | Phase 43 | Complete |
+| BDGT-05 | Phase 43 | Complete |
 | BDGT-06 | Phase 43 | Complete |
 | BDGT-07 | Phase 43 | Complete |
 | AGNT-04 | Phase 44 | Pending |

@@ -76,6 +76,9 @@ Progress: [████░░░░░░] 46% (v0.7: 11/24 plans done)
 - [42-02] YYYYMMDDTHHMMSSZ timestamp format (no hyphens/colons) — lexicographic sort = chronological order for S3 retention
 - [42-02] Non-fatal sync: 3 retries then return None — agent never blocked by S3 failures
 - [42-02] datetime.now(timezone.utc) not datetime.utcnow() — end_at is timezone-aware; naive subtract raises TypeError
+- [43-01] Python-level defaults via __init__ setdefault() — Column(default=...) only fires at DB INSERT; __init__ override ensures correct in-memory values for unit tests and pre-flush objects
+- [43-01] AgentSession.id is String(255) PK (not autoincrement) — UUID passed from caller, fixed at session start per BDGT-05
+- [43-01] SESSION_TTL changed from 3600 to 90_000 — 25h window ensures Redis session keys survive full overnight agent sleep cycles
 - [43-02] MODEL_COST_WEIGHTS uses actual Anthropic per-million-token microdollar pricing (15M/75M Opus, 3M/15M Sonnet) — config-driven, not hardcoded
 - [43-02] check_runaway uses strictly-greater-than (>) for 110% threshold — equal-to does NOT trigger BudgetExceededError
 - [43-02] is_at_graceful_threshold uses int(daily_budget * 0.9) integer comparison — avoids float precision edge cases
@@ -86,7 +89,7 @@ Progress: [████░░░░░░] 46% (v0.7: 11/24 plans done)
 - Phase 43: Verify E2B Issue #884 fix status before finalizing sandbox persistence — S3 sync mandatory if unfixed
 - Phase 43: Audit `_calculate_cost()` in `llm_config.py` — confirm it fires on every autonomous loop API call
 - Phase 45: Inspect DecisionConsole component — confirm it accepts structured escalation payload without schema changes
-- Phase 43: `app/api/routes/agent.py` session TTL currently 3600s — must update to 86400s minimum
+- Phase 43: SESSION_TTL fixed to 90_000s in 43-01 — RESOLVED
 
 ### Pending Todos
 
