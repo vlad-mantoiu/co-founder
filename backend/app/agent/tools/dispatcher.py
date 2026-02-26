@@ -8,21 +8,24 @@ Provides:
 
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 
+@runtime_checkable
 class ToolDispatcher(Protocol):
     """Protocol for tool execution — stubs in Phase 41, E2B in Phase 42."""
 
-    async def dispatch(self, tool_name: str, tool_input: dict) -> str:  # type: ignore[type-arg]
-        """Execute a named tool and return the result as a string.
+    async def dispatch(self, tool_name: str, tool_input: dict) -> str | list[dict]:  # type: ignore[type-arg]
+        """Execute a named tool and return the result.
 
         Args:
             tool_name: The tool's registered name (e.g. ``"write_file"``).
             tool_input: The tool's input as a plain dict (from Anthropic response).
 
         Returns:
-            A string result to be appended to the message history as a ``tool_result``.
+            A string result for most tools, or a list[dict] of Anthropic vision content
+            blocks for take_screenshot (base64 WebP images + CloudFront URL text block).
+            Either form can be directly used as the ``content`` value in a tool_result.
         """
         ...
 
@@ -57,8 +60,8 @@ class InMemoryToolDispatcher:
         # (tool_name, call_index) -> Exception to raise
         self._failure_map: dict[tuple[str, int], Exception] = failure_map or {}
 
-    async def dispatch(self, tool_name: str, tool_input: dict) -> str:  # type: ignore[type-arg]
-        """Dispatch a tool call and return a string result.
+    async def dispatch(self, tool_name: str, tool_input: dict) -> str | list[dict]:  # type: ignore[type-arg]
+        """Dispatch a tool call and return a string result (or vision list for take_screenshot).
 
         Raises configured exceptions from ``failure_map`` before any tool logic.
         """

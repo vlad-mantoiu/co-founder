@@ -310,40 +310,23 @@ async def test_take_screenshot_returns_vision(
     dispatcher: E2BToolDispatcher, mock_screenshot: MagicMock
 ) -> None:
     """dispatch('take_screenshot', {}) returns list[dict] with image content blocks."""
-    # Create minimal valid PNG bytes (1x1 pixel)
-    import struct
-    import zlib
+    fake_png = b"FAKE_PNG_BYTES"
+    fake_webp = b"FAKE_WEBP_BYTES"
+    cf_url = "https://cdn.example.com/screenshots/job-test-01/agent/ts_desktop.webp"
 
-    def _make_minimal_png() -> bytes:
-        """Create a 1x1 pixel white PNG as minimal valid PNG bytes."""
-        signature = b"\x89PNG\r\n\x1a\n"
-        # IHDR chunk: width=1, height=1, bitdepth=8, colortype=2 (RGB)
-        ihdr_data = struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0)
-        ihdr_crc = zlib.crc32(b"IHDR" + ihdr_data) & 0xFFFFFFFF
-        ihdr = struct.pack(">I", 13) + b"IHDR" + ihdr_data + struct.pack(">I", ihdr_crc)
-        # IDAT chunk: one white pixel (filter byte 0 + RGB 255,255,255)
-        raw_data = b"\x00\xff\xff\xff"
-        compressed = zlib.compress(raw_data)
-        idat_crc = zlib.crc32(b"IDAT" + compressed) & 0xFFFFFFFF
-        idat = struct.pack(">I", len(compressed)) + b"IDAT" + compressed + struct.pack(">I", idat_crc)
-        # IEND chunk
-        iend_crc = zlib.crc32(b"IEND") & 0xFFFFFFFF
-        iend = struct.pack(">I", 0) + b"IEND" + struct.pack(">I", iend_crc)
-        return signature + ihdr + idat + iend
+    mock_screenshot._do_capture = AsyncMock(return_value=fake_png)
 
-    valid_png = _make_minimal_png()
-    mock_screenshot._do_capture = AsyncMock(return_value=valid_png)
-    mock_screenshot.upload = AsyncMock(
-        return_value="https://cdn.example.com/screenshots/job-test-01/agent/ts_desktop.webp"
-    )
-
-    with patch("app.agent.tools.e2b_dispatcher.Image") as mock_image_cls:
+    with (
+        patch("app.agent.tools.e2b_dispatcher.Image") as mock_image_cls,
+        patch.object(dispatcher, "_capture_at_viewport", new=AsyncMock(return_value=fake_png)),
+        patch.object(dispatcher, "_upload_webp", new=AsyncMock(return_value=cf_url)),
+    ):
         # Mock PIL Image for WebP conversion
         mock_img = MagicMock()
         mock_image_cls.open.return_value = mock_img
 
         def fake_save(buf, fmt, **kwargs):
-            buf.write(b"WEBP_DATA_PLACEHOLDER")
+            buf.write(fake_webp)
 
         mock_img.save.side_effect = fake_save
 

@@ -259,9 +259,9 @@ class AutonomousRunner:
 
                     # Dispatch tool — capture errors as result string (loop continues)
                     try:
-                        result_text = await dispatcher.dispatch(tool_name, tool_input)
+                        result = await dispatcher.dispatch(tool_name, tool_input)
                     except Exception as exc:
-                        result_text = f"Error: {type(exc).__name__}: {str(exc)}"
+                        result = f"Error: {type(exc).__name__}: {str(exc)}"
                         bound_logger.warning(
                             "taor_tool_dispatch_error",
                             tool_name=tool_name,
@@ -269,13 +269,16 @@ class AutonomousRunner:
                             iteration=iteration,
                         )
 
-                    # Middle-truncate large results before appending to history
-                    result_text = guard.truncate_tool_result(result_text)
+                    # Middle-truncate large string results before appending to history.
+                    # Vision content lists (list[dict]) are passed through as-is —
+                    # they contain base64 images which must not be truncated.
+                    if isinstance(result, str):
+                        result = guard.truncate_tool_result(result)
 
                     tool_results.append({
                         "type": "tool_result",
                         "tool_use_id": tool_block.id,
-                        "content": result_text,
+                        "content": result,
                     })
 
                 # ---- REPEAT: append tool results, continue loop ----
