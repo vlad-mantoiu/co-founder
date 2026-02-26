@@ -1,5 +1,7 @@
 """Re-export all models so Base.metadata sees them."""
 
+from app.db.models.agent_checkpoint import AgentCheckpoint
+from app.db.models.agent_session import AgentSession
 from app.db.models.artifact import Artifact
 from app.db.models.decision_gate import DecisionGate
 from app.db.models.job import Job
@@ -14,6 +16,8 @@ from app.db.models.usage_log import UsageLog
 from app.db.models.user_settings import UserSettings
 
 __all__ = [
+    "AgentCheckpoint",
+    "AgentSession",
     "Artifact",
     "DecisionGate",
     "Job",

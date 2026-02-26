@@ -24,7 +24,7 @@ logger = structlog.get_logger(__name__)
 
 router = APIRouter()
 
-SESSION_TTL = 3600  # 1 hour
+SESSION_TTL = 90_000  # 25 hours — must survive overnight agent sleep
 SESSION_PREFIX = "cofounder:session:"
 
 
