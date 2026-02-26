@@ -286,7 +286,10 @@ Plans:
   2. `take_screenshot` captures the live preview URL via Playwright inside the sandbox, uploads to S3, and returns the CloudFront URL as a tool result — reusing the existing ScreenshotService upload path
   3. `edit_file` performs surgical old_string/new_string replacement — the file diff is verifiable and does not corrupt surrounding content
   4. After each agent phase commit, project files are synced from the E2B sandbox to S3 — a sandbox recreated from that S3 snapshot contains the correct file tree without manual re-run
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 42-01-PLAN.md — TDD: E2BToolDispatcher with 7 tools + vision screenshots + protocol update (AGNT-03)
+- [ ] 42-02-PLAN.md — TDD: S3SnapshotService with tar sync, rolling retention, TTL management (MIGR-04)
 
 ### Phase 43: Token Budget + Sleep/Wake Daemon
 **Goal**: The agent distributes work across the subscription window using a cost-weighted daily allowance, transitions to "sleeping" state when the budget is consumed, wakes automatically on budget refresh, persists all session state to PostgreSQL so conversation history survives sleep/wake cycles, and hard circuit breakers prevent cost runaway.
