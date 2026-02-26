@@ -11,7 +11,7 @@ Requirements for v0.7 Autonomous Agent. Each maps to roadmap phases.
 
 - [x] **AGNT-01**: Agent executes a TAOR (Think-Act-Observe-Repeat) loop using Anthropic tool-use API, autonomously deciding next actions until build is complete or human input needed
 - [x] **AGNT-02**: Agent consumes Understanding Interview QnA + Idea Brief as input context, using it to make autonomous product/architecture decisions
-- [ ] **AGNT-03**: Agent has 7 Claude Code-style tools operating inside E2B sandbox: read_file, write_file, edit_file, bash, grep, glob, take_screenshot
+- [x] **AGNT-03**: Agent has 7 Claude Code-style tools operating inside E2B sandbox: read_file, write_file, edit_file, bash, grep, glob, take_screenshot
 - [ ] **AGNT-04**: Agent handles narration natively via narrate() tool — first-person co-founder voice describing what it's doing and why
 - [ ] **AGNT-05**: Agent handles documentation generation natively as part of its workflow — no separate DocGenerationService
 - [x] **AGNT-06**: Agent loop has iteration cap (MAX_TOOL_CALLS), repetition detection, and context window management (middle-truncation of large tool results)
@@ -41,7 +41,7 @@ Requirements for v0.7 Autonomous Agent. Each maps to roadmap phases.
 - [x] **MIGR-01**: LangGraph, LangChain deps atomically removed — all 6 node files, graph.py, NarrationService, DocGenerationService deleted
 - [x] **MIGR-02**: Feature flag (AUTONOMOUS_AGENT env var) toggles between old RunnerReal and new AutonomousRunner during transition
 - [x] **MIGR-03**: Runner protocol extended with run_agent_loop() — RunnerFake stubs it for TDD, AutonomousRunner implements it
-- [ ] **MIGR-04**: E2B sandbox file sync to S3 after each commit step — mitigates multi-resume file loss (E2B #884)
+- [x] **MIGR-04**: E2B sandbox file sync to S3 after each commit step — mitigates multi-resume file loss (E2B #884)
 
 ## v0.6 Requirements (Partial — Phases 33-36 Shipped, 37-39 Abandoned)
 
@@ -124,8 +124,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AGNT-01 | Phase 41 | Pending |
 | AGNT-02 | Phase 41 | Complete |
 | AGNT-06 | Phase 41 | Pending |
-| AGNT-03 | Phase 42 | Pending |
-| MIGR-04 | Phase 42 | Pending |
+| AGNT-03 | Phase 42 | Complete |
+| MIGR-04 | Phase 42 | Complete |
 | BDGT-01 | Phase 43 | Pending |
 | BDGT-02 | Phase 43 | Pending |
 | BDGT-03 | Phase 43 | Pending |

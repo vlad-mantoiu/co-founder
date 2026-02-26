@@ -66,6 +66,11 @@ Progress: [███░░░░░░░] 37% (v0.7: 9/24 plans done)
 - [41-03] Two-strike repetition: first RepetitionError steers with injected tool_result + clears window; second terminates with "repetition_detected"
 - [41-03] Sentence-boundary narration flushing — accumulate text, flush on ". ! ? \n" — no per-token Redis writes
 - [41-03] Dispatcher injected via context["dispatcher"] — InMemoryToolDispatcher default, E2B swap in Phase 42
+- [42-01] ToolDispatcher protocol updated to str | list[dict] return type with @runtime_checkable — enables isinstance() checks and supports vision content from take_screenshot
+- [42-01] edit_file returns error strings (not exceptions) for file-not-found and old_string-not-found — consistent with Claude's Discretion principle
+- [42-01] OUTPUT_HARD_LIMIT = 50_000 chars hard cap on bash/grep/glob output — generous; IterationGuard middle-truncation handles token budget separately
+- [42-01] _capture_at_viewport() added as private method on E2BToolDispatcher — parameterized viewport avoids modifying ScreenshotService internals; mobile fallback reuses desktop PNG
+- [42-01] S3 key for agent screenshots: screenshots/{job_id}/agent/{ts}_desktop.webp
 - [42-02] asyncio.to_thread(boto3.*) for S3 operations — locked project pattern; aioboto3 not installed
 - [42-02] Tar-in-sandbox: one tar czf + one files.read() rather than N individual file API calls
 - [42-02] YYYYMMDDTHHMMSSZ timestamp format (no hyphens/colons) — lexicographic sort = chronological order for S3 retention
@@ -91,8 +96,8 @@ None blocking Phase 41.
 
 ## Session Continuity
 
-Last session: 2026-02-26 (Phase 42 Plan 02 complete — S3SnapshotService, 10 tests, MIGR-04 satisfied)
-Stopped at: Completed Phase 42 Plan 02 — 42-02-PLAN.md
+Last session: 2026-02-26 (Phase 42 Plan 01 retroactively completed — E2BToolDispatcher, 13 tests, AGNT-03 satisfied)
+Stopped at: Completed Phase 42 Plan 01 — 42-01-PLAN.md (retroactive; Plan 02 was already completed)
 Resume file: .planning/phases/43-agent-session/43-01-PLAN.md (next phase)
 
 ---
