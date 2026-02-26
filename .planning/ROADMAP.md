@@ -286,7 +286,7 @@ Plans:
   2. `take_screenshot` captures the live preview URL via Playwright inside the sandbox, uploads to S3, and returns the CloudFront URL as a tool result — reusing the existing ScreenshotService upload path
   3. `edit_file` performs surgical old_string/new_string replacement — the file diff is verifiable and does not corrupt surrounding content
   4. After each agent phase commit, project files are synced from the E2B sandbox to S3 — a sandbox recreated from that S3 snapshot contains the correct file tree without manual re-run
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 Plans:
 - [ ] 42-01-PLAN.md — TDD: E2BToolDispatcher with 7 tools + vision screenshots + protocol update (AGNT-03)
 - [ ] 42-02-PLAN.md — TDD: S3SnapshotService with tar sync, rolling retention, TTL management (MIGR-04)
@@ -385,7 +385,7 @@ Plans:
 | 39. BuildPage Refactor & Completion State | v0.6 | — | Abandoned | - |
 | 40. LangGraph Removal + Protocol Extension | v0.7 | 4/4 | Complete | 2026-02-24 |
 | 41. Autonomous Runner Core (TAOR Loop) | v0.7 | 3/3 | Complete | 2026-02-25 |
-| 42. E2B Tool Dispatcher | v0.7 | 0/TBD | Not started | - |
+| 42. E2B Tool Dispatcher | 1/2 | In Progress|  | - |
 | 43. Token Budget + Sleep/Wake Daemon | v0.7 | 0/TBD | Not started | - |
 | 44. Native Agent Capabilities | v0.7 | 0/TBD | Not started | - |
 | 45. Self-Healing Error Model | v0.7 | 0/TBD | Not started | - |

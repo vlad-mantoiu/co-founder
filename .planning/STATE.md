@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** v0.7 Autonomous Agent — Phase 41: Autonomous Runner Core (TAOR Loop) — COMPLETE (3/3 plans)
+**Current focus:** v0.7 Autonomous Agent — Phase 42: E2B Tool Dispatcher — Plan 02 of 02 complete
 
 ## Current Position
 
-Phase: 41 of 46 (Autonomous Runner Core — TAOR Loop) — COMPLETE
-Plan: 3 of 3 complete
-Status: Phase 41 complete — TAOR loop implemented with safety guards, tool dispatch, streaming narration, 36 tests passing
-Last activity: 2026-02-25 — Phase 41 all plans complete: IterationGuard (17 tests), build_system_prompt (8 tests), run_agent_loop (11 tests)
+Phase: 42 of 46 (E2B Tool Dispatcher) — Plan 02/02 complete
+Plan: 2 of 2 complete
+Status: Phase 42 Plan 02 complete — S3SnapshotService with tar sync, rolling retention, TTL management; 10 tests passing
+Last activity: 2026-02-26 — Phase 42 Plan 02 complete: S3SnapshotService (10 tests), ready for Phase 43
 
-Progress: [██░░░░░░░░] 33% (v0.7: 7/24 plans done)
+Progress: [███░░░░░░░] 37% (v0.7: 9/24 plans done)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 100 (v0.1: 47, v0.2: 20, v0.3: 9, v0.4: 21, v0.5: 15, v0.6: 12, v0.7: 7)
+- Total plans completed: 102 (v0.1: 47, v0.2: 20, v0.3: 9, v0.4: 21, v0.5: 15, v0.6: 12, v0.7: 9)
 - Total phases shipped: 36 (across 6 milestones; 37-39 abandoned)
 
 **By Milestone:**
@@ -66,6 +66,11 @@ Progress: [██░░░░░░░░] 33% (v0.7: 7/24 plans done)
 - [41-03] Two-strike repetition: first RepetitionError steers with injected tool_result + clears window; second terminates with "repetition_detected"
 - [41-03] Sentence-boundary narration flushing — accumulate text, flush on ". ! ? \n" — no per-token Redis writes
 - [41-03] Dispatcher injected via context["dispatcher"] — InMemoryToolDispatcher default, E2B swap in Phase 42
+- [42-02] asyncio.to_thread(boto3.*) for S3 operations — locked project pattern; aioboto3 not installed
+- [42-02] Tar-in-sandbox: one tar czf + one files.read() rather than N individual file API calls
+- [42-02] YYYYMMDDTHHMMSSZ timestamp format (no hyphens/colons) — lexicographic sort = chronological order for S3 retention
+- [42-02] Non-fatal sync: 3 retries then return None — agent never blocked by S3 failures
+- [42-02] datetime.now(timezone.utc) not datetime.utcnow() — end_at is timezone-aware; naive subtract raises TypeError
 
 ### Key Research Flags (check before planning)
 
@@ -86,9 +91,9 @@ None blocking Phase 41.
 
 ## Session Continuity
 
-Last session: 2026-02-26 (Phase 42 planned — 2 plans, 1 wave, verification passed)
-Stopped at: Phase 42 planning complete — ready for execution
-Resume file: .planning/phases/42-e2b-tool-dispatcher/42-01-PLAN.md
+Last session: 2026-02-26 (Phase 42 Plan 02 complete — S3SnapshotService, 10 tests, MIGR-04 satisfied)
+Stopped at: Completed Phase 42 Plan 02 — 42-02-PLAN.md
+Resume file: .planning/phases/43-agent-session/43-01-PLAN.md (next phase)
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
