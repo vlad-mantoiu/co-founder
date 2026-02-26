@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** v0.7 Autonomous Agent — Phase 42: E2B Tool Dispatcher — Plan 02 of 02 complete
+**Current focus:** v0.7 Autonomous Agent — Phase 43: Token Budget + Sleep/Wake Daemon — Plan 02 of 04 complete
 
 ## Current Position
 
-Phase: 42 of 46 (E2B Tool Dispatcher) — Plan 02/02 complete
-Plan: 2 of 2 complete
-Status: Phase 42 Plan 02 complete — S3SnapshotService with tar sync, rolling retention, TTL management; 10 tests passing
-Last activity: 2026-02-26 — Phase 42 Plan 02 complete: S3SnapshotService (10 tests), ready for Phase 43
+Phase: 43 of 46 (Token Budget + Sleep/Wake Daemon) — Plan 02/04 complete
+Plan: 2 of 4 complete
+Status: Phase 43 Plan 02 complete — BudgetService with 5 methods, MODEL_COST_WEIGHTS, BudgetExceededError; 26 tests passing
+Last activity: 2026-02-26 — Phase 43 Plan 02 complete: BudgetService (26 tests), BDGT-01/06/07 satisfied
 
-Progress: [███░░░░░░░] 37% (v0.7: 9/24 plans done)
+Progress: [████░░░░░░] 46% (v0.7: 11/24 plans done)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 102 (v0.1: 47, v0.2: 20, v0.3: 9, v0.4: 21, v0.5: 15, v0.6: 12, v0.7: 9)
+- Total plans completed: 104 (v0.1: 47, v0.2: 20, v0.3: 9, v0.4: 21, v0.5: 15, v0.6: 12, v0.7: 11)
 - Total phases shipped: 36 (across 6 milestones; 37-39 abandoned)
 
 **By Milestone:**
@@ -76,6 +76,10 @@ Progress: [███░░░░░░░] 37% (v0.7: 9/24 plans done)
 - [42-02] YYYYMMDDTHHMMSSZ timestamp format (no hyphens/colons) — lexicographic sort = chronological order for S3 retention
 - [42-02] Non-fatal sync: 3 retries then return None — agent never blocked by S3 failures
 - [42-02] datetime.now(timezone.utc) not datetime.utcnow() — end_at is timezone-aware; naive subtract raises TypeError
+- [43-02] MODEL_COST_WEIGHTS uses actual Anthropic per-million-token microdollar pricing (15M/75M Opus, 3M/15M Sonnet) — config-driven, not hardcoded
+- [43-02] check_runaway uses strictly-greater-than (>) for 110% threshold — equal-to does NOT trigger BudgetExceededError
+- [43-02] is_at_graceful_threshold uses int(daily_budget * 0.9) integer comparison — avoids float precision edge cases
+- [43-02] fail-open strategy for check_runaway Redis failures — Redis down means continue (do not block agent)
 
 ### Key Research Flags (check before planning)
 
@@ -96,9 +100,9 @@ None blocking Phase 41.
 
 ## Session Continuity
 
-Last session: 2026-02-26 (Phase 42 Plan 01 retroactively completed — E2BToolDispatcher, 13 tests, AGNT-03 satisfied)
-Stopped at: Completed Phase 42 Plan 01 — 42-01-PLAN.md (retroactive; Plan 02 was already completed)
-Resume file: .planning/phases/43-agent-session/43-01-PLAN.md (next phase)
+Last session: 2026-02-26 (Phase 43 Plan 02 complete — BudgetService, 26 tests, BDGT-01/06/07 satisfied)
+Stopped at: Completed Phase 43 Plan 02 — 43-02-PLAN.md
+Resume file: .planning/phases/43-token-budget-sleep-wake-daemon/43-03-PLAN.md (WakeDaemon)
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
