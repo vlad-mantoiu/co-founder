@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** v0.7 Autonomous Agent — Phase 43: Token Budget + Sleep/Wake Daemon — Plan 03 of 04 complete
+**Current focus:** v0.7 Autonomous Agent — Phase 43: Token Budget + Sleep/Wake Daemon — COMPLETE (4/4 plans done)
 
 ## Current Position
 
-Phase: 43 of 46 (Token Budget + Sleep/Wake Daemon) — Plan 03/04 complete
-Plan: 3 of 4 complete
-Status: Phase 43 Plan 03 complete — WakeDaemon (asyncio.Event sleep/wake), CheckpointService (PostgreSQL upsert/restore/delete), 4 SSEEventType agent constants; 13 new tests, 151 total passing
-Last activity: 2026-02-26 — Phase 43 Plan 03 complete: WakeDaemon, CheckpointService, SSEEventType extensions (BDGT-02/03 satisfied)
+Phase: 43 of 46 (Token Budget + Sleep/Wake Daemon) — COMPLETE (4/4 plans done)
+Plan: 4 of 4 complete
+Status: Phase 43 Plan 04 complete — Budget-aware TAOR loop wired with BudgetService, CheckpointService, WakeDaemon, AgentSession creation; 10 new integration tests, 161 total passing
+Last activity: 2026-02-26 — Phase 43 Plan 04 complete: TAOR loop integration (BDGT-01/02/03/04/06/07 satisfied)
 
-Progress: [████░░░░░░] 50% (v0.7: 12/24 plans done)
+Progress: [█████░░░░░] 54% (v0.7: 13/24 plans done)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 104 (v0.1: 47, v0.2: 20, v0.3: 9, v0.4: 21, v0.5: 15, v0.6: 12, v0.7: 11)
+- Total plans completed: 105 (v0.1: 47, v0.2: 20, v0.3: 9, v0.4: 21, v0.5: 15, v0.6: 12, v0.7: 12)
 - Total phases shipped: 36 (across 6 milestones; 37-39 abandoned)
 
 **By Milestone:**
@@ -88,6 +88,11 @@ Progress: [████░░░░░░] 50% (v0.7: 12/24 plans done)
 - [43-03] CheckpointService.save() is non-fatal — catches all exceptions, logs with structlog, never raises to TAOR loop
 - [43-03] Upsert via query-then-update pattern — avoids dialect-specific ON CONFLICT; delete key after Redis wake_signal detection
 - [43-03] 4 new SSEEventType constants: AGENT_SLEEPING, AGENT_WAKING, AGENT_BUDGET_EXCEEDED, AGENT_BUDGET_UPDATED
+- [43-04] BudgetExceededError caught inside run_agent_loop — never propagates to worker.py (job status stays non-FAILED, RESEARCH.md Pitfall 4)
+- [43-04] All 4 budget/checkpoint integration points conditional on service presence — backward compatible when services not injected
+- [43-04] sleep/wake transition placed at end_turn check — ensures full current iteration completes before pausing
+- [43-04] session_cost reset to 0 on wake — new billing day starts fresh (daily_budget also recalculated)
+- [43-04] guard._count restored from checkpoint.iteration_number at session start — IterationGuard resumes correctly
 
 ### Key Research Flags (check before planning)
 
@@ -108,9 +113,9 @@ None blocking Phase 41.
 
 ## Session Continuity
 
-Last session: 2026-02-26 (Phase 43 Plan 03 complete — WakeDaemon, CheckpointService, 13 new tests, BDGT-02/03 satisfied)
-Stopped at: Completed Phase 43 Plan 03 — 43-03-PLAN.md
-Resume file: .planning/phases/43-token-budget-sleep-wake-daemon/43-04-PLAN.md (TAOR loop integration)
+Last session: 2026-02-26 (Phase 43 Plan 04 complete — TAOR loop integration, 10 new integration tests, 161 total passing, BDGT-01/02/03/04/06/07 satisfied)
+Stopped at: Completed Phase 43 Plan 04 — 43-04-PLAN.md
+Resume file: .planning/phases/44-agent-narration-doc-native/44-01-PLAN.md (Phase 44: Native narration and doc generation)
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*

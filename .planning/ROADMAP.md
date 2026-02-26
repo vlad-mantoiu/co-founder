@@ -107,7 +107,7 @@
 - [x] **Phase 40: LangGraph Removal + Protocol Extension** - Atomic removal of LangGraph/LangChain; feature flag scaffold; Runner protocol extended with run_agent_loop()
 - [x] **Phase 41: Autonomous Runner Core (TAOR Loop)** - AutonomousRunner implementing the TAOR loop with input context consumption, iteration cap, repetition detection, and context management (completed 2026-02-25)
 - [x] **Phase 42: E2B Tool Dispatcher** - All 7 Claude Code-style tools dispatched to E2B sandbox; E2B file sync to S3 after each phase commit (completed 2026-02-26)
-- [ ] **Phase 43: Token Budget + Sleep/Wake Daemon** - Daily token budget pacing, sleep/wake lifecycle with PostgreSQL persistence, model-per-tier config, cost tracking and circuit breakers
+- [x] **Phase 43: Token Budget + Sleep/Wake Daemon** - Daily token budget pacing, sleep/wake lifecycle with PostgreSQL persistence, model-per-tier config, cost tracking and circuit breakers (completed 2026-02-26)
 - [ ] **Phase 44: Native Agent Capabilities** - narrate() tool replacing NarrationService; documentation generation native to agent workflow
 - [ ] **Phase 45: Self-Healing Error Model** - 3-retry with different approaches per error signature; founder escalation via DecisionConsole
 - [ ] **Phase 46: UI Integration** - Activity feed with verbose toggle; agent state card; Kanban phase updates; new SSE event types wired to frontend
@@ -303,12 +303,12 @@ Plans:
   5. Selecting `cto_scale` tier routes the agent to Opus; `bootstrapper` and `partner` tiers route to Sonnet — model selection is fixed at session start and logged to the AgentSession record
   6. Every Anthropic API call records input tokens, output tokens, and cost in microdollars to a per-session Redis key — the activity feed can display cumulative session cost
   7. If a single day's API spend exceeds the daily budget by more than 10%, the loop is killed immediately and the agent transitions to a "budget_exceeded" error state surfaced to the founder
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans executed — PHASE COMPLETE
 Plans:
-- [ ] 43-01-PLAN.md — DB models (AgentCheckpoint + AgentSession) + UserSettings extension + SESSION_TTL fix (BDGT-04, BDGT-05)
-- [ ] 43-02-PLAN.md — TDD: BudgetService — cost calculation, daily budget, circuit breaker (BDGT-01, BDGT-06, BDGT-07)
-- [ ] 43-03-PLAN.md — TDD: WakeDaemon + CheckpointService + SSE event types (BDGT-02, BDGT-03)
-- [ ] 43-04-PLAN.md — Wire budget/checkpoint/wake into TAOR loop (BDGT-01, BDGT-02, BDGT-03, BDGT-04, BDGT-06, BDGT-07)
+- [x] 43-01-PLAN.md — DB models (AgentCheckpoint + AgentSession) + UserSettings extension + SESSION_TTL fix (BDGT-04, BDGT-05)
+- [x] 43-02-PLAN.md — TDD: BudgetService — cost calculation, daily budget, circuit breaker (BDGT-01, BDGT-06, BDGT-07)
+- [x] 43-03-PLAN.md — TDD: WakeDaemon + CheckpointService + SSE event types (BDGT-02, BDGT-03)
+- [x] 43-04-PLAN.md — Wire budget/checkpoint/wake into TAOR loop (BDGT-01, BDGT-02, BDGT-03, BDGT-04, BDGT-06, BDGT-07)
 
 ### Phase 44: Native Agent Capabilities
 **Goal**: The agent narrates its work in first-person co-founder voice via a narrate() tool (replacing the NarrationService), generates end-user documentation natively as part of its workflow (replacing the DocGenerationService), and the deleted services leave no dead code or broken imports behind.
