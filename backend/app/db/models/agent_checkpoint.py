@@ -10,6 +10,9 @@ class AgentCheckpoint(Base):
     """Stores full message history, sandbox state, phase, retry counts, and budget per session.
 
     Written on every TAOR loop iteration so agents can resume after sleep or crash.
+
+    Python-level defaults are set explicitly in __init__ so that in-memory model
+    instances (unit tests, pre-flush objects) behave correctly without a DB round-trip.
     """
 
     __tablename__ = "agent_checkpoints"
@@ -45,3 +48,15 @@ class AgentCheckpoint(Base):
     # Timestamps
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+    def __init__(self, **kwargs: object) -> None:
+        # Set Python-level defaults before SQLAlchemy processes kwargs.
+        # Column(default=...) only fires at DB INSERT — these ensure correct
+        # in-memory values for unit tests and pre-flush objects.
+        kwargs.setdefault("message_history", [])
+        kwargs.setdefault("retry_counts", {})
+        kwargs.setdefault("session_cost_microdollars", 0)
+        kwargs.setdefault("daily_budget_microdollars", 0)
+        kwargs.setdefault("iteration_number", 0)
+        kwargs.setdefault("agent_state", "working")
+        super().__init__(**kwargs)

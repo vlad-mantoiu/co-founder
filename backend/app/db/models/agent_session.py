@@ -13,6 +13,9 @@ class AgentSession(Base):
     (BDGT-05: token budget pacing requires knowing cost per model upfront).
 
     status values: working | sleeping | budget_exceeded | completed
+
+    Python-level defaults are set explicitly in __init__ so that in-memory model
+    instances (unit tests, pre-flush objects) behave correctly without a DB round-trip.
     """
 
     __tablename__ = "agent_sessions"
@@ -43,3 +46,12 @@ class AgentSession(Base):
     started_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     last_checkpoint_at = Column(DateTime(timezone=True), nullable=True)
     completed_at = Column(DateTime(timezone=True), nullable=True)
+
+    def __init__(self, **kwargs: object) -> None:
+        # Set Python-level defaults before SQLAlchemy processes kwargs.
+        # Column(default=...) only fires at DB INSERT — these ensure correct
+        # in-memory values for unit tests and pre-flush objects.
+        kwargs.setdefault("status", "working")
+        kwargs.setdefault("cumulative_cost_microdollars", 0)
+        kwargs.setdefault("daily_budget_microdollars", 0)
+        super().__init__(**kwargs)
