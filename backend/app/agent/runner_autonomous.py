@@ -6,6 +6,9 @@ tool-use loop. Wires together:
 - IterationGuard — iteration cap, repetition detection, tool result truncation
 - InMemoryToolDispatcher — stateful tool stub (Phase 42 swaps to E2B)
 - LogStreamer — writes narration to Redis Stream for SSE frontend delivery
+- BudgetService — per-call cost tracking + graceful/hard circuit breakers (Phase 43)
+- CheckpointService — PostgreSQL checkpoint persistence after each iteration (Phase 43)
+- WakeDaemon — asyncio.Event sleep/wake lifecycle (Phase 43)
 
 All 13 pre-existing Runner protocol methods (onboarding, brief, artifacts, etc.)
 remain as NotImplementedError stubs — they are for the pre-existing pipeline
@@ -68,11 +71,24 @@ class AutonomousRunner:
                 - redis: Redis connection (optional — skip streaming if absent)
                 - max_tool_calls: int (optional, default 150)
                 - dispatcher: ToolDispatcher (optional — for testing)
+                - budget_service: BudgetService (optional — skip budget if absent)
+                - checkpoint_service: CheckpointService (optional — skip checkpoints if absent)
+                - db_session: AsyncSession (optional — required for budget/checkpoint ops)
+                - wake_daemon: WakeDaemon (optional — sleep/wake lifecycle)
+                - session_id: str (optional — defaults to job_id)
+                - tier: str (optional — defaults to "bootstrapper")
+                - sandbox_id: str (optional — for checkpoint state)
+                - current_phase: str (optional — for checkpoint state)
+                - retry_counts: dict (optional — for checkpoint state)
+                - state_machine: JobStateMachine (optional — for SSE budget events)
 
         Returns:
             Dict with keys: status, project_id, phases_completed, result
-            status values: "completed" | "iteration_limit_reached" | "repetition_detected" | "api_error"
+            status values: "completed" | "iteration_limit_reached" | "repetition_detected"
+                          | "api_error" | "budget_exceeded"
         """
+        from app.agent.budget.service import BudgetExceededError
+
         project_id = context.get("project_id")
         job_id = context.get("job_id", "unknown")
         bound_logger = logger.bind(job_id=job_id, project_id=project_id)
@@ -95,10 +111,58 @@ class AutonomousRunner:
         if redis is not None:
             streamer = LogStreamer(redis=redis, job_id=job_id, phase="agent")
 
+        # ---- Integration Point 1: Session Start ----
+        budget_service = context.get("budget_service")
+        checkpoint_service = context.get("checkpoint_service")
+        db_session = context.get("db_session")
+        user_id = context.get("user_id", "")
+        session_id = context.get("session_id", job_id)
+        state_machine = context.get("state_machine")
+        wake_daemon = context.get("wake_daemon")
+
+        daily_budget: int = 0
+        session_cost: int = 0
+        graceful_wind_down = False
+
+        if budget_service and db_session:
+            daily_budget = await budget_service.calc_daily_budget(user_id, db_session)
+
+        if db_session:
+            from app.db.models.agent_session import AgentSession
+            agent_session = AgentSession(
+                id=session_id,
+                job_id=job_id,
+                clerk_user_id=user_id,
+                tier=context.get("tier", "bootstrapper"),
+                model_used=self._model,
+                daily_budget_microdollars=daily_budget,
+            )
+            db_session.add(agent_session)
+            try:
+                await db_session.commit()
+            except Exception as exc:
+                bound_logger.warning("agent_session_create_failed", error=str(exc))
+
         # Initial user message — Anthropic requires at least one user turn
         messages: list[dict] = [  # type: ignore[type-arg]
             {"role": "user", "content": "Begin building the project per the build plan."}
         ]
+        iteration_count = 0
+
+        # Check for existing checkpoint — restore if found
+        if checkpoint_service and db_session:
+            try:
+                existing = await checkpoint_service.restore(session_id, db_session)
+                if existing is not None and existing.message_history:
+                    messages = existing.message_history
+                    iteration_count = existing.iteration_number
+                    guard._count = iteration_count
+                    bound_logger.info(
+                        "taor_loop_checkpoint_restored",
+                        iteration=iteration_count,
+                    )
+            except Exception as exc:
+                bound_logger.warning("taor_loop_restore_failed", error=str(exc))
 
         bound_logger.info("taor_loop_start", model=self._model)
 
@@ -130,7 +194,7 @@ class AutonomousRunner:
                     # Get the full message snapshot AFTER consuming text_stream
                     response = await stream.get_final_message()
 
-                # Track usage (Phase 43 budget daemon will act on these)
+                # Track usage (Phase 43 budget daemon acts on these)
                 _input_tokens = response.usage.input_tokens
                 _output_tokens = response.usage.output_tokens
                 bound_logger.debug(
@@ -139,6 +203,38 @@ class AutonomousRunner:
                     output_tokens=_output_tokens,
                 )
 
+                # ---- Integration Point 2: After each streaming response ----
+                if budget_service:
+                    session_cost = await budget_service.record_call_cost(
+                        session_id,
+                        user_id,
+                        self._model,
+                        _input_tokens,
+                        _output_tokens,
+                        context.get("redis"),
+                    )
+                    budget_pct = await budget_service.get_budget_percentage(
+                        session_id,
+                        user_id,
+                        daily_budget,
+                        context.get("redis"),
+                    )
+                    if state_machine:
+                        await state_machine.publish_event(
+                            job_id,
+                            {
+                                "type": "agent.budget_updated",
+                                "budget_pct": int(budget_pct * 100),
+                            },
+                        )
+                    # Hard circuit breaker — BudgetExceededError propagates to outer try
+                    await budget_service.check_runaway(
+                        session_id, user_id, daily_budget, context.get("redis")
+                    )
+                    # Graceful threshold — finish current dispatch, no new iterations
+                    if budget_service.is_at_graceful_threshold(session_cost, daily_budget):
+                        graceful_wind_down = True
+
                 # ---- Check stop condition ----
                 if response.stop_reason == "end_turn":
                     final_text = ""
@@ -146,6 +242,64 @@ class AutonomousRunner:
                         if hasattr(block, "text"):
                             final_text += block.text
                     bound_logger.info("taor_loop_end_turn", result_length=len(final_text))
+
+                    # ---- Integration Point 4: Sleep/Wake on graceful wind-down ----
+                    if graceful_wind_down:
+                        if state_machine:
+                            await state_machine.publish_event(
+                                job_id,
+                                {
+                                    "type": "agent.sleeping",
+                                    "message": "Agent paused until budget refresh",
+                                    "budget_pct": 100,
+                                },
+                            )
+                        if redis:
+                            await redis.set(
+                                f"cofounder:agent:{session_id}:state",
+                                "sleeping",
+                                ex=90_000,
+                            )
+                        if checkpoint_service and db_session:
+                            await checkpoint_service.save(
+                                session_id=session_id,
+                                job_id=job_id,
+                                message_history=messages,
+                                sandbox_id=context.get("sandbox_id"),
+                                current_phase=context.get("current_phase"),
+                                retry_counts=context.get("retry_counts", {}),
+                                session_cost_microdollars=session_cost,
+                                daily_budget_microdollars=daily_budget,
+                                iteration_number=guard._count,
+                                agent_state="sleeping",
+                                db=db_session,
+                            )
+                        if wake_daemon:
+                            await wake_daemon.wake_event.wait()
+                            wake_daemon.wake_event.clear()
+                        if state_machine:
+                            await state_machine.publish_event(
+                                job_id,
+                                {
+                                    "type": "agent.waking",
+                                    "message": "Resuming — budget refreshed. Continuing from last task.",
+                                },
+                            )
+                        if redis:
+                            await redis.set(
+                                f"cofounder:agent:{session_id}:state",
+                                "working",
+                                ex=90_000,
+                            )
+                        if budget_service and db_session:
+                            daily_budget = await budget_service.calc_daily_budget(
+                                user_id, db_session
+                            )
+                        graceful_wind_down = False
+                        session_cost = 0
+                        # Continue the TAOR loop — do NOT return
+                        continue
+
                     return {
                         "status": "completed",
                         "project_id": project_id,
@@ -289,6 +443,60 @@ class AutonomousRunner:
 
                 messages.append({"role": "user", "content": tool_results})
 
+                # ---- Integration Point 3: After each full TAOR iteration ----
+                if checkpoint_service and db_session:
+                    await checkpoint_service.save(
+                        session_id=session_id,
+                        job_id=job_id,
+                        message_history=messages,
+                        sandbox_id=context.get("sandbox_id"),
+                        current_phase=context.get("current_phase"),
+                        retry_counts=context.get("retry_counts", {}),
+                        session_cost_microdollars=session_cost if budget_service else 0,
+                        daily_budget_microdollars=daily_budget if budget_service else 0,
+                        iteration_number=guard._count,
+                        agent_state="working",
+                        db=db_session,
+                    )
+
+        except BudgetExceededError:
+            # Hard circuit breaker fired — set Redis state, emit SSE, save checkpoint
+            # CRITICAL: must NOT propagate — job status must NOT become FAILED
+            bound_logger.error("taor_loop_budget_exceeded", session_id=session_id)
+            if state_machine:
+                await state_machine.publish_event(
+                    job_id,
+                    {
+                        "type": "agent.budget_exceeded",
+                        "message": "Agent stopped — daily budget exceeded",
+                    },
+                )
+            if redis:
+                await redis.set(
+                    f"cofounder:agent:{session_id}:state",
+                    "budget_exceeded",
+                    ex=90_000,
+                )
+            if checkpoint_service and db_session:
+                await checkpoint_service.save(
+                    session_id=session_id,
+                    job_id=job_id,
+                    message_history=messages,
+                    sandbox_id=context.get("sandbox_id"),
+                    current_phase=context.get("current_phase"),
+                    retry_counts=context.get("retry_counts", {}),
+                    session_cost_microdollars=session_cost,
+                    daily_budget_microdollars=daily_budget,
+                    iteration_number=guard._count,
+                    agent_state="budget_exceeded",
+                    db=db_session,
+                )
+            return {
+                "status": "budget_exceeded",
+                "project_id": project_id,
+                "phases_completed": [],
+                "reason": "Daily budget exceeded by >10%",
+            }
         except anthropic.APIError as exc:
             error_msg = f"Anthropic API error: {type(exc).__name__}: {str(exc)}"
             bound_logger.error("taor_loop_api_error", error=str(exc))
