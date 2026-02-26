@@ -108,6 +108,7 @@
 - [x] **Phase 41: Autonomous Runner Core (TAOR Loop)** - AutonomousRunner implementing the TAOR loop with input context consumption, iteration cap, repetition detection, and context management (completed 2026-02-25)
 - [x] **Phase 42: E2B Tool Dispatcher** - All 7 Claude Code-style tools dispatched to E2B sandbox; E2B file sync to S3 after each phase commit (completed 2026-02-26)
 - [x] **Phase 43: Token Budget + Sleep/Wake Daemon** - Daily token budget pacing, sleep/wake lifecycle with PostgreSQL persistence, model-per-tier config, cost tracking and circuit breakers (completed 2026-02-26)
+- [ ] **Phase 43.1: Production Integration Glue** - Wire GenerationService to call run_agent_loop(), inject E2BToolDispatcher + BudgetService + CheckpointService + WakeDaemon into production context, connect S3SnapshotService, resolve model from tier, remove 501 gate
 - [ ] **Phase 44: Native Agent Capabilities** - narrate() tool replacing NarrationService; documentation generation native to agent workflow
 - [ ] **Phase 45: Self-Healing Error Model** - 3-retry with different approaches per error signature; founder escalation via DecisionConsole
 - [ ] **Phase 46: UI Integration** - Activity feed with verbose toggle; agent state card; Kanban phase updates; new SSE event types wired to frontend
@@ -310,9 +311,26 @@ Plans:
 - [x] 43-03-PLAN.md — TDD: WakeDaemon + CheckpointService + SSE event types (BDGT-02, BDGT-03)
 - [x] 43-04-PLAN.md — Wire budget/checkpoint/wake into TAOR loop (BDGT-01, BDGT-02, BDGT-03, BDGT-04, BDGT-06, BDGT-07)
 
+### Phase 43.1: Production Integration Glue
+**Goal**: GenerationService calls run_agent_loop() with a fully-assembled context dict (idea_brief, understanding_qna from DB, E2BToolDispatcher, BudgetService, CheckpointService, WakeDaemon), E2BToolDispatcher calls S3SnapshotService.sync() after file writes, AutonomousRunner resolves model from subscription tier, and the 501 gate is removed so the full build → TAOR → E2B → budget → sleep/wake pipeline works end-to-end.
+**Depends on**: Phase 43
+**Requirements**: MIGR-04, AGNT-01, AGNT-02, AGNT-03
+**Gap Closure**: Closes gaps from v0.1 milestone audit
+**Success Criteria** (what must be TRUE):
+  1. GenerationService.execute_build() calls runner.run_agent_loop(context) when AUTONOMOUS_AGENT=True — not runner.run()
+  2. The context dict contains idea_brief and understanding_qna read from DB Artifact records for the project
+  3. E2BToolDispatcher is injected as context["dispatcher"] — not InMemoryToolDispatcher
+  4. E2BToolDispatcher calls S3SnapshotService.sync() after write_file and edit_file tool calls
+  5. BudgetService, CheckpointService, and WakeDaemon are instantiated and injected into the context dict
+  6. WakeDaemon.run() is launched as asyncio.create_task alongside the TAOR loop
+  7. AutonomousRunner resolves model from resolve_llm_config(user_id, role) based on subscription tier — not hardcoded
+  8. The 501 gate in start_generation is removed (or conditioned on integration readiness flag)
+  9. A full E2E integration test covers: start build → TAOR loop runs → tools dispatch to E2B → cost tracked → checkpoint saved
+**Plans**: TBD
+
 ### Phase 44: Native Agent Capabilities
 **Goal**: The agent narrates its work in first-person co-founder voice via a narrate() tool (replacing the NarrationService), generates end-user documentation natively as part of its workflow (replacing the DocGenerationService), and the deleted services leave no dead code or broken imports behind.
-**Depends on**: Phase 43
+**Depends on**: Phase 43.1
 **Requirements**: AGNT-04, AGNT-05
 **Success Criteria** (what must be TRUE):
   1. Every significant agent action is narrated inline — "I'm setting up the authentication system using Clerk because your brief specified enterprise-grade security" — the narration appears in the activity feed as the agent works, not after a stage completes
