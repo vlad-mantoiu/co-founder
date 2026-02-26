@@ -84,11 +84,11 @@ export class MarketingStack extends cdk.Stack {
             override: true,
             contentSecurityPolicy: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline'",  // Next.js static export: self.__next_f.push() inline scripts
+              "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com",  // Next.js inline + GA4 gtag.js
               "style-src 'self' 'unsafe-inline'",   // Framer Motion: sets opacity/transform via inline style=
               "font-src 'self'",                    // Geist/Space Grotesk self-hosted via next/font
-              "img-src 'self' data:",               // data: for any future base64 images
-              "connect-src 'self' https://formsubmit.co",
+              "img-src 'self' data: https://www.googletagmanager.com https://www.google-analytics.com",
+              "connect-src 'self' https://formsubmit.co https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com",
               "media-src 'none'",
               "object-src 'none'",
               "child-src 'none'",
