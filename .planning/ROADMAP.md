@@ -417,7 +417,7 @@ Plans:
 | 41. Autonomous Runner Core (TAOR Loop) | v0.7 | 3/3 | Complete | 2026-02-25 |
 | 42. E2B Tool Dispatcher | 2/2 | Complete    | 2026-02-26 | - |
 | 43. Token Budget + Sleep/Wake Daemon | 3/4 | Complete    | 2026-02-26 | - |
-| 44. Native Agent Capabilities | 3/3 | Complete   | 2026-02-27 | - |
+| 44. Native Agent Capabilities | 3/3 | Complete    | 2026-02-27 | - |
 | 45. Self-Healing Error Model | v0.7 | 0/TBD | Not started | - |
 | 46. UI Integration | v0.7 | 0/TBD | Not started | - |
 
