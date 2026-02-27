@@ -109,7 +109,7 @@
 - [x] **Phase 42: E2B Tool Dispatcher** - All 7 Claude Code-style tools dispatched to E2B sandbox; E2B file sync to S3 after each phase commit (completed 2026-02-26)
 - [x] **Phase 43: Token Budget + Sleep/Wake Daemon** - Daily token budget pacing, sleep/wake lifecycle with PostgreSQL persistence, model-per-tier config, cost tracking and circuit breakers (completed 2026-02-26)
 - [x] **Phase 43.1: Production Integration Glue** - Wire GenerationService to call run_agent_loop(), inject E2BToolDispatcher + BudgetService + CheckpointService + WakeDaemon into production context, connect S3SnapshotService, resolve model from tier, remove 501 gate (completed 2026-02-27)
-- [ ] **Phase 44: Native Agent Capabilities** - narrate() tool replacing NarrationService; documentation generation native to agent workflow
+- [x] **Phase 44: Native Agent Capabilities** - narrate() tool replacing NarrationService; documentation generation native to agent workflow (completed 2026-02-27)
 - [ ] **Phase 45: Self-Healing Error Model** - 3-retry with different approaches per error signature; founder escalation via DecisionConsole
 - [ ] **Phase 46: UI Integration** - Activity feed with verbose toggle; agent state card; Kanban phase updates; new SSE event types wired to frontend
 
@@ -340,7 +340,7 @@ Plans:
   2. The narrate() call is tracked by the token budget daemon — narration API calls are included in the daily cost tally and can trigger sleep if the budget is consumed mid-narration
   3. The agent generates structured documentation sections (overview, features, getting_started, faq) as part of its workflow — the `job:{id}:docs` Redis hash is populated by agent tool calls, not a separate service
   4. NarrationService and DocGenerationService files are deleted and their imports removed — the pytest suite passes with zero references to the deleted modules
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [ ] 44-01-PLAN.md — TDD: narrate() and document() tools + dispatcher handlers + system prompt update (AGNT-04, AGNT-05)
 - [ ] 44-02-PLAN.md — Delete NarrationService + DocGenerationService + scrub generation_service.py (AGNT-04, AGNT-05)
@@ -416,7 +416,7 @@ Plans:
 | 41. Autonomous Runner Core (TAOR Loop) | v0.7 | 3/3 | Complete | 2026-02-25 |
 | 42. E2B Tool Dispatcher | 2/2 | Complete    | 2026-02-26 | - |
 | 43. Token Budget + Sleep/Wake Daemon | 3/4 | Complete    | 2026-02-26 | - |
-| 44. Native Agent Capabilities | 1/2 | In Progress|  | - |
+| 44. Native Agent Capabilities | 2/2 | Complete   | 2026-02-27 | - |
 | 45. Self-Healing Error Model | v0.7 | 0/TBD | Not started | - |
 | 46. UI Integration | v0.7 | 0/TBD | Not started | - |
 

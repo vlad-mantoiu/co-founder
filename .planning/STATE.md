@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** v0.7 Autonomous Agent — Phase 44: Native Agent Capabilities — Plan 01 complete (1/3 plans done)
+**Current focus:** v0.7 Autonomous Agent — Phase 44: Native Agent Capabilities — Plan 02 complete (2/3 plans done)
 
 ## Current Position
 
-Phase: 44 of 46 (Native Agent Capabilities) — IN PROGRESS (1/3 plans done)
-Plan: 1 of 3 complete
-Status: Phase 44 Plan 01 COMPLETE — narrate() and document() native tool calls implemented in both InMemoryToolDispatcher and E2BToolDispatcher; system prompt updated; 14 TDD tests; AGNT-04 and AGNT-05 satisfied
-Last activity: 2026-02-27 — Phase 44 Plan 01 complete: narrate/document tools + system prompt update
+Phase: 44 of 46 (Native Agent Capabilities) — IN PROGRESS (2/3 plans done)
+Plan: 2 of 3 complete
+Status: Phase 44 Plan 02 COMPLETE — NarrationService and DocGenerationService deleted; all 11 call sites removed from generation_service.py; 5 test files deleted; zero import references remain; AGNT-04 and AGNT-05 requirements fulfilled
+Last activity: 2026-02-28 — Phase 44 Plan 02 complete: NarrationService/DocGenerationService deleted, dead code cleaned
 
-Progress: [█████░░░░░] 63% (v0.7: 16/24 plans done)
+Progress: [██████░░░░] 67% (v0.7: 17/24 plans done)
 
 ## Performance Metrics
 
@@ -34,6 +34,7 @@ Progress: [█████░░░░░] 63% (v0.7: 16/24 plans done)
 | v0.6 Live Build Experience | 4 of 7 | 12 | 2 days (2026-02-23 to 2026-02-24) |
 | v0.7 Phase 40 | COMPLETE | 4/4 plans | 2026-02-24 |
 | Phase 44-native-agent-capabilities P01 | 4 | 2 tasks | 8 files |
+| Phase 44 P02 | 25 | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -109,6 +110,8 @@ Progress: [█████░░░░░] 63% (v0.7: 16/24 plans done)
 - [44-01] AGENT_TOOLS now has 9 tools (7 original + narrate + document) — count assertion updated in test_tool_dispatcher.py
 - [44-01] document() writes to job:{id}:docs Redis hash (hset) — same key pattern NarrationService used; ready for service deletion in later Phase 44 plan
 - [44-01] narrate() writes to Redis log stream via xadd directly (no LogStreamer) — simpler for dispatcher context, matches stream key format
+- [44-02] Comment-only references to NarrationService/DocGenerationService left intact in definitions.py, state_machine.py, generation.py — benign historical references, not functional imports
+- [44-02] Integration tests (test_mvp_built_transition.py) require live PostgreSQL — excluded from CI verification with -m "not integration"; pre-existing requirement not caused by this plan
 
 ### Key Research Flags (check before planning)
 
@@ -129,9 +132,9 @@ None blocking Phase 41.
 
 ## Session Continuity
 
-Last session: 2026-02-27 (Phase 44 Plan 01 complete — narrate/document native tools in both dispatchers, 14 TDD tests, 175 agent tests passing, AGNT-04/AGNT-05 satisfied)
-Stopped at: Completed Phase 44 Plan 01 — 44-01-PLAN.md
-Resume file: .planning/phases/44-native-agent-capabilities/44-02-PLAN.md (wire narrate/document into AutonomousRunner.execute_build() + delete NarrationService/DocGenerationService)
+Last session: 2026-02-28 (Phase 44 Plan 02 complete — NarrationService/DocGenerationService deleted, 7 files removed, generation_service.py scrubbed, 571 tests pass)
+Stopped at: Completed Phase 44 Plan 02 — 44-02-PLAN.md
+Resume file: .planning/phases/44-native-agent-capabilities/44-03-PLAN.md (if exists — Phase 44 Plan 03)
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
