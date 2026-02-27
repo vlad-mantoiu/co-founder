@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** v0.7 Autonomous Agent — Phase 43: Token Budget + Sleep/Wake Daemon — COMPLETE (4/4 plans done)
+**Current focus:** v0.7 Autonomous Agent — Phase 43.1: Production Integration Glue — Plan 01 complete (1/2 plans done)
 
 ## Current Position
 
-Phase: 43 of 46 (Token Budget + Sleep/Wake Daemon) — COMPLETE (4/4 plans done)
-Plan: 4 of 4 complete
-Status: Phase 43 Plan 04 complete — Budget-aware TAOR loop wired with BudgetService, CheckpointService, WakeDaemon, AgentSession creation; 10 new integration tests, 161 total passing
-Last activity: 2026-02-26 — Phase 43 Plan 04 complete: TAOR loop integration (BDGT-01/02/03/04/06/07 satisfied)
+Phase: 43.1 of 46 (Production Integration Glue) — 1/2 plans done
+Plan: 1 of 2 complete
+Status: Phase 43.1 Plan 01 complete — GenerationService.execute_build() wired to run_agent_loop() with full context assembly; 501 gate removed; AGNT-01/02/03 satisfied
+Last activity: 2026-02-27 — Phase 43.1 Plan 01 complete: integration glue (501 gate removed, execute_build autonomous branch wired)
 
-Progress: [█████░░░░░] 54% (v0.7: 13/24 plans done)
+Progress: [█████░░░░░] 55% (v0.7: 14/24 plans done)
 
 ## Performance Metrics
 
@@ -93,6 +93,11 @@ Progress: [█████░░░░░] 54% (v0.7: 13/24 plans done)
 - [43-04] sleep/wake transition placed at end_turn check — ensures full current iteration completes before pausing
 - [43-04] session_cost reset to 0 on wake — new billing day starts fresh (daily_budget also recalculated)
 - [43-04] guard._count restored from checkpoint.iteration_number at session start — IterationGuard resumes correctly
+- [43.1-01] 501 gate removed entirely — AutonomousRunner handles build when AUTONOMOUS_AGENT=True (Phase 43.1)
+- [43.1-01] context dict assembled inline in execute_build() — no factory method, per locked decision (Phase 43.1)
+- [43.1-01] db_session wraps entire TAOR loop call — SQLAlchemy session stays open for budget/checkpoint ops (Phase 43.1)
+- [43.1-01] Service tests that use execute_build() legacy path must set autonomous_agent=False in MagicMock settings (Phase 43.1)
+- [43.1-01] project_snapshot_bucket added to Settings — conditionally enables S3SnapshotService in autonomous path (Phase 43.1)
 
 ### Key Research Flags (check before planning)
 
@@ -113,9 +118,9 @@ None blocking Phase 41.
 
 ## Session Continuity
 
-Last session: 2026-02-26 (Phase 43 Plan 04 complete — TAOR loop integration, 10 new integration tests, 161 total passing, BDGT-01/02/03/04/06/07 satisfied)
-Stopped at: Completed Phase 43 Plan 04 — 43-04-PLAN.md
-Resume file: .planning/phases/44-agent-narration-doc-native/44-01-PLAN.md (Phase 44: Native narration and doc generation)
+Last session: 2026-02-27 (Phase 43.1 Plan 01 complete — execute_build() autonomous branch wired, 501 gate removed, 190 tests passing, AGNT-01/02/03 satisfied)
+Stopped at: Completed Phase 43.1 Plan 01 — 43.1-01-PLAN.md
+Resume file: .planning/phases/43.1-production-integration-glue/43.1-02-PLAN.md (Phase 43.1 Plan 02: next integration step)
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
