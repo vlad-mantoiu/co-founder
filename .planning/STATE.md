@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** v0.7 Autonomous Agent — Phase 43.1: Production Integration Glue — COMPLETE (2/2 plans done)
+**Current focus:** v0.7 Autonomous Agent — Phase 44: Native Agent Capabilities — Plan 01 complete (1/3 plans done)
 
 ## Current Position
 
-Phase: 43.1 of 46 (Production Integration Glue) — COMPLETE (2/2 plans done)
-Plan: 2 of 2 complete
-Status: Phase 43.1 COMPLETE — S3 snapshot hooks added to TAOR loop; 8 new tests (7 unit + 1 E2E) verify all autonomous pipeline integration points; MIGR-04, AGNT-01/02/03 satisfied
-Last activity: 2026-02-27 — Phase 43.1 Plan 02 complete: S3 snapshot hooks + autonomous pipeline tests
+Phase: 44 of 46 (Native Agent Capabilities) — IN PROGRESS (1/3 plans done)
+Plan: 1 of 3 complete
+Status: Phase 44 Plan 01 COMPLETE — narrate() and document() native tool calls implemented in both InMemoryToolDispatcher and E2BToolDispatcher; system prompt updated; 14 TDD tests; AGNT-04 and AGNT-05 satisfied
+Last activity: 2026-02-27 — Phase 44 Plan 01 complete: narrate/document tools + system prompt update
 
-Progress: [█████░░░░░] 58% (v0.7: 15/24 plans done)
+Progress: [█████░░░░░] 63% (v0.7: 16/24 plans done)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 105 (v0.1: 47, v0.2: 20, v0.3: 9, v0.4: 21, v0.5: 15, v0.6: 12, v0.7: 12)
+- Total plans completed: 106 (v0.1: 47, v0.2: 20, v0.3: 9, v0.4: 21, v0.5: 15, v0.6: 12, v0.7: 13)
 - Total phases shipped: 36 (across 6 milestones; 37-39 abandoned)
 
 **By Milestone:**
@@ -33,6 +33,7 @@ Progress: [█████░░░░░] 58% (v0.7: 15/24 plans done)
 | v0.5 Sandbox Integration | 5 | 15 | 1 day (2026-02-22) |
 | v0.6 Live Build Experience | 4 of 7 | 12 | 2 days (2026-02-23 to 2026-02-24) |
 | v0.7 Phase 40 | COMPLETE | 4/4 plans | 2026-02-24 |
+| Phase 44-native-agent-capabilities P01 | 4 | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -103,6 +104,11 @@ Progress: [█████░░░░░] 58% (v0.7: 15/24 plans done)
 - [43.1-02] Checkpoint boundary sync nested inside checkpoint_service guard — sync only fires when checkpoint fires
 - [43.1-02] E2E test uses real AutonomousRunner (not AsyncMock) with mocked Anthropic client — tests actual TAOR code path
 - [43.1-02] Service mocks in E2E must be AsyncMock (not MagicMock) — TAOR loop awaits calc_daily_budget and other methods
+- [44-01] narrate() emits SSEEventType.BUILD_STAGE_STARTED with stage='agent', agent_role='Engineer' — reuses existing event type for backward compatibility
+- [44-01] SSEEventType imported locally inside _narrate/_document handlers — avoids circular import at module level (established pattern from Phase 43)
+- [44-01] AGENT_TOOLS now has 9 tools (7 original + narrate + document) — count assertion updated in test_tool_dispatcher.py
+- [44-01] document() writes to job:{id}:docs Redis hash (hset) — same key pattern NarrationService used; ready for service deletion in later Phase 44 plan
+- [44-01] narrate() writes to Redis log stream via xadd directly (no LogStreamer) — simpler for dispatcher context, matches stream key format
 
 ### Key Research Flags (check before planning)
 
@@ -123,9 +129,9 @@ None blocking Phase 41.
 
 ## Session Continuity
 
-Last session: 2026-02-27 (Phase 43.1 Plan 02 complete — S3 snapshot hooks in TAOR loop, 8 new tests, 591 unit tests passing, MIGR-04/AGNT-01/02/03 satisfied)
-Stopped at: Completed Phase 43.1 Plan 02 — 43.1-02-PLAN.md — Phase 43.1 COMPLETE
-Resume file: .planning/ROADMAP.md (Phase 44 next: NarrationService/DocGenerationService replacement with native agent output)
+Last session: 2026-02-27 (Phase 44 Plan 01 complete — narrate/document native tools in both dispatchers, 14 TDD tests, 175 agent tests passing, AGNT-04/AGNT-05 satisfied)
+Stopped at: Completed Phase 44 Plan 01 — 44-01-PLAN.md
+Resume file: .planning/phases/44-native-agent-capabilities/44-02-PLAN.md (wire narrate/document into AutonomousRunner.execute_build() + delete NarrationService/DocGenerationService)
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
