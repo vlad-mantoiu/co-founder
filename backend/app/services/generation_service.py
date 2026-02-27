@@ -31,17 +31,11 @@ from app.metrics.cloudwatch import emit_business_event
 from app.queue.schemas import JobStatus
 from app.queue.state_machine import JobStateMachine
 from app.sandbox.e2b_runtime import E2BSandboxRuntime
-from app.services.doc_generation_service import DocGenerationService
 from app.services.log_streamer import LogStreamer
-from app.services.narration_service import NarrationService
 from app.services.screenshot_service import ScreenshotService
 
 logger = structlog.get_logger(__name__)
 
-# DOCS-03: Module-level singleton — one instance reused across all builds
-_doc_generation_service = DocGenerationService()
-# NARR-02: Module-level singletons — one instance reused across all builds
-_narration_service = NarrationService()
 _screenshot_service = ScreenshotService()
 
 
@@ -121,29 +115,6 @@ class GenerationService:
                 goal=job_data.get("goal", ""),
                 session_id=job_id,
             )
-
-            # DOCS-03: Start doc generation as background task after scaffold completes
-            # Fire-and-forget — task handles its own errors, never blocks the build
-            # Only launched when Redis is available (no-op in unit tests without Redis)
-            if _settings.docs_generation_enabled and _redis is not None:
-                asyncio.create_task(
-                    _doc_generation_service.generate(
-                        job_id=job_id,
-                        spec=job_data.get("goal", ""),
-                        redis=_redis,
-                    )
-                )
-
-            # NARR-02: Fire-and-forget narration for SCAFFOLD stage
-            if _settings.narration_enabled and _redis is not None:
-                asyncio.create_task(
-                    _narration_service.narrate(
-                        job_id=job_id,
-                        stage="scaffold",
-                        spec=job_data.get("goal", "")[:300],
-                        redis=_redis,
-                    )
-                )
 
             if _settings.autonomous_agent:
                 # ---- AUTONOMOUS AGENT PATH ----
@@ -287,17 +258,6 @@ class GenerationService:
                 streamer._phase = "code"
                 await streamer.write_event("--- Running LLM code generation ---")
 
-                # NARR-02: Fire-and-forget narration for CODE stage
-                if _settings.narration_enabled and _redis is not None:
-                    asyncio.create_task(
-                        _narration_service.narrate(
-                            job_id=job_id,
-                            stage="code",
-                            spec=job_data.get("goal", "")[:300],
-                            redis=_redis,
-                        )
-                    )
-
                 final_state = await self.runner.run(agent_state)
 
                 # Emit auto-fix signal to log stream if debugger retried
@@ -317,17 +277,6 @@ class GenerationService:
                 streamer._phase = "install"
                 await streamer.write_event("--- Provisioning sandbox and installing dependencies ---")
 
-                # NARR-02: Fire-and-forget narration for DEPS stage
-                if _settings.narration_enabled and _redis is not None:
-                    asyncio.create_task(
-                        _narration_service.narrate(
-                            job_id=job_id,
-                            stage="deps",
-                            spec=job_data.get("goal", "")[:300],
-                            redis=_redis,
-                        )
-                    )
-
                 sandbox = self.sandbox_runtime_factory()
                 await sandbox.start()
 
@@ -344,17 +293,6 @@ class GenerationService:
                 await state_machine.transition(job_id, JobStatus.CHECKS, "Running health checks")
                 streamer._phase = "checks"
                 await streamer.write_event("--- Running health checks ---")
-
-                # NARR-02: Fire-and-forget narration for CHECKS stage
-                if _settings.narration_enabled and _redis is not None:
-                    asyncio.create_task(
-                        _narration_service.narrate(
-                            job_id=job_id,
-                            stage="checks",
-                            spec=job_data.get("goal", "")[:300],
-                            redis=_redis,
-                        )
-                    )
 
                 await sandbox.run_command(
                     "echo 'health-check-ok'",
@@ -527,42 +465,10 @@ class GenerationService:
             # Extend sandbox lifetime
             await sandbox.set_timeout(3600)
 
-            # DOCS-03: Start doc generation as background task after scaffold completes (iteration builds)
-            if _settings.docs_generation_enabled and _redis is not None:
-                asyncio.create_task(
-                    _doc_generation_service.generate(
-                        job_id=job_id,
-                        spec=job_data.get("goal", ""),
-                        redis=_redis,
-                    )
-                )
-
-            # NARR-02: Fire-and-forget narration for SCAFFOLD stage
-            if _settings.narration_enabled and _redis is not None:
-                asyncio.create_task(
-                    _narration_service.narrate(
-                        job_id=job_id,
-                        stage="scaffold",
-                        spec=job_data.get("goal", "")[:300],
-                        redis=_redis,
-                    )
-                )
-
             # 3. CODE — run Runner with change_request context
             await state_machine.transition(job_id, JobStatus.CODE, "Running LLM patch generation")
             streamer._phase = "code"
             await streamer.write_event("--- Running LLM patch generation ---")
-
-            # NARR-02: Fire-and-forget narration for CODE stage
-            if _settings.narration_enabled and _redis is not None:
-                asyncio.create_task(
-                    _narration_service.narrate(
-                        job_id=job_id,
-                        stage="code",
-                        spec=job_data.get("goal", "")[:300],
-                        redis=_redis,
-                    )
-                )
 
             # Build agent state that includes the change request context
             agent_state = create_initial_state(
@@ -596,17 +502,6 @@ class GenerationService:
             streamer._phase = "install"
             await streamer.write_event("--- Writing patched files to sandbox ---")
 
-            # NARR-02: Fire-and-forget narration for DEPS stage
-            if _settings.narration_enabled and _redis is not None:
-                asyncio.create_task(
-                    _narration_service.narrate(
-                        job_id=job_id,
-                        stage="deps",
-                        spec=job_data.get("goal", "")[:300],
-                        redis=_redis,
-                    )
-                )
-
             workspace_path = "/home/user/project"
             for rel_path, file_change in working_files.items():
                 content = file_change.get("new_content", "") if isinstance(file_change, dict) else str(file_change)
@@ -617,17 +512,6 @@ class GenerationService:
             await state_machine.transition(job_id, JobStatus.CHECKS, "Running health checks on patched build")
             streamer._phase = "checks"
             await streamer.write_event("--- Running health checks on patched build ---")
-
-            # NARR-02: Fire-and-forget narration for CHECKS stage
-            if _settings.narration_enabled and _redis is not None:
-                asyncio.create_task(
-                    _narration_service.narrate(
-                        job_id=job_id,
-                        stage="checks",
-                        spec=job_data.get("goal", "")[:300],
-                        redis=_redis,
-                    )
-                )
 
             check_result = await sandbox.run_command(
                 "echo 'health-check-ok'",
@@ -707,20 +591,6 @@ class GenerationService:
             # 6. Compute remaining build result fields
             sandbox_id = sandbox.sandbox_id
             build_version = await self._get_next_build_version(project_id, state_machine)
-
-            # DOCS-09: Generate changelog for v0.2+ iteration builds
-            if _settings.docs_generation_enabled and _redis is not None and build_version != "build_v0_1":
-                prev_spec = await self._fetch_previous_spec(project_id)
-                if prev_spec:
-                    asyncio.create_task(
-                        _doc_generation_service.generate_changelog(
-                            job_id=job_id,
-                            current_spec=job_data.get("goal", ""),
-                            previous_spec=prev_spec,
-                            build_version=build_version,
-                            redis=_redis,
-                        )
-                    )
 
             # 7. Timeline narration (GENL-05)
             try:
