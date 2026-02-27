@@ -90,9 +90,9 @@ async def test_failure_injection():
 # ---------------------------------------------------------------------------
 
 
-def test_agent_tools_has_seven_entries():
-    """AGENT_TOOLS must have exactly 7 tool definitions."""
-    assert len(AGENT_TOOLS) == 7
+def test_agent_tools_has_nine_entries():
+    """AGENT_TOOLS must have exactly 9 tool definitions (7 sandbox tools + narrate + document)."""
+    assert len(AGENT_TOOLS) == 9
 
 
 def test_agent_tools_all_have_required_keys():

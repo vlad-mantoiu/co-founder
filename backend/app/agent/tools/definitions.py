@@ -6,9 +6,10 @@ Each entry follows the Anthropic ``ToolParam`` structure:
 - ``description``: natural-language description for the model
 - ``input_schema``: JSON Schema object (type="object") describing the tool's parameters
 
-The 7 tools cover the full build-agent surface: file I/O, shell, search, and
-browser capture. Phase 42 wires these to an E2B sandbox; Phase 41 uses
-``InMemoryToolDispatcher`` stubs.
+The 9 tools cover the full build-agent surface: file I/O, shell, search, browser
+capture, narration (AGNT-04), and documentation generation (AGNT-05).
+Phase 42 wires the sandbox tools to E2B; Phase 44 adds narrate() and document()
+as native tool calls replacing NarrationService and DocGenerationService.
 """
 
 AGENT_TOOLS: list[dict] = [  # type: ignore[type-arg]
@@ -138,6 +139,53 @@ AGENT_TOOLS: list[dict] = [  # type: ignore[type-arg]
             "type": "object",
             "properties": {},
             "required": [],
+        },
+    },
+    {
+        "name": "narrate",
+        "description": (
+            "Narrate a significant action in first-person co-founder voice. "
+            "Call this when you start or complete a major step — authentication setup, "
+            "database schema design, API routing, feature completion, etc. "
+            "Include WHAT you are doing AND WHY, referencing the founder's brief when relevant. "
+            "Skip minor actions like individual file writes or grep calls. "
+            "Example: 'I\\'m setting up auth with Clerk because your brief specified enterprise-grade security.'"
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "description": "First-person narration of the significant action being taken.",
+                },
+            },
+            "required": ["message"],
+        },
+    },
+    {
+        "name": "document",
+        "description": (
+            "Write a section of end-user documentation for the product being built. "
+            "Call this progressively as you complete major features — document auth after setting it up, "
+            "document onboarding after building it. "
+            "Sections: 'overview', 'features', 'getting_started', 'faq'. "
+            "Write for the product's end users, not the founder. Plain English, no technical jargon, "
+            "no file paths, no framework names. Use 'you' and 'your' throughout."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "section": {
+                    "type": "string",
+                    "enum": ["overview", "features", "getting_started", "faq"],
+                    "description": "Documentation section to write.",
+                },
+                "content": {
+                    "type": "string",
+                    "description": "Markdown content for the section.",
+                },
+            },
+            "required": ["section", "content"],
         },
     },
 ]

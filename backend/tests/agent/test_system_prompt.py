@@ -145,10 +145,13 @@ def test_collaborative_voice() -> None:
 
 
 def test_narration_instructions_present() -> None:
-    """The returned string contains 'Narrate' — narration behavior instructions."""
+    """The returned string contains narration instructions and narrate() tool reference
+    (Phase 44: narration via native tool call, not inline text)."""
     result = build_system_prompt(
         idea_brief=MINIMAL_IDEA_BRIEF,
         understanding_qna=MINIMAL_QNA,
         build_plan=MINIMAL_BUILD_PLAN,
     )
-    assert "Narrate" in result
+    # Phase 44: narration section still present, but now instructs agent to call narrate()
+    assert "Narration" in result
+    assert "narrate()" in result

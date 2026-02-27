@@ -8,6 +8,7 @@ Provides:
 
 from __future__ import annotations
 
+import json
 from typing import Protocol, runtime_checkable
 
 
@@ -52,6 +53,9 @@ class InMemoryToolDispatcher:
     def __init__(
         self,
         failure_map: dict[tuple[str, int], Exception] | None = None,
+        job_id: str = "",
+        redis=None,
+        state_machine=None,
     ) -> None:
         # Virtual filesystem: absolute path -> content
         self._fs: dict[str, str] = {}
@@ -59,6 +63,10 @@ class InMemoryToolDispatcher:
         self._call_counts: dict[str, int] = {}
         # (tool_name, call_index) -> Exception to raise
         self._failure_map: dict[tuple[str, int], Exception] = failure_map or {}
+        # Narration / documentation support (AGNT-04, AGNT-05)
+        self._job_id = job_id
+        self._redis = redis
+        self._state_machine = state_machine
 
     async def dispatch(self, tool_name: str, tool_input: dict) -> str | list[dict]:  # type: ignore[type-arg]
         """Dispatch a tool call and return a string result (or vision list for take_screenshot).
@@ -86,6 +94,10 @@ class InMemoryToolDispatcher:
             return self._glob(tool_input)
         if tool_name == "take_screenshot":
             return "[take_screenshot completed successfully]"
+        if tool_name == "narrate":
+            return await self._narrate(tool_input)
+        if tool_name == "document":
+            return await self._document(tool_input)
 
         # Unknown tool — return a generic success stub
         return f"[{tool_name} completed successfully]"
@@ -130,3 +142,74 @@ class InMemoryToolDispatcher:
     def _glob(self, tool_input: dict) -> str:  # type: ignore[type-arg]
         pattern: str = tool_input.get("pattern", "")
         return f"[glob completed successfully] pattern={pattern!r}"
+
+    async def _narrate(self, tool_input: dict) -> str:  # type: ignore[type-arg]
+        """Emit a narration event to the SSE channel and Redis log stream.
+
+        Implements AGNT-04: first-person co-founder narration via native tool call.
+        Empty messages are ignored silently. All operations are no-ops when
+        redis or state_machine are not injected (graceful degradation).
+        """
+        message: str = tool_input.get("message", "")
+        if not message:
+            return "[narrate: empty message ignored]"
+
+        # Emit SSE event via state machine
+        if self._state_machine and self._job_id:
+            from app.queue.state_machine import SSEEventType  # avoid circular at module level
+
+            await self._state_machine.publish_event(
+                self._job_id,
+                {
+                    "type": SSEEventType.BUILD_STAGE_STARTED,
+                    "stage": "agent",
+                    "narration": message,
+                    "agent_role": "Engineer",
+                    "time_estimate": "",
+                },
+            )
+
+        # Write to Redis log stream (matches LogStreamer's stream key format)
+        if self._redis and self._job_id:
+            await self._redis.xadd(
+                f"job:{self._job_id}:logs",
+                {"data": json.dumps({"text": message, "source": "agent", "phase": "agent"})},
+            )
+
+        return "[narration emitted]"
+
+    async def _document(self, tool_input: dict) -> str:  # type: ignore[type-arg]
+        """Write a documentation section to the job's Redis hash and emit SSE.
+
+        Implements AGNT-05: progressive end-user documentation via native tool call.
+        Validates section name against the 4-value enum. Rejects empty content.
+        All operations are no-ops when redis or state_machine are not injected.
+        """
+        _VALID_SECTIONS = {"overview", "features", "getting_started", "faq"}
+
+        section: str = tool_input.get("section", "")
+        content: str = tool_input.get("content", "")
+
+        if section not in _VALID_SECTIONS:
+            return f"[document: invalid section '{section}' — must be one of {sorted(_VALID_SECTIONS)}]"
+
+        if not content.strip():
+            return f"[document: empty content ignored for section '{section}']"
+
+        # Write section to Redis docs hash
+        if self._redis and self._job_id:
+            await self._redis.hset(f"job:{self._job_id}:docs", section, content)
+
+        # Emit DOCUMENTATION_UPDATED SSE event
+        if self._state_machine and self._job_id:
+            from app.queue.state_machine import SSEEventType  # avoid circular at module level
+
+            await self._state_machine.publish_event(
+                self._job_id,
+                {
+                    "type": SSEEventType.DOCUMENTATION_UPDATED,
+                    "section": section,
+                },
+            )
+
+        return f"[doc section '{section}' written ({len(content)} chars)]"
