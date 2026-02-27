@@ -340,10 +340,11 @@ Plans:
   2. The narrate() call is tracked by the token budget daemon — narration API calls are included in the daily cost tally and can trigger sleep if the budget is consumed mid-narration
   3. The agent generates structured documentation sections (overview, features, getting_started, faq) as part of its workflow — the `job:{id}:docs` Redis hash is populated by agent tool calls, not a separate service
   4. NarrationService and DocGenerationService files are deleted and their imports removed — the pytest suite passes with zero references to the deleted modules
-**Plans:** 2/2 plans complete
+**Plans:** 3 plans (2 complete, 1 gap closure)
 Plans:
-- [ ] 44-01-PLAN.md — TDD: narrate() and document() tools + dispatcher handlers + system prompt update (AGNT-04, AGNT-05)
-- [ ] 44-02-PLAN.md — Delete NarrationService + DocGenerationService + scrub generation_service.py (AGNT-04, AGNT-05)
+- [x] 44-01-PLAN.md — TDD: narrate() and document() tools + dispatcher handlers + system prompt update (AGNT-04, AGNT-05)
+- [x] 44-02-PLAN.md — Delete NarrationService + DocGenerationService + scrub generation_service.py (AGNT-04, AGNT-05)
+- [ ] 44-03-PLAN.md — Gap closure: Wire redis/state_machine into E2BToolDispatcher production construction (AGNT-04, AGNT-05)
 
 ### Phase 45: Self-Healing Error Model
 **Goal**: The agent retries failed operations 3 times with meaningfully different approaches per unique error signature before escalating to the founder, retry state persists across sleep/wake cycles so the agent never loops on the same failure indefinitely, and escalation surfaces structured context via the existing DecisionConsole pattern.
