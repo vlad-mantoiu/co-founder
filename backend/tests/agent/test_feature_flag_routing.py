@@ -12,14 +12,13 @@ class TestFeatureFlagDefaultValue:
     """Verify the default value of autonomous_agent in Settings."""
 
     def test_default_flag_value_is_true(self):
-        """Default AUTONOMOUS_AGENT is True (product not live — conservative default)."""
+        """Default AUTONOMOUS_AGENT is True (autonomous agent is live)."""
         # Import fresh Settings without cached instance
         from app.core.config import Settings
 
         settings = Settings()
         assert settings.autonomous_agent is True, (
-            "autonomous_agent must default to True so the build endpoint returns 501 "
-            "until the AutonomousRunner is fully implemented in Phase 41."
+            "autonomous_agent must default to True so the build endpoint uses AutonomousRunner."
         )
 
     def test_flag_overridable_via_env_false(self, monkeypatch):
@@ -49,11 +48,16 @@ class TestFeatureFlagRouting:
 
         mock_settings = MagicMock(spec=Settings)
         mock_settings.autonomous_agent = True
+        # AutonomousRunner.__init__ calls get_settings() internally to read anthropic_api_key
+        mock_settings.anthropic_api_key = ""
 
         mock_request = MagicMock()
 
-        # Patch the get_settings function used inside _build_runner
-        with patch("app.core.config.get_settings", return_value=mock_settings):
+        # Patch get_settings in both the generation route AND the runner module
+        with (
+            patch("app.core.config.get_settings", return_value=mock_settings),
+            patch("app.agent.runner_autonomous.get_settings", return_value=mock_settings),
+        ):
             from app.api.routes.generation import _build_runner
 
             runner = _build_runner(mock_request)

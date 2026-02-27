@@ -165,7 +165,7 @@ def test_start_generation_returns_job_id(api_client: TestClient, fake_redis, use
     """GENR-01: POST /api/generation/start returns 201 with job_id and status='queued'.
 
     Uses AUTONOMOUS_AGENT=false to exercise the RunnerFake (legacy) path.
-    The flag=true path is tested separately in test_start_generation_returns_501_when_autonomous_agent_true.
+    The flag=true path is tested in test_start_generation_returns_201_when_autonomous_agent_true.
     """
     project_id = _create_test_project(api_client, user_a)
 
@@ -228,7 +228,7 @@ def test_start_generation_blocked_by_gate(api_client: TestClient, fake_redis, us
     """POST /api/generation/start with pending gate returns 409.
 
     Uses AUTONOMOUS_AGENT=false to exercise the gate-check path.
-    With flag=true the 501 is returned before the gate check.
+    Gate check runs for both flag=true and flag=false (501 gate removed).
     """
     project_id = _create_test_project(api_client, user_a, name="Blocked Gen Project")
 
@@ -777,15 +777,15 @@ def test_docs_endpoint_returns_partial_sections(api_client: TestClient, fake_red
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Test 14: AUTONOMOUS_AGENT=true returns 501 from /start (MIGR-02)
+# Test 14: AUTONOMOUS_AGENT=true now returns 201 (queued) from /start (MIGR-02 updated)
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-def test_start_generation_returns_501_when_autonomous_agent_true(api_client: TestClient, fake_redis, user_a):
-    """MIGR-02: POST /api/generation/start returns 501 when AUTONOMOUS_AGENT=true.
+def test_start_generation_returns_201_when_autonomous_agent_true(api_client: TestClient, fake_redis, user_a):
+    """MIGR-02 (updated): POST /api/generation/start returns 201 when AUTONOMOUS_AGENT=true.
 
-    The 501 response detail must contain 'being built' to signal the banner copy.
-    The default Settings has autonomous_agent=True, so this test uses default settings.
+    The 501 gate has been removed. When autonomous_agent=True, the AutonomousRunner
+    is selected via _build_runner() and the job is queued normally (201 response).
     """
     project_id = _create_test_project(api_client, user_a, name="Autonomous Flag Project")
 
@@ -809,13 +809,12 @@ def test_start_generation_returns_501_when_autonomous_agent_true(api_client: Tes
             json={"project_id": project_id, "goal": "Build a task tracker"},
         )
 
-    assert response.status_code == 501, (
-        f"Expected 501 when AUTONOMOUS_AGENT=true, got {response.status_code}: {response.json()}"
+    assert response.status_code == 201, (
+        f"Expected 201 when AUTONOMOUS_AGENT=true (501 gate removed), got {response.status_code}: {response.json()}"
     )
-    detail = response.json().get("detail", "")
-    assert "being built" in detail.lower(), (
-        f"501 detail must contain 'being built' for frontend banner detection. Got: {detail!r}"
-    )
+    data = response.json()
+    assert data["status"] == "queued", f"Expected status='queued', got {data.get('status')!r}"
+    assert "job_id" in data, "Response must include job_id"
 
     app.dependency_overrides.clear()
 

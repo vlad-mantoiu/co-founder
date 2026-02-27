@@ -236,15 +236,6 @@ async def start_generation(
     # Verify project ownership
     await _verify_project_ownership(request.project_id, user.user_id)
 
-    # Feature flag: autonomous agent not yet implemented — return 501 immediately
-    from app.core.config import get_settings as _get_settings
-
-    if _get_settings().autonomous_agent:
-        raise HTTPException(
-            status_code=501,
-            detail="Autonomous agent coming soon. Your AI Co-Founder is being built.",
-        )
-
     # Check for blocking gate
     from app.agent.runner_fake import RunnerFake
     from app.services.gate_service import GateService
