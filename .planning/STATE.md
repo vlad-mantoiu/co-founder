@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** v0.7 Autonomous Agent — Phase 43.1: Production Integration Glue — Plan 01 complete (1/2 plans done)
+**Current focus:** v0.7 Autonomous Agent — Phase 43.1: Production Integration Glue — COMPLETE (2/2 plans done)
 
 ## Current Position
 
-Phase: 43.1 of 46 (Production Integration Glue) — 1/2 plans done
-Plan: 1 of 2 complete
-Status: Phase 43.1 Plan 01 complete — GenerationService.execute_build() wired to run_agent_loop() with full context assembly; 501 gate removed; AGNT-01/02/03 satisfied
-Last activity: 2026-02-27 — Phase 43.1 Plan 01 complete: integration glue (501 gate removed, execute_build autonomous branch wired)
+Phase: 43.1 of 46 (Production Integration Glue) — COMPLETE (2/2 plans done)
+Plan: 2 of 2 complete
+Status: Phase 43.1 COMPLETE — S3 snapshot hooks added to TAOR loop; 8 new tests (7 unit + 1 E2E) verify all autonomous pipeline integration points; MIGR-04, AGNT-01/02/03 satisfied
+Last activity: 2026-02-27 — Phase 43.1 Plan 02 complete: S3 snapshot hooks + autonomous pipeline tests
 
-Progress: [█████░░░░░] 55% (v0.7: 14/24 plans done)
+Progress: [█████░░░░░] 58% (v0.7: 15/24 plans done)
 
 ## Performance Metrics
 
@@ -98,6 +98,11 @@ Progress: [█████░░░░░] 55% (v0.7: 14/24 plans done)
 - [43.1-01] db_session wraps entire TAOR loop call — SQLAlchemy session stays open for budget/checkpoint ops (Phase 43.1)
 - [43.1-01] Service tests that use execute_build() legacy path must set autonomous_agent=False in MagicMock settings (Phase 43.1)
 - [43.1-01] project_snapshot_bucket added to Settings — conditionally enables S3SnapshotService in autonomous path (Phase 43.1)
+- [43.1-02] S3 snapshot sync conditional on both snapshot_service AND sandbox_runtime — backward compatible when not injected
+- [43.1-02] Pre-sleep sync placed AFTER checkpoint save, BEFORE wake_event.wait() — checkpoint + snapshot before sleep
+- [43.1-02] Checkpoint boundary sync nested inside checkpoint_service guard — sync only fires when checkpoint fires
+- [43.1-02] E2E test uses real AutonomousRunner (not AsyncMock) with mocked Anthropic client — tests actual TAOR code path
+- [43.1-02] Service mocks in E2E must be AsyncMock (not MagicMock) — TAOR loop awaits calc_daily_budget and other methods
 
 ### Key Research Flags (check before planning)
 
@@ -118,9 +123,9 @@ None blocking Phase 41.
 
 ## Session Continuity
 
-Last session: 2026-02-27 (Phase 43.1 Plan 01 complete — execute_build() autonomous branch wired, 501 gate removed, 190 tests passing, AGNT-01/02/03 satisfied)
-Stopped at: Completed Phase 43.1 Plan 01 — 43.1-01-PLAN.md
-Resume file: .planning/phases/43.1-production-integration-glue/43.1-02-PLAN.md (Phase 43.1 Plan 02: next integration step)
+Last session: 2026-02-27 (Phase 43.1 Plan 02 complete — S3 snapshot hooks in TAOR loop, 8 new tests, 591 unit tests passing, MIGR-04/AGNT-01/02/03 satisfied)
+Stopped at: Completed Phase 43.1 Plan 02 — 43.1-02-PLAN.md — Phase 43.1 COMPLETE
+Resume file: .planning/ROADMAP.md (Phase 44 next: NarrationService/DocGenerationService replacement with native agent output)
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*

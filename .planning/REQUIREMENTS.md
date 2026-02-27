@@ -125,7 +125,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AGNT-02 | Phase 43.1 | Complete |
 | AGNT-06 | Phase 41 | Complete |
 | AGNT-03 | Phase 43.1 | Complete |
-| MIGR-04 | Phase 43.1 | Pending |
+| MIGR-04 | Phase 43.1 | Complete |
 | BDGT-01 | Phase 43 | Complete |
 | BDGT-02 | Phase 43 | Complete |
 | BDGT-03 | Phase 43 | Complete |

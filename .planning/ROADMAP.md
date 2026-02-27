@@ -108,7 +108,7 @@
 - [x] **Phase 41: Autonomous Runner Core (TAOR Loop)** - AutonomousRunner implementing the TAOR loop with input context consumption, iteration cap, repetition detection, and context management (completed 2026-02-25)
 - [x] **Phase 42: E2B Tool Dispatcher** - All 7 Claude Code-style tools dispatched to E2B sandbox; E2B file sync to S3 after each phase commit (completed 2026-02-26)
 - [x] **Phase 43: Token Budget + Sleep/Wake Daemon** - Daily token budget pacing, sleep/wake lifecycle with PostgreSQL persistence, model-per-tier config, cost tracking and circuit breakers (completed 2026-02-26)
-- [ ] **Phase 43.1: Production Integration Glue** - Wire GenerationService to call run_agent_loop(), inject E2BToolDispatcher + BudgetService + CheckpointService + WakeDaemon into production context, connect S3SnapshotService, resolve model from tier, remove 501 gate
+- [x] **Phase 43.1: Production Integration Glue** - Wire GenerationService to call run_agent_loop(), inject E2BToolDispatcher + BudgetService + CheckpointService + WakeDaemon into production context, connect S3SnapshotService, resolve model from tier, remove 501 gate (completed 2026-02-27)
 - [ ] **Phase 44: Native Agent Capabilities** - narrate() tool replacing NarrationService; documentation generation native to agent workflow
 - [ ] **Phase 45: Self-Healing Error Model** - 3-retry with different approaches per error signature; founder escalation via DecisionConsole
 - [ ] **Phase 46: UI Integration** - Activity feed with verbose toggle; agent state card; Kanban phase updates; new SSE event types wired to frontend
@@ -326,7 +326,7 @@ Plans:
   7. AutonomousRunner resolves model from resolve_llm_config(user_id, role) based on subscription tier — not hardcoded
   8. The 501 gate in start_generation is removed (or conditioned on integration readiness flag)
   9. A full E2E integration test covers: start build → TAOR loop runs → tools dispatch to E2B → cost tracked → checkpoint saved
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [ ] 43.1-01-PLAN.md — Config + 501 gate removal + execute_build autonomous branch (AGNT-01, AGNT-02, AGNT-03)
 - [ ] 43.1-02-PLAN.md — S3 snapshot hooks + unit/E2E tests (MIGR-04, AGNT-01, AGNT-02, AGNT-03)
