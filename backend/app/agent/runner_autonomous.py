@@ -119,6 +119,8 @@ class AutonomousRunner:
         session_id = context.get("session_id", job_id)
         state_machine = context.get("state_machine")
         wake_daemon = context.get("wake_daemon")
+        snapshot_service = context.get("snapshot_service")
+        sandbox_runtime = context.get("sandbox_runtime")
 
         daily_budget: int = 0
         session_cost: int = 0
@@ -274,6 +276,15 @@ class AutonomousRunner:
                                 agent_state="sleeping",
                                 db=db_session,
                             )
+                        # Forced S3 sync before sleep — prevent work loss during long sleep periods (MIGR-04)
+                        if snapshot_service and sandbox_runtime:
+                            try:
+                                await snapshot_service.sync(
+                                    runtime=sandbox_runtime,
+                                    project_id=context.get("project_id", ""),
+                                )
+                            except Exception:
+                                logger.warning("pre_sleep_snapshot_failed", session_id=session_id, exc_info=True)
                         if wake_daemon:
                             await wake_daemon.wake_event.wait()
                             wake_daemon.wake_event.clear()
@@ -458,6 +469,16 @@ class AutonomousRunner:
                         agent_state="working",
                         db=db_session,
                     )
+                    # S3 snapshot at checkpoint boundary — approximates phase commit (MIGR-04)
+                    # Per locked decision: batch at boundaries, not per write_file/edit_file
+                    if snapshot_service and sandbox_runtime:
+                        try:
+                            await snapshot_service.sync(
+                                runtime=sandbox_runtime,
+                                project_id=context.get("project_id", ""),
+                            )
+                        except Exception:
+                            logger.warning("checkpoint_snapshot_failed", session_id=session_id, exc_info=True)
 
         except BudgetExceededError:
             # Hard circuit breaker fired — set Redis state, emit SSE, save checkpoint
