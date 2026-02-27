@@ -142,6 +142,7 @@ async def test_doc_generation_task_launched_after_scaffold():
         with patch("app.services.generation_service._get_settings") as mock_get_settings:
             mock_settings = MagicMock()
             mock_settings.docs_generation_enabled = True
+            mock_settings.autonomous_agent = False  # Force legacy RunnerFake path
             mock_get_settings.return_value = mock_settings
 
             result = await service.execute_build(job_id, job_data, state_machine, redis=redis)
@@ -192,6 +193,7 @@ async def test_doc_generation_skipped_when_disabled():
         with patch("app.services.generation_service._get_settings") as mock_get_settings:
             mock_settings = MagicMock()
             mock_settings.docs_generation_enabled = False
+            mock_settings.autonomous_agent = False  # Force legacy RunnerFake path
             mock_get_settings.return_value = mock_settings
 
             result = await service.execute_build(job_id, job_data, state_machine, redis=redis)
@@ -239,6 +241,7 @@ async def test_doc_generation_does_not_block_build():
         with patch("app.services.generation_service._get_settings") as mock_get_settings:
             mock_settings = MagicMock()
             mock_settings.docs_generation_enabled = True
+            mock_settings.autonomous_agent = False  # Force legacy RunnerFake path
             mock_get_settings.return_value = mock_settings
 
             start = time.monotonic()

@@ -115,11 +115,13 @@ def _make_service() -> GenerationService:
 
 
 def _make_mock_settings(narration_enabled: bool = True, screenshot_enabled: bool = True) -> MagicMock:
-    """Create mock settings with feature flags."""
+    """Create mock settings with feature flags (legacy runner path)."""
     mock_settings = MagicMock()
     mock_settings.narration_enabled = narration_enabled
     mock_settings.screenshot_enabled = screenshot_enabled
     mock_settings.docs_generation_enabled = True
+    # Legacy path: autonomous_agent=False so execute_build() uses RunnerFake
+    mock_settings.autonomous_agent = False
     return mock_settings
 
 

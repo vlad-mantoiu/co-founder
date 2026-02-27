@@ -164,11 +164,18 @@ async def test_generation_service_creates_stage_events():
     )
     service._get_next_build_version = AsyncMock(return_value="build_v0_1")  # type: ignore[method-assign]
 
+    legacy_settings = MagicMock()
+    legacy_settings.autonomous_agent = False
+    legacy_settings.narration_enabled = False
+    legacy_settings.screenshot_enabled = False
+    legacy_settings.docs_generation_enabled = False
+
     # Patch the MVP built hook to avoid DB calls
     with patch.object(service, "_handle_mvp_built_transition", new=AsyncMock()):
         # Patch emit_business_event to avoid AWS calls
         with patch("app.services.generation_service.emit_business_event", new=AsyncMock()):
-            await service.execute_build(job_id, job_data, state_machine, redis=redis)
+            with patch("app.services.generation_service._get_settings", return_value=legacy_settings):
+                await service.execute_build(job_id, job_data, state_machine, redis=redis)
 
     stream_key = f"job:{job_id}:logs"
     entries = await redis.xrange(stream_key)

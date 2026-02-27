@@ -129,7 +129,15 @@ async def test_execute_build_success():
     # Patch _get_next_build_version to avoid DB call in unit test
     service._get_next_build_version = AsyncMock(return_value="build_v0_1")  # type: ignore[method-assign]
 
-    result = await service.execute_build(job_id, job_data, state_machine)
+    # Force legacy RunnerFake path — autonomous_agent=True would require DB + E2B sandbox
+    legacy_settings = MagicMock()
+    legacy_settings.autonomous_agent = False
+    legacy_settings.narration_enabled = False
+    legacy_settings.screenshot_enabled = False
+    legacy_settings.docs_generation_enabled = False
+
+    with patch("app.services.generation_service._get_settings", return_value=legacy_settings):
+        result = await service.execute_build(job_id, job_data, state_machine)
 
     # Assert all 5 transitions happened in order
     expected_transitions = [
@@ -169,8 +177,16 @@ async def test_execute_build_failure_sets_failed():
         sandbox_runtime_factory=lambda: fake_sandbox,
     )
 
-    with pytest.raises(Exception) as exc_info:
-        await service.execute_build(job_id, job_data, state_machine)
+    # Force legacy RunnerFake path — autonomous_agent=True would require DB + E2B sandbox
+    legacy_settings = MagicMock()
+    legacy_settings.autonomous_agent = False
+    legacy_settings.narration_enabled = False
+    legacy_settings.screenshot_enabled = False
+    legacy_settings.docs_generation_enabled = False
+
+    with patch("app.services.generation_service._get_settings", return_value=legacy_settings):
+        with pytest.raises(Exception) as exc_info:
+            await service.execute_build(job_id, job_data, state_machine)
 
     raised_exc = exc_info.value
 
@@ -360,8 +376,15 @@ async def test_execute_build_missing_package_json_raises():
     )
     service._get_next_build_version = AsyncMock(return_value="build_v0_1")
 
-    with pytest.raises(SandboxError, match="package.json"):
-        await service.execute_build(job_id, job_data, state_machine, redis=redis)
+    legacy_settings = MagicMock()
+    legacy_settings.autonomous_agent = False
+    legacy_settings.narration_enabled = False
+    legacy_settings.screenshot_enabled = False
+    legacy_settings.docs_generation_enabled = False
+
+    with patch("app.services.generation_service._get_settings", return_value=legacy_settings):
+        with pytest.raises(SandboxError, match="package.json"):
+            await service.execute_build(job_id, job_data, state_machine, redis=redis)
 
 
 async def test_execute_build_with_package_json_passes_validation():
@@ -396,7 +419,14 @@ async def test_execute_build_with_package_json_passes_validation():
     )
     service._get_next_build_version = AsyncMock(return_value="build_v0_1")
 
-    result = await service.execute_build(job_id, job_data, state_machine, redis=redis)
+    legacy_settings = MagicMock()
+    legacy_settings.autonomous_agent = False
+    legacy_settings.narration_enabled = False
+    legacy_settings.screenshot_enabled = False
+    legacy_settings.docs_generation_enabled = False
+
+    with patch("app.services.generation_service._get_settings", return_value=legacy_settings):
+        result = await service.execute_build(job_id, job_data, state_machine, redis=redis)
     assert result["sandbox_id"] == "fake-sandbox-001"
     assert result["preview_url"] is not None
 
@@ -427,6 +457,13 @@ async def test_execute_build_python_only_skips_package_json_check():
     )
     service._get_next_build_version = AsyncMock(return_value="build_v0_1")
 
-    result = await service.execute_build(job_id, job_data, state_machine, redis=redis)
+    legacy_settings = MagicMock()
+    legacy_settings.autonomous_agent = False
+    legacy_settings.narration_enabled = False
+    legacy_settings.screenshot_enabled = False
+    legacy_settings.docs_generation_enabled = False
+
+    with patch("app.services.generation_service._get_settings", return_value=legacy_settings):
+        result = await service.execute_build(job_id, job_data, state_machine, redis=redis)
     assert result["sandbox_id"] == "fake-sandbox-001"
 
