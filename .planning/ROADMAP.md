@@ -326,7 +326,10 @@ Plans:
   7. AutonomousRunner resolves model from resolve_llm_config(user_id, role) based on subscription tier — not hardcoded
   8. The 501 gate in start_generation is removed (or conditioned on integration readiness flag)
   9. A full E2E integration test covers: start build → TAOR loop runs → tools dispatch to E2B → cost tracked → checkpoint saved
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 43.1-01-PLAN.md — Config + 501 gate removal + execute_build autonomous branch (AGNT-01, AGNT-02, AGNT-03)
+- [ ] 43.1-02-PLAN.md — S3 snapshot hooks + unit/E2E tests (MIGR-04, AGNT-01, AGNT-02, AGNT-03)
 
 ### Phase 44: Native Agent Capabilities
 **Goal**: The agent narrates its work in first-person co-founder voice via a narrate() tool (replacing the NarrationService), generates end-user documentation natively as part of its workflow (replacing the DocGenerationService), and the deleted services leave no dead code or broken imports behind.
