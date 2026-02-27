@@ -173,6 +173,8 @@ class GenerationService:
                         project_id=project_id,
                         job_id=job_id,
                         preview_url=None,  # Agent discovers preview URL via bash tools
+                        redis=_redis,
+                        state_machine=state_machine,
                     )
 
                     # Instantiate S3 snapshot service (non-fatal if bucket not configured)
