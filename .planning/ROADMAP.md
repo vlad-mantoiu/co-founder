@@ -355,7 +355,11 @@ Plans:
   2. After 3 failures with distinct approaches for the same error signature, the agent stops retrying and escalates — it does not attempt a 4th approach or enter a retry loop
   3. On agent wake, previously-failed error signatures are loaded from PostgreSQL — an operation that failed 3 times yesterday is immediately escalated rather than retried again
   4. The escalation payload surfaced to the founder via DecisionConsole includes: problem description in plain English, what was tried (3 attempts summarized), and a specific recommended action — the founder has enough context to unblock the agent with one decision
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 45-01-PLAN.md — TDD: ErrorSignatureTracker + error classifier (AGNT-07)
+- [ ] 45-02-PLAN.md — AgentEscalation model + migration + SSE events + escalation API routes (AGNT-08)
+- [ ] 45-03-PLAN.md — Wire ErrorSignatureTracker into TAOR loop + generation_service injection + integration tests (AGNT-07, AGNT-08)
 
 ### Phase 46: UI Integration
 **Goal**: The frontend surfaces the autonomous agent as a living co-founder — GSD phases appear on the Kanban Timeline in real time, the activity feed shows narration by default and tool-level detail on demand, and the dashboard always reflects the agent's current state (working, sleeping, waiting, error).
