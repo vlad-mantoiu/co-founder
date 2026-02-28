@@ -9,6 +9,7 @@ from app.api.routes import (
     dashboard,
     decision_gates,
     deploy_readiness,
+    escalations,
     execution_plans,
     features,
     generation,
@@ -35,6 +36,7 @@ api_router.include_router(generation.router, prefix="/generation", tags=["genera
 api_router.include_router(artifacts.router, prefix="/artifacts", tags=["artifacts"])
 api_router.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])
 api_router.include_router(decision_gates.router, prefix="/gates", tags=["decision-gates"])
+api_router.include_router(escalations.router, tags=["escalations"])
 api_router.include_router(execution_plans.router, prefix="/plans", tags=["execution-plans"])
 api_router.include_router(change_requests.router, prefix="/change-requests", tags=["change-requests"])
 api_router.include_router(deploy_readiness.router, prefix="/deploy-readiness", tags=["deploy-readiness"])
