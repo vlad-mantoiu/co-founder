@@ -422,7 +422,7 @@ Plans:
 | 42. E2B Tool Dispatcher | 2/2 | Complete    | 2026-02-26 | - |
 | 43. Token Budget + Sleep/Wake Daemon | 3/4 | Complete    | 2026-02-26 | - |
 | 44. Native Agent Capabilities | 3/3 | Complete    | 2026-02-27 | - |
-| 45. Self-Healing Error Model | 3/3 | Complete   | 2026-02-28 | - |
+| 45. Self-Healing Error Model | 3/3 | Complete    | 2026-02-28 | - |
 | 46. UI Integration | v0.7 | 0/TBD | Not started | - |
 
 ---
