@@ -355,7 +355,7 @@ Plans:
   2. After 3 failures with distinct approaches for the same error signature, the agent stops retrying and escalates — it does not attempt a 4th approach or enter a retry loop
   3. On agent wake, previously-failed error signatures are loaded from PostgreSQL — an operation that failed 3 times yesterday is immediately escalated rather than retried again
   4. The escalation payload surfaced to the founder via DecisionConsole includes: problem description in plain English, what was tried (3 attempts summarized), and a specific recommended action — the founder has enough context to unblock the agent with one decision
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 Plans:
 - [ ] 45-01-PLAN.md — TDD: ErrorSignatureTracker + error classifier (AGNT-07)
 - [ ] 45-02-PLAN.md — AgentEscalation model + migration + SSE events + escalation API routes (AGNT-08)
@@ -422,7 +422,7 @@ Plans:
 | 42. E2B Tool Dispatcher | 2/2 | Complete    | 2026-02-26 | - |
 | 43. Token Budget + Sleep/Wake Daemon | 3/4 | Complete    | 2026-02-26 | - |
 | 44. Native Agent Capabilities | 3/3 | Complete    | 2026-02-27 | - |
-| 45. Self-Healing Error Model | 1/3 | In Progress|  | - |
+| 45. Self-Healing Error Model | 2/3 | In Progress|  | - |
 | 46. UI Integration | v0.7 | 0/TBD | Not started | - |
 
 ---

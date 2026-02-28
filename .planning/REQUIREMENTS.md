@@ -15,7 +15,7 @@ Requirements for v0.7 Autonomous Agent. Each maps to roadmap phases.
 - [x] **AGNT-04**: Agent handles narration natively via narrate() tool — first-person co-founder voice describing what it's doing and why
 - [x] **AGNT-05**: Agent handles documentation generation natively as part of its workflow — no separate DocGenerationService
 - [x] **AGNT-06**: Agent loop has iteration cap (MAX_TOOL_CALLS), repetition detection, and context window management (middle-truncation of large tool results)
-- [ ] **AGNT-07**: Agent retries failed operations 3 times with different approaches per error signature before escalating to founder with structured context
+- [x] **AGNT-07**: Agent retries failed operations 3 times with different approaches per error signature before escalating to founder with structured context
 - [x] **AGNT-08**: Agent escalation surfaces problem description, what was tried, and recommended action to founder via existing DecisionConsole pattern
 
 ### Budget & Daemon
@@ -135,7 +135,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BDGT-07 | Phase 43 | Complete |
 | AGNT-04 | Phase 44 | Complete |
 | AGNT-05 | Phase 44 | Complete |
-| AGNT-07 | Phase 45 | Pending |
+| AGNT-07 | Phase 45 | Complete |
 | AGNT-08 | Phase 45 | Complete |
 | UIAG-01 | Phase 46 | Pending |
 | UIAG-02 | Phase 46 | Pending |

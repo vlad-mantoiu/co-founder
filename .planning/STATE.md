@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** v0.7 Autonomous Agent — Phase 45: Self-Healing Error Model — Plan 02 of 3 COMPLETE
+**Current focus:** v0.7 Autonomous Agent — Phase 45: Self-Healing Error Model — Plans 01 + 02 of 3 COMPLETE
 
 ## Current Position
 
-Phase: 45 of 46 (Self-Healing Error Model) — Plan 02 of 3 complete
+Phase: 45 of 46 (Self-Healing Error Model) — Plans 01 + 02 of 3 complete
 Plan: 2 of 3 complete
-Status: Phase 45 Plan 02 COMPLETE — AgentEscalation model (14 fields, JSONB), migration e7a3b1c9d2f4, 4 SSE event type constants, escalation API routes (GET/GET/POST), 19 tests pass; AGNT-08 resolved
-Last activity: 2026-03-01 — Phase 45 Plan 02 complete: escalation persistence layer + API routes built
+Status: Phase 45 Plan 01 COMPLETE — ErrorCategory StrEnum, classify_error() 3-category pattern matcher, build_error_signature() MD5-8char, ErrorSignatureTracker state machine (attempts 1-4, global threshold, reset_signature), 83 tests pass; AGNT-07 core logic resolved
+Last activity: 2026-03-01 — Phase 45 Plan 01 complete: ErrorSignatureTracker + classifier — core retry/escalate decision engine
 
-Progress: [████████░░] 79% (v0.7: 19/24 plans done)
+Progress: [████████░░] 83% (v0.7: 20/24 plans done)
 
 ## Performance Metrics
 
@@ -36,6 +36,7 @@ Progress: [████████░░] 79% (v0.7: 19/24 plans done)
 | Phase 44-native-agent-capabilities P01 | 4 | 2 tasks | 8 files |
 | Phase 44 P02 | 25 | 2 tasks | 8 files |
 | Phase 44 P03 | 34 | 2 tasks | 2 files |
+| Phase 45-self-healing-error-model P01 | 25 | 1 task TDD | 5 files |
 | Phase 45-self-healing-error-model P02 | 18 | 2 tasks | 8 files |
 
 ## Accumulated Context
@@ -115,6 +116,11 @@ Progress: [████████░░] 79% (v0.7: 19/24 plans done)
 - [44-02] Comment-only references to NarrationService/DocGenerationService left intact in definitions.py, state_machine.py, generation.py — benign historical references, not functional imports
 - [44-03] E2BToolDispatcher constructor in generation_service.py now receives redis=_redis and state_machine=state_machine — both were already in local scope at the construction site (line 170)
 - [44-02] Integration tests (test_mvp_built_transition.py) require live PostgreSQL — excluded from CI verification with -m "not integration"; pre-existing requirement not caused by this plan
+- [45-01] StrEnum for ErrorCategory (Python 3.12) — string identity checks work with both == and 'in' operators
+- [45-01] NEVER_RETRY patterns checked before ENV_ERROR — auth errors take priority over network errors in combined match
+- [45-01] record_and_check() returns (should_escalate, attempt_number) tuple — callers get both in one call, no double-lookup
+- [45-01] _session_escalation_count is in-memory only — global threshold is per-session, not persisted
+- [45-01] _build_retry_tool_result and _build_escalation_options are module-level functions — pure, no state dependency
 - [45-02] AgentEscalation.id is UUID PK (not autoincrement Integer) — matches DecisionGate pattern; agents generate UUID at creation time
 - [45-02] escalations router registered without prefix in api_routes __init__ — routes self-prefix with /escalations and /jobs paths to avoid collisions
 - [45-02] Pydantic ConfigDict (V2) used instead of class-based Config — eliminates PydanticDeprecatedSince20 warning in escalations.py
@@ -139,8 +145,8 @@ None blocking Phase 41.
 
 ## Session Continuity
 
-Last session: 2026-03-01 (Phase 45 Plan 02 complete — AgentEscalation model, migration, 4 SSE constants, escalation routes, 19 tests pass)
-Stopped at: Completed Phase 45 Plan 02 — 45-02-PLAN.md
+Last session: 2026-03-01 (Phase 45 Plan 01 complete — ErrorSignatureTracker + classifier, 83 tests pass; Plans 01+02 now done)
+Stopped at: Completed Phase 45 Plan 01 — 45-01-PLAN.md (TDD: classifier + tracker core logic)
 Resume file: .planning/phases/45-self-healing-error-model/45-03-PLAN.md (TAOR loop integration)
 
 ---
