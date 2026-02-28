@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** v0.7 Autonomous Agent — Phase 44: Native Agent Capabilities — COMPLETE (3/3 plans done)
+**Current focus:** v0.7 Autonomous Agent — Phase 45: Self-Healing Error Model — Plan 02 of 3 COMPLETE
 
 ## Current Position
 
-Phase: 44 of 46 (Native Agent Capabilities) — COMPLETE (3/3 plans done)
-Plan: 3 of 3 complete
-Status: Phase 44 Plan 03 COMPLETE — E2BToolDispatcher now receives redis=_redis and state_machine=state_machine in generation_service.py; narrate() and document() calls emit SSE events and write to Redis in production; AGNT-04 and AGNT-05 fully resolved
-Last activity: 2026-02-28 — Phase 44 Plan 03 complete: E2BToolDispatcher wiring gap closed, dispatcher wiring test added
+Phase: 45 of 46 (Self-Healing Error Model) — Plan 02 of 3 complete
+Plan: 2 of 3 complete
+Status: Phase 45 Plan 02 COMPLETE — AgentEscalation model (14 fields, JSONB), migration e7a3b1c9d2f4, 4 SSE event type constants, escalation API routes (GET/GET/POST), 19 tests pass; AGNT-08 resolved
+Last activity: 2026-03-01 — Phase 45 Plan 02 complete: escalation persistence layer + API routes built
 
-Progress: [███████░░░] 71% (v0.7: 18/24 plans done)
+Progress: [████████░░] 79% (v0.7: 19/24 plans done)
 
 ## Performance Metrics
 
@@ -36,6 +36,7 @@ Progress: [███████░░░] 71% (v0.7: 18/24 plans done)
 | Phase 44-native-agent-capabilities P01 | 4 | 2 tasks | 8 files |
 | Phase 44 P02 | 25 | 2 tasks | 8 files |
 | Phase 44 P03 | 34 | 2 tasks | 2 files |
+| Phase 45-self-healing-error-model P02 | 18 | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -114,6 +115,10 @@ Progress: [███████░░░] 71% (v0.7: 18/24 plans done)
 - [44-02] Comment-only references to NarrationService/DocGenerationService left intact in definitions.py, state_machine.py, generation.py — benign historical references, not functional imports
 - [44-03] E2BToolDispatcher constructor in generation_service.py now receives redis=_redis and state_machine=state_machine — both were already in local scope at the construction site (line 170)
 - [44-02] Integration tests (test_mvp_built_transition.py) require live PostgreSQL — excluded from CI verification with -m "not integration"; pre-existing requirement not caused by this plan
+- [45-02] AgentEscalation.id is UUID PK (not autoincrement Integer) — matches DecisionGate pattern; agents generate UUID at creation time
+- [45-02] escalations router registered without prefix in api_routes __init__ — routes self-prefix with /escalations and /jobs paths to avoid collisions
+- [45-02] Pydantic ConfigDict (V2) used instead of class-based Config — eliminates PydanticDeprecatedSince20 warning in escalations.py
+- [45-02] API tests use AsyncMock session factory + patch target app.api.routes.escalations.get_session_factory — no live DB required
 
 ### Key Research Flags (check before planning)
 
@@ -134,9 +139,9 @@ None blocking Phase 41.
 
 ## Session Continuity
 
-Last session: 2026-02-28 (Phase 44 Plan 03 complete — E2BToolDispatcher wiring gap closed, 2-line fix in generation_service.py, dispatcher wiring test added, 574 tests pass)
-Stopped at: Completed Phase 44 Plan 03 — 44-03-PLAN.md — Phase 44 COMPLETE
-Resume file: .planning/phases/45-escalation-ui/ (Phase 45 next)
+Last session: 2026-03-01 (Phase 45 Plan 02 complete — AgentEscalation model, migration, 4 SSE constants, escalation routes, 19 tests pass)
+Stopped at: Completed Phase 45 Plan 02 — 45-02-PLAN.md
+Resume file: .planning/phases/45-self-healing-error-model/45-03-PLAN.md (TAOR loop integration)
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
