@@ -29,6 +29,12 @@ class SSEEventType:
     AGENT_BUDGET_EXCEEDED = "agent.budget_exceeded"
     AGENT_BUDGET_UPDATED = "agent.budget_updated"
 
+    # Agent error/escalation lifecycle events (Phase 45 — Self-Healing Error Model)
+    AGENT_WAITING_FOR_INPUT = "agent.waiting_for_input"
+    AGENT_RETRYING = "agent.retrying"
+    AGENT_ESCALATION_RESOLVED = "agent.escalation_resolved"
+    AGENT_BUILD_PAUSED = "agent.build_paused"
+
 
 # Human-readable stage labels for SSE events
 # Mirrors the STAGE_LABELS in generation.py but defined here to avoid circular imports
