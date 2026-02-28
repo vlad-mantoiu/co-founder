@@ -79,13 +79,14 @@ class AutonomousRunner:
                 - tier: str (optional — defaults to "bootstrapper")
                 - sandbox_id: str (optional — for checkpoint state)
                 - current_phase: str (optional — for checkpoint state)
-                - retry_counts: dict (optional — for checkpoint state)
+                - retry_counts: dict (optional — for checkpoint state; shared with ErrorSignatureTracker)
                 - state_machine: JobStateMachine (optional — for SSE budget events)
+                - error_tracker: ErrorSignatureTracker (optional — routes tool dispatch errors)
 
         Returns:
             Dict with keys: status, project_id, phases_completed, result
             status values: "completed" | "iteration_limit_reached" | "repetition_detected"
-                          | "api_error" | "budget_exceeded"
+                          | "api_error" | "budget_exceeded" | "escalation_threshold_exceeded"
         """
         from app.agent.budget.service import BudgetExceededError
 
@@ -121,6 +122,9 @@ class AutonomousRunner:
         wake_daemon = context.get("wake_daemon")
         snapshot_service = context.get("snapshot_service")
         sandbox_runtime = context.get("sandbox_runtime")
+        error_tracker = context.get("error_tracker")
+        # Shared retry_counts dict — same reference held by ErrorSignatureTracker and CheckpointService
+        retry_counts = context.get("retry_counts", {})
 
         daily_budget: int = 0
         session_cost: int = 0
@@ -269,7 +273,7 @@ class AutonomousRunner:
                                 message_history=messages,
                                 sandbox_id=context.get("sandbox_id"),
                                 current_phase=context.get("current_phase"),
-                                retry_counts=context.get("retry_counts", {}),
+                                retry_counts=retry_counts,
                                 session_cost_microdollars=session_cost,
                                 daily_budget_microdollars=daily_budget,
                                 iteration_number=guard._count,
@@ -422,11 +426,89 @@ class AutonomousRunner:
                             f"Running `{tool_name}` ...", source="agent"
                         )
 
-                    # Dispatch tool — capture errors as result string (loop continues)
+                    # Dispatch tool — route errors through ErrorSignatureTracker
                     try:
                         result = await dispatcher.dispatch(tool_name, tool_input)
                     except Exception as exc:
-                        result = f"Error: {type(exc).__name__}: {str(exc)}"
+                        # Guard: Anthropic API errors must NOT reach the error tracker
+                        # They are handled by the outer except anthropic.APIError block
+                        if isinstance(exc, anthropic.APIError):
+                            raise  # Re-raise to outer handler
+
+                        error_type_name = type(exc).__name__
+                        error_message = str(exc)
+
+                        if error_tracker:
+                            # Step 1: Check never-retry first (auth/permission errors escalate immediately)
+                            if error_tracker.should_escalate_immediately(error_type_name, error_message):
+                                escalation_id = await error_tracker.record_escalation(
+                                    error_type=error_type_name,
+                                    error_message=error_message,
+                                    attempts=["Immediate escalation — this error type cannot be retried"],
+                                    recommended_action="This requires manual configuration or credentials",
+                                    plain_english_problem=f"I encountered a permissions or configuration issue: {error_type_name}",
+                                )
+                                result = (
+                                    f"ESCALATED TO FOUNDER: {error_type_name} — this cannot be retried automatically. "
+                                    f"I've asked the founder for help. Move on to other tasks while waiting."
+                                )
+                                if state_machine:
+                                    await state_machine.publish_event(
+                                        job_id,
+                                        {"type": "agent.waiting_for_input", "escalation_id": str(escalation_id) if escalation_id else None},
+                                    )
+                            else:
+                                # Step 2: Record and check retry budget for CODE_ERROR / ENV_ERROR
+                                should_escalate, attempt_num = error_tracker.record_and_check(error_type_name, error_message)
+                                if should_escalate:
+                                    escalation_id = await error_tracker.record_escalation(
+                                        error_type=error_type_name,
+                                        error_message=error_message,
+                                        attempts=[f"Attempt {i}: different approach tried" for i in range(1, attempt_num)],
+                                        recommended_action="I've tried multiple approaches. The founder can skip this feature, try a simpler version, or provide guidance.",
+                                        plain_english_problem=f"I tried {attempt_num - 1} different approaches but kept hitting the same issue: {error_type_name}",
+                                    )
+                                    result = (
+                                        f"ESCALATED TO FOUNDER after {attempt_num - 1} attempts: {error_type_name}: {error_message}. "
+                                        f"I've asked the founder for help. Move on to other unblocked tasks."
+                                    )
+                                    if state_machine:
+                                        await state_machine.publish_event(
+                                            job_id,
+                                            {"type": "agent.waiting_for_input", "escalation_id": str(escalation_id) if escalation_id else None},
+                                        )
+                                    # Check global threshold — pause build if too many escalations
+                                    if error_tracker.global_threshold_exceeded():
+                                        if state_machine:
+                                            await state_machine.publish_event(
+                                                job_id,
+                                                {"type": "agent.build_paused", "reason": "Too many unresolvable issues encountered"},
+                                            )
+                                        bound_logger.error("taor_loop_global_threshold_exceeded", session_id=session_id)
+                                        return {
+                                            "status": "escalation_threshold_exceeded",
+                                            "project_id": project_id,
+                                            "phases_completed": [],
+                                            "reason": f"Global escalation threshold ({error_tracker._session_escalation_count}) exceeded",
+                                        }
+                                else:
+                                    # Retry allowed — inject replanning context so model takes a different approach
+                                    from app.agent.error.tracker import _build_retry_tool_result
+                                    result = _build_retry_tool_result(
+                                        error_type_name,
+                                        error_message,
+                                        attempt_num,
+                                        original_intent=context.get("current_task_intent", "building the project"),
+                                    )
+                                    if state_machine:
+                                        await state_machine.publish_event(
+                                            job_id,
+                                            {"type": "agent.retrying", "attempt": attempt_num, "error_type": error_type_name},
+                                        )
+                        else:
+                            # Fallback: no error tracker — bare error string (backward compatible)
+                            result = f"Error: {error_type_name}: {error_message}"
+
                         bound_logger.warning(
                             "taor_tool_dispatch_error",
                             tool_name=tool_name,
@@ -462,7 +544,7 @@ class AutonomousRunner:
                         message_history=messages,
                         sandbox_id=context.get("sandbox_id"),
                         current_phase=context.get("current_phase"),
-                        retry_counts=context.get("retry_counts", {}),
+                        retry_counts=retry_counts,
                         session_cost_microdollars=session_cost if budget_service else 0,
                         daily_budget_microdollars=daily_budget if budget_service else 0,
                         iteration_number=guard._count,
@@ -505,7 +587,7 @@ class AutonomousRunner:
                     message_history=messages,
                     sandbox_id=context.get("sandbox_id"),
                     current_phase=context.get("current_phase"),
-                    retry_counts=context.get("retry_counts", {}),
+                    retry_counts=retry_counts,
                     session_cost_microdollars=session_cost,
                     daily_budget_microdollars=daily_budget,
                     iteration_number=guard._count,

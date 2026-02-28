@@ -191,6 +191,20 @@ class GenerationService:
                     session_id = job_id
                     wake_daemon = WakeDaemon(session_id=session_id, redis=_redis) if _redis else None
 
+                    # Shared retry_counts dict — mutable reference used by both ErrorSignatureTracker
+                    # and CheckpointService.save(); same object, never copied (design invariant)
+                    retry_counts: dict = {}
+
+                    # Instantiate error tracker (always present in autonomous path — no conditional)
+                    from app.agent.error.tracker import ErrorSignatureTracker
+                    error_tracker = ErrorSignatureTracker(
+                        project_id=project_id,
+                        retry_counts=retry_counts,
+                        db_session=db_session,
+                        session_id=session_id,
+                        job_id=job_id,
+                    )
+
                     # Assemble context dict (inline per locked decision — no factory method)
                     context = {
                         "project_id": project_id,
@@ -211,6 +225,8 @@ class GenerationService:
                         "state_machine": state_machine,
                         "snapshot_service": snapshot_service,
                         "sandbox_runtime": sandbox,
+                        "retry_counts": retry_counts,
+                        "error_tracker": error_tracker,
                     }
 
                     # Launch WakeDaemon as a background task alongside the TAOR loop
