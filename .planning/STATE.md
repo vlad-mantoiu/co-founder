@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** v0.7 Autonomous Agent — Phase 45: Self-Healing Error Model — Plans 01 + 02 of 3 COMPLETE
+**Current focus:** v0.7 Autonomous Agent — Phase 45: Self-Healing Error Model — ALL 3 PLANS COMPLETE — Phase 46 (escalation UI) next
 
 ## Current Position
 
-Phase: 45 of 46 (Self-Healing Error Model) — Plans 01 + 02 of 3 complete
-Plan: 2 of 3 complete
-Status: Phase 45 Plan 01 COMPLETE — ErrorCategory StrEnum, classify_error() 3-category pattern matcher, build_error_signature() MD5-8char, ErrorSignatureTracker state machine (attempts 1-4, global threshold, reset_signature), 83 tests pass; AGNT-07 core logic resolved
-Last activity: 2026-03-01 — Phase 45 Plan 01 complete: ErrorSignatureTracker + classifier — core retry/escalate decision engine
+Phase: 45 of 46 (Self-Healing Error Model) — ALL 3 plans COMPLETE
+Plan: 3 of 3 complete
+Status: Phase 45 COMPLETE — ErrorCategory StrEnum, classify_error(), ErrorSignatureTracker, AgentEscalation model, escalation API endpoints, TAOR loop error handler integration — 277 agent tests + 110 Phase 45 tests pass
+Last activity: 2026-03-01 — Phase 45 Plan 03 complete: TAOR loop error integration — self-healing error model end-to-end
 
-Progress: [████████░░] 83% (v0.7: 20/24 plans done)
+Progress: [█████████░] 88% (v0.7: 23/24 plans done — Phase 46 escalation UI remaining)
 
 ## Performance Metrics
 
@@ -38,6 +38,7 @@ Progress: [████████░░] 83% (v0.7: 20/24 plans done)
 | Phase 44 P03 | 34 | 2 tasks | 2 files |
 | Phase 45-self-healing-error-model P01 | 25 | 1 task TDD | 5 files |
 | Phase 45-self-healing-error-model P02 | 18 | 2 tasks | 8 files |
+| Phase 45-self-healing-error-model P03 | 35 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -125,6 +126,12 @@ Progress: [████████░░] 83% (v0.7: 20/24 plans done)
 - [45-02] escalations router registered without prefix in api_routes __init__ — routes self-prefix with /escalations and /jobs paths to avoid collisions
 - [45-02] Pydantic ConfigDict (V2) used instead of class-based Config — eliminates PydanticDeprecatedSince20 warning in escalations.py
 - [45-02] API tests use AsyncMock session factory + patch target app.api.routes.escalations.get_session_factory — no live DB required
+- [45-03] error_tracker extracted from context alongside budget_service/checkpoint_service — same optional injection pattern
+- [45-03] retry_counts local variable extracted from context at session start — shared dict ref used in all checkpoint_service.save() calls and ErrorSignatureTracker
+- [45-03] isinstance(exc, anthropic.APIError) guard re-raises to outer handler — Anthropic API errors never reach the error tracker
+- [45-03] global_threshold_exceeded() checked AFTER escalation record written — ensures escalation is persisted before early return
+- [45-03] Tests use distinct tool_input per call to avoid IterationGuard repetition detection interfering with error retry counting
+- [45-03] GLOBAL_ESCALATION_THRESHOLD patched at module level for test speed — threshold test needs only 2 escalations (not 5)
 
 ### Key Research Flags (check before planning)
 
@@ -145,9 +152,9 @@ None blocking Phase 41.
 
 ## Session Continuity
 
-Last session: 2026-03-01 (Phase 45 Plan 01 complete — ErrorSignatureTracker + classifier, 83 tests pass; Plans 01+02 now done)
-Stopped at: Completed Phase 45 Plan 01 — 45-01-PLAN.md (TDD: classifier + tracker core logic)
-Resume file: .planning/phases/45-self-healing-error-model/45-03-PLAN.md (TAOR loop integration)
+Last session: 2026-03-01 (Phase 45 Plan 03 complete — TAOR loop error integration, 277 agent tests + 110 Phase 45 tests pass)
+Stopped at: Completed Phase 45 Plan 03 — 45-03-PLAN.md (TAOR loop error integration)
+Resume file: .planning/phases/46-escalation-ui/ (Phase 46: escalation UI for founder decisions)
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
