@@ -3,8 +3,9 @@
 MIGR-02: Feature flag routes build requests to the correct runner.
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 
 @pytest.mark.unit
@@ -114,9 +115,5 @@ class TestFeatureFlagRouting:
         """_build_runner must exist in generation.py (not _get_runner)."""
         import app.api.routes.generation as gen_module
 
-        assert hasattr(gen_module, "_build_runner"), (
-            "_build_runner must be defined in generation.py"
-        )
-        assert not hasattr(gen_module, "_get_runner"), (
-            "_get_runner must be replaced by _build_runner in generation.py"
-        )
+        assert hasattr(gen_module, "_build_runner"), "_build_runner must be defined in generation.py"
+        assert not hasattr(gen_module, "_get_runner"), "_get_runner must be replaced by _build_runner in generation.py"

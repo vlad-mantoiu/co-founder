@@ -43,6 +43,7 @@ def _real_settings_with_flag(autonomous_agent: bool):
     # Settings is a pydantic model — we use model_copy to override just the one field
     return s.model_copy(update={"autonomous_agent": autonomous_agent})
 
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Fixtures
 # ──────────────────────────────────────────────────────────────────────────────

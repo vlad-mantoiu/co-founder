@@ -13,9 +13,10 @@ All weights are config-driven in MODEL_COST_WEIGHTS — pricing changes need no 
 
 from __future__ import annotations
 
-import structlog
-from datetime import date, datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
+
+import structlog
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,11 +29,11 @@ logger = structlog.get_logger(__name__)
 # ---------------------------------------------------------------------------
 MODEL_COST_WEIGHTS: dict[str, dict[str, int]] = {
     "claude-opus-4-20250514": {
-        "input": 15_000_000,   # $15/M input tokens in microdollars
+        "input": 15_000_000,  # $15/M input tokens in microdollars
         "output": 75_000_000,  # $75/M output tokens in microdollars
     },
     "claude-sonnet-4-20250514": {
-        "input": 3_000_000,    # $3/M input tokens in microdollars
+        "input": 3_000_000,  # $3/M input tokens in microdollars
         "output": 15_000_000,  # $15/M output tokens in microdollars
     },
 }
@@ -69,7 +70,7 @@ class BudgetService:
     they catch internal errors and return safe defaults rather than propagating.
     """
 
-    async def calc_daily_budget(self, user_id: str, db: "AsyncSession") -> int:
+    async def calc_daily_budget(self, user_id: str, db: AsyncSession) -> int:
         """Calculate today's allowed microdollar spend for a user.
 
         Formula: remaining_subscription_budget_microdollars / max(1, remaining_days)
@@ -82,14 +83,13 @@ class BudgetService:
             Daily budget in microdollars (integer). Minimum 0.
         """
         from sqlalchemy import select
+
         from app.db.models.user_settings import UserSettings
 
         bound = logger.bind(user_id=user_id)
 
         try:
-            result = await db.execute(
-                select(UserSettings).where(UserSettings.clerk_user_id == user_id)
-            )
+            result = await db.execute(select(UserSettings).where(UserSettings.clerk_user_id == user_id))
             user_settings = result.scalar_one_or_none()
         except Exception as exc:
             bound.warning("calc_daily_budget_db_read_failed", error=str(exc))
@@ -101,7 +101,7 @@ class BudgetService:
             remaining_days = _DEFAULT_REMAINING_DAYS
             bound.debug("calc_daily_budget_no_renewal_date", using_default_days=remaining_days)
         else:
-            today = datetime.now(timezone.utc).date()
+            today = datetime.now(UTC).date()
             # renewal_date may be a date or datetime; normalize to date
             if isinstance(renewal_date, datetime):
                 renewal_date = renewal_date.date()
@@ -125,7 +125,7 @@ class BudgetService:
         )
         return daily_budget
 
-    async def _get_subscription_budget(self, user_id: str, db: "AsyncSession") -> int:
+    async def _get_subscription_budget(self, user_id: str, db: AsyncSession) -> int:
         """Return total subscription budget in microdollars.
 
         Reads PlanTier.max_tokens_per_day as a proxy for budget, converting via
@@ -136,14 +136,12 @@ class BudgetService:
             Subscription budget in microdollars (integer).
         """
         from sqlalchemy import select
-        from app.db.models.user_settings import UserSettings
+
         from app.db.models.plan_tier import PlanTier
+        from app.db.models.user_settings import UserSettings
 
         try:
-            result = await db.execute(
-                select(UserSettings)
-                .where(UserSettings.clerk_user_id == user_id)
-            )
+            result = await db.execute(select(UserSettings).where(UserSettings.clerk_user_id == user_id))
             user_settings = result.scalar_one_or_none()
             if user_settings is None:
                 return 0
@@ -152,9 +150,7 @@ class BudgetService:
             if user_settings.override_max_tokens_per_day is not None:
                 max_tokens = user_settings.override_max_tokens_per_day
             else:
-                tier_result = await db.execute(
-                    select(PlanTier).where(PlanTier.id == user_settings.plan_tier_id)
-                )
+                tier_result = await db.execute(select(PlanTier).where(PlanTier.id == user_settings.plan_tier_id))
                 tier = tier_result.scalar_one_or_none()
                 max_tokens = tier.max_tokens_per_day if tier else 0
 
@@ -169,21 +165,21 @@ class BudgetService:
             logger.warning("get_subscription_budget_failed", user_id=user_id, error=str(exc))
             return 0
 
-    async def _get_billing_cycle_spend(self, user_id: str, db: "AsyncSession") -> int:
+    async def _get_billing_cycle_spend(self, user_id: str, db: AsyncSession) -> int:
         """Return cumulative spend in microdollars for the current billing cycle.
 
         Reads UsageLog.cost_microdollars for entries since the billing cycle start.
         Returns 0 if the query fails (non-fatal).
         """
-        from sqlalchemy import select, func
+        from sqlalchemy import func, select
+
         from app.db.models.usage_log import UsageLog
 
         try:
             # Current cycle = last 30 days as safe approximation
-            thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+            thirty_days_ago = datetime.now(UTC) - timedelta(days=30)
             result = await db.execute(
-                select(func.coalesce(func.sum(UsageLog.cost_microdollars), 0))
-                .where(
+                select(func.coalesce(func.sum(UsageLog.cost_microdollars), 0)).where(
                     UsageLog.clerk_user_id == user_id,
                     UsageLog.created_at >= thirty_days_ago,
                 )
@@ -223,10 +219,9 @@ class BudgetService:
             Returns 0 if Redis fails.
         """
         weights = MODEL_COST_WEIGHTS.get(model, _FALLBACK_WEIGHTS)
-        cost_microdollars = (
-            (input_tokens * weights["input"]) // 1_000_000
-            + (output_tokens * weights["output"]) // 1_000_000
-        )
+        cost_microdollars = (input_tokens * weights["input"]) // 1_000_000 + (
+            output_tokens * weights["output"]
+        ) // 1_000_000
 
         key = _SESSION_COST_KEY.format(session_id=session_id)
         bound = logger.bind(session_id=session_id, user_id=user_id, model=model)
@@ -329,8 +324,7 @@ class BudgetService:
                 daily_budget_microdollars=daily_budget,
             )
             raise BudgetExceededError(
-                f"Spend {cumulative} µ$ exceeds hard ceiling {hard_ceiling} µ$ "
-                f"(110% of daily budget {daily_budget} µ$)"
+                f"Spend {cumulative} µ$ exceeds hard ceiling {hard_ceiling} µ$ (110% of daily budget {daily_budget} µ$)"
             )
 
     def is_at_graceful_threshold(self, session_cost: int, daily_budget: int) -> bool:

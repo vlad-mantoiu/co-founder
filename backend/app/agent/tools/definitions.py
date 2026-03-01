@@ -115,8 +115,7 @@ AGENT_TOOLS: list[dict] = [  # type: ignore[type-arg]
     {
         "name": "glob",
         "description": (
-            "List files in the sandbox matching a glob pattern. "
-            "Returns an array of matching absolute file paths."
+            "List files in the sandbox matching a glob pattern. Returns an array of matching absolute file paths."
         ),
         "input_schema": {
             "type": "object",

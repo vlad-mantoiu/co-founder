@@ -6,14 +6,12 @@ in Phase 41 using the AutonomousRunner (TAOR loop). Until then they return 503.
 """
 
 import json
-import uuid
 from datetime import date
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from app.agent.state import create_initial_state
 from app.core.auth import ClerkUser, require_auth, require_subscription
 from app.core.llm_config import get_or_create_user_settings
 from app.db.redis import get_redis

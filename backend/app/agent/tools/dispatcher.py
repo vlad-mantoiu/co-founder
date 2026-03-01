@@ -185,13 +185,13 @@ class InMemoryToolDispatcher:
         Validates section name against the 4-value enum. Rejects empty content.
         All operations are no-ops when redis or state_machine are not injected.
         """
-        _VALID_SECTIONS = {"overview", "features", "getting_started", "faq"}
+        valid_sections = {"overview", "features", "getting_started", "faq"}
 
         section: str = tool_input.get("section", "")
         content: str = tool_input.get("content", "")
 
-        if section not in _VALID_SECTIONS:
-            return f"[document: invalid section '{section}' — must be one of {sorted(_VALID_SECTIONS)}]"
+        if section not in valid_sections:
+            return f"[document: invalid section '{section}' — must be one of {sorted(valid_sections)}]"
 
         if not content.strip():
             return f"[document: empty content ignored for section '{section}']"

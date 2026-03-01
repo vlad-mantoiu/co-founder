@@ -23,7 +23,6 @@ from app.agent.tools.dispatcher import InMemoryToolDispatcher
 from app.agent.tools.e2b_dispatcher import E2BToolDispatcher
 from app.queue.state_machine import SSEEventType
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

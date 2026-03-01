@@ -5,10 +5,7 @@ Verifies that the system prompt builder assembles verbatim founder context
 collaborative voice, narration instructions, and critical guardrails.
 """
 
-import pytest
-
 from app.agent.loop.system_prompt import build_system_prompt
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

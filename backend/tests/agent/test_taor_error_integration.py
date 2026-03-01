@@ -16,7 +16,7 @@ All tests use mocked Anthropic client (no real API calls), real ErrorSignatureTr
 
 from __future__ import annotations
 
-from typing import AsyncIterator
+from collections.abc import AsyncIterator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import anthropic
@@ -40,7 +40,7 @@ class MockStream:
         self._responses = iter(responses)
         self._current: MagicMock | None = None
 
-    async def __aenter__(self) -> "MockStream":
+    async def __aenter__(self) -> MockStream:
         self._current = next(self._responses)
         return self
 
@@ -236,9 +236,10 @@ async def test_code_error_gets_replanning_context():
     assert len(captured_tool_results) >= 1, f"Expected tool_results to be captured. Got: {captured_tool_results}"
     replanning_result = captured_tool_results[0]
     assert "APPROACH 1 FAILED" in replanning_result, f"Expected APPROACH 1 FAILED in: {replanning_result}"
-    assert "different implementation" in replanning_result.lower() or "fundamentally different" in replanning_result.lower(), (
-        f"Expected replanning instruction in: {replanning_result}"
-    )
+    assert (
+        "different implementation" in replanning_result.lower()
+        or "fundamentally different" in replanning_result.lower()
+    ), f"Expected replanning instruction in: {replanning_result}"
 
 
 # ---------------------------------------------------------------------------
@@ -302,10 +303,7 @@ async def test_never_retry_error_escalates_immediately():
 
     # state_machine.publish_event called with agent.waiting_for_input
     all_calls = state_machine.publish_event.call_args_list
-    waiting_calls = [
-        c for c in all_calls
-        if c.args[1].get("type") == "agent.waiting_for_input"
-    ]
+    waiting_calls = [c for c in all_calls if c.args[1].get("type") == "agent.waiting_for_input"]
     assert len(waiting_calls) >= 1, f"Expected agent.waiting_for_input event. Got: {all_calls}"
 
 
@@ -481,13 +479,9 @@ async def test_global_threshold_pauses_build():
         # 8 distinct tool_use responses + enough extras (loop returns early on escalation threshold)
         # Each tool block has a unique command to avoid repetition guard
         tool_blocks = [
-            make_tool_use_block("bash", {"command": f"cmd_unique_{i}"}, tool_id=f"tu_{i:03d}")
-            for i in range(1, 9)
+            make_tool_use_block("bash", {"command": f"cmd_unique_{i}"}, tool_id=f"tu_{i:03d}") for i in range(1, 9)
         ]
-        responses = [
-            make_response(stop_reason="tool_use", tool_use_blocks=[tb])
-            for tb in tool_blocks
-        ]
+        responses = [make_response(stop_reason="tool_use", tool_use_blocks=[tb]) for tb in tool_blocks]
         streams = [MockStream([r]) for r in responses]
         stream_iter = iter(streams)
 
@@ -524,10 +518,7 @@ async def test_global_threshold_pauses_build():
 
     # agent.build_paused SSE must have been emitted
     all_calls = state_machine.publish_event.call_args_list
-    paused_calls = [
-        c for c in all_calls
-        if c.args[1].get("type") == "agent.build_paused"
-    ]
+    paused_calls = [c for c in all_calls if c.args[1].get("type") == "agent.build_paused"]
     assert len(paused_calls) >= 1, f"Expected agent.build_paused event. Got: {all_calls}"
 
 

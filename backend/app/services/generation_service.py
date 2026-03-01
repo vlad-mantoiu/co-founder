@@ -13,13 +13,13 @@ from uuid import uuid4
 import structlog
 from sqlalchemy import select
 
+from app.agent.budget.checkpoint import CheckpointService
+from app.agent.budget.service import BudgetService
+from app.agent.budget.wake_daemon import WakeDaemon
 from app.agent.runner import Runner
 from app.agent.state import create_initial_state
-from app.agent.tools.e2b_dispatcher import E2BToolDispatcher
 from app.agent.sync.s3_snapshot import S3SnapshotService
-from app.agent.budget.service import BudgetService
-from app.agent.budget.checkpoint import CheckpointService
-from app.agent.budget.wake_daemon import WakeDaemon
+from app.agent.tools.e2b_dispatcher import E2BToolDispatcher
 from app.core.config import get_settings as _get_settings
 from app.core.exceptions import SandboxError
 from app.core.llm_config import resolve_llm_config
@@ -197,6 +197,7 @@ class GenerationService:
 
                     # Instantiate error tracker (always present in autonomous path — no conditional)
                     from app.agent.error.tracker import ErrorSignatureTracker
+
                     error_tracker = ErrorSignatureTracker(
                         project_id=project_id,
                         retry_counts=retry_counts,
@@ -234,7 +235,7 @@ class GenerationService:
                         asyncio.create_task(wake_daemon.run())
 
                     # Run TAOR loop (db_session stays open for entire duration — see PLAN note)
-                    agent_result = await self.runner.run_agent_loop(context)
+                    await self.runner.run_agent_loop(context)
 
                     # Extract sandbox metadata
                     sandbox_id = sandbox.sandbox_id

@@ -61,13 +61,13 @@ async def test_autonomous_runner_pipeline_methods_raise_not_implemented():
 
     # Collect all public protocol methods
     protocol_methods = [
-        name
-        for name, method in inspect.getmembers(Runner)
-        if not name.startswith("_") and callable(method)
+        name for name, method in inspect.getmembers(Runner) if not name.startswith("_") and callable(method)
     ]
 
     # Must have at least 13 methods (original 13 + run_agent_loop)
-    assert len(protocol_methods) >= 14, f"Expected 14+ protocol methods, got {len(protocol_methods)}: {protocol_methods}"
+    assert len(protocol_methods) >= 14, (
+        f"Expected 14+ protocol methods, got {len(protocol_methods)}: {protocol_methods}"
+    )
 
     # Every stub method (excluding implemented ones) must raise NotImplementedError
     for method_name in protocol_methods:

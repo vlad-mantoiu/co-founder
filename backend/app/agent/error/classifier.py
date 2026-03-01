@@ -21,8 +21,8 @@ class ErrorCategory(StrEnum):
     """Three retry categories for the self-healing error model."""
 
     NEVER_RETRY = "never_retry"  # auth/permission/rate-limit — escalate immediately
-    CODE_ERROR = "code_error"    # syntax/type/logic — replan and retry
-    ENV_ERROR = "env_error"      # network/disk/registry — wait/escalate
+    CODE_ERROR = "code_error"  # syntax/type/logic — replan and retry
+    ENV_ERROR = "env_error"  # network/disk/registry — wait/escalate
 
 
 # Error string patterns that trigger immediate escalation.
@@ -33,7 +33,7 @@ _NEVER_RETRY_PATTERNS: tuple[str, ...] = (
     "unauthorized",
     "forbidden",
     "invalid credentials",
-    "rate limit exceeded",     # tool-level rate limits (not Anthropic API — handled by tenacity)
+    "rate limit exceeded",  # tool-level rate limits (not Anthropic API — handled by tenacity)
     "subscription",
     "invalid subscription",
     "access denied",

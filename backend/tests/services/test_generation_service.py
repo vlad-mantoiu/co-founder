@@ -466,4 +466,3 @@ async def test_execute_build_python_only_skips_package_json_check():
     with patch("app.services.generation_service._get_settings", return_value=legacy_settings):
         result = await service.execute_build(job_id, job_data, state_machine, redis=redis)
     assert result["sandbox_id"] == "fake-sandbox-001"
-

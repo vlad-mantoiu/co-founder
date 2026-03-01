@@ -233,7 +233,9 @@ Return ONLY a JSON object:
 }"""
 
         system = COFOUNDER_SYSTEM.format(task_instructions=task_instructions)
-        messages = [{"role": "user", "content": f"Generate a product brief from these onboarding answers: {clean_answers}"}]
+        messages = [
+            {"role": "user", "content": f"Generate a product brief from these onboarding answers: {clean_answers}"}
+        ]
 
         t0 = time.perf_counter()
         try:
@@ -300,9 +302,7 @@ Return ONLY a JSON array of objects:
 End the interview with a closing question like: "I have enough to build your brief. Want to add anything else before I do?\""""
 
         system = COFOUNDER_SYSTEM.format(task_instructions=task_instructions)
-        messages = [
-            {"role": "user", "content": f"Idea: {idea_text}\n\nOnboarding answers: {onboarding_answers}"}
-        ]
+        messages = [{"role": "user", "content": f"Idea: {idea_text}\n\nOnboarding answers: {onboarding_answers}"}]
 
         t0 = time.perf_counter()
         try:
@@ -399,9 +399,7 @@ For confidence_scores, assess each section as:
 - "needs_depth": Vague or missing — the founder should revisit this section"""
 
         system = COFOUNDER_SYSTEM.format(task_instructions=task_instructions)
-        messages = [
-            {"role": "user", "content": f"Idea: {idea}\n\nUnderstanding interview answers:\n\n{formatted_qa}"}
-        ]
+        messages = [{"role": "user", "content": f"Idea: {idea}\n\nUnderstanding interview answers:\n\n{formatted_qa}"}]
 
         t0 = time.perf_counter()
         try:

@@ -19,8 +19,8 @@ mocked DB session, and mocked services.
 from __future__ import annotations
 
 import asyncio
-from typing import AsyncIterator
-from unittest.mock import AsyncMock, MagicMock, call, patch
+from collections.abc import AsyncIterator
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -42,7 +42,7 @@ class MockStream:
         self._responses = iter(responses)
         self._current: MagicMock | None = None
 
-    async def __aenter__(self) -> "MockStream":
+    async def __aenter__(self) -> MockStream:
         self._current = next(self._responses)
         return self
 
@@ -186,6 +186,7 @@ def _make_redis() -> AsyncMock:
 # Test 1: budget_service.record_call_cost() called after each API call
 # ---------------------------------------------------------------------------
 
+
 async def test_budget_recorded_after_each_api_call():
     """record_call_cost() is called once per Anthropic API response."""
     runner = AutonomousRunner()
@@ -224,7 +225,7 @@ async def test_budget_recorded_after_each_api_call():
     # First call uses r1 token counts
     first_call_args = budget_service.record_call_cost.call_args_list[0]
     assert first_call_args.args[3] == 200  # input_tokens
-    assert first_call_args.args[4] == 80   # output_tokens
+    assert first_call_args.args[4] == 80  # output_tokens
     # Second call uses r2 token counts
     second_call_args = budget_service.record_call_cost.call_args_list[1]
     assert second_call_args.args[3] == 300
@@ -234,6 +235,7 @@ async def test_budget_recorded_after_each_api_call():
 # ---------------------------------------------------------------------------
 # Test 2: agent.budget_updated SSE emitted via state_machine
 # ---------------------------------------------------------------------------
+
 
 async def test_budget_percentage_emitted_via_sse():
     """state_machine.publish_event() called with agent.budget_updated after each API response."""
@@ -255,10 +257,7 @@ async def test_budget_percentage_emitted_via_sse():
 
     # At least one publish_event call with agent.budget_updated
     calls = state_machine.publish_event.call_args_list
-    budget_updated_calls = [
-        c for c in calls
-        if c.args[1].get("type") == "agent.budget_updated"
-    ]
+    budget_updated_calls = [c for c in calls if c.args[1].get("type") == "agent.budget_updated"]
     assert len(budget_updated_calls) >= 1
     assert budget_updated_calls[0].args[1]["budget_pct"] == 45  # 0.45 * 100
 
@@ -266,6 +265,7 @@ async def test_budget_percentage_emitted_via_sse():
 # ---------------------------------------------------------------------------
 # Test 3: graceful wind-down at 90% — agent.sleeping SSE emitted
 # ---------------------------------------------------------------------------
+
 
 async def test_graceful_winddown_at_90_percent():
     """When is_at_graceful_threshold returns True, loop emits agent.sleeping SSE after end_turn."""
@@ -291,7 +291,7 @@ async def test_graceful_winddown_at_90_percent():
     # After first end_turn + wake, graceful_wind_down resets to False
     # Second response: graceful threshold returns False so loop completes normally
     call_count = [0]
-    original_is_at = budget_service.is_at_graceful_threshold
+    _ = budget_service.is_at_graceful_threshold
 
     def is_at_graceful_side_effect(session_cost, daily_budget):
         call_count[0] += 1
@@ -317,16 +317,14 @@ async def test_graceful_winddown_at_90_percent():
 
     # agent.sleeping SSE must have been emitted
     all_calls = state_machine.publish_event.call_args_list
-    sleeping_calls = [
-        c for c in all_calls
-        if c.args[1].get("type") == "agent.sleeping"
-    ]
+    sleeping_calls = [c for c in all_calls if c.args[1].get("type") == "agent.sleeping"]
     assert len(sleeping_calls) == 1
 
 
 # ---------------------------------------------------------------------------
 # Test 4: BudgetExceededError — returns budget_exceeded status without raising
 # ---------------------------------------------------------------------------
+
 
 async def test_budget_exceeded_returns_status():
     """When check_runaway raises BudgetExceededError, loop returns budget_exceeded status."""
@@ -352,6 +350,7 @@ async def test_budget_exceeded_returns_status():
 # ---------------------------------------------------------------------------
 # Test 5: checkpoint_service.save() called after each full TAOR iteration
 # ---------------------------------------------------------------------------
+
 
 async def test_checkpoint_saved_after_iteration():
     """checkpoint_service.save() called once after tool dispatch completes an iteration."""
@@ -383,7 +382,6 @@ async def test_checkpoint_saved_after_iteration():
 
     # Verify message_history is passed to save (contains the conversation)
     save_call = checkpoint_service.save.call_args_list[0]
-    saved_messages = save_call.kwargs.get("message_history") or save_call.args[0] if save_call.args else None
     # Use keyword arg access
     assert "message_history" in save_call.kwargs
     assert len(save_call.kwargs["message_history"]) > 0
@@ -392,6 +390,7 @@ async def test_checkpoint_saved_after_iteration():
 # ---------------------------------------------------------------------------
 # Test 6: checkpoint restored at session start — loop starts from saved state
 # ---------------------------------------------------------------------------
+
 
 async def test_checkpoint_restored_on_start():
     """When checkpoint_service.restore() returns a checkpoint, loop uses its message_history."""
@@ -439,6 +438,7 @@ async def test_checkpoint_restored_on_start():
 # Test 7: AgentSession created at session start with correct fields
 # ---------------------------------------------------------------------------
 
+
 async def test_session_created_at_start():
     """AgentSession is added to db_session at loop start with correct tier and model_used."""
     runner = AutonomousRunner(model="claude-sonnet-4-20250514")
@@ -469,6 +469,7 @@ async def test_session_created_at_start():
 
     # Find the AgentSession that was added
     from app.db.models.agent_session import AgentSession
+
     sessions = [obj for obj in added_objects if isinstance(obj, AgentSession)]
     assert len(sessions) >= 1, f"Expected AgentSession in db.add() calls. Got: {added_objects}"
 
@@ -482,6 +483,7 @@ async def test_session_created_at_start():
 # ---------------------------------------------------------------------------
 # Test 8: backward compatibility — loop works normally without budget_service
 # ---------------------------------------------------------------------------
+
 
 async def test_no_budget_without_service():
     """Loop completes normally when budget_service is not in context (backward compat)."""
@@ -499,6 +501,7 @@ async def test_no_budget_without_service():
 # ---------------------------------------------------------------------------
 # Test 9: sleep/wake cycle — loop resumes and emits agent.waking SSE
 # ---------------------------------------------------------------------------
+
 
 async def test_wake_after_sleep():
     """After sleep triggered by graceful_wind_down, loop resumes and emits agent.waking SSE."""
@@ -549,10 +552,7 @@ async def test_wake_after_sleep():
 
     # agent.waking SSE must be emitted after wake
     all_calls = state_machine.publish_event.call_args_list
-    waking_calls = [
-        c for c in all_calls
-        if c.args[1].get("type") == "agent.waking"
-    ]
+    waking_calls = [c for c in all_calls if c.args[1].get("type") == "agent.waking"]
     assert len(waking_calls) == 1
     assert "Resuming" in waking_calls[0].args[1]["message"]
 
@@ -560,6 +560,7 @@ async def test_wake_after_sleep():
 # ---------------------------------------------------------------------------
 # Test 10: BudgetExceededError sets Redis state to "budget_exceeded"
 # ---------------------------------------------------------------------------
+
 
 async def test_budget_exceeded_sets_redis_state():
     """On BudgetExceededError, Redis key cofounder:agent:{session_id}:state set to 'budget_exceeded'."""
@@ -584,10 +585,7 @@ async def test_budget_exceeded_sets_redis_state():
 
     # Redis.set() must have been called with "budget_exceeded" as value
     redis_set_calls = redis.set.call_args_list
-    budget_exceeded_set = [
-        c for c in redis_set_calls
-        if "budget_exceeded" in str(c)
-    ]
+    budget_exceeded_set = [c for c in redis_set_calls if "budget_exceeded" in str(c)]
     assert len(budget_exceeded_set) >= 1
 
     # Verify the correct key was used
@@ -626,13 +624,8 @@ async def test_budget_pct_written_to_redis():
 
     # Verify redis.set was called with a key matching *budget_pct*, value 42 (int), ex=90
     redis_set_calls = redis.set.call_args_list
-    budget_pct_calls = [
-        c for c in redis_set_calls
-        if "budget_pct" in str(c.args[0])
-    ]
-    assert len(budget_pct_calls) >= 1, (
-        f"Expected redis.set call with budget_pct key. Calls: {redis_set_calls}"
-    )
+    budget_pct_calls = [c for c in redis_set_calls if "budget_pct" in str(c.args[0])]
+    assert len(budget_pct_calls) >= 1, f"Expected redis.set call with budget_pct key. Calls: {redis_set_calls}"
 
     pct_call = budget_pct_calls[0]
     assert "sess-budget-pct-001" in pct_call.args[0]
@@ -694,23 +687,14 @@ async def test_wake_at_written_to_redis_on_sleep():
 
     # Verify redis.set called with wake_at key, ISO timestamp, and positive ex
     redis_set_calls = redis.set.call_args_list
-    wake_at_calls = [
-        c for c in redis_set_calls
-        if "wake_at" in str(c.args[0])
-    ]
-    assert len(wake_at_calls) >= 1, (
-        f"Expected redis.set call with wake_at key. Calls: {redis_set_calls}"
-    )
+    wake_at_calls = [c for c in redis_set_calls if "wake_at" in str(c.args[0])]
+    assert len(wake_at_calls) >= 1, f"Expected redis.set call with wake_at key. Calls: {redis_set_calls}"
 
     wake_call = wake_at_calls[0]
     assert "sess-wake-at-001" in wake_call.args[0]
     assert "wake_at" in wake_call.args[0]
     # Value must be an ISO timestamp (contains "T")
-    assert "T" in str(wake_call.args[1]), (
-        f"Expected ISO timestamp in wake_at value, got: {wake_call.args[1]}"
-    )
+    assert "T" in str(wake_call.args[1]), f"Expected ISO timestamp in wake_at value, got: {wake_call.args[1]}"
     # ex must be a positive integer (sleep duration in seconds)
     ex_value = wake_call.kwargs.get("ex")
-    assert isinstance(ex_value, int) and ex_value >= 1, (
-        f"Expected positive int ex for wake_at TTL, got: {ex_value}"
-    )
+    assert isinstance(ex_value, int) and ex_value >= 1, f"Expected positive int ex for wake_at TTL, got: {ex_value}"

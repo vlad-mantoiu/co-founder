@@ -97,8 +97,8 @@ class E2BToolDispatcher:
 
     def __init__(
         self,
-        runtime: "E2BSandboxRuntime",
-        screenshot_service: "ScreenshotService | None" = None,
+        runtime: E2BSandboxRuntime,
+        screenshot_service: ScreenshotService | None = None,
         project_id: str | None = None,
         job_id: str | None = None,
         preview_url: str | None = None,
@@ -246,9 +246,7 @@ class E2BToolDispatcher:
         # Convert glob pattern to find -name / -path argument
         # For **/*.py style patterns, use -name "*.py" with depth-unlimited find
         find_pattern = pattern.lstrip("**/")  # "**/*.py" → "*.py"
-        cmd = (
-            f"find {shlex.quote(base)} -name {shlex.quote(find_pattern)} -type f 2>/dev/null | sort"
-        )
+        cmd = f"find {shlex.quote(base)} -name {shlex.quote(find_pattern)} -type f 2>/dev/null | sort"
         try:
             result = await self._runtime.run_command(cmd, timeout=30)
             output = _strip_ansi(result.get("stdout", "") or "")
@@ -320,10 +318,7 @@ class E2BToolDispatcher:
                 },
                 {
                     "type": "text",
-                    "text": (
-                        f"Screenshots captured. Desktop (1280x800) and mobile (390x844). "
-                        f"CloudFront: {cf_text}"
-                    ),
+                    "text": (f"Screenshots captured. Desktop (1280x800) and mobile (390x844). CloudFront: {cf_text}"),
                 },
             ]
 
@@ -378,13 +373,13 @@ class E2BToolDispatcher:
         Validates section name against the 4-value enum. Rejects empty content.
         All operations are no-ops when redis or state_machine are not injected.
         """
-        _VALID_SECTIONS = {"overview", "features", "getting_started", "faq"}
+        valid_sections = {"overview", "features", "getting_started", "faq"}
 
         section: str = tool_input.get("section", "")
         content: str = tool_input.get("content", "")
 
-        if section not in _VALID_SECTIONS:
-            return f"[document: invalid section '{section}' — must be one of {sorted(_VALID_SECTIONS)}]"
+        if section not in valid_sections:
+            return f"[document: invalid section '{section}' — must be one of {sorted(valid_sections)}]"
 
         if not content.strip():
             return f"[document: empty content ignored for section '{section}']"
@@ -411,9 +406,7 @@ class E2BToolDispatcher:
     # Private helpers for take_screenshot
     # ------------------------------------------------------------------
 
-    async def _capture_at_viewport(
-        self, url: str, width: int, height: int
-    ) -> bytes | None:
+    async def _capture_at_viewport(self, url: str, width: int, height: int) -> bytes | None:
         """Launch Playwright, set custom viewport, take screenshot.
 
         Mirrors ScreenshotService._do_capture but with parameterized viewport.
@@ -437,6 +430,7 @@ class E2BToolDispatcher:
                 await page.set_viewport_size({"width": width, "height": height})
                 await page.goto(url, wait_until="load", timeout=10_000)
                 import asyncio
+
                 await asyncio.sleep(1)
                 png_bytes: bytes = await page.screenshot(type="png", full_page=False)
                 await browser.close()

@@ -4,8 +4,6 @@ Verifies model instantiation, default values, field names, and SSE event type co
 No database connection required — SQLAlchemy models are pure Python objects.
 """
 
-import pytest
-
 from app.db.models.agent_escalation import AgentEscalation
 from app.queue.state_machine import SSEEventType
 

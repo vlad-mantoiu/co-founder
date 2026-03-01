@@ -21,7 +21,6 @@ from fastapi.testclient import TestClient
 from app.core.auth import ClerkUser, require_auth
 from app.db.redis import get_redis
 
-
 # ──────────────────────────────────────────────────────────────────────────────
 # Auth override helper
 # ──────────────────────────────────────────────────────────────────────────────
@@ -368,9 +367,7 @@ def test_resolve_emits_escalation_resolved_sse():
 
     # Channel must match job:{job_id}:events pattern
     channel_used = publish_calls[0].args[0]
-    assert f"job:{job_id}:events" == channel_used, (
-        f"Expected channel 'job:{job_id}:events', got '{channel_used}'"
-    )
+    assert f"job:{job_id}:events" == channel_used, f"Expected channel 'job:{job_id}:events', got '{channel_used}'"
 
     # Payload must be valid JSON with correct event fields
     payload_raw = publish_calls[0].args[1]

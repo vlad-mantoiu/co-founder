@@ -4,8 +4,6 @@ These tests verify model instantiation, default values, and table names.
 No database connection is needed — SQLAlchemy models are pure Python objects.
 """
 
-import pytest
-
 from app.db.models.agent_checkpoint import AgentCheckpoint
 from app.db.models.agent_session import AgentSession
 from app.db.models.user_settings import UserSettings

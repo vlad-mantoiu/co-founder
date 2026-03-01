@@ -16,7 +16,7 @@ Locked decisions from STATE.md:
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import structlog
@@ -92,7 +92,7 @@ class WakeDaemon:
                 return
 
             # --- Condition 2: UTC midnight crossing (hour==0, minute < 2) ---
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             if now.hour == 0 and now.minute < 2:
                 self._log.info("wake_daemon_waking_midnight", utc_time=now.isoformat())
                 self.wake_event.set()

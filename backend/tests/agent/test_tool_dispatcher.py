@@ -13,9 +13,9 @@ All tests are async (pytest-asyncio auto mode).
 """
 
 import pytest
-from app.agent.tools.dispatcher import InMemoryToolDispatcher
-from app.agent.tools.definitions import AGENT_TOOLS
 
+from app.agent.tools.definitions import AGENT_TOOLS
+from app.agent.tools.dispatcher import InMemoryToolDispatcher
 
 # ---------------------------------------------------------------------------
 # Stateful filesystem tests

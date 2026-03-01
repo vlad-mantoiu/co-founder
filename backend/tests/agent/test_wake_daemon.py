@@ -11,13 +11,12 @@ Tests WakeDaemon sleep/wake lifecycle:
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from app.agent.budget.wake_daemon import WakeDaemon
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -71,9 +70,7 @@ async def test_trigger_immediate_wake(daemon: WakeDaemon, mock_redis: AsyncMock)
     # Key must contain session_id
     assert "test-session-001" in call_args[0][0]
     # TTL must be 86400 seconds (24h)
-    assert call_args[1].get("ex") == 86400 or (
-        len(call_args[0]) > 2 and call_args[0][2] == 86400
-    )
+    assert call_args[1].get("ex") == 86400 or (len(call_args[0]) > 2 and call_args[0][2] == 86400)
 
 
 # ---------------------------------------------------------------------------
@@ -94,7 +91,7 @@ async def test_wake_on_redis_signal(mock_redis: AsyncMock) -> None:
         mock_sleep.return_value = None
 
         # Patch datetime to a non-midnight time so only Redis path triggers
-        non_midnight = datetime(2026, 2, 26, 14, 30, 0, tzinfo=timezone.utc)
+        non_midnight = datetime(2026, 2, 26, 14, 30, 0, tzinfo=UTC)
         with patch("app.agent.budget.wake_daemon.datetime") as mock_dt:
             mock_dt.now.return_value = non_midnight
 
@@ -126,7 +123,7 @@ async def test_wake_at_midnight(mock_redis: AsyncMock) -> None:
         mock_sleep.return_value = None
 
         # Mock datetime to midnight UTC (hour=0, minute=1)
-        midnight = datetime(2026, 2, 27, 0, 1, 0, tzinfo=timezone.utc)
+        midnight = datetime(2026, 2, 27, 0, 1, 0, tzinfo=UTC)
         with patch("app.agent.budget.wake_daemon.datetime") as mock_dt:
             mock_dt.now.return_value = midnight
 
@@ -159,7 +156,7 @@ async def test_no_wake_before_midnight(mock_redis: AsyncMock) -> None:
 
     with patch("app.agent.budget.wake_daemon.asyncio.sleep", side_effect=_sleep_then_cancel):
         # Non-midnight time
-        non_midnight = datetime(2026, 2, 26, 23, 59, 0, tzinfo=timezone.utc)
+        non_midnight = datetime(2026, 2, 26, 23, 59, 0, tzinfo=UTC)
         with patch("app.agent.budget.wake_daemon.datetime") as mock_dt:
             mock_dt.now.return_value = non_midnight
 

@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import json
 
-
 _PERSONA_SECTION = """\
 ## Identity & Behavior
 
@@ -79,11 +78,13 @@ def build_system_prompt(
     persona_section = _PERSONA_SECTION
 
     # --- Section 2: Idea Brief (verbatim JSON injection) ---
-    idea_brief_section = "\n".join([
-        "## Founder's Idea Brief",
-        "",
-        json.dumps(idea_brief, indent=2),
-    ])
+    idea_brief_section = "\n".join(
+        [
+            "## Founder's Idea Brief",
+            "",
+            json.dumps(idea_brief, indent=2),
+        ]
+    )
 
     # --- Section 3: Understanding Interview QnA (verbatim) ---
     if understanding_qna:
@@ -94,22 +95,28 @@ def build_system_prompt(
             qna_lines.append("")
         qna_section = "\n".join(qna_lines).rstrip()
     else:
-        qna_section = "\n".join([
-            "## Understanding Interview (Founder's Answers)",
-            "",
-            "(No interview responses provided)",
-        ])
+        qna_section = "\n".join(
+            [
+                "## Understanding Interview (Founder's Answers)",
+                "",
+                "(No interview responses provided)",
+            ]
+        )
 
     # --- Section 4: Build Plan (verbatim JSON injection) ---
-    build_plan_section = "\n".join([
-        "## Build Plan (Execute in Order)",
-        "",
-        json.dumps(build_plan, indent=2),
-    ])
+    build_plan_section = "\n".join(
+        [
+            "## Build Plan (Execute in Order)",
+            "",
+            json.dumps(build_plan, indent=2),
+        ]
+    )
 
-    return "\n\n".join([
-        persona_section,
-        idea_brief_section,
-        qna_section,
-        build_plan_section,
-    ])
+    return "\n\n".join(
+        [
+            persona_section,
+            idea_brief_section,
+            qna_section,
+            build_plan_section,
+        ]
+    )

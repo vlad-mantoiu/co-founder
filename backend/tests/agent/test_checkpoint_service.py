@@ -14,13 +14,12 @@ Also includes SSEEventType extension test:
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from app.agent.budget.checkpoint import CheckpointService
 from app.queue.state_machine import SSEEventType
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -47,6 +46,7 @@ def mock_db() -> AsyncMock:
 def _make_checkpoint_row(session_id: str = "test-sess-001") -> MagicMock:
     """Create a mock AgentCheckpoint row."""
     from app.db.models.agent_checkpoint import AgentCheckpoint
+
     row = MagicMock(spec=AgentCheckpoint)
     row.session_id = session_id
     row.job_id = "job-001"

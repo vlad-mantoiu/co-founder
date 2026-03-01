@@ -16,15 +16,13 @@ DB session (AsyncMock), Redis (AsyncMock), and all services.
 from __future__ import annotations
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, call, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import fakeredis.aioredis
 import pytest
-import uuid
 
 from app.agent.runner_autonomous import AutonomousRunner
 from app.agent.tools.e2b_dispatcher import E2BToolDispatcher
-from app.queue.schemas import JobStatus
 from app.queue.state_machine import JobStateMachine
 from app.services.generation_service import GenerationService
 
@@ -118,11 +116,13 @@ def _make_db_session(
     fetchall_result = MagicMock()
     fetchall_result.fetchall = MagicMock(return_value=[])
 
-    db.execute = AsyncMock(side_effect=[
-        idea_brief_result,
-        u_session_result,
-        fetchall_result,  # _get_next_build_version query
-    ])
+    db.execute = AsyncMock(
+        side_effect=[
+            idea_brief_result,
+            u_session_result,
+            fetchall_result,  # _get_next_build_version query
+        ]
+    )
 
     return db
 
@@ -187,14 +187,20 @@ async def test_autonomous_calls_run_agent_loop():
 
     settings = _make_autonomous_settings()
 
-    with patch("app.services.generation_service._get_settings", return_value=settings), \
-         patch("app.services.generation_service.get_session_factory", return_value=mock_factory), \
-         patch("app.services.generation_service.resolve_llm_config", new_callable=AsyncMock, return_value="claude-sonnet-4-20250514"), \
-         patch("app.services.generation_service.S3SnapshotService") as mock_snap_cls, \
-         patch("app.services.generation_service.BudgetService"), \
-         patch("app.services.generation_service.CheckpointService"), \
-         patch("app.services.generation_service.WakeDaemon") as mock_wd_cls, \
-         patch("app.services.generation_service.asyncio.create_task"):
+    with (
+        patch("app.services.generation_service._get_settings", return_value=settings),
+        patch("app.services.generation_service.get_session_factory", return_value=mock_factory),
+        patch(
+            "app.services.generation_service.resolve_llm_config",
+            new_callable=AsyncMock,
+            return_value="claude-sonnet-4-20250514",
+        ),
+        patch("app.services.generation_service.S3SnapshotService") as mock_snap_cls,
+        patch("app.services.generation_service.BudgetService"),
+        patch("app.services.generation_service.CheckpointService"),
+        patch("app.services.generation_service.WakeDaemon") as mock_wd_cls,
+        patch("app.services.generation_service.asyncio.create_task"),
+    ):
         mock_wd_cls.return_value.run = AsyncMock()
         mock_snap_cls.return_value.sync = AsyncMock(return_value="projects/test/snapshot.tar.gz")
         result = await service.execute_build(job_id, job_data, sm, sm_redis)
@@ -237,14 +243,20 @@ async def test_context_contains_db_artifacts():
 
     settings = _make_autonomous_settings()
 
-    with patch("app.services.generation_service._get_settings", return_value=settings), \
-         patch("app.services.generation_service.get_session_factory", return_value=mock_factory), \
-         patch("app.services.generation_service.resolve_llm_config", new_callable=AsyncMock, return_value="claude-sonnet-4-20250514"), \
-         patch("app.services.generation_service.S3SnapshotService") as mock_snap_cls, \
-         patch("app.services.generation_service.BudgetService"), \
-         patch("app.services.generation_service.CheckpointService"), \
-         patch("app.services.generation_service.WakeDaemon") as mock_wd_cls, \
-         patch("app.services.generation_service.asyncio.create_task"):
+    with (
+        patch("app.services.generation_service._get_settings", return_value=settings),
+        patch("app.services.generation_service.get_session_factory", return_value=mock_factory),
+        patch(
+            "app.services.generation_service.resolve_llm_config",
+            new_callable=AsyncMock,
+            return_value="claude-sonnet-4-20250514",
+        ),
+        patch("app.services.generation_service.S3SnapshotService") as mock_snap_cls,
+        patch("app.services.generation_service.BudgetService"),
+        patch("app.services.generation_service.CheckpointService"),
+        patch("app.services.generation_service.WakeDaemon") as mock_wd_cls,
+        patch("app.services.generation_service.asyncio.create_task"),
+    ):
         mock_wd_cls.return_value.run = AsyncMock()
         mock_snap_cls.return_value.sync = AsyncMock(return_value=None)
         await service.execute_build(job_id, job_data, sm, sm_redis)
@@ -290,14 +302,20 @@ async def test_e2b_dispatcher_injected():
 
     settings = _make_autonomous_settings()
 
-    with patch("app.services.generation_service._get_settings", return_value=settings), \
-         patch("app.services.generation_service.get_session_factory", return_value=mock_factory), \
-         patch("app.services.generation_service.resolve_llm_config", new_callable=AsyncMock, return_value="claude-sonnet-4-20250514"), \
-         patch("app.services.generation_service.S3SnapshotService") as mock_snap_cls, \
-         patch("app.services.generation_service.BudgetService"), \
-         patch("app.services.generation_service.CheckpointService"), \
-         patch("app.services.generation_service.WakeDaemon") as mock_wd_cls, \
-         patch("app.services.generation_service.asyncio.create_task"):
+    with (
+        patch("app.services.generation_service._get_settings", return_value=settings),
+        patch("app.services.generation_service.get_session_factory", return_value=mock_factory),
+        patch(
+            "app.services.generation_service.resolve_llm_config",
+            new_callable=AsyncMock,
+            return_value="claude-sonnet-4-20250514",
+        ),
+        patch("app.services.generation_service.S3SnapshotService") as mock_snap_cls,
+        patch("app.services.generation_service.BudgetService"),
+        patch("app.services.generation_service.CheckpointService"),
+        patch("app.services.generation_service.WakeDaemon") as mock_wd_cls,
+        patch("app.services.generation_service.asyncio.create_task"),
+    ):
         mock_wd_cls.return_value.run = AsyncMock()
         mock_snap_cls.return_value.sync = AsyncMock(return_value=None)
         await service.execute_build(job_id, job_data, sm, sm_redis)
@@ -343,14 +361,20 @@ async def test_budget_checkpoint_wake_injected():
     mock_wake = MagicMock()
     mock_wake.run = AsyncMock()
 
-    with patch("app.services.generation_service._get_settings", return_value=settings), \
-         patch("app.services.generation_service.get_session_factory", return_value=mock_factory), \
-         patch("app.services.generation_service.resolve_llm_config", new_callable=AsyncMock, return_value="claude-sonnet-4-20250514"), \
-         patch("app.services.generation_service.S3SnapshotService") as mock_snap_cls, \
-         patch("app.services.generation_service.BudgetService", return_value=mock_budget) as mock_bsvc, \
-         patch("app.services.generation_service.CheckpointService", return_value=mock_checkpoint) as mock_csvc, \
-         patch("app.services.generation_service.WakeDaemon", return_value=mock_wake) as mock_wd_cls, \
-         patch("app.services.generation_service.asyncio.create_task"):
+    with (
+        patch("app.services.generation_service._get_settings", return_value=settings),
+        patch("app.services.generation_service.get_session_factory", return_value=mock_factory),
+        patch(
+            "app.services.generation_service.resolve_llm_config",
+            new_callable=AsyncMock,
+            return_value="claude-sonnet-4-20250514",
+        ),
+        patch("app.services.generation_service.S3SnapshotService") as mock_snap_cls,
+        patch("app.services.generation_service.BudgetService", return_value=mock_budget),
+        patch("app.services.generation_service.CheckpointService", return_value=mock_checkpoint),
+        patch("app.services.generation_service.WakeDaemon", return_value=mock_wake),
+        patch("app.services.generation_service.asyncio.create_task"),
+    ):
         mock_snap_cls.return_value.sync = AsyncMock(return_value=None)
         await service.execute_build(job_id, job_data, sm, sm_redis)
 
@@ -393,14 +417,18 @@ async def test_model_resolved_from_tier():
     settings = _make_autonomous_settings()
     resolved_model = "claude-opus-4-20250514"
 
-    with patch("app.services.generation_service._get_settings", return_value=settings), \
-         patch("app.services.generation_service.get_session_factory", return_value=mock_factory), \
-         patch("app.services.generation_service.resolve_llm_config", new_callable=AsyncMock, return_value=resolved_model) as mock_resolve, \
-         patch("app.services.generation_service.S3SnapshotService") as mock_snap_cls, \
-         patch("app.services.generation_service.BudgetService"), \
-         patch("app.services.generation_service.CheckpointService"), \
-         patch("app.services.generation_service.WakeDaemon") as mock_wd_cls, \
-         patch("app.services.generation_service.asyncio.create_task"):
+    with (
+        patch("app.services.generation_service._get_settings", return_value=settings),
+        patch("app.services.generation_service.get_session_factory", return_value=mock_factory),
+        patch(
+            "app.services.generation_service.resolve_llm_config", new_callable=AsyncMock, return_value=resolved_model
+        ) as mock_resolve,
+        patch("app.services.generation_service.S3SnapshotService") as mock_snap_cls,
+        patch("app.services.generation_service.BudgetService"),
+        patch("app.services.generation_service.CheckpointService"),
+        patch("app.services.generation_service.WakeDaemon") as mock_wd_cls,
+        patch("app.services.generation_service.asyncio.create_task"),
+    ):
         mock_wd_cls.return_value.run = AsyncMock()
         mock_snap_cls.return_value.sync = AsyncMock(return_value=None)
         await service.execute_build(job_id, job_data, sm, sm_redis)
@@ -409,9 +437,7 @@ async def test_model_resolved_from_tier():
     mock_resolve.assert_called_once_with("test-user-auto-001", role="coder")
 
     # Runner._model updated with resolved value
-    assert runner._model == resolved_model, (
-        f"Expected runner._model={resolved_model}, got {runner._model}"
-    )
+    assert runner._model == resolved_model, f"Expected runner._model={resolved_model}, got {runner._model}"
 
 
 # ---------------------------------------------------------------------------
@@ -453,14 +479,20 @@ async def test_wake_daemon_launched_as_task():
         # Create a real task so the event loop is happy
         return asyncio.get_event_loop().create_task(asyncio.sleep(0))
 
-    with patch("app.services.generation_service._get_settings", return_value=settings), \
-         patch("app.services.generation_service.get_session_factory", return_value=mock_factory), \
-         patch("app.services.generation_service.resolve_llm_config", new_callable=AsyncMock, return_value="claude-sonnet-4-20250514"), \
-         patch("app.services.generation_service.S3SnapshotService") as mock_snap_cls, \
-         patch("app.services.generation_service.BudgetService"), \
-         patch("app.services.generation_service.CheckpointService"), \
-         patch("app.services.generation_service.WakeDaemon", return_value=mock_wake), \
-         patch("app.services.generation_service.asyncio.create_task", side_effect=capture_create_task):
+    with (
+        patch("app.services.generation_service._get_settings", return_value=settings),
+        patch("app.services.generation_service.get_session_factory", return_value=mock_factory),
+        patch(
+            "app.services.generation_service.resolve_llm_config",
+            new_callable=AsyncMock,
+            return_value="claude-sonnet-4-20250514",
+        ),
+        patch("app.services.generation_service.S3SnapshotService") as mock_snap_cls,
+        patch("app.services.generation_service.BudgetService"),
+        patch("app.services.generation_service.CheckpointService"),
+        patch("app.services.generation_service.WakeDaemon", return_value=mock_wake),
+        patch("app.services.generation_service.asyncio.create_task", side_effect=capture_create_task),
+    ):
         mock_snap_cls.return_value.sync = AsyncMock(return_value=None)
         await service.execute_build(job_id, job_data, sm, sm_redis)
 
@@ -499,14 +531,20 @@ async def test_s3_snapshot_on_completion():
     mock_snapshot_service = AsyncMock()
     mock_snapshot_service.sync = AsyncMock(return_value="projects/test/snap.tar.gz")
 
-    with patch("app.services.generation_service._get_settings", return_value=settings), \
-         patch("app.services.generation_service.get_session_factory", return_value=mock_factory), \
-         patch("app.services.generation_service.resolve_llm_config", new_callable=AsyncMock, return_value="claude-sonnet-4-20250514"), \
-         patch("app.services.generation_service.S3SnapshotService", return_value=mock_snapshot_service) as mock_snap_cls, \
-         patch("app.services.generation_service.BudgetService"), \
-         patch("app.services.generation_service.CheckpointService"), \
-         patch("app.services.generation_service.WakeDaemon") as mock_wd_cls, \
-         patch("app.services.generation_service.asyncio.create_task"):
+    with (
+        patch("app.services.generation_service._get_settings", return_value=settings),
+        patch("app.services.generation_service.get_session_factory", return_value=mock_factory),
+        patch(
+            "app.services.generation_service.resolve_llm_config",
+            new_callable=AsyncMock,
+            return_value="claude-sonnet-4-20250514",
+        ),
+        patch("app.services.generation_service.S3SnapshotService", return_value=mock_snapshot_service) as mock_snap_cls,
+        patch("app.services.generation_service.BudgetService"),
+        patch("app.services.generation_service.CheckpointService"),
+        patch("app.services.generation_service.WakeDaemon") as mock_wd_cls,
+        patch("app.services.generation_service.asyncio.create_task"),
+    ):
         mock_wd_cls.return_value.run = AsyncMock()
         await service.execute_build(job_id, job_data, sm, sm_redis)
 

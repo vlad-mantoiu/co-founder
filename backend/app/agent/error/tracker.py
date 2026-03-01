@@ -66,13 +66,13 @@ class ErrorSignatureTracker:
     def __init__(
         self,
         project_id: str,
-        retry_counts: dict,         # mutable reference — shared with CheckpointService
-        db_session=None,            # AsyncSession | None
+        retry_counts: dict,  # mutable reference — shared with CheckpointService
+        db_session=None,  # AsyncSession | None
         session_id: str = "",
         job_id: str = "",
     ) -> None:
         self._project_id = project_id
-        self._retry_counts = retry_counts   # MUST hold the same reference, never copy
+        self._retry_counts = retry_counts  # MUST hold the same reference, never copy
         self._db = db_session
         self._session_id = session_id
         self._job_id = job_id
@@ -207,9 +207,7 @@ class ErrorSignatureTracker:
                 job_id=self._job_id,
                 project_id=self._project_id,
                 error_type=error_type,
-                error_signature=build_error_signature(
-                    self._project_id, error_type, error_message
-                ),
+                error_signature=build_error_signature(self._project_id, error_type, error_message),
                 plain_english_problem=plain_english_problem,
                 attempts_summary=attempts,
                 recommended_action=recommended_action,

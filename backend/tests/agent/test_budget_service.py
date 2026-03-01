@@ -14,16 +14,16 @@ And validates:
 
 from __future__ import annotations
 
-import pytest
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import date, datetime, timezone, timedelta
+
+import pytest
 
 from app.agent.budget.service import (
-    BudgetService,
-    BudgetExceededError,
     MODEL_COST_WEIGHTS,
+    BudgetExceededError,
+    BudgetService,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -81,7 +81,7 @@ def test_model_cost_weights_are_microdollars_per_million() -> None:
 @pytest.mark.asyncio
 async def test_calc_daily_budget_10_days_remaining(service: BudgetService) -> None:
     """With 10 days remaining and 100_000_000 µ$ budget → 10_000_000 per day."""
-    renewal = (datetime.now(timezone.utc) + timedelta(days=10)).date()
+    renewal = (datetime.now(UTC) + timedelta(days=10)).date()
     mock_db = AsyncMock()
 
     # Mock the UserSettings + PlanTier query
@@ -114,7 +114,7 @@ async def test_calc_daily_budget_10_days_remaining(service: BudgetService) -> No
 @pytest.mark.asyncio
 async def test_calc_daily_budget_renewal_today(service: BudgetService) -> None:
     """Renewal today = 0 remaining days → max(1, 0) = 1, full remaining budget is daily."""
-    renewal = datetime.now(timezone.utc).date()
+    renewal = datetime.now(UTC).date()
     mock_db = AsyncMock()
 
     mock_user_settings = MagicMock()
@@ -165,7 +165,7 @@ async def test_record_call_cost_opus_model(service: BudgetService, mock_redis: A
     # 1000 input tokens * 15 + 1000 output tokens * 75 = 15 + 75 = 90 µ$
     mock_redis.incrby = AsyncMock(return_value=90)
 
-    result = await service.record_call_cost(
+    await service.record_call_cost(
         session_id="sess-1",
         user_id="user-1",
         model="claude-opus-4-20250514",

@@ -25,8 +25,6 @@ Phase 42 TDD — RED phase (all fail until e2b_dispatcher.py is created).
 
 from __future__ import annotations
 
-import base64
-import io
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -48,9 +46,7 @@ def mock_runtime() -> MagicMock:
     runtime = MagicMock()
     runtime.read_file = AsyncMock(return_value="file content here")
     runtime.write_file = AsyncMock(return_value=None)
-    runtime.run_command = AsyncMock(
-        return_value={"stdout": "output", "stderr": "", "exit_code": 0}
-    )
+    runtime.run_command = AsyncMock(return_value={"stdout": "output", "stderr": "", "exit_code": 0})
     return runtime
 
 
@@ -84,9 +80,7 @@ def test_protocol_compliance(mock_runtime: MagicMock) -> None:
     """E2BToolDispatcher satisfies the ToolDispatcher Protocol."""
     d = E2BToolDispatcher(runtime=mock_runtime)
     # Protocol check via isinstance (requires runtime_checkable Protocol)
-    assert isinstance(d, ToolDispatcher), (
-        "E2BToolDispatcher must satisfy ToolDispatcher protocol"
-    )
+    assert isinstance(d, ToolDispatcher), "E2BToolDispatcher must satisfy ToolDispatcher protocol"
 
 
 # ---------------------------------------------------------------------------
@@ -114,9 +108,7 @@ async def test_write_file(dispatcher: E2BToolDispatcher, mock_runtime: MagicMock
     content = "print('hi')"
     mock_runtime.write_file = AsyncMock(return_value=None)
 
-    result = await dispatcher.dispatch(
-        "write_file", {"path": "/home/user/app.py", "content": content}
-    )
+    result = await dispatcher.dispatch("write_file", {"path": "/home/user/app.py", "content": content})
 
     mock_runtime.write_file.assert_called_once_with("/home/user/app.py", content)
     assert isinstance(result, str)
@@ -172,9 +164,7 @@ async def test_edit_file_not_found(dispatcher: E2BToolDispatcher, mock_runtime: 
 # ---------------------------------------------------------------------------
 
 
-async def test_edit_file_old_string_missing(
-    dispatcher: E2BToolDispatcher, mock_runtime: MagicMock
-) -> None:
+async def test_edit_file_old_string_missing(dispatcher: E2BToolDispatcher, mock_runtime: MagicMock) -> None:
     """edit_file where old_string not in content returns error string — does NOT raise."""
     mock_runtime.read_file = AsyncMock(return_value="This does not contain the target string")
 
@@ -198,9 +188,7 @@ async def test_edit_file_old_string_missing(
 async def test_bash_strips_ansi(dispatcher: E2BToolDispatcher, mock_runtime: MagicMock) -> None:
     """dispatch('bash', ...) strips ANSI escape codes from stdout and includes exit code."""
     ansi_output = "\x1b[32mHello\x1b[0m World"
-    mock_runtime.run_command = AsyncMock(
-        return_value={"stdout": ansi_output, "stderr": "", "exit_code": 0}
-    )
+    mock_runtime.run_command = AsyncMock(return_value={"stdout": ansi_output, "stderr": "", "exit_code": 0})
 
     result = await dispatcher.dispatch("bash", {"command": "echo test"})
 
@@ -217,18 +205,14 @@ async def test_bash_strips_ansi(dispatcher: E2BToolDispatcher, mock_runtime: Mag
 
 async def test_bash_custom_timeout(dispatcher: E2BToolDispatcher, mock_runtime: MagicMock) -> None:
     """dispatch('bash', ...) with timeout='300' passes timeout=300 to run_command."""
-    mock_runtime.run_command = AsyncMock(
-        return_value={"stdout": "done", "stderr": "", "exit_code": 0}
-    )
+    mock_runtime.run_command = AsyncMock(return_value={"stdout": "done", "stderr": "", "exit_code": 0})
 
     await dispatcher.dispatch("bash", {"command": "npm install", "timeout": "300"})
 
     call_kwargs = mock_runtime.run_command.call_args
     assert call_kwargs is not None
     # timeout can be in args or kwargs
-    passed_timeout = call_kwargs.kwargs.get("timeout") or (
-        call_kwargs.args[1] if len(call_kwargs.args) > 1 else None
-    )
+    passed_timeout = call_kwargs.kwargs.get("timeout") or (call_kwargs.args[1] if len(call_kwargs.args) > 1 else None)
     assert passed_timeout == 300, f"Expected timeout=300, got {passed_timeout}"
 
 
@@ -242,9 +226,7 @@ async def test_bash_output_hard_cap(dispatcher: E2BToolDispatcher, mock_runtime:
     from app.agent.tools.e2b_dispatcher import OUTPUT_HARD_LIMIT
 
     big_stdout = "x" * 60_000  # 60k chars — over the 50k limit
-    mock_runtime.run_command = AsyncMock(
-        return_value={"stdout": big_stdout, "stderr": "", "exit_code": 0}
-    )
+    mock_runtime.run_command = AsyncMock(return_value={"stdout": big_stdout, "stderr": "", "exit_code": 0})
 
     result = await dispatcher.dispatch("bash", {"command": "cat large_file.txt"})
 
@@ -306,9 +288,7 @@ async def test_glob_dispatches(dispatcher: E2BToolDispatcher, mock_runtime: Magi
 # ---------------------------------------------------------------------------
 
 
-async def test_take_screenshot_returns_vision(
-    dispatcher: E2BToolDispatcher, mock_screenshot: MagicMock
-) -> None:
+async def test_take_screenshot_returns_vision(dispatcher: E2BToolDispatcher, mock_screenshot: MagicMock) -> None:
     """dispatch('take_screenshot', {}) returns list[dict] with image content blocks."""
     fake_png = b"FAKE_PNG_BYTES"
     fake_webp = b"FAKE_WEBP_BYTES"

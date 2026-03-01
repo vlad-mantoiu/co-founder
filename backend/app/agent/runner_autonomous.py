@@ -115,9 +115,7 @@ class AutonomousRunner:
     ) -> None:
         settings = get_settings()
         self._model = model
-        self._client = anthropic.AsyncAnthropic(
-            api_key=api_key or settings.anthropic_api_key
-        )
+        self._client = anthropic.AsyncAnthropic(api_key=api_key or settings.anthropic_api_key)
 
     # ------------------------------------------------------------------
     # Core TAOR loop
@@ -201,6 +199,7 @@ class AutonomousRunner:
 
         if db_session:
             from app.db.models.agent_session import AgentSession
+
             agent_session = AgentSession(
                 id=session_id,
                 job_id=job_id,
@@ -246,8 +245,10 @@ class AutonomousRunner:
             while True:
                 # ---- THINK: emit agent.thinking before each stream call ----
                 if state_machine:
-                    from datetime import UTC, datetime as _dt
+                    from datetime import UTC
+
                     from app.queue.state_machine import SSEEventType as _SSEEventType
+
                     await state_machine.publish_event(
                         job_id,
                         {"type": _SSEEventType.AGENT_THINKING},
@@ -320,9 +321,7 @@ class AutonomousRunner:
                             ex=90,  # 90s TTL — matches SSE heartbeat window
                         )
                     # Hard circuit breaker — BudgetExceededError propagates to outer try
-                    await budget_service.check_runaway(
-                        session_id, user_id, daily_budget, context.get("redis")
-                    )
+                    await budget_service.check_runaway(session_id, user_id, daily_budget, context.get("redis"))
                     # Graceful threshold — finish current dispatch, no new iterations
                     if budget_service.is_at_graceful_threshold(session_cost, daily_budget):
                         graceful_wind_down = True
@@ -354,10 +353,14 @@ class AutonomousRunner:
                             )
                         # Write wake_at Redis key for REST bootstrap countdown timer (UIAG-04)
                         if redis:
-                            from datetime import UTC, datetime as _dt_wake, timedelta as _td_wake
+                            from datetime import UTC
+                            from datetime import datetime as _dt_wake
+                            from datetime import timedelta as _td_wake
+
                             _now_utc = _dt_wake.now(UTC)
-                            _next_midnight = (_now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
-                                              + _td_wake(days=1))
+                            _next_midnight = _now_utc.replace(hour=0, minute=0, second=0, microsecond=0) + _td_wake(
+                                days=1
+                            )
                             _sleep_seconds = max(1, int((_next_midnight - _now_utc).total_seconds()))
                             await redis.set(
                                 f"cofounder:agent:{session_id}:wake_at",
@@ -405,9 +408,7 @@ class AutonomousRunner:
                                 ex=90_000,
                             )
                         if budget_service and db_session:
-                            daily_budget = await budget_service.calc_daily_budget(
-                                user_id, db_session
-                            )
+                            daily_budget = await budget_service.calc_daily_budget(user_id, db_session)
                         graceful_wind_down = False
                         session_cost = 0
                         # Continue the TAOR loop — do NOT return
@@ -473,26 +474,27 @@ class AutonomousRunner:
                         # Second strike → terminate
                         if not guard._had_repetition_warning:
                             guard._had_repetition_warning = True
-                            steer_msg = (
-                                "I noticed I'm repeating myself. "
-                                "Let me try a different approach."
-                            )
+                            steer_msg = "I noticed I'm repeating myself. Let me try a different approach."
                             if streamer:
                                 await streamer.write_event(steer_msg, source="agent")
                             # Clear the repetition window so guard doesn't re-fire immediately
                             guard._window.clear()
                             # Inject steering tool_result as user turn to redirect model
-                            messages.append({
-                                "role": "user",
-                                "content": [{
-                                    "type": "tool_result",
-                                    "tool_use_id": tool_block.id,
-                                    "content": (
-                                        "SYSTEM: You repeated the same tool call 3 times. "
-                                        "Please try a completely different approach to achieve the same goal."
-                                    ),
-                                }],
-                            })
+                            messages.append(
+                                {
+                                    "role": "user",
+                                    "content": [
+                                        {
+                                            "type": "tool_result",
+                                            "tool_use_id": tool_block.id,
+                                            "content": (
+                                                "SYSTEM: You repeated the same tool call 3 times. "
+                                                "Please try a completely different approach to achieve the same goal."
+                                            ),
+                                        }
+                                    ],
+                                }
+                            )
                             steered = True
                             bound_logger.warning(
                                 "taor_loop_repetition_first_strike",
@@ -501,10 +503,7 @@ class AutonomousRunner:
                             break  # Break inner tool dispatch loop; outer while continues
                         else:
                             # Second repetition — terminate
-                            stop_msg = (
-                                f"Hit a repeated action pattern twice. {str(e)}. "
-                                "Stopping to avoid a loop."
-                            )
+                            stop_msg = f"Hit a repeated action pattern twice. {str(e)}. Stopping to avoid a loop."
                             if streamer:
                                 await streamer.write_event(stop_msg, source="agent")
                             bound_logger.error(
@@ -520,9 +519,7 @@ class AutonomousRunner:
 
                     # Narrate before tool call (per CONTEXT.md: narrate before AND after)
                     if streamer:
-                        await streamer.write_event(
-                            f"Running `{tool_name}` ...", source="agent"
-                        )
+                        await streamer.write_event(f"Running `{tool_name}` ...", source="agent")
 
                     # Dispatch tool — route errors through ErrorSignatureTracker
                     try:
@@ -553,16 +550,23 @@ class AutonomousRunner:
                                 if state_machine:
                                     await state_machine.publish_event(
                                         job_id,
-                                        {"type": "agent.waiting_for_input", "escalation_id": str(escalation_id) if escalation_id else None},
+                                        {
+                                            "type": "agent.waiting_for_input",
+                                            "escalation_id": str(escalation_id) if escalation_id else None,
+                                        },
                                     )
                             else:
                                 # Step 2: Record and check retry budget for CODE_ERROR / ENV_ERROR
-                                should_escalate, attempt_num = error_tracker.record_and_check(error_type_name, error_message)
+                                should_escalate, attempt_num = error_tracker.record_and_check(
+                                    error_type_name, error_message
+                                )
                                 if should_escalate:
                                     escalation_id = await error_tracker.record_escalation(
                                         error_type=error_type_name,
                                         error_message=error_message,
-                                        attempts=[f"Attempt {i}: different approach tried" for i in range(1, attempt_num)],
+                                        attempts=[
+                                            f"Attempt {i}: different approach tried" for i in range(1, attempt_num)
+                                        ],
                                         recommended_action="I've tried multiple approaches. The founder can skip this feature, try a simpler version, or provide guidance.",
                                         plain_english_problem=f"I tried {attempt_num - 1} different approaches but kept hitting the same issue: {error_type_name}",
                                     )
@@ -573,14 +577,20 @@ class AutonomousRunner:
                                     if state_machine:
                                         await state_machine.publish_event(
                                             job_id,
-                                            {"type": "agent.waiting_for_input", "escalation_id": str(escalation_id) if escalation_id else None},
+                                            {
+                                                "type": "agent.waiting_for_input",
+                                                "escalation_id": str(escalation_id) if escalation_id else None,
+                                            },
                                         )
                                     # Check global threshold — pause build if too many escalations
                                     if error_tracker.global_threshold_exceeded():
                                         if state_machine:
                                             await state_machine.publish_event(
                                                 job_id,
-                                                {"type": "agent.build_paused", "reason": "Too many unresolvable issues encountered"},
+                                                {
+                                                    "type": "agent.build_paused",
+                                                    "reason": "Too many unresolvable issues encountered",
+                                                },
                                             )
                                         bound_logger.error("taor_loop_global_threshold_exceeded", session_id=session_id)
                                         return {
@@ -592,6 +602,7 @@ class AutonomousRunner:
                                 else:
                                     # Retry allowed — inject replanning context so model takes a different approach
                                     from app.agent.error.tracker import _build_retry_tool_result
+
                                     result = _build_retry_tool_result(
                                         error_type_name,
                                         error_message,
@@ -601,7 +612,11 @@ class AutonomousRunner:
                                     if state_machine:
                                         await state_machine.publish_event(
                                             job_id,
-                                            {"type": "agent.retrying", "attempt": attempt_num, "error_type": error_type_name},
+                                            {
+                                                "type": "agent.retrying",
+                                                "attempt": attempt_num,
+                                                "error_type": error_type_name,
+                                            },
                                         )
                         else:
                             # Fallback: no error tracker — bare error string (backward compatible)
@@ -618,9 +633,12 @@ class AutonomousRunner:
                     # When the agent narrates with a phase_name, emit gsd.phase.started
                     # and complete the previous phase if one was in progress.
                     if tool_name == "narrate" and state_machine:
-                        from datetime import UTC, datetime as _dt2
-                        from app.queue.state_machine import SSEEventType as _SSEEventType2
                         import uuid as _uuid_mod
+                        from datetime import UTC
+                        from datetime import datetime as _dt2
+
+                        from app.queue.state_machine import SSEEventType as _SSEEventType2
+
                         phase_name = tool_input.get("phase_name")
                         if phase_name:
                             _ts = _dt2.now(UTC).isoformat()
@@ -637,13 +655,16 @@ class AutonomousRunner:
                                 )
                                 if redis:
                                     import json as _json
+
                                     # Update existing entry status to completed
                                     existing_raw = await redis.hget(f"job:{job_id}:phases", _current_phase_id)
                                     if existing_raw:
                                         existing_entry = _json.loads(existing_raw)
                                         existing_entry["status"] = "completed"
                                         existing_entry["completed_at"] = _ts
-                                        await redis.hset(f"job:{job_id}:phases", _current_phase_id, _json.dumps(existing_entry))
+                                        await redis.hset(
+                                            f"job:{job_id}:phases", _current_phase_id, _json.dumps(existing_entry)
+                                        )
                             # Start new phase
                             new_phase_id = str(_uuid_mod.uuid4())
                             _current_phase_id = new_phase_id
@@ -659,12 +680,15 @@ class AutonomousRunner:
                             )
                             if redis:
                                 import json as _json2
+
                                 await redis.hset(f"job:{job_id}:phases", new_phase_id, _json2.dumps(phase_data))
 
                     # ---- Phase 46: Emit agent.tool.called after successful dispatch ----
                     if state_machine:
-                        from datetime import UTC, datetime as _dt3
+                        from datetime import UTC
+
                         from app.queue.state_machine import SSEEventType as _SSEEventType3
+
                         await state_machine.publish_event(
                             job_id,
                             {
@@ -681,11 +705,13 @@ class AutonomousRunner:
                     if isinstance(result, str):
                         result = guard.truncate_tool_result(result)
 
-                    tool_results.append({
-                        "type": "tool_result",
-                        "tool_use_id": tool_block.id,
-                        "content": result,
-                    })
+                    tool_results.append(
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": tool_block.id,
+                            "content": result,
+                        }
+                    )
 
                 # ---- REPEAT: append tool results, continue loop ----
                 # Skip normal append if steering already injected the user turn

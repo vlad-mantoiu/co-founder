@@ -53,9 +53,7 @@ def fake_redis():
 @pytest.fixture
 def test_user():
     """Test user for auth override."""
-    return ClerkUser(
-        user_id="user_phase46_test", claims={"sub": "user_phase46_test"}
-    )
+    return ClerkUser(user_id="user_phase46_test", claims={"sub": "user_phase46_test"})
 
 
 def override_auth(user: ClerkUser):
@@ -305,11 +303,19 @@ def test_agent_state_in_job_status(client: TestClient, fake_redis, test_user):
     # Patch both to avoid needing a live database
     mock_settings = MagicMock()
     mock_settings.plan_tier.slug = "bootstrapper"
-    with patch("app.api.routes.jobs.get_or_create_user_settings", new=AsyncMock(return_value=mock_settings)), \
-         patch("app.api.routes.jobs.UsageTracker") as mock_tracker_cls:
+    with (
+        patch("app.api.routes.jobs.get_or_create_user_settings", new=AsyncMock(return_value=mock_settings)),
+        patch("app.api.routes.jobs.UsageTracker") as mock_tracker_cls,
+    ):
         mock_tracker = MagicMock()
         mock_tracker.get_usage_counters = AsyncMock(
-            return_value=UsageCounters(jobs_used=0, jobs_remaining=5, iterations_used=0, iterations_remaining=10, daily_limit_resets_at="2026-03-02T00:00:00+00:00")
+            return_value=UsageCounters(
+                jobs_used=0,
+                jobs_remaining=5,
+                iterations_used=0,
+                iterations_remaining=10,
+                daily_limit_resets_at="2026-03-02T00:00:00+00:00",
+            )
         )
         mock_tracker_cls.return_value = mock_tracker
 
@@ -331,11 +337,19 @@ def test_agent_state_null_when_no_redis_key(client: TestClient, fake_redis, test
 
     mock_settings = MagicMock()
     mock_settings.plan_tier.slug = "bootstrapper"
-    with patch("app.api.routes.jobs.get_or_create_user_settings", new=AsyncMock(return_value=mock_settings)), \
-         patch("app.api.routes.jobs.UsageTracker") as mock_tracker_cls:
+    with (
+        patch("app.api.routes.jobs.get_or_create_user_settings", new=AsyncMock(return_value=mock_settings)),
+        patch("app.api.routes.jobs.UsageTracker") as mock_tracker_cls,
+    ):
         mock_tracker = MagicMock()
         mock_tracker.get_usage_counters = AsyncMock(
-            return_value=UsageCounters(jobs_used=0, jobs_remaining=5, iterations_used=0, iterations_remaining=10, daily_limit_resets_at="2026-03-02T00:00:00+00:00")
+            return_value=UsageCounters(
+                jobs_used=0,
+                jobs_remaining=5,
+                iterations_used=0,
+                iterations_remaining=10,
+                daily_limit_resets_at="2026-03-02T00:00:00+00:00",
+            )
         )
         mock_tracker_cls.return_value = mock_tracker
 
@@ -359,11 +373,19 @@ def test_agent_state_sleeping_includes_wake_at(client: TestClient, fake_redis, t
 
     mock_settings = MagicMock()
     mock_settings.plan_tier.slug = "bootstrapper"
-    with patch("app.api.routes.jobs.get_or_create_user_settings", new=AsyncMock(return_value=mock_settings)), \
-         patch("app.api.routes.jobs.UsageTracker") as mock_tracker_cls:
+    with (
+        patch("app.api.routes.jobs.get_or_create_user_settings", new=AsyncMock(return_value=mock_settings)),
+        patch("app.api.routes.jobs.UsageTracker") as mock_tracker_cls,
+    ):
         mock_tracker = MagicMock()
         mock_tracker.get_usage_counters = AsyncMock(
-            return_value=UsageCounters(jobs_used=0, jobs_remaining=5, iterations_used=0, iterations_remaining=10, daily_limit_resets_at="2026-03-02T00:00:00+00:00")
+            return_value=UsageCounters(
+                jobs_used=0,
+                jobs_remaining=5,
+                iterations_used=0,
+                iterations_remaining=10,
+                daily_limit_resets_at="2026-03-02T00:00:00+00:00",
+            )
         )
         mock_tracker_cls.return_value = mock_tracker
 

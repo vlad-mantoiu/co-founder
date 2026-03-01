@@ -19,7 +19,7 @@ so no real API calls are made. Covers:
 from __future__ import annotations
 
 import itertools
-from typing import AsyncIterator
+from collections.abc import AsyncIterator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -35,6 +35,7 @@ pytestmark = pytest.mark.unit
 # Mock stream infrastructure
 # ---------------------------------------------------------------------------
 
+
 class MockStream:
     """Simulates AsyncMessageStreamManager context manager.
 
@@ -48,7 +49,7 @@ class MockStream:
         self._responses = iter(responses)
         self._current: MagicMock | None = None
 
-    async def __aenter__(self) -> "MockStream":
+    async def __aenter__(self) -> MockStream:
         self._current = next(self._responses)
         return self
 
@@ -144,7 +145,7 @@ class InfiniteToolStream:
         self._tool_input = tool_input
         self._counter = itertools.count()
 
-    async def __aenter__(self) -> "InfiniteToolStream":
+    async def __aenter__(self) -> InfiniteToolStream:
         self._current_id = f"tu_{next(self._counter):03d}"
         return self
 
@@ -157,12 +158,10 @@ class InfiniteToolStream:
 
     async def _empty(self) -> AsyncIterator[str]:
         return
-        yield  # noqa: unreachable — makes this an async generator
+        yield  # noqa: F401 — makes this an async generator
 
     async def get_final_message(self) -> MagicMock:
-        tool_block = make_tool_use_block(
-            self._tool_name, self._tool_input, tool_id=self._current_id
-        )
+        tool_block = make_tool_use_block(self._tool_name, self._tool_input, tool_id=self._current_id)
         response = MagicMock()
         response.stop_reason = "tool_use"
         response.content = [tool_block]
@@ -188,6 +187,7 @@ class InfiniteToolStreamManager:
 # Base context factory
 # ---------------------------------------------------------------------------
 
+
 def _base_context(**overrides) -> dict:
     """Return a minimal valid context dict for run_agent_loop()."""
     ctx = {
@@ -208,6 +208,7 @@ def _base_context(**overrides) -> dict:
 # Test 1: end_turn → completed
 # ---------------------------------------------------------------------------
 
+
 async def test_loop_reaches_end_turn():
     """Loop returns status='completed' when stop_reason='end_turn'."""
     runner = AutonomousRunner()
@@ -225,6 +226,7 @@ async def test_loop_reaches_end_turn():
 # ---------------------------------------------------------------------------
 # Test 2: tool dispatch → InMemoryToolDispatcher fs updated
 # ---------------------------------------------------------------------------
+
 
 async def test_loop_dispatches_tools():
     """Tool_use block dispatched to InMemoryToolDispatcher; loop completes after second turn."""
@@ -263,6 +265,7 @@ async def test_loop_dispatches_tools():
 # Test 3: iteration cap → iteration_limit_reached
 # ---------------------------------------------------------------------------
 
+
 async def test_loop_iteration_cap():
     """Loop returns 'iteration_limit_reached' when MAX_TOOL_CALLS exceeded."""
     runner = AutonomousRunner()
@@ -278,6 +281,7 @@ async def test_loop_iteration_cap():
 # ---------------------------------------------------------------------------
 # Test 4: first-strike repetition → steering, loop continues
 # ---------------------------------------------------------------------------
+
 
 async def test_loop_repetition_first_strike_continues():
     """3x identical tool call triggers first-strike steering; loop continues and eventually completes."""
@@ -308,9 +312,7 @@ async def test_loop_repetition_first_strike_continues():
         return next(stream_iter)
 
     with patch.object(runner._client.messages, "stream", side_effect=get_stream):
-        result = await runner.run_agent_loop(
-            _base_context(dispatcher=dispatcher, max_tool_calls=50)
-        )
+        result = await runner.run_agent_loop(_base_context(dispatcher=dispatcher, max_tool_calls=50))
 
     # First strike does NOT terminate — loop continues and completes
     assert result["status"] == "completed"
@@ -320,6 +322,7 @@ async def test_loop_repetition_first_strike_continues():
 # ---------------------------------------------------------------------------
 # Test 4b: second-strike repetition → repetition_detected
 # ---------------------------------------------------------------------------
+
 
 async def test_loop_repetition_second_strike_terminates():
     """Two waves of 3x identical tool calls: first steers, second terminates."""
@@ -357,10 +360,6 @@ async def test_loop_repetition_second_strike_terminates():
     def get_stream(**kwargs):
         return next(stream_iter)
 
-    injected_messages: list = []
-
-    original_stream = runner._client.messages.stream
-
     # Capture messages to verify steering content
     captured_messages: list = []
 
@@ -369,9 +368,7 @@ async def test_loop_repetition_second_strike_terminates():
         return next(stream_iter)
 
     with patch.object(runner._client.messages, "stream", side_effect=get_stream_and_capture):
-        result = await runner.run_agent_loop(
-            _base_context(dispatcher=dispatcher, max_tool_calls=50)
-        )
+        result = await runner.run_agent_loop(_base_context(dispatcher=dispatcher, max_tool_calls=50))
 
     assert result["status"] == "repetition_detected"
 
@@ -384,6 +381,7 @@ async def test_loop_repetition_second_strike_terminates():
 # ---------------------------------------------------------------------------
 # Test 5: tool result truncation
 # ---------------------------------------------------------------------------
+
 
 async def test_loop_tool_result_truncation():
     """Tool results >1000 words are middle-truncated before appending to message history."""
@@ -422,14 +420,13 @@ async def test_loop_tool_result_truncation():
                         tool_result_content = item.get("content", "")
 
     assert tool_result_content is not None, "No tool_result found in messages"
-    assert "words omitted" in tool_result_content, (
-        f"Expected truncation marker in: {tool_result_content[:200]}"
-    )
+    assert "words omitted" in tool_result_content, f"Expected truncation marker in: {tool_result_content[:200]}"
 
 
 # ---------------------------------------------------------------------------
 # Test 6: system prompt contains idea_brief
 # ---------------------------------------------------------------------------
+
 
 async def test_system_prompt_contains_idea_brief():
     """System prompt passed to Anthropic API contains the idea_brief content verbatim."""
@@ -444,9 +441,7 @@ async def test_system_prompt_contains_idea_brief():
         return stream
 
     with patch.object(runner._client.messages, "stream", side_effect=get_stream):
-        await runner.run_agent_loop(
-            _base_context(idea_brief={"problem": "Too many pointless meetings"})
-        )
+        await runner.run_agent_loop(_base_context(idea_brief={"problem": "Too many pointless meetings"}))
 
     assert len(captured_kwargs) > 0
     system_prompt = captured_kwargs[0]["system"]
@@ -456,6 +451,7 @@ async def test_system_prompt_contains_idea_brief():
 # ---------------------------------------------------------------------------
 # Test 7: system prompt contains QnA
 # ---------------------------------------------------------------------------
+
 
 async def test_system_prompt_contains_qna():
     """System prompt contains both question and answer from understanding_qna."""
@@ -471,9 +467,7 @@ async def test_system_prompt_contains_qna():
 
     with patch.object(runner._client.messages, "stream", side_effect=get_stream):
         await runner.run_agent_loop(
-            _base_context(
-                understanding_qna=[{"question": "Revenue model?", "answer": "Monthly SaaS subscription"}]
-            )
+            _base_context(understanding_qna=[{"question": "Revenue model?", "answer": "Monthly SaaS subscription"}])
         )
 
     assert len(captured_kwargs) > 0
@@ -485,6 +479,7 @@ async def test_system_prompt_contains_qna():
 # ---------------------------------------------------------------------------
 # Test 8: narration written to streamer
 # ---------------------------------------------------------------------------
+
 
 async def test_narration_written_to_streamer():
     """Narration text from text_stream is flushed via write_event on sentence boundaries."""
@@ -508,9 +503,7 @@ async def test_narration_written_to_streamer():
 
     with patch.object(runner._client.messages, "stream", return_value=stream):
         with patch("app.agent.runner_autonomous.LogStreamer", return_value=mock_streamer):
-            await runner.run_agent_loop(
-                _base_context(redis=mock_redis, job_id="job-narrate-test")
-            )
+            await runner.run_agent_loop(_base_context(redis=mock_redis, job_id="job-narrate-test"))
 
     # write_event must have been called with the narration text
     assert mock_write_event.called
@@ -522,14 +515,13 @@ async def test_narration_written_to_streamer():
 # Test 9: tool dispatch error → error string, loop continues
 # ---------------------------------------------------------------------------
 
+
 async def test_tool_error_returns_error_string():
     """Tool dispatch exception is captured as an error string; loop does NOT crash."""
     runner = AutonomousRunner()
 
     # Dispatcher that raises RuntimeError on first bash call
-    dispatcher = InMemoryToolDispatcher(
-        failure_map={("bash", 0): RuntimeError("sandbox unavailable")}
-    )
+    dispatcher = InMemoryToolDispatcher(failure_map={("bash", 0): RuntimeError("sandbox unavailable")})
 
     tool_block = make_tool_use_block("bash", {"command": "ls"}, tool_id="tu_err")
     r1 = make_response(stop_reason="tool_use", tool_use_blocks=[tool_block])
@@ -558,9 +550,8 @@ async def test_tool_error_returns_error_string():
 # Test 10: protocol compliance
 # ---------------------------------------------------------------------------
 
+
 def test_runner_still_satisfies_protocol():
     """isinstance(AutonomousRunner(), Runner) returns True after Phase 41 implementation."""
     runner = AutonomousRunner()
-    assert isinstance(runner, Runner), (
-        "AutonomousRunner must satisfy Runner protocol after Phase 41 implementation"
-    )
+    assert isinstance(runner, Runner), "AutonomousRunner must satisfy Runner protocol after Phase 41 implementation"

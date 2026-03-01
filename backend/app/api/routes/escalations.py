@@ -108,9 +108,7 @@ async def get_escalation(
     """
     session_factory = get_session_factory()
     async with session_factory() as session:
-        result = await session.execute(
-            select(AgentEscalation).where(AgentEscalation.id == escalation_id)
-        )
+        result = await session.execute(select(AgentEscalation).where(AgentEscalation.id == escalation_id))
         esc = result.scalar_one_or_none()
 
     if esc is None:
@@ -136,9 +134,7 @@ async def list_job_escalations(
     session_factory = get_session_factory()
     async with session_factory() as session:
         result = await session.execute(
-            select(AgentEscalation)
-            .where(AgentEscalation.job_id == job_id)
-            .order_by(AgentEscalation.created_at.desc())
+            select(AgentEscalation).where(AgentEscalation.job_id == job_id).order_by(AgentEscalation.created_at.desc())
         )
         escalations = result.scalars().all()
 
@@ -173,9 +169,7 @@ async def resolve_escalation(
     """
     session_factory = get_session_factory()
     async with session_factory() as session:
-        result = await session.execute(
-            select(AgentEscalation).where(AgentEscalation.id == escalation_id)
-        )
+        result = await session.execute(select(AgentEscalation).where(AgentEscalation.id == escalation_id))
         esc = result.scalar_one_or_none()
 
         if esc is None:
@@ -196,6 +190,7 @@ async def resolve_escalation(
 
         # Emit agent.escalation_resolved SSE for cross-session visibility (AGNT-08)
         from app.queue.state_machine import JobStateMachine, SSEEventType
+
         _sm = JobStateMachine(redis)
         await _sm.publish_event(
             esc.job_id,

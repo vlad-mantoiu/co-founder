@@ -20,14 +20,13 @@ Verifies:
 
 from __future__ import annotations
 
-from typing import AsyncIterator
+from collections.abc import AsyncIterator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import fakeredis.aioredis
 import pytest
 
 from app.agent.runner_autonomous import AutonomousRunner
-from app.agent.tools.e2b_dispatcher import E2BToolDispatcher
 from app.queue.schemas import JobStatus
 from app.queue.state_machine import JobStateMachine
 from app.services.generation_service import GenerationService
@@ -79,7 +78,7 @@ class MockTextStream:
         self._responses = iter(responses)
         self._current: MagicMock | None = None
 
-    async def __aenter__(self) -> "MockTextStream":
+    async def __aenter__(self) -> MockTextStream:
         self._current = next(self._responses)
         return self
 
@@ -180,11 +179,13 @@ def _make_db_session_with_artifacts() -> AsyncMock:
     fetchall_result = MagicMock()
     fetchall_result.fetchall = MagicMock(return_value=[])
 
-    db.execute = AsyncMock(side_effect=[
-        idea_brief_result,
-        u_session_result,
-        fetchall_result,
-    ])
+    db.execute = AsyncMock(
+        side_effect=[
+            idea_brief_result,
+            u_session_result,
+            fetchall_result,
+        ]
+    )
     return db
 
 
@@ -221,9 +222,6 @@ async def test_e2e_autonomous_build_pipeline():
         return await original_transition(jid, status, message, **kwargs)
 
     sm.transition = recording_transition
-
-    # Capture the context passed to run_agent_loop
-    captured_contexts: list[dict] = []
 
     # Build a REAL AutonomousRunner (not a mock) — wired to a mocked Anthropic client
     runner = AutonomousRunner(api_key="fake-key-for-test")
@@ -283,14 +281,20 @@ async def test_e2e_autonomous_build_pipeline():
     mock_wake.wake_event.wait = AsyncMock()
     mock_wake.wake_event.clear = MagicMock()
 
-    with patch.object(runner._client.messages, "stream", side_effect=get_stream), \
-         patch("app.services.generation_service._get_settings", return_value=settings), \
-         patch("app.services.generation_service.get_session_factory", return_value=mock_factory), \
-         patch("app.services.generation_service.resolve_llm_config", new_callable=AsyncMock, return_value="claude-sonnet-4-20250514"), \
-         patch("app.services.generation_service.BudgetService", return_value=mock_budget_svc), \
-         patch("app.services.generation_service.CheckpointService", return_value=mock_checkpoint_svc), \
-         patch("app.services.generation_service.WakeDaemon", return_value=mock_wake), \
-         patch("app.services.generation_service.asyncio.create_task"):
+    with (
+        patch.object(runner._client.messages, "stream", side_effect=get_stream),
+        patch("app.services.generation_service._get_settings", return_value=settings),
+        patch("app.services.generation_service.get_session_factory", return_value=mock_factory),
+        patch(
+            "app.services.generation_service.resolve_llm_config",
+            new_callable=AsyncMock,
+            return_value="claude-sonnet-4-20250514",
+        ),
+        patch("app.services.generation_service.BudgetService", return_value=mock_budget_svc),
+        patch("app.services.generation_service.CheckpointService", return_value=mock_checkpoint_svc),
+        patch("app.services.generation_service.WakeDaemon", return_value=mock_wake),
+        patch("app.services.generation_service.asyncio.create_task"),
+    ):
         result = await service.execute_build(job_id, job_data, sm, redis)
 
     # 1. run_agent_loop() was called — the TAOR loop executed
@@ -313,9 +317,7 @@ async def test_e2e_autonomous_build_pipeline():
     starting_idx = observed_transitions.index(JobStatus.STARTING)
     scaffold_idx = observed_transitions.index(JobStatus.SCAFFOLD)
     code_idx = observed_transitions.index(JobStatus.CODE)
-    assert starting_idx < scaffold_idx < code_idx, (
-        f"Transitions out of order: {observed_transitions}"
-    )
+    assert starting_idx < scaffold_idx < code_idx, f"Transitions out of order: {observed_transitions}"
 
     # 4. Sandbox was started
     assert fake_sandbox._started is True, "Sandbox was never started"

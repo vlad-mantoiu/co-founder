@@ -14,13 +14,12 @@ import pytest
 
 from app.agent.error.classifier import ErrorCategory
 from app.agent.error.tracker import (
-    MAX_RETRIES_PER_SIGNATURE,
     GLOBAL_ESCALATION_THRESHOLD,
+    MAX_RETRIES_PER_SIGNATURE,
     ErrorSignatureTracker,
     _build_escalation_options,
     _build_retry_tool_result,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -172,6 +171,7 @@ class TestRecordAndCheck:
         """Simulates wake-from-checkpoint where retry_counts already has entries."""
         # Pre-populate to simulate 2 prior failures
         from app.agent.error.classifier import build_error_signature
+
         sig = build_error_signature("proj-test", "SyntaxError", "bad code")
         shared_counts = {sig: 2}
         tracker = make_tracker(retry_counts=shared_counts)

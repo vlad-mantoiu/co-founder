@@ -50,7 +50,7 @@ class CheckpointService:
         daily_budget_microdollars: int,
         iteration_number: int,
         agent_state: str,
-        db: "AsyncSession",
+        db: AsyncSession,
     ) -> None:
         """Upsert checkpoint for session_id — insert if new, update if existing.
 
@@ -73,9 +73,7 @@ class CheckpointService:
         bound = logger.bind(session_id=session_id, job_id=job_id, iteration=iteration_number)
         try:
             # Query for existing checkpoint
-            result = await db.execute(
-                select(AgentCheckpoint).where(AgentCheckpoint.session_id == session_id)
-            )
+            result = await db.execute(select(AgentCheckpoint).where(AgentCheckpoint.session_id == session_id))
             existing = result.scalar_one_or_none()
 
             if existing is not None:
@@ -117,7 +115,7 @@ class CheckpointService:
             )
             # Non-fatal — never re-raise
 
-    async def restore(self, session_id: str, db: "AsyncSession") -> AgentCheckpoint | None:
+    async def restore(self, session_id: str, db: AsyncSession) -> AgentCheckpoint | None:
         """Return the latest AgentCheckpoint for session_id, or None if none exists.
 
         Orders by updated_at DESC so the most recent checkpoint is returned
@@ -152,7 +150,7 @@ class CheckpointService:
             )
             return None
 
-    async def delete(self, session_id: str, db: "AsyncSession") -> None:
+    async def delete(self, session_id: str, db: AsyncSession) -> None:
         """Delete all checkpoints for session_id (cleanup after successful completion).
 
         Args:
@@ -161,9 +159,7 @@ class CheckpointService:
         """
         bound = logger.bind(session_id=session_id)
         try:
-            await db.execute(
-                delete(AgentCheckpoint).where(AgentCheckpoint.session_id == session_id)
-            )
+            await db.execute(delete(AgentCheckpoint).where(AgentCheckpoint.session_id == session_id))
             await db.commit()
             bound.debug("checkpoint_deleted")
         except Exception as exc:

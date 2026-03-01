@@ -8,14 +8,11 @@ Tests for:
 
 import hashlib
 
-import pytest
-
 from app.agent.error.classifier import (
     ErrorCategory,
     build_error_signature,
     classify_error,
 )
-
 
 # ---------------------------------------------------------------------------
 # ErrorCategory enum tests

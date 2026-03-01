@@ -73,7 +73,7 @@ class S3SnapshotService:
         S3 key format: projects/{project_id}/snapshots/{YYYYMMDDTHHMMSSZ}.tar.gz
         (Pure numeric timestamp — sorts lexicographically per Pitfall 5, RESEARCH.md)
         """
-        timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        timestamp = datetime.datetime.now(datetime.UTC).strftime("%Y%m%dT%H%M%SZ")
         s3_key = f"projects/{project_id}/snapshots/{timestamp}.tar.gz"
 
         # Build tar command with all exclusions
@@ -85,15 +85,10 @@ class S3SnapshotService:
                 # Step 1: Create tar archive inside the sandbox
                 result = await runtime.run_command(tar_cmd, timeout=120)
                 if result.get("exit_code", 1) != 0:
-                    raise RuntimeError(
-                        f"tar failed (exit {result.get('exit_code')}): "
-                        f"{result.get('stderr', '')[:200]}"
-                    )
+                    raise RuntimeError(f"tar failed (exit {result.get('exit_code')}): {result.get('stderr', '')[:200]}")
 
                 # Step 2: Read tar bytes from sandbox filesystem
-                tar_bytes = await runtime._sandbox.files.read(
-                    "/tmp/snap.tar.gz", format="bytes"
-                )
+                tar_bytes = await runtime._sandbox.files.read("/tmp/snap.tar.gz", format="bytes")
 
                 # Step 3: Upload to S3 (blocking boto3 wrapped in thread)
                 await asyncio.to_thread(self._put_s3, s3_key, tar_bytes)
@@ -131,7 +126,7 @@ class S3SnapshotService:
         """
         try:
             info = await runtime._sandbox.get_info()
-            now = datetime.datetime.now(datetime.timezone.utc)
+            now = datetime.datetime.now(datetime.UTC)
             # end_at is timezone-aware (UTC) — must use aware now() for subtraction
             # (Per Pitfall 6 in RESEARCH.md: datetime.utcnow() is naive, don't use it)
             remaining = (info.end_at - now).total_seconds()

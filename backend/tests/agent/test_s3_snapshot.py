@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import datetime
 import re
-from unittest.mock import AsyncMock, MagicMock, call, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -36,7 +36,7 @@ def mock_runtime():
 
     # TTL management mocks
     mock_info = MagicMock()
-    mock_info.end_at = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
+    mock_info.end_at = datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=1)
     runtime._sandbox.get_info = AsyncMock(return_value=mock_info)
     runtime._sandbox.set_timeout = AsyncMock()
 
@@ -202,9 +202,7 @@ async def test_prune_keeps_last_5(mock_runtime):
     from app.agent.sync.s3_snapshot import S3SnapshotService
 
     # Build 7 fake S3 objects, sorted newest-first by key
-    objects = [
-        {"Key": f"projects/p/snapshots/20260226T{i:06d}Z.tar.gz"} for i in range(700000, 693000, -1000)
-    ]
+    objects = [{"Key": f"projects/p/snapshots/20260226T{i:06d}Z.tar.gz"} for i in range(700000, 693000, -1000)]
     # That gives: 700000, 699000, 698000, 697000, 696000, 695000, 694000 — 7 objects newest-first
 
     s3_client = MagicMock()
@@ -235,9 +233,7 @@ async def test_prune_no_delete_when_under_limit(mock_runtime):
     """_prune_old_snapshots() does NOT call delete_objects when <= 5 snapshots exist."""
     from app.agent.sync.s3_snapshot import S3SnapshotService
 
-    objects = [
-        {"Key": f"projects/p/snapshots/20260226T{i:06d}Z.tar.gz"} for i in range(300000, 297000, -1000)
-    ]
+    objects = [{"Key": f"projects/p/snapshots/20260226T{i:06d}Z.tar.gz"} for i in range(300000, 297000, -1000)]
     # 3 objects — under the 5-snapshot limit
 
     s3_client = MagicMock()
@@ -264,7 +260,7 @@ async def test_maybe_extend_ttl_extends_when_low(snapshot_service, mock_runtime)
     """maybe_extend_ttl() calls set_timeout when remaining time < 5 minutes."""
     # Set end_at to 3 minutes from now (below 5-minute threshold)
     mock_runtime._sandbox.get_info.return_value = MagicMock(
-        end_at=datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=3)
+        end_at=datetime.datetime.now(datetime.UTC) + datetime.timedelta(minutes=3)
     )
 
     await snapshot_service.maybe_extend_ttl(mock_runtime)
@@ -285,7 +281,7 @@ async def test_maybe_extend_ttl_skips_when_healthy(snapshot_service, mock_runtim
     """maybe_extend_ttl() does NOT call set_timeout when > 5 minutes remain."""
     # Set end_at to 30 minutes from now (well above 5-minute threshold)
     mock_runtime._sandbox.get_info.return_value = MagicMock(
-        end_at=datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=30)
+        end_at=datetime.datetime.now(datetime.UTC) + datetime.timedelta(minutes=30)
     )
 
     await snapshot_service.maybe_extend_ttl(mock_runtime)

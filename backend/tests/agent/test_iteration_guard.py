@@ -9,8 +9,8 @@ All tests are async (pytest-asyncio auto mode).
 """
 
 import pytest
-from app.agent.loop.safety import IterationGuard, IterationCapError, RepetitionError
 
+from app.agent.loop.safety import IterationCapError, IterationGuard, RepetitionError
 
 # ---------------------------------------------------------------------------
 # Iteration cap tests

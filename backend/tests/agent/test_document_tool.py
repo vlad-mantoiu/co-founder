@@ -25,7 +25,6 @@ from app.agent.tools.dispatcher import InMemoryToolDispatcher
 from app.agent.tools.e2b_dispatcher import E2BToolDispatcher
 from app.queue.state_machine import SSEEventType
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -62,9 +61,7 @@ async def test_document_tool_in_agent_tools():
 
     section_prop = schema["properties"]["section"]
     assert "enum" in section_prop, "section property must have an enum"
-    assert len(section_prop["enum"]) == 4, (
-        f"section enum must have exactly 4 values, got: {section_prop['enum']}"
-    )
+    assert len(section_prop["enum"]) == 4, f"section enum must have exactly 4 values, got: {section_prop['enum']}"
 
 
 # ---------------------------------------------------------------------------

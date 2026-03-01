@@ -1,6 +1,6 @@
 """AgentCheckpoint model — durable PostgreSQL storage for agent message history and budget state."""
 
-from sqlalchemy import Column, DateTime, Integer, JSON, String
+from sqlalchemy import JSON, Column, DateTime, Integer, String
 from sqlalchemy.sql import func
 
 from app.db.base import Base

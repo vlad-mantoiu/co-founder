@@ -65,8 +65,10 @@ class TestGenerateUnderstandingQuestions:
         ]
         factory, invoke_mock, _ = _mock_create_tracked_llm_and_invoke(json.dumps(questions))
 
-        with patch("app.agent.runner_real.create_tracked_llm", side_effect=factory), \
-             patch("app.agent.runner_real._invoke_with_retry", invoke_mock):
+        with (
+            patch("app.agent.runner_real.create_tracked_llm", side_effect=factory),
+            patch("app.agent.runner_real._invoke_with_retry", invoke_mock),
+        ):
             result = await runner.generate_understanding_questions(
                 {
                     "idea_text": "An inventory tracker for small shops",
@@ -95,8 +97,10 @@ class TestGenerateUnderstandingQuestions:
         fenced = f"```json\n{json.dumps(questions)}\n```"
         factory, invoke_mock, _ = _mock_create_tracked_llm_and_invoke(fenced)
 
-        with patch("app.agent.runner_real.create_tracked_llm", side_effect=factory), \
-             patch("app.agent.runner_real._invoke_with_retry", invoke_mock):
+        with (
+            patch("app.agent.runner_real.create_tracked_llm", side_effect=factory),
+            patch("app.agent.runner_real._invoke_with_retry", invoke_mock),
+        ):
             result = await runner.generate_understanding_questions(
                 {
                     "idea_text": "test",
@@ -124,8 +128,10 @@ class TestGenerateIdeaBrief:
         }
         factory, invoke_mock, _ = _mock_create_tracked_llm_and_invoke(json.dumps(brief))
 
-        with patch("app.agent.runner_real.create_tracked_llm", side_effect=factory), \
-             patch("app.agent.runner_real._invoke_with_retry", invoke_mock):
+        with (
+            patch("app.agent.runner_real.create_tracked_llm", side_effect=factory),
+            patch("app.agent.runner_real._invoke_with_retry", invoke_mock),
+        ):
             result = await runner.generate_idea_brief(
                 idea="Inventory tracker",
                 questions=[{"id": "q1", "text": "Who?"}],
@@ -142,8 +148,10 @@ class TestCheckQuestionRelevance:
         relevance = {"needs_regeneration": False, "preserve_indices": [0, 1]}
         factory, invoke_mock, _ = _mock_create_tracked_llm_and_invoke(json.dumps(relevance))
 
-        with patch("app.agent.runner_real.create_tracked_llm", side_effect=factory), \
-             patch("app.agent.runner_real._invoke_with_retry", invoke_mock):
+        with (
+            patch("app.agent.runner_real.create_tracked_llm", side_effect=factory),
+            patch("app.agent.runner_real._invoke_with_retry", invoke_mock),
+        ):
             result = await runner.check_question_relevance(
                 idea="Test idea",
                 answered=[{"id": "q1", "text": "Q1"}],
@@ -160,8 +168,10 @@ class TestAssessSectionConfidence:
     async def test_returns_strong(self, runner):
         factory, invoke_mock, _ = _mock_create_tracked_llm_and_invoke("strong")
 
-        with patch("app.agent.runner_real.create_tracked_llm", side_effect=factory), \
-             patch("app.agent.runner_real._invoke_with_retry", invoke_mock):
+        with (
+            patch("app.agent.runner_real.create_tracked_llm", side_effect=factory),
+            patch("app.agent.runner_real._invoke_with_retry", invoke_mock),
+        ):
             result = await runner.assess_section_confidence(
                 "problem_statement",
                 "We validated this through 12 customer interviews with specific data points.",
@@ -175,8 +185,10 @@ class TestAssessSectionConfidence:
             "Based on the evidence, I would assess this as moderate confidence."
         )
 
-        with patch("app.agent.runner_real.create_tracked_llm", side_effect=factory), \
-             patch("app.agent.runner_real._invoke_with_retry", invoke_mock):
+        with (
+            patch("app.agent.runner_real.create_tracked_llm", side_effect=factory),
+            patch("app.agent.runner_real._invoke_with_retry", invoke_mock),
+        ):
             result = await runner.assess_section_confidence("target_user", "Some vague description")
 
         assert result == "moderate"
@@ -185,8 +197,10 @@ class TestAssessSectionConfidence:
     async def test_defaults_to_moderate(self, runner):
         factory, invoke_mock, _ = _mock_create_tracked_llm_and_invoke("I'm not sure how to assess this.")
 
-        with patch("app.agent.runner_real.create_tracked_llm", side_effect=factory), \
-             patch("app.agent.runner_real._invoke_with_retry", invoke_mock):
+        with (
+            patch("app.agent.runner_real.create_tracked_llm", side_effect=factory),
+            patch("app.agent.runner_real._invoke_with_retry", invoke_mock),
+        ):
             result = await runner.assess_section_confidence("value_prop", "Something")
 
         assert result == "moderate"
@@ -204,8 +218,10 @@ class TestGenerateExecutionOptions:
         }
         factory, invoke_mock, _ = _mock_create_tracked_llm_and_invoke(json.dumps(options))
 
-        with patch("app.agent.runner_real.create_tracked_llm", side_effect=factory), \
-             patch("app.agent.runner_real._invoke_with_retry", invoke_mock):
+        with (
+            patch("app.agent.runner_real.create_tracked_llm", side_effect=factory),
+            patch("app.agent.runner_real._invoke_with_retry", invoke_mock),
+        ):
             result = await runner.generate_execution_options(
                 brief={"problem_statement": "Test"},
             )
@@ -227,8 +243,10 @@ class TestGenerateArtifacts:
         }
         factory, invoke_mock, _ = _mock_create_tracked_llm_and_invoke(json.dumps(artifacts))
 
-        with patch("app.agent.runner_real.create_tracked_llm", side_effect=factory), \
-             patch("app.agent.runner_real._invoke_with_retry", invoke_mock):
+        with (
+            patch("app.agent.runner_real.create_tracked_llm", side_effect=factory),
+            patch("app.agent.runner_real._invoke_with_retry", invoke_mock),
+        ):
             result = await runner.generate_artifacts(
                 brief={"problem_statement": "Test"},
             )
@@ -250,8 +268,10 @@ class TestJsonRetryOnMalformedOutput:
         # First call returns bad JSON, second returns good
         invoke_mock = AsyncMock(side_effect=["Here are the questions:\n{invalid json}", valid_questions])
 
-        with patch("app.agent.runner_real.create_tracked_llm", side_effect=factory), \
-             patch("app.agent.runner_real._invoke_with_retry", invoke_mock):
+        with (
+            patch("app.agent.runner_real.create_tracked_llm", side_effect=factory),
+            patch("app.agent.runner_real._invoke_with_retry", invoke_mock),
+        ):
             result = await runner.generate_understanding_questions(
                 {
                     "idea_text": "test",
@@ -271,11 +291,11 @@ class TestJsonRetryOnMalformedOutput:
 
         invoke_mock = AsyncMock(side_effect=["not json at all", valid_questions])
 
-        with patch("app.agent.runner_real.create_tracked_llm", side_effect=factory), \
-             patch("app.agent.runner_real._invoke_with_retry", invoke_mock):
-            await runner.generate_understanding_questions(
-                {"idea_text": "test", "user_id": "u1", "session_id": "s1"}
-            )
+        with (
+            patch("app.agent.runner_real.create_tracked_llm", side_effect=factory),
+            patch("app.agent.runner_real._invoke_with_retry", invoke_mock),
+        ):
+            await runner.generate_understanding_questions({"idea_text": "test", "user_id": "u1", "session_id": "s1"})
 
         # Second call should have strict system prompt
         second_call_system = invoke_mock.call_args_list[1][0][1]  # positional arg[1] = system
@@ -300,8 +320,10 @@ class TestTierDifferentiation:
         ]
         factory, invoke_mock, _ = _mock_create_tracked_llm_and_invoke(json.dumps(questions))
 
-        with patch("app.agent.runner_real.create_tracked_llm", side_effect=factory), \
-             patch("app.agent.runner_real._invoke_with_retry", invoke_mock):
+        with (
+            patch("app.agent.runner_real.create_tracked_llm", side_effect=factory),
+            patch("app.agent.runner_real._invoke_with_retry", invoke_mock),
+        ):
             await runner.generate_understanding_questions(
                 {
                     "idea_text": "test",
@@ -332,8 +354,10 @@ class TestTierDifferentiation:
         ]
         factory, invoke_mock, _ = _mock_create_tracked_llm_and_invoke(json.dumps(questions))
 
-        with patch("app.agent.runner_real.create_tracked_llm", side_effect=factory), \
-             patch("app.agent.runner_real._invoke_with_retry", invoke_mock):
+        with (
+            patch("app.agent.runner_real.create_tracked_llm", side_effect=factory),
+            patch("app.agent.runner_real._invoke_with_retry", invoke_mock),
+        ):
             await runner.generate_understanding_questions(
                 {
                     "idea_text": "test",
@@ -354,8 +378,10 @@ class TestCofounderVoice:
         """Verify system prompts contain co-founder voice markers."""
         factory, invoke_mock, _ = _mock_create_tracked_llm_and_invoke("[]")
 
-        with patch("app.agent.runner_real.create_tracked_llm", side_effect=factory), \
-             patch("app.agent.runner_real._invoke_with_retry", invoke_mock):
+        with (
+            patch("app.agent.runner_real.create_tracked_llm", side_effect=factory),
+            patch("app.agent.runner_real._invoke_with_retry", invoke_mock),
+        ):
             await runner.generate_understanding_questions(
                 {
                     "idea_text": "test",

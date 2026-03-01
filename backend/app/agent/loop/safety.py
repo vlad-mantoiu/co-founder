@@ -53,9 +53,7 @@ class IterationGuard:
         """
         self._count += 1
         if self._count > self._max:
-            raise IterationCapError(
-                f"Iteration limit reached after {self._max} tool calls."
-            )
+            raise IterationCapError(f"Iteration limit reached after {self._max} tool calls.")
 
     # ------------------------------------------------------------------
     # Repetition detection
@@ -76,10 +74,7 @@ class IterationGuard:
         self._window.append(fingerprint)
         count = sum(1 for fp in self._window if fp == fingerprint)
         if count >= 3:
-            raise RepetitionError(
-                f"Repetition detected: '{tool_name}' called 3 times with same args "
-                "in last 10 calls"
-            )
+            raise RepetitionError(f"Repetition detected: '{tool_name}' called 3 times with same args in last 10 calls")
 
     # ------------------------------------------------------------------
     # Tool result truncation
