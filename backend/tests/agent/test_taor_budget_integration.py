@@ -596,3 +596,121 @@ async def test_budget_exceeded_sets_redis_state():
     assert "state" in key_used
     value_set = redis_set_calls[-1].args[1]
     assert value_set == "budget_exceeded"
+
+
+# ---------------------------------------------------------------------------
+# Test 11: budget_pct written to Redis after each record_call_cost() (UIAG-04)
+# ---------------------------------------------------------------------------
+
+
+async def test_budget_pct_written_to_redis():
+    """redis.set() called with budget_pct key, int value 0-100, and ex=90 TTL."""
+    runner = AutonomousRunner()
+    budget_service = _make_budget_service(budget_pct=0.42)
+    db_session = _make_db_session()
+    redis = _make_redis()
+
+    r1 = make_response(stop_reason="end_turn", text="Done.", input_tokens=100, output_tokens=50)
+
+    with patch.object(runner._client.messages, "stream", return_value=MockStream([r1])):
+        result = await runner.run_agent_loop(
+            _base_context(
+                budget_service=budget_service,
+                db_session=db_session,
+                redis=redis,
+                session_id="sess-budget-pct-001",
+            )
+        )
+
+    assert result["status"] == "completed"
+
+    # Verify redis.set was called with a key matching *budget_pct*, value 42 (int), ex=90
+    redis_set_calls = redis.set.call_args_list
+    budget_pct_calls = [
+        c for c in redis_set_calls
+        if "budget_pct" in str(c.args[0])
+    ]
+    assert len(budget_pct_calls) >= 1, (
+        f"Expected redis.set call with budget_pct key. Calls: {redis_set_calls}"
+    )
+
+    pct_call = budget_pct_calls[0]
+    assert "sess-budget-pct-001" in pct_call.args[0]
+    assert "budget_pct" in pct_call.args[0]
+    assert pct_call.args[1] == 42  # int(0.42 * 100)
+    assert pct_call.kwargs.get("ex") == 90  # 90s TTL
+
+
+# ---------------------------------------------------------------------------
+# Test 12: wake_at written to Redis on sleep transition (UIAG-04)
+# ---------------------------------------------------------------------------
+
+
+async def test_wake_at_written_to_redis_on_sleep():
+    """redis.set() called with wake_at key, ISO timestamp value, and positive ex on sleep."""
+    runner = AutonomousRunner()
+
+    # First check triggers graceful, second does not
+    call_count = [0]
+
+    def is_at_graceful_side_effect(session_cost, daily_budget):
+        call_count[0] += 1
+        return call_count[0] == 1  # Only first check triggers
+
+    budget_service = _make_budget_service(at_graceful=True)
+    budget_service.is_at_graceful_threshold = MagicMock(side_effect=is_at_graceful_side_effect)
+
+    db_session = _make_db_session()
+    redis = _make_redis()
+
+    # Pre-set wake_event so loop doesn't hang
+    wake_event = asyncio.Event()
+    wake_event.set()
+    mock_wake_daemon = MagicMock()
+    mock_wake_daemon.wake_event = wake_event
+
+    # First end_turn triggers sleep/wake; second completes loop
+    r1 = make_response(stop_reason="end_turn", text="Pause here.")
+    r2 = make_response(stop_reason="end_turn", text="Resumed and done.")
+
+    streams = [MockStream([r1]), MockStream([r2])]
+    stream_iter = iter(streams)
+
+    def get_stream(**kwargs):
+        return next(stream_iter)
+
+    ctx = _base_context(
+        budget_service=budget_service,
+        db_session=db_session,
+        redis=redis,
+        wake_daemon=mock_wake_daemon,
+        session_id="sess-wake-at-001",
+    )
+
+    with patch.object(runner._client.messages, "stream", side_effect=get_stream):
+        result = await runner.run_agent_loop(ctx)
+
+    assert result["status"] == "completed"
+
+    # Verify redis.set called with wake_at key, ISO timestamp, and positive ex
+    redis_set_calls = redis.set.call_args_list
+    wake_at_calls = [
+        c for c in redis_set_calls
+        if "wake_at" in str(c.args[0])
+    ]
+    assert len(wake_at_calls) >= 1, (
+        f"Expected redis.set call with wake_at key. Calls: {redis_set_calls}"
+    )
+
+    wake_call = wake_at_calls[0]
+    assert "sess-wake-at-001" in wake_call.args[0]
+    assert "wake_at" in wake_call.args[0]
+    # Value must be an ISO timestamp (contains "T")
+    assert "T" in str(wake_call.args[1]), (
+        f"Expected ISO timestamp in wake_at value, got: {wake_call.args[1]}"
+    )
+    # ex must be a positive integer (sleep duration in seconds)
+    ex_value = wake_call.kwargs.get("ex")
+    assert isinstance(ex_value, int) and ex_value >= 1, (
+        f"Expected positive int ex for wake_at TTL, got: {ex_value}"
+    )

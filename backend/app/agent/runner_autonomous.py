@@ -312,6 +312,13 @@ class AutonomousRunner:
                                 "budget_pct": int(budget_pct * 100),
                             },
                         )
+                    # Write budget_pct Redis key for REST bootstrap (UIAG-04)
+                    if redis:
+                        await redis.set(
+                            f"cofounder:agent:{session_id}:budget_pct",
+                            int(budget_pct * 100),
+                            ex=90,  # 90s TTL — matches SSE heartbeat window
+                        )
                     # Hard circuit breaker — BudgetExceededError propagates to outer try
                     await budget_service.check_runaway(
                         session_id, user_id, daily_budget, context.get("redis")
@@ -344,6 +351,18 @@ class AutonomousRunner:
                                 f"cofounder:agent:{session_id}:state",
                                 "sleeping",
                                 ex=90_000,
+                            )
+                        # Write wake_at Redis key for REST bootstrap countdown timer (UIAG-04)
+                        if redis:
+                            from datetime import UTC, datetime as _dt_wake, timedelta as _td_wake
+                            _now_utc = _dt_wake.now(UTC)
+                            _next_midnight = (_now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
+                                              + _td_wake(days=1))
+                            _sleep_seconds = max(1, int((_next_midnight - _now_utc).total_seconds()))
+                            await redis.set(
+                                f"cofounder:agent:{session_id}:wake_at",
+                                _next_midnight.isoformat(),
+                                ex=_sleep_seconds,  # TTL matches sleep duration
                             )
                         if checkpoint_service and db_session:
                             await checkpoint_service.save(
