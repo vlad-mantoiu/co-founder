@@ -5,7 +5,7 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** v0.7 Autonomous Agent — Phase 46: UI Integration — Plans 01-04 complete — Plan 05 remaining (AutonomousBuildView)
+**Current focus:** v0.7 Autonomous Agent — Phase 46: UI Integration — Plans 01-04 complete (03 retroactively verified) — Plan 05 remaining (AutonomousBuildView)
 
 ## Current Position
 
@@ -39,6 +39,7 @@ Progress: [█████████░] 95% (v0.7: Phase 46 Plan 04 complete 
 | Phase 45-self-healing-error-model P01 | 25 | 1 task TDD | 5 files |
 | Phase 45-self-healing-error-model P02 | 18 | 2 tasks | 8 files |
 | Phase 45-self-healing-error-model P03 | 35 | 2 tasks | 3 files |
+| Phase 46 P03 | 3 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -143,6 +144,11 @@ Progress: [█████████░] 95% (v0.7: Phase 46 Plan 04 complete 
 - [46-02] agent.sleeping does NOT close SSE stream — sleeping is transient; SSE must stay open to receive agent.waking
 - [46-02] onAgentWaitingForInput in useAgentEscalations re-fetches full escalation list from REST — backend creates DB record synchronously before firing the event
 - [46-02] resolve() uses optimistic local update — updates state immediately on 200 OK, SSE escalation_resolved provides eventual consistency
+- [46-03] GsdPhaseCard uses isSelected prop from parent for completed-phase expand state — avoids internal useState that would reset on re-render cycles
+- [46-03] AgentStateBadge countdown uses setInterval gated by state === sleeping && wakeAt — effect cleanup stops ticker when state transitions away from sleeping
+- [46-03] formatElapsed and formatCountdown exported as pure functions from AgentStateBadge — importable by AutonomousBuildView without mounting component
+- [46-03] Timeline connecting line uses absolute-positioned flex-col segments colored per phase status — Tailwind-first, simpler than SVG approach
+- [46-03] MobilePhaseStrip reuses SidebarInner wholesale — avoids duplicating timeline rendering logic in mobile overlay
 - [46-04] scrollTop = scrollHeight for AgentActivityFeed auto-scroll — direct DOM set avoids smooth scroll jank on rapid entry arrival
 - [46-04] ToolIcon dispatch uses substring matching — covers all current/future tool name variants without exhaustive enum
 - [46-04] EscalationEntry guidance input: first click reveals textarea, second click submits — inline UX, no modal required
@@ -167,8 +173,8 @@ None blocking Phase 41.
 
 ## Session Continuity
 
-Last session: 2026-03-01 (Phase 46 Plan 04 complete — 3 activity feed components: ActivityFeedEntry, EscalationEntry, AgentActivityFeed — zero TypeScript errors)
-Stopped at: Completed Phase 46 Plan 04 — 46-04-PLAN.md (activity feed components)
+Last session: 2026-03-01 (Phase 46 Plans 03+04 complete — GsdPhaseCard, GsdPhaseSidebar, AgentStateBadge (Plan 03) + ActivityFeedEntry, EscalationEntry, AgentActivityFeed (Plan 04) — zero TypeScript errors)
+Stopped at: Completed Phase 46 Plan 03 — 46-03-PLAN.md (Kanban timeline sidebar and agent state badge)
 Resume file: .planning/phases/46-ui-integration/ (Phase 46: continue with Plan 05: AutonomousBuildView)
 
 ---
