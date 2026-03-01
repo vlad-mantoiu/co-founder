@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 
 ## Current Position
 
-Phase: 46 of 46 (UI Integration) — COMPLETE
-Plan: 5 of 5 — all complete
-Status: v0.7 MILESTONE COMPLETE — all 46 phases shipped
-Last activity: 2026-03-01 — Phase 46 visual verification approved, handler composition bug fixed, phase closed
+Phase: 47 of 47 (v0.7 Gap Closure) — IN PROGRESS
+Plan: 1 of 1 — COMPLETE (47-01 done 2026-03-01)
+Status: v0.7 GAP CLOSURE — closing 3 audit gaps (budget_pct Redis key, wake_at Redis key, escalation_resolved SSE)
+Last activity: 2026-03-01 — Phase 47 Plan 01 complete (3 integration gaps closed, 3 new tests passing)
 
-Progress: [██████████] 100% (v0.7: ALL PHASES COMPLETE — milestone shipped 2026-03-01)
+Progress: [██████████] 100% (v0.7 gap closure in progress)
 
 ## Performance Metrics
 
@@ -41,6 +41,7 @@ Progress: [██████████] 100% (v0.7: ALL PHASES COMPLETE — m
 | Phase 45-self-healing-error-model P03 | 35 | 2 tasks | 3 files |
 | Phase 46 P03 | 3 | 2 tasks | 3 files |
 | Phase 46-ui-integration P05 | 7 | 2 tasks | 2 files |
+| Phase 47 P01 | 17 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -160,6 +161,10 @@ Progress: [██████████] 100% (v0.7: ALL PHASES COMPLETE — m
 - [46-05] Confetti, attention banner, and push notification each guarded by useRef flag — fire exactly once per page session regardless of re-renders
 - [46-05] handleWakeNow/handlePauseAfterPhase POST to /api/jobs/{id}/wake and /api/jobs/{id}/pause — non-fatal on 404 until endpoints exist
 - [46-05] Phase-to-feed filter sync: handlePhaseClick calls setPhaseFilterId + setFeedFilterPhaseId together — shared state from separate hooks
+- [47-01] budget_pct TTL is 90s (not 90_000) — matches SSE heartbeat window; state key uses 90_000 for 25h overnight session survival
+- [47-01] wake_at TTL is dynamic sleep duration (seconds to next UTC midnight), min 1s — avoids Redis rejecting TTL < 1 near midnight
+- [47-01] SSE emit and return _to_response() inside async with block — ORM attributes (job_id, id, resolved_at) accessible post-commit; no DetachedInstanceError
+- [47-01] get_redis dependency override added to escalation_app test fixture — all existing resolve tests pass with no-op mock redis
 
 ### Key Research Flags (check before planning)
 
@@ -180,8 +185,8 @@ None blocking Phase 41.
 
 ## Session Continuity
 
-Last session: 2026-03-01 (Phase 46 visual verification approved, handler composition bug fixed, v0.7 milestone complete)
-Stopped at: v0.7 milestone shipped — ready for milestone audit (/gsd:audit-milestone)
+Last session: 2026-03-01 (Phase 47-01 complete — 3 v0.7 audit gaps closed, 3 new tests passing, 284 agent tests + 63 API tests green)
+Stopped at: Completed 47-01-PLAN.md — v0.7 gap closure plan 01 done
 Resume file: None
 
 ---
