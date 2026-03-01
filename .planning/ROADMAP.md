@@ -391,7 +391,9 @@ Plans:
   3. `POST /api/escalations/{id}/resolve` emits `agent.escalation_resolved` SSE event via `state_machine.publish_event()` after the DB commit — a second browser session sees the resolution without manual refresh
   4. All 3 fixes have unit tests verifying the Redis write / SSE emission
   5. Re-running the milestone audit shows 24/24 requirements satisfied and 5/5 E2E flows complete
-**Plans:** 0/1 plans
+**Plans:** 1/1 plans
+Plans:
+- [ ] 47-01-PLAN.md — Close 3 integration gaps: budget_pct + wake_at Redis writes, escalation_resolved SSE emission (AGNT-08, UIAG-04)
 
 ## Progress
 
