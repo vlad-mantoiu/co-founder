@@ -30,11 +30,11 @@ Requirements for v0.7 Autonomous Agent. Each maps to roadmap phases.
 
 ### UI & Integration
 
-- [ ] **UIAG-01**: GSD phases created by agent appear on Kanban Timeline with live status (pending/in-progress/complete)
+- [x] **UIAG-01**: GSD phases created by agent appear on Kanban Timeline with live status (pending/in-progress/complete)
 - [ ] **UIAG-02**: Activity feed shows phase-level summaries by default ("Planning authentication system...", "Building login page...")
 - [ ] **UIAG-03**: Verbose toggle in activity feed reveals tool-level detail (individual file writes, bash commands, screenshots)
-- [ ] **UIAG-04**: Dashboard displays agent state: working, sleeping, waiting-for-input, error
-- [ ] **UIAG-05**: New SSE event types stream agent actions to frontend (agent.thinking, agent.tool.called, agent.sleeping, gsd.phase.started, gsd.phase.completed)
+- [x] **UIAG-04**: Dashboard displays agent state: working, sleeping, waiting-for-input, error
+- [x] **UIAG-05**: New SSE event types stream agent actions to frontend (agent.thinking, agent.tool.called, agent.sleeping, gsd.phase.started, gsd.phase.completed)
 
 ### Cleanup & Migration
 
@@ -137,11 +137,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AGNT-05 | Phase 44 | Complete |
 | AGNT-07 | Phase 45 | Complete |
 | AGNT-08 | Phase 45 | Complete |
-| UIAG-01 | Phase 46 | Pending |
+| UIAG-01 | Phase 46 | Complete |
 | UIAG-02 | Phase 46 | Pending |
 | UIAG-03 | Phase 46 | Pending |
-| UIAG-04 | Phase 46 | Pending |
-| UIAG-05 | Phase 46 | Pending |
+| UIAG-04 | Phase 46 | Complete |
+| UIAG-05 | Phase 46 | Complete |
 
 **Coverage:**
 - v0.7 requirements: 24 total

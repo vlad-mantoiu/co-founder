@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 
 ## Current Position
 
-Phase: 45 of 46 (Self-Healing Error Model) — ALL 3 plans COMPLETE
-Plan: 3 of 3 complete
-Status: Phase 45 COMPLETE — ErrorCategory StrEnum, classify_error(), ErrorSignatureTracker, AgentEscalation model, escalation API endpoints, TAOR loop error handler integration — 277 agent tests + 110 Phase 45 tests pass
-Last activity: 2026-03-01 — Phase 45 Plan 03 complete: TAOR loop error integration — self-healing error model end-to-end
+Phase: 46 of 46 (UI Integration) — Plan 1 of N complete
+Plan: 1 complete (46-01: SSE event types, REST endpoints for phases and agent state)
+Status: Phase 46 Plan 01 COMPLETE — 4 new SSEEventType constants, agent.thinking/agent.tool.called emissions, GSD phase Redis persistence, GET /api/jobs/{id}/phases endpoint, agent_state in job status — 22 new tests
+Last activity: 2026-03-01 — Phase 46 Plan 01 complete: UI integration backend SSE events and REST endpoints
 
-Progress: [█████████░] 88% (v0.7: 23/24 plans done — Phase 46 escalation UI remaining)
+Progress: [█████████░] 92% (v0.7: Phase 46 Plan 01 complete — UI integration SSE events and REST endpoints)
 
 ## Performance Metrics
 
@@ -132,6 +132,12 @@ Progress: [█████████░] 88% (v0.7: 23/24 plans done — Phase
 - [45-03] global_threshold_exceeded() checked AFTER escalation record written — ensures escalation is persisted before early return
 - [45-03] Tests use distinct tool_input per call to avoid IterationGuard repetition detection interfering with error retry counting
 - [45-03] GLOBAL_ESCALATION_THRESHOLD patched at module level for test speed — threshold test needs only 2 escalations (not 5)
+- [46-01] agent.tool.called emitted in runner_autonomous.py after dispatch returns — not in dispatcher itself — avoids double-emission for both in-memory and E2B dispatchers
+- [46-01] _human_tool_label and _summarize_tool_result are module-level pure functions in runner_autonomous.py — importable by tests without instantiating the runner
+- [46-01] GSD phase transitions use narrate(phase_name=...) as the signal — reuses existing tool without adding new tool call overhead
+- [46-01] agent.thinking emitted before messages.stream() via local import of SSEEventType — follows Phase 43/44 pattern to avoid circular import at module level
+- [46-01] agent_state validated against _AGENT_VALID_STATES sentinel set — silently returns null for unexpected Redis values
+- [46-01] GSD phase Redis hash uses UUID phase_id as key — allows multiple concurrent phases and deterministic sort by started_at ISO timestamp
 
 ### Key Research Flags (check before planning)
 
@@ -152,9 +158,9 @@ None blocking Phase 41.
 
 ## Session Continuity
 
-Last session: 2026-03-01 (Phase 45 Plan 03 complete — TAOR loop error integration, 277 agent tests + 110 Phase 45 tests pass)
-Stopped at: Completed Phase 45 Plan 03 — 45-03-PLAN.md (TAOR loop error integration)
-Resume file: .planning/phases/46-escalation-ui/ (Phase 46: escalation UI for founder decisions)
+Last session: 2026-03-01 (Phase 46 Plan 01 complete — SSE event types, REST endpoints for phases/agent state, 22 new tests — 693 total tests pass)
+Stopped at: Completed Phase 46 Plan 01 — 46-01-PLAN.md (SSE UI integration backend)
+Resume file: .planning/phases/46-ui-integration/ (Phase 46: continue remaining plans)
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
