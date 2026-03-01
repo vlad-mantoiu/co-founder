@@ -149,7 +149,8 @@ AGENT_TOOLS: list[dict] = [  # type: ignore[type-arg]
             "database schema design, API routing, feature completion, etc. "
             "Include WHAT you are doing AND WHY, referencing the founder's brief when relevant. "
             "Skip minor actions like individual file writes or grep calls. "
-            "Example: 'I\\'m setting up auth with Clerk because your brief specified enterprise-grade security.'"
+            "Example: 'I\\'m setting up auth with Clerk because your brief specified enterprise-grade security.' "
+            "Optionally provide phase_name to signal a GSD phase transition (e.g. 'Authentication Setup')."
         ),
         "input_schema": {
             "type": "object",
@@ -157,6 +158,14 @@ AGENT_TOOLS: list[dict] = [  # type: ignore[type-arg]
                 "message": {
                     "type": "string",
                     "description": "First-person narration of the significant action being taken.",
+                },
+                "phase_name": {
+                    "type": "string",
+                    "description": (
+                        "Optional GSD phase name to signal a phase transition. "
+                        "When provided, emits gsd.phase.started event and tracks phase progress. "
+                        "Example: 'Authentication Setup', 'Database Schema', 'API Routes'."
+                    ),
                 },
             },
             "required": ["message"],

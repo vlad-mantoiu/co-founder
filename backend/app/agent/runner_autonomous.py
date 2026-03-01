@@ -31,6 +31,72 @@ from app.services.log_streamer import LogStreamer
 logger = structlog.get_logger(__name__)
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Pure helper functions — no I/O, no side effects (Phase 46 — UI Integration)
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def _human_tool_label(tool_name: str, tool_input: dict) -> str:  # type: ignore[type-arg]
+    """Return a human-readable label for a tool call.
+
+    Used by the UI to display what the agent is doing in real time.
+    Pure function: no I/O, no side effects.
+
+    Args:
+        tool_name: The tool's registered name (e.g. "write_file").
+        tool_input: The tool's input dict from the Anthropic response.
+
+    Returns:
+        A short human-readable label string.
+    """
+    if tool_name == "bash":
+        cmd = tool_input.get("command", "")[:80]
+        return f"Ran command: {cmd}"
+    if tool_name == "write_file":
+        path = tool_input.get("path", "file")
+        return f"Wrote {path}"
+    if tool_name == "edit_file":
+        path = tool_input.get("path", "file")
+        return f"Edited {path}"
+    if tool_name == "read_file":
+        path = tool_input.get("path", "file")
+        return f"Read {path}"
+    if tool_name == "grep":
+        pattern = tool_input.get("pattern", "")
+        return f"Searched for '{pattern}'"
+    if tool_name == "glob":
+        pattern = tool_input.get("pattern", "")
+        return f"Listed files matching '{pattern}'"
+    if tool_name == "take_screenshot":
+        return "Captured screenshot"
+    if tool_name == "narrate":
+        return "Narrated progress"
+    if tool_name == "document":
+        return "Generated documentation"
+    return f"Used {tool_name}"
+
+
+def _summarize_tool_result(result: str | list, max_len: int = 200) -> str:  # type: ignore[type-arg]
+    """Truncate a tool result to max_len characters with '...' suffix.
+
+    Vision content lists (list[dict]) are converted to a short placeholder.
+    Pure function: no I/O, no side effects.
+
+    Args:
+        result: Tool result — either a string or a vision content list.
+        max_len: Maximum character length before truncation.
+
+    Returns:
+        A string, truncated to max_len + '...' if needed.
+    """
+    if isinstance(result, list):
+        return "[vision content]"
+    text = str(result)
+    if len(text) <= max_len:
+        return text
+    return text[:max_len] + "..."
+
+
 class AutonomousRunner:
     """TAOR agent runner using Anthropic streaming tool-use API.
 
@@ -172,8 +238,21 @@ class AutonomousRunner:
 
         bound_logger.info("taor_loop_start", model=self._model)
 
+        # GSD phase tracking (Phase 46 — UI Integration)
+        # Tracks the in-progress phase so we can emit gsd.phase.completed before the next one starts.
+        _current_phase_id: str | None = None
+
         try:
             while True:
+                # ---- THINK: emit agent.thinking before each stream call ----
+                if state_machine:
+                    from datetime import UTC, datetime as _dt
+                    from app.queue.state_machine import SSEEventType as _SSEEventType
+                    await state_machine.publish_event(
+                        job_id,
+                        {"type": _SSEEventType.AGENT_THINKING},
+                    )
+
                 # ---- THINK: stream response from Anthropic ----
                 async with self._client.messages.stream(
                     model=self._model,
@@ -514,6 +593,67 @@ class AutonomousRunner:
                             tool_name=tool_name,
                             error=str(exc),
                             iteration=iteration,
+                        )
+
+                    # ---- Phase 46: GSD phase tracking via narrate(phase_name=...) ----
+                    # When the agent narrates with a phase_name, emit gsd.phase.started
+                    # and complete the previous phase if one was in progress.
+                    if tool_name == "narrate" and state_machine:
+                        from datetime import UTC, datetime as _dt2
+                        from app.queue.state_machine import SSEEventType as _SSEEventType2
+                        import uuid as _uuid_mod
+                        phase_name = tool_input.get("phase_name")
+                        if phase_name:
+                            _ts = _dt2.now(UTC).isoformat()
+                            # Complete any previous in-progress phase
+                            if _current_phase_id is not None:
+                                completed_data = {
+                                    "phase_id": _current_phase_id,
+                                    "status": "completed",
+                                    "completed_at": _ts,
+                                }
+                                await state_machine.publish_event(
+                                    job_id,
+                                    {"type": _SSEEventType2.GSD_PHASE_COMPLETED, **completed_data},
+                                )
+                                if redis:
+                                    import json as _json
+                                    # Update existing entry status to completed
+                                    existing_raw = await redis.hget(f"job:{job_id}:phases", _current_phase_id)
+                                    if existing_raw:
+                                        existing_entry = _json.loads(existing_raw)
+                                        existing_entry["status"] = "completed"
+                                        existing_entry["completed_at"] = _ts
+                                        await redis.hset(f"job:{job_id}:phases", _current_phase_id, _json.dumps(existing_entry))
+                            # Start new phase
+                            new_phase_id = str(_uuid_mod.uuid4())
+                            _current_phase_id = new_phase_id
+                            phase_data = {
+                                "phase_id": new_phase_id,
+                                "phase_name": phase_name,
+                                "status": "in_progress",
+                                "started_at": _ts,
+                            }
+                            await state_machine.publish_event(
+                                job_id,
+                                {"type": _SSEEventType2.GSD_PHASE_STARTED, **phase_data},
+                            )
+                            if redis:
+                                import json as _json2
+                                await redis.hset(f"job:{job_id}:phases", new_phase_id, _json2.dumps(phase_data))
+
+                    # ---- Phase 46: Emit agent.tool.called after successful dispatch ----
+                    if state_machine:
+                        from datetime import UTC, datetime as _dt3
+                        from app.queue.state_machine import SSEEventType as _SSEEventType3
+                        await state_machine.publish_event(
+                            job_id,
+                            {
+                                "type": _SSEEventType3.AGENT_TOOL_CALLED,
+                                "tool_name": tool_name,
+                                "tool_label": _human_tool_label(tool_name, tool_input),
+                                "tool_summary": _summarize_tool_result(result),
+                            },
                         )
 
                     # Middle-truncate large string results before appending to history.

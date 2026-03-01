@@ -35,6 +35,12 @@ class SSEEventType:
     AGENT_ESCALATION_RESOLVED = "agent.escalation_resolved"
     AGENT_BUILD_PAUSED = "agent.build_paused"
 
+    # Agent UI lifecycle events (Phase 46 — UI Integration)
+    AGENT_THINKING = "agent.thinking"
+    AGENT_TOOL_CALLED = "agent.tool.called"
+    GSD_PHASE_STARTED = "gsd.phase.started"
+    GSD_PHASE_COMPLETED = "gsd.phase.completed"
+
 
 # Human-readable stage labels for SSE events
 # Mirrors the STAGE_LABELS in generation.py but defined here to avoid circular imports
