@@ -36,6 +36,7 @@ import { AutoFixBanner } from "@/components/build/AutoFixBanner";
 import { BuildSummary } from "@/components/build/BuildSummary";
 import { BuildFailureCard } from "@/components/build/BuildFailureCard";
 import { PreviewPane } from "@/components/build/PreviewPane";
+import { AutonomousBuildView } from "@/components/build/AutonomousBuildView";
 import { GlassCard } from "@/components/ui/glass-card";
 import { apiFetch } from "@/lib/api";
 
@@ -359,6 +360,76 @@ export default function BuildPage() {
   // job_id comes from URL query param: /projects/{id}/build?job_id=...
   const jobId = searchParams.get("job_id");
 
+  // ── Autonomous build detection ──────────────────────────────────────────────
+  // Check URL for ?autonomous=true (set when /api/generation/start returns autonomous job)
+  // or fetch job status to detect autonomous flag from the backend.
+  const autonomousParam = searchParams.get("autonomous");
+  const [isAutonomousJob, setIsAutonomousJob] = useState(
+    autonomousParam === "true",
+  );
+  const [projectName, setProjectName] = useState<string>("");
+
+  useEffect(() => {
+    if (!jobId) return;
+    if (autonomousParam === "true") return; // Already known from URL param
+
+    let cancelled = false;
+
+    async function detectJobType() {
+      try {
+        const res = await apiFetch(`/api/jobs/${jobId}/status`, getToken);
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as {
+          autonomous?: boolean;
+          job_type?: string;
+          project_name?: string;
+        };
+        if (!cancelled) {
+          if (data.autonomous === true || data.job_type === "autonomous") {
+            setIsAutonomousJob(true);
+          }
+          if (data.project_name) {
+            setProjectName(data.project_name);
+          }
+        }
+      } catch {
+        // Silently fail — default to non-autonomous (legacy pipeline)
+      }
+    }
+
+    detectJobType();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [jobId, autonomousParam, getToken]);
+
+  // Fetch project name for autonomous view breadcrumb
+  useEffect(() => {
+    if (!projectId || projectName) return;
+
+    let cancelled = false;
+
+    async function fetchProjectName() {
+      try {
+        const res = await apiFetch(`/api/projects/${projectId}`, getToken);
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as { name?: string };
+        if (!cancelled && data.name) {
+          setProjectName(data.name);
+        }
+      } catch {
+        // Silently fail — name is cosmetic; breadcrumb shows project ID as fallback
+      }
+    }
+
+    fetchProjectName();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, projectName, getToken]);
+
   const {
     status,
     label,
@@ -443,6 +514,27 @@ export default function BuildPage() {
   if (!jobId) {
     return <PreBuildView projectId={projectId} getToken={getToken} />;
   }
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // Autonomous build — show AutonomousBuildView full-height dashboard
+  // ────────────────────────────────────────────────────────────────────────────
+
+  if (isAutonomousJob) {
+    return (
+      <div className="h-[calc(100vh-64px)] overflow-hidden">
+        <AutonomousBuildView
+          jobId={jobId}
+          projectId={projectId}
+          projectName={projectName || projectId}
+          getToken={getToken}
+        />
+      </div>
+    );
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // Non-autonomous build — existing BuildPage (legacy pipeline)
+  // ────────────────────────────────────────────────────────────────────────────
 
   return (
     <div className="min-h-[70vh] flex flex-col items-center justify-center py-12">
