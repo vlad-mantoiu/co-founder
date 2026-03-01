@@ -83,3 +83,13 @@
 
 ---
 
+
+## v0.7 Autonomous Agent (Shipped: 2026-03-01)
+
+**Phases completed:** 30 phases, 96 plans, 9 tasks
+
+**Key accomplishments:**
+- (none recorded)
+
+---
+
