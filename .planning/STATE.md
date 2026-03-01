@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** v0.7 Autonomous Agent — Phase 46: UI Integration — Plans 01-02 complete — Plans 03-05 remaining (Kanban timeline, Activity feed, AutonomousBuildView)
+**Current focus:** v0.7 Autonomous Agent — Phase 46: UI Integration — Plans 01-04 complete — Plan 05 remaining (AutonomousBuildView)
 
 ## Current Position
 
-Phase: 46 of 46 (UI Integration) — Plan 2 of N complete
-Plan: 2 complete (46-02: 5 React hooks — useAgentEvents, useAgentPhases, useAgentState, useAgentActivityFeed, useAgentEscalations)
-Status: Phase 46 Plan 02 COMPLETE — single SSE consumer pattern, REST bootstrap + SSE live updates for all domain state slices, escalation resolve mutation, auto-scroll control
-Last activity: 2026-03-01 — Phase 46 Plan 02 complete: frontend data layer hooks for autonomous build dashboard
+Phase: 46 of 46 (UI Integration) — Plan 4 of N complete
+Plan: 4 complete (46-04: 3 activity feed components — ActivityFeedEntry, EscalationEntry, AgentActivityFeed)
+Status: Phase 46 Plan 04 COMPLETE — chat-bubble narration with per-entry verbose expand, inline escalation entries, auto-scroll container with typing indicator
+Last activity: 2026-03-01 — Phase 46 Plan 04 complete: activity feed presentational components for autonomous build dashboard
 
-Progress: [█████████░] 93% (v0.7: Phase 46 Plan 02 complete — 5 frontend data layer hooks)
+Progress: [█████████░] 95% (v0.7: Phase 46 Plan 04 complete — 3 activity feed components)
 
 ## Performance Metrics
 
@@ -143,6 +143,10 @@ Progress: [█████████░] 93% (v0.7: Phase 46 Plan 02 complete 
 - [46-02] agent.sleeping does NOT close SSE stream — sleeping is transient; SSE must stay open to receive agent.waking
 - [46-02] onAgentWaitingForInput in useAgentEscalations re-fetches full escalation list from REST — backend creates DB record synchronously before firing the event
 - [46-02] resolve() uses optimistic local update — updates state immediately on 200 OK, SSE escalation_resolved provides eventual consistency
+- [46-04] scrollTop = scrollHeight for AgentActivityFeed auto-scroll — direct DOM set avoids smooth scroll jank on rapid entry arrival
+- [46-04] ToolIcon dispatch uses substring matching — covers all current/future tool name variants without exhaustive enum
+- [46-04] EscalationEntry guidance input: first click reveals textarea, second click submits — inline UX, no modal required
+- [46-04] AgentActivityFeed adds optional filterPhaseName + onClearFilter props — needed for human-readable filter bar; passed by AutonomousBuildView (Plan 05)
 
 ### Key Research Flags (check before planning)
 
@@ -163,9 +167,9 @@ None blocking Phase 41.
 
 ## Session Continuity
 
-Last session: 2026-03-01 (Phase 46 Plan 02 complete — 5 React hooks: useAgentEvents, useAgentPhases, useAgentState, useAgentActivityFeed, useAgentEscalations — zero TypeScript errors)
-Stopped at: Completed Phase 46 Plan 02 — 46-02-PLAN.md (frontend data layer hooks)
-Resume file: .planning/phases/46-ui-integration/ (Phase 46: continue with Plans 03-05: Kanban timeline, Activity feed, AutonomousBuildView)
+Last session: 2026-03-01 (Phase 46 Plan 04 complete — 3 activity feed components: ActivityFeedEntry, EscalationEntry, AgentActivityFeed — zero TypeScript errors)
+Stopped at: Completed Phase 46 Plan 04 — 46-04-PLAN.md (activity feed components)
+Resume file: .planning/phases/46-ui-integration/ (Phase 46: continue with Plan 05: AutonomousBuildView)
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
