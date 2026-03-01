@@ -112,6 +112,7 @@
 - [x] **Phase 44: Native Agent Capabilities** - narrate() tool replacing NarrationService; documentation generation native to agent workflow (completed 2026-02-27)
 - [x] **Phase 45: Self-Healing Error Model** - 3-retry with different approaches per error signature; founder escalation via DecisionConsole (completed 2026-02-28)
 - [x] **Phase 46: UI Integration** - Activity feed with verbose toggle; agent state card; Kanban phase updates; new SSE event types wired to frontend (completed 2026-03-01)
+- [ ] **Phase 47: v0.7 Gap Closure** - REST bootstrap Redis keys (budget_pct, wake_at) + escalation_resolved SSE emission — closes 3 integration gaps from milestone audit
 
 ## Phase Details
 
@@ -378,6 +379,19 @@ Plans:
 - [ ] 46-03-PLAN.md — Kanban Timeline sidebar + Agent State Badge (UIAG-01, UIAG-04)
 - [ ] 46-04-PLAN.md — Activity Feed + Escalation Entries (UIAG-02, UIAG-03)
 - [ ] 46-05-PLAN.md — AutonomousBuildView page + integration + visual verification (UIAG-01, UIAG-02, UIAG-03, UIAG-04, UIAG-05)
+
+### Phase 47: v0.7 Gap Closure — REST Bootstrap + Escalation SSE
+**Goal**: Close all 3 integration gaps identified by the v0.7 milestone audit — write budget_pct and wake_at to Redis for REST bootstrap on page reload, and emit agent.escalation_resolved SSE event from the resolve endpoint for multi-session visibility.
+**Depends on**: Phase 46
+**Requirements**: AGNT-08, UIAG-04
+**Gap Closure**: Closes gaps from v0.7 milestone audit
+**Success Criteria** (what must be TRUE):
+  1. After each `record_call_cost()` call, `cofounder:agent:{session_id}:budget_pct` is written to Redis with a 90-second TTL — `GET /api/jobs/{id}/status` returns a non-null budget percentage during an active session
+  2. When the agent transitions to sleeping state, `cofounder:agent:{session_id}:wake_at` is written to Redis with next-midnight UTC — `AgentStateBadge` countdown timer works on page reload during sleep
+  3. `POST /api/escalations/{id}/resolve` emits `agent.escalation_resolved` SSE event via `state_machine.publish_event()` after the DB commit — a second browser session sees the resolution without manual refresh
+  4. All 3 fixes have unit tests verifying the Redis write / SSE emission
+  5. Re-running the milestone audit shows 24/24 requirements satisfied and 5/5 E2E flows complete
+**Plans:** 0/1 plans
 
 ## Progress
 

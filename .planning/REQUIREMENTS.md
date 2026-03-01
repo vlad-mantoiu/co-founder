@@ -16,7 +16,7 @@ Requirements for v0.7 Autonomous Agent. Each maps to roadmap phases.
 - [x] **AGNT-05**: Agent handles documentation generation natively as part of its workflow — no separate DocGenerationService
 - [x] **AGNT-06**: Agent loop has iteration cap (MAX_TOOL_CALLS), repetition detection, and context window management (middle-truncation of large tool results)
 - [x] **AGNT-07**: Agent retries failed operations 3 times with different approaches per error signature before escalating to founder with structured context
-- [x] **AGNT-08**: Agent escalation surfaces problem description, what was tried, and recommended action to founder via existing DecisionConsole pattern
+- [ ] **AGNT-08**: Agent escalation surfaces problem description, what was tried, and recommended action to founder via existing DecisionConsole pattern
 
 ### Budget & Daemon
 
@@ -33,7 +33,7 @@ Requirements for v0.7 Autonomous Agent. Each maps to roadmap phases.
 - [x] **UIAG-01**: GSD phases created by agent appear on Kanban Timeline with live status (pending/in-progress/complete)
 - [x] **UIAG-02**: Activity feed shows phase-level summaries by default ("Planning authentication system...", "Building login page...")
 - [x] **UIAG-03**: Verbose toggle in activity feed reveals tool-level detail (individual file writes, bash commands, screenshots)
-- [x] **UIAG-04**: Dashboard displays agent state: working, sleeping, waiting-for-input, error
+- [ ] **UIAG-04**: Dashboard displays agent state: working, sleeping, waiting-for-input, error
 - [x] **UIAG-05**: New SSE event types stream agent actions to frontend (agent.thinking, agent.tool.called, agent.sleeping, gsd.phase.started, gsd.phase.completed)
 
 ### Cleanup & Migration
@@ -136,16 +136,18 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AGNT-04 | Phase 44 | Complete |
 | AGNT-05 | Phase 44 | Complete |
 | AGNT-07 | Phase 45 | Complete |
-| AGNT-08 | Phase 45 | Complete |
+| AGNT-08 | Phase 47 | Pending |
 | UIAG-01 | Phase 46 | Complete |
 | UIAG-02 | Phase 46 | Complete |
 | UIAG-03 | Phase 46 | Complete |
-| UIAG-04 | Phase 46 | Complete |
+| UIAG-04 | Phase 47 | Pending |
 | UIAG-05 | Phase 46 | Complete |
 
 **Coverage:**
 - v0.7 requirements: 24 total
 - Mapped to phases: 24
+- Satisfied: 22
+- Pending (gap closure): 2 (AGNT-08, UIAG-04 → Phase 47)
 - Unmapped: 0 ✓
 
 ---
