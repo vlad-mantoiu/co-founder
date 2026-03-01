@@ -93,9 +93,9 @@ function InsourcedHero() {
               ))}
             </div>
             <p className="text-sm text-white/40">
-              Trusted by{" "}
-              <span className="text-white/70 font-medium">2,000+</span>{" "}
-              non-technical founders
+              Advanced frameworks used by{" "}
+              <span className="text-white/70 font-medium">thousands</span>{" "}
+              already
             </p>
           </div>
         </div>

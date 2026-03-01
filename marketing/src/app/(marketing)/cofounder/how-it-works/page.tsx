@@ -19,9 +19,7 @@ export const metadata: Metadata = {
 export default function HowItWorksPage() {
   return (
     <PageContentWrapper skeleton={<HeroSkeleton />}>
-      <div className="pt-20">
-        <HowItWorksSection />
-      </div>
+      <HowItWorksSection />
     </PageContentWrapper>
   );
 }

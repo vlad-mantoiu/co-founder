@@ -4,6 +4,7 @@ import { MotionConfig } from "framer-motion";
 import { Navbar } from "@/components/marketing/navbar";
 import { Footer } from "@/components/marketing/footer";
 import { RouteProgressBar } from "@/components/marketing/loading/route-progress-bar";
+import { AnalyticsProvider } from "@/components/marketing/analytics-provider";
 
 export default function MarketingLayout({
   children,
@@ -18,6 +19,7 @@ export default function MarketingLayout({
         <main>{children}</main>
       </MotionConfig>
       <Footer />
+      <AnalyticsProvider />
     </div>
   );
 }

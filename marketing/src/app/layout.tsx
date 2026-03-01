@@ -21,6 +21,13 @@ export const metadata: Metadata = {
   },
   description:
     "AI technical co-founder that plans architecture, writes code, runs tests, and ships software for non-technical founders.",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "48x48" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    apple: "/apple-icon.png",
+  },
   openGraph: {
     siteName: "GetInsourced",
     type: "website",
@@ -40,6 +47,13 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <head>
+        {/* GA4 */}
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-WWY15PV21X" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-WWY15PV21X');`,
+          }}
+        />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
