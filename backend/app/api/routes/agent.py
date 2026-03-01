@@ -1,17 +1,17 @@
-"""Agent API routes for interacting with the AI Co-Founder."""
+"""Agent API routes for interacting with the AI Co-Founder.
+
+NOTE: The /chat and /chat/stream endpoints previously used the LangGraph pipeline.
+That pipeline has been removed in Phase 40. These endpoints will be re-implemented
+in Phase 41 using the AutonomousRunner (TAOR loop). Until then they return 503.
+"""
 
 import json
-import uuid
-from collections.abc import AsyncGenerator
 from datetime import date
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from app.agent.graph import create_cofounder_graph, create_production_graph
-from app.agent.state import create_initial_state
 from app.core.auth import ClerkUser, require_auth, require_subscription
 from app.core.llm_config import get_or_create_user_settings
 from app.db.redis import get_redis
@@ -22,7 +22,7 @@ logger = structlog.get_logger(__name__)
 
 router = APIRouter()
 
-SESSION_TTL = 3600  # 1 hour
+SESSION_TTL = 90_000  # 25 hours — must survive overnight agent sleep
 SESSION_PREFIX = "cofounder:session:"
 
 
@@ -124,198 +124,54 @@ class ChatResponse(BaseModel):
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest, user: ClerkUser = Depends(require_subscription)):
-    """Send a message to the AI Co-Founder agent."""
-    session_id = request.session_id or str(uuid.uuid4())
-    user_id = user.user_id
+    """Send a message to the AI Co-Founder agent.
 
-    episodic = get_episodic_memory()
-    session = await _get_session(session_id)
-    episode_id: int | None = None
-
-    if session is None:
-        # New session — check limits first
-        await _check_daily_session_limit(user_id)
-
-        state = create_initial_state(
-            user_id=user_id,
-            project_id=request.project_id,
-            project_path=f"/workspace/{request.project_id}",
-            goal=request.message,
-            session_id=session_id,
-        )
-        graph = create_production_graph()
-        session = {"state": state, "user_id": user_id}
-        await _increment_session_count(user_id)
-
-        # Start episodic memory tracking
-        try:
-            episode_id = await episodic.start_episode(
-                user_id=user_id,
-                project_id=request.project_id,
-                session_id=session_id,
-                goal=request.message,
-            )
-            session["episode_id"] = episode_id
-        except Exception as e:
-            logger.warning("episodic_memory_start_failed", error=str(e), error_type=type(e).__name__, user_id=user_id)
-    else:
-        _require_session_owner(session, user_id)
-        session.setdefault("user_id", user_id)
-        state = session["state"]
-        episode_id = session.get("episode_id")
-        graph = create_production_graph()
-        if request.message:
-            state["current_goal"] = request.message
-            state["messages"].append({"role": "user", "content": request.message})
-
-    config = {"configurable": {"thread_id": session_id}}
-
-    try:
-        result = await graph.ainvoke(state, config)
-        session["state"] = result
-        await _save_session(session_id, session)
-
-        # Update episodic memory
-        if episode_id:
-            try:
-                await episodic.update_episode(
-                    episode_id=episode_id,
-                    steps_completed=result.get("current_step_index", 0),
-                    errors=result.get("active_errors"),
-                    status="success" if result.get("is_complete") else "in_progress",
-                    files_created=list(result.get("working_files", {}).keys()),
-                )
-            except Exception as e:
-                logger.warning(
-                    "episodic_memory_update_failed", error=str(e), error_type=type(e).__name__, user_id=user_id
-                )
-
-        # Store in semantic memory
-        try:
-            semantic = get_semantic_memory()
-            await semantic.add(
-                content=f"Task: {request.message}\nResult: {result.get('status_message')}",
-                user_id=user_id,
-                project_id=request.project_id,
-            )
-        except Exception as e:
-            logger.warning("semantic_memory_store_failed", error=str(e), error_type=type(e).__name__, user_id=user_id)
-
-        return ChatResponse(
-            session_id=session_id,
-            status=result.get("status_message", "Processing"),
-            current_node=result.get("current_node", "unknown"),
-            message=_get_last_assistant_message(result),
-            is_complete=result.get("is_complete", False),
-            needs_human_review=result.get("needs_human_review", False),
-        )
-    except Exception as e:
-        if episode_id:
-            try:
-                await episodic.complete_episode(
-                    episode_id=episode_id,
-                    status="failed",
-                    final_error=str(e),
-                )
-            except Exception as ex:
-                logger.warning(
-                    "episodic_memory_complete_failed", error=str(ex), error_type=type(ex).__name__, user_id=user_id
-                )
-        logger.exception(
-            "agent_chat_failed",
-            user_id=user_id,
-            session_id=session_id,
-            error_type=type(e).__name__,
-        )
-        raise HTTPException(status_code=500, detail="Agent execution failed")
+    NOTE: This endpoint is pending Phase 41 AutonomousRunner implementation.
+    The LangGraph pipeline was removed in Phase 40.
+    """
+    raise HTTPException(
+        status_code=503,
+        detail="Build agent temporarily unavailable — AutonomousRunner implementation in progress (Phase 41)",
+    )
 
 
 @router.post("/chat/stream")
 async def chat_stream(request: ChatRequest, user: ClerkUser = Depends(require_subscription)):
-    """Stream agent responses via SSE."""
-    session_id = request.session_id or str(uuid.uuid4())
-    user_id = user.user_id
-    session = await _get_session(session_id)
+    """Stream agent responses via SSE.
 
-    if session is None:
-        await _check_daily_session_limit(user_id)
-
-        state = create_initial_state(
-            user_id=user_id,
-            project_id=request.project_id,
-            project_path=f"/tmp/cofounder/{request.project_id}",
-            goal=request.message,
-            session_id=session_id,
-        )
-        session = {"state": state, "user_id": user_id}
-        await _increment_session_count(user_id)
-    else:
-        _require_session_owner(session, user_id)
-        session.setdefault("user_id", user_id)
-        state = session["state"]
-        if request.message:
-            state["current_goal"] = request.message
-            state["messages"].append({"role": "user", "content": request.message})
-
-    graph = create_cofounder_graph()
-
-    async def generate_events() -> AsyncGenerator[str, None]:
-        config = {"configurable": {"thread_id": session_id}}
-
-        try:
-            async for event in graph.astream(state, config):
-                for node_name, node_state in event.items():
-                    if isinstance(node_state, dict):
-                        status = node_state.get("status_message", "Processing...")
-                    else:
-                        status = f"Node output: {type(node_state).__name__}"
-                    yield f"data: {_format_sse_event(session_id, node_name, status)}\n\n"
-
-            # Save final state
-            session["state"] = state
-            await _save_session(session_id, session)
-
-            yield f"data: {_format_sse_event(session_id, 'complete', _get_last_assistant_message(state))}\n\n"
-        except Exception as e:
-            error_details = f"{type(e).__name__}: {e}"
-            yield f"data: {_format_sse_event(session_id, 'error', error_details)}\n\n"
-
-    return StreamingResponse(
-        generate_events(),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
+    NOTE: This endpoint is pending Phase 41 AutonomousRunner implementation.
+    The LangGraph pipeline was removed in Phase 40.
+    """
+    raise HTTPException(
+        status_code=503,
+        detail="Build agent temporarily unavailable — AutonomousRunner implementation in progress (Phase 41)",
     )
 
 
 @router.post("/sessions/{session_id}/resume")
 async def resume_session(session_id: str, action: str = "continue", user: ClerkUser = Depends(require_subscription)):
-    """Resume a paused session after human review."""
+    """Resume a paused session after human review.
+
+    NOTE: This endpoint is pending Phase 41 AutonomousRunner implementation.
+    The LangGraph pipeline was removed in Phase 40.
+    """
     session = await _get_session(session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
     _require_session_owner(session, user.user_id)
     session.setdefault("user_id", user.user_id)
 
-    state = session["state"]
-
     if action == "abort":
+        state = session["state"]
         state["has_fatal_error"] = True
         state["status_message"] = "Aborted by user"
         await _save_session(session_id, session)
         return {"status": "aborted"}
 
-    state["needs_human_review"] = False
-    graph = create_production_graph()
-    config = {"configurable": {"thread_id": session_id}}
-
-    result = await graph.ainvoke(state, config)
-    session["state"] = result
-    await _save_session(session_id, session)
-
-    return {
-        "status": result.get("status_message"),
-        "is_complete": result.get("is_complete", False),
-    }
+    raise HTTPException(
+        status_code=503,
+        detail="Build agent resume unavailable — AutonomousRunner implementation in progress (Phase 41)",
+    )
 
 
 @router.get("/sessions/{session_id}")

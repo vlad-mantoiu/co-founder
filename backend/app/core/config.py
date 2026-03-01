@@ -67,6 +67,9 @@ class Settings(BaseSettings):
     # Build log archival
     log_archive_bucket: str = ""
 
+    # S3 bucket for agent project file snapshots (Phase 42: E2B Issue #884 mitigation)
+    project_snapshot_bucket: str = ""  # env: PROJECT_SNAPSHOT_BUCKET — S3 bucket for agent project file snapshots
+
     # Screenshots & documentation infrastructure (Phase 33: INFRA-04, INFRA-05)
     screenshot_enabled: bool = True  # env: SCREENSHOT_ENABLED
     docs_generation_enabled: bool = True  # env: DOCS_GENERATION_ENABLED
@@ -79,6 +82,9 @@ class Settings(BaseSettings):
         "deep_research": False,
         "strategy_graph": False,
     }
+
+    # Feature flag for autonomous agent migration (Phase 40 — v0.7)
+    autonomous_agent: bool = True  # env: AUTONOMOUS_AGENT
     public_routes: list[str] = [
         "/api/health",
         "/api/ready",

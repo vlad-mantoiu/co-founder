@@ -20,6 +20,8 @@ from app.queue.usage import UsageTracker
 
 router = APIRouter()
 
+_AGENT_VALID_STATES = {"working", "sleeping", "waiting_for_input", "error", "budget_exceeded"}
+
 _EVENTS_HEARTBEAT_INTERVAL = 15  # seconds (ALB keepalive — locked decision)
 
 
@@ -49,6 +51,9 @@ class JobStatusResponse(BaseModel):
     position: int
     message: str
     usage: UsageCounters
+    agent_state: str | None = None  # working | sleeping | waiting_for_input | error | null
+    wake_at: str | None = None  # ISO timestamp if agent is sleeping
+    budget_pct: int | None = None  # 0–100 budget percentage if available
 
 
 class ConfirmResponse(BaseModel):
@@ -204,12 +209,38 @@ async def get_job_status(
     usage_tracker = UsageTracker(redis)
     counters = await usage_tracker.get_usage_counters(user.user_id, tier, job_id)
 
+    # Phase 46: agent_state, wake_at, budget_pct from Redis
+    agent_state: str | None = None
+    wake_at: str | None = None
+    budget_pct: int | None = None
+
+    # session_id defaults to job_id (matches runner_autonomous.py convention)
+    raw_agent_state = await redis.get(f"cofounder:agent:{job_id}:state")
+    if raw_agent_state is not None:
+        state_val = raw_agent_state if isinstance(raw_agent_state, str) else raw_agent_state.decode()
+        agent_state = state_val if state_val in _AGENT_VALID_STATES else None
+
+    if agent_state == "sleeping":
+        raw_wake_at = await redis.get(f"cofounder:agent:{job_id}:wake_at")
+        if raw_wake_at is not None:
+            wake_at = raw_wake_at if isinstance(raw_wake_at, str) else raw_wake_at.decode()
+
+    raw_budget_pct = await redis.get(f"cofounder:agent:{job_id}:budget_pct")
+    if raw_budget_pct is not None:
+        try:
+            budget_pct = int(raw_budget_pct)
+        except (ValueError, TypeError):
+            budget_pct = None
+
     return JobStatusResponse(
         job_id=job_id,
         status=job_data.get("status", "unknown"),
         position=position,
         message=job_data.get("status_message", ""),
         usage=counters,
+        agent_state=agent_state,
+        wake_at=wake_at,
+        budget_pct=budget_pct,
     )
 
 
@@ -364,6 +395,46 @@ async def stream_job_events(
             "X-Accel-Buffering": "no",
         },
     )
+
+
+@router.get("/{job_id}/phases")
+async def get_job_phases(
+    job_id: str,
+    user: ClerkUser = Depends(require_auth),
+    redis=Depends(get_redis),
+):
+    """Return GSD phase list for a job — bootstrapped from Redis on page load.
+
+    Reads the job:{job_id}:phases Redis hash written by the TAOR loop whenever
+    the agent calls narrate(phase_name=...). Phases are sorted by started_at.
+
+    Returns:
+        Dict with 'phases' key — list of phase dicts sorted by started_at.
+
+    Raises:
+        HTTPException(404): Job not found or user mismatch.
+    """
+    state_machine = JobStateMachine(redis)
+    job_data = await state_machine.get_job(job_id)
+
+    if not job_data or job_data.get("user_id") != user.user_id:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    raw = await redis.hgetall(f"job:{job_id}:phases")
+    phases = []
+    for phase_id, data in raw.items():
+        phase_id_str = phase_id.decode() if isinstance(phase_id, bytes) else phase_id
+        data_str = data.decode() if isinstance(data, bytes) else data
+        try:
+            phase = json.loads(data_str)
+        except (json.JSONDecodeError, TypeError):
+            continue
+        phase["phase_id"] = phase_id_str
+        phases.append(phase)
+
+    # Sort by started_at (ISO format — lexicographic sort = chronological)
+    phases.sort(key=lambda p: p.get("started_at", ""))
+    return {"phases": phases}
 
 
 @router.post("/{job_id}/confirm", response_model=ConfirmResponse)

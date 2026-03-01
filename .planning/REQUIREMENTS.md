@@ -9,39 +9,39 @@ Requirements for v0.7 Autonomous Agent. Each maps to roadmap phases.
 
 ### Agent Core
 
-- [ ] **AGNT-01**: Agent executes a TAOR (Think-Act-Observe-Repeat) loop using Anthropic tool-use API, autonomously deciding next actions until build is complete or human input needed
-- [ ] **AGNT-02**: Agent consumes Understanding Interview QnA + Idea Brief as input context, using it to make autonomous product/architecture decisions
-- [ ] **AGNT-03**: Agent has 7 Claude Code-style tools operating inside E2B sandbox: read_file, write_file, edit_file, bash, grep, glob, take_screenshot
-- [ ] **AGNT-04**: Agent handles narration natively via narrate() tool — first-person co-founder voice describing what it's doing and why
-- [ ] **AGNT-05**: Agent handles documentation generation natively as part of its workflow — no separate DocGenerationService
-- [ ] **AGNT-06**: Agent loop has iteration cap (MAX_TOOL_CALLS), repetition detection, and context window management (middle-truncation of large tool results)
-- [ ] **AGNT-07**: Agent retries failed operations 3 times with different approaches per error signature before escalating to founder with structured context
-- [ ] **AGNT-08**: Agent escalation surfaces problem description, what was tried, and recommended action to founder via existing DecisionConsole pattern
+- [x] **AGNT-01**: Agent executes a TAOR (Think-Act-Observe-Repeat) loop using Anthropic tool-use API, autonomously deciding next actions until build is complete or human input needed
+- [x] **AGNT-02**: Agent consumes Understanding Interview QnA + Idea Brief as input context, using it to make autonomous product/architecture decisions
+- [x] **AGNT-03**: Agent has 7 Claude Code-style tools operating inside E2B sandbox: read_file, write_file, edit_file, bash, grep, glob, take_screenshot
+- [x] **AGNT-04**: Agent handles narration natively via narrate() tool — first-person co-founder voice describing what it's doing and why
+- [x] **AGNT-05**: Agent handles documentation generation natively as part of its workflow — no separate DocGenerationService
+- [x] **AGNT-06**: Agent loop has iteration cap (MAX_TOOL_CALLS), repetition detection, and context window management (middle-truncation of large tool results)
+- [x] **AGNT-07**: Agent retries failed operations 3 times with different approaches per error signature before escalating to founder with structured context
+- [x] **AGNT-08**: Agent escalation surfaces problem description, what was tried, and recommended action to founder via existing DecisionConsole pattern
 
 ### Budget & Daemon
 
-- [ ] **BDGT-01**: Token budget daemon calculates daily allowance from remaining tokens and days until subscription renewal
-- [ ] **BDGT-02**: Agent transitions to "sleeping" state when daily token budget is consumed
-- [ ] **BDGT-03**: Agent wakes automatically when daily budget refreshes (next calendar day or subscription reset)
-- [ ] **BDGT-04**: Agent state persists across sleep/wake cycles — conversation history stored in PostgreSQL (AgentCheckpoint table)
-- [ ] **BDGT-05**: Model is configurable per subscription tier — Opus for premium, Sonnet for budget tiers
-- [ ] **BDGT-06**: Per-tool cost tracking records input/output tokens and cost per API call in Redis
-- [ ] **BDGT-07**: Cost runaway prevention — hard daily ceiling kills agent loop if budget exceeded by >10%
+- [x] **BDGT-01**: Token budget daemon calculates daily allowance from remaining tokens and days until subscription renewal
+- [x] **BDGT-02**: Agent transitions to "sleeping" state when daily token budget is consumed
+- [x] **BDGT-03**: Agent wakes automatically when daily budget refreshes (next calendar day or subscription reset)
+- [x] **BDGT-04**: Agent state persists across sleep/wake cycles — conversation history stored in PostgreSQL (AgentCheckpoint table)
+- [x] **BDGT-05**: Model is configurable per subscription tier — Opus for premium, Sonnet for budget tiers
+- [x] **BDGT-06**: Per-tool cost tracking records input/output tokens and cost per API call in Redis
+- [x] **BDGT-07**: Cost runaway prevention — hard daily ceiling kills agent loop if budget exceeded by >10%
 
 ### UI & Integration
 
-- [ ] **UIAG-01**: GSD phases created by agent appear on Kanban Timeline with live status (pending/in-progress/complete)
-- [ ] **UIAG-02**: Activity feed shows phase-level summaries by default ("Planning authentication system...", "Building login page...")
-- [ ] **UIAG-03**: Verbose toggle in activity feed reveals tool-level detail (individual file writes, bash commands, screenshots)
-- [ ] **UIAG-04**: Dashboard displays agent state: working, sleeping, waiting-for-input, error
-- [ ] **UIAG-05**: New SSE event types stream agent actions to frontend (agent.thinking, agent.tool.called, agent.sleeping, gsd.phase.started, gsd.phase.completed)
+- [x] **UIAG-01**: GSD phases created by agent appear on Kanban Timeline with live status (pending/in-progress/complete)
+- [x] **UIAG-02**: Activity feed shows phase-level summaries by default ("Planning authentication system...", "Building login page...")
+- [x] **UIAG-03**: Verbose toggle in activity feed reveals tool-level detail (individual file writes, bash commands, screenshots)
+- [x] **UIAG-04**: Dashboard displays agent state: working, sleeping, waiting-for-input, error
+- [x] **UIAG-05**: New SSE event types stream agent actions to frontend (agent.thinking, agent.tool.called, agent.sleeping, gsd.phase.started, gsd.phase.completed)
 
 ### Cleanup & Migration
 
-- [ ] **MIGR-01**: LangGraph, LangChain deps atomically removed — all 6 node files, graph.py, NarrationService, DocGenerationService deleted
-- [ ] **MIGR-02**: Feature flag (AUTONOMOUS_AGENT env var) toggles between old RunnerReal and new AutonomousRunner during transition
-- [ ] **MIGR-03**: Runner protocol extended with run_agent_loop() — RunnerFake stubs it for TDD, AutonomousRunner implements it
-- [ ] **MIGR-04**: E2B sandbox file sync to S3 after each commit step — mitigates multi-resume file loss (E2B #884)
+- [x] **MIGR-01**: LangGraph, LangChain deps atomically removed — all 6 node files, graph.py, NarrationService, DocGenerationService deleted
+- [x] **MIGR-02**: Feature flag (AUTONOMOUS_AGENT env var) toggles between old RunnerReal and new AutonomousRunner during transition
+- [x] **MIGR-03**: Runner protocol extended with run_agent_loop() — RunnerFake stubs it for TDD, AutonomousRunner implements it
+- [x] **MIGR-04**: E2B sandbox file sync to S3 after each commit step — mitigates multi-resume file loss (E2B #884)
 
 ## v0.6 Requirements (Partial — Phases 33-36 Shipped, 37-39 Abandoned)
 
@@ -118,36 +118,37 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| MIGR-01 | Phase 40 | Pending |
-| MIGR-02 | Phase 40 | Pending |
-| MIGR-03 | Phase 40 | Pending |
-| AGNT-01 | Phase 41 | Pending |
-| AGNT-02 | Phase 41 | Pending |
-| AGNT-06 | Phase 41 | Pending |
-| AGNT-03 | Phase 42 | Pending |
-| MIGR-04 | Phase 42 | Pending |
-| BDGT-01 | Phase 43 | Pending |
-| BDGT-02 | Phase 43 | Pending |
-| BDGT-03 | Phase 43 | Pending |
-| BDGT-04 | Phase 43 | Pending |
-| BDGT-05 | Phase 43 | Pending |
-| BDGT-06 | Phase 43 | Pending |
-| BDGT-07 | Phase 43 | Pending |
-| AGNT-04 | Phase 44 | Pending |
-| AGNT-05 | Phase 44 | Pending |
-| AGNT-07 | Phase 45 | Pending |
-| AGNT-08 | Phase 45 | Pending |
-| UIAG-01 | Phase 46 | Pending |
-| UIAG-02 | Phase 46 | Pending |
-| UIAG-03 | Phase 46 | Pending |
-| UIAG-04 | Phase 46 | Pending |
-| UIAG-05 | Phase 46 | Pending |
+| MIGR-01 | Phase 40 | Complete |
+| MIGR-02 | Phase 40 | Complete |
+| MIGR-03 | Phase 40 | Complete |
+| AGNT-01 | Phase 43.1 | Complete |
+| AGNT-02 | Phase 43.1 | Complete |
+| AGNT-06 | Phase 41 | Complete |
+| AGNT-03 | Phase 43.1 | Complete |
+| MIGR-04 | Phase 43.1 | Complete |
+| BDGT-01 | Phase 43 | Complete |
+| BDGT-02 | Phase 43 | Complete |
+| BDGT-03 | Phase 43 | Complete |
+| BDGT-04 | Phase 43 | Complete |
+| BDGT-05 | Phase 43 | Complete |
+| BDGT-06 | Phase 43 | Complete |
+| BDGT-07 | Phase 43 | Complete |
+| AGNT-04 | Phase 44 | Complete |
+| AGNT-05 | Phase 44 | Complete |
+| AGNT-07 | Phase 45 | Complete |
+| AGNT-08 | Phase 47 | Complete |
+| UIAG-01 | Phase 46 | Complete |
+| UIAG-02 | Phase 46 | Complete |
+| UIAG-03 | Phase 46 | Complete |
+| UIAG-04 | Phase 47 | Complete |
+| UIAG-05 | Phase 46 | Complete |
 
 **Coverage:**
 - v0.7 requirements: 24 total
 - Mapped to phases: 24
+- Satisfied: 24 ✓
 - Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-02-24*
-*Last updated: 2026-02-24 — v0.7 requirements mapped to phases 40-46*
+*Last updated: 2026-03-01 — Phase 47 gap closure complete, 24/24 requirements satisfied*

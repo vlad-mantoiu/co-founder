@@ -13,27 +13,29 @@ from uuid import uuid4
 import structlog
 from sqlalchemy import select
 
+from app.agent.budget.checkpoint import CheckpointService
+from app.agent.budget.service import BudgetService
+from app.agent.budget.wake_daemon import WakeDaemon
 from app.agent.runner import Runner
 from app.agent.state import create_initial_state
+from app.agent.sync.s3_snapshot import S3SnapshotService
+from app.agent.tools.e2b_dispatcher import E2BToolDispatcher
 from app.core.config import get_settings as _get_settings
 from app.core.exceptions import SandboxError
+from app.core.llm_config import resolve_llm_config
 from app.db.base import get_session_factory
+from app.db.models.artifact import Artifact
+from app.db.models.understanding_session import UnderstandingSession
 from app.db.redis import get_redis
 from app.metrics.cloudwatch import emit_business_event
 from app.queue.schemas import JobStatus
 from app.queue.state_machine import JobStateMachine
 from app.sandbox.e2b_runtime import E2BSandboxRuntime
-from app.services.doc_generation_service import DocGenerationService
 from app.services.log_streamer import LogStreamer
-from app.services.narration_service import NarrationService
 from app.services.screenshot_service import ScreenshotService
 
 logger = structlog.get_logger(__name__)
 
-# DOCS-03: Module-level singleton — one instance reused across all builds
-_doc_generation_service = DocGenerationService()
-# NARR-02: Module-level singletons — one instance reused across all builds
-_narration_service = NarrationService()
 _screenshot_service = ScreenshotService()
 
 
@@ -114,164 +116,264 @@ class GenerationService:
                 session_id=job_id,
             )
 
-            # DOCS-03: Start doc generation as background task after scaffold completes
-            # Fire-and-forget — task handles its own errors, never blocks the build
-            # Only launched when Redis is available (no-op in unit tests without Redis)
-            if _settings.docs_generation_enabled and _redis is not None:
-                asyncio.create_task(
-                    _doc_generation_service.generate(
-                        job_id=job_id,
-                        spec=job_data.get("goal", ""),
-                        redis=_redis,
+            if _settings.autonomous_agent:
+                # ---- AUTONOMOUS AGENT PATH ----
+                # 3. CODE — query DB for context, start sandbox, run TAOR loop
+                await state_machine.transition(job_id, JobStatus.CODE, "Running autonomous agent")
+                streamer._phase = "code"
+                await streamer.write_event("--- Running autonomous agent ---")
+
+                factory = get_session_factory()
+                async with factory() as db_session:
+                    # Query idea_brief artifact for this project
+                    idea_brief_result = await db_session.execute(
+                        select(Artifact).where(
+                            Artifact.project_id == uuid.UUID(project_id),
+                            Artifact.artifact_type == "idea_brief",
+                        )
                     )
-                )
+                    idea_brief_record = idea_brief_result.scalar_one_or_none()
+                    idea_brief = idea_brief_record.current_content or {} if idea_brief_record else {}
 
-            # NARR-02: Fire-and-forget narration for SCAFFOLD stage
-            if _settings.narration_enabled and _redis is not None:
-                asyncio.create_task(
-                    _narration_service.narrate(
-                        job_id=job_id,
-                        stage="scaffold",
-                        spec=job_data.get("goal", "")[:300],
-                        redis=_redis,
+                    # Query understanding_qna from latest UnderstandingSession
+                    u_session_result = await db_session.execute(
+                        select(UnderstandingSession)
+                        .where(UnderstandingSession.project_id == uuid.UUID(project_id))
+                        .order_by(UnderstandingSession.created_at.desc())
+                        .limit(1)
                     )
-                )
+                    u_session = u_session_result.scalar_one_or_none()
+                    understanding_qna: list = []
+                    if u_session and u_session.questions and u_session.answers:
+                        for q in u_session.questions:
+                            qid = q.get("id", "")
+                            answer = u_session.answers.get(qid, "")
+                            if answer:
+                                understanding_qna.append({"question": q.get("text", ""), "answer": answer})
 
-            # 3. CODE — run the Runner pipeline
-            await state_machine.transition(job_id, JobStatus.CODE, "Running LLM code generation pipeline")
-            streamer._phase = "code"
-            await streamer.write_event("--- Running LLM code generation ---")
+                    # Start E2B sandbox before instantiating E2BToolDispatcher (requires live runtime)
+                    sandbox = self.sandbox_runtime_factory()
+                    await sandbox.start()
+                    await sandbox.set_timeout(3600)
+                    workspace_path = "/home/user/project"
 
-            # NARR-02: Fire-and-forget narration for CODE stage
-            if _settings.narration_enabled and _redis is not None:
-                asyncio.create_task(
-                    _narration_service.narrate(
+                    # Resolve model from subscription tier
+                    try:
+                        model = await resolve_llm_config(user_id, role="coder")
+                    except PermissionError as perm_exc:
+                        raise Exception(f"Build blocked: {perm_exc}") from perm_exc
+
+                    # Set resolved model on runner
+                    self.runner._model = model
+
+                    # Instantiate E2B dispatcher (sandbox must be live at this point)
+                    dispatcher = E2BToolDispatcher(
+                        runtime=sandbox,
+                        screenshot_service=_screenshot_service if _settings.screenshot_enabled else None,
+                        project_id=project_id,
                         job_id=job_id,
-                        stage="code",
-                        spec=job_data.get("goal", "")[:300],
+                        preview_url=None,  # Agent discovers preview URL via bash tools
                         redis=_redis,
+                        state_machine=state_machine,
                     )
-                )
 
-            final_state = await self.runner.run(agent_state)
+                    # Instantiate S3 snapshot service (non-fatal if bucket not configured)
+                    snapshot_service = (
+                        S3SnapshotService(bucket=_settings.project_snapshot_bucket)
+                        if _settings.project_snapshot_bucket
+                        else None
+                    )
 
-            # Emit auto-fix signal to log stream if debugger retried
-            retry_count = final_state.get("retry_count", 0)
-            max_retries = final_state.get("max_retries", 5)
-            if retry_count > 0:
-                await streamer.write_event(f"--- Auto-fixing (attempt {retry_count} of {max_retries}) ---")
+                    # Instantiate budget and checkpoint services (conditional on Redis)
+                    budget_service = BudgetService(redis=_redis) if _redis else None
+                    checkpoint_service = CheckpointService() if _redis else None
 
-            # Validate working_files before provisioning sandbox (fail fast)
-            working_files: dict = final_state.get("working_files", {})
-            _validate_working_files(working_files)
+                    session_id = job_id
+                    wake_daemon = WakeDaemon(session_id=session_id, redis=_redis) if _redis else None
 
-            # 4. DEPS — create E2B sandbox, write generated files
-            await state_machine.transition(
-                job_id, JobStatus.DEPS, "Provisioning E2B sandbox and installing dependencies"
-            )
-            streamer._phase = "install"
-            await streamer.write_event("--- Provisioning sandbox and installing dependencies ---")
+                    # Shared retry_counts dict — mutable reference used by both ErrorSignatureTracker
+                    # and CheckpointService.save(); same object, never copied (design invariant)
+                    retry_counts: dict = {}
 
-            # NARR-02: Fire-and-forget narration for DEPS stage
-            if _settings.narration_enabled and _redis is not None:
-                asyncio.create_task(
-                    _narration_service.narrate(
+                    # Instantiate error tracker (always present in autonomous path — no conditional)
+                    from app.agent.error.tracker import ErrorSignatureTracker
+
+                    error_tracker = ErrorSignatureTracker(
+                        project_id=project_id,
+                        retry_counts=retry_counts,
+                        db_session=db_session,
+                        session_id=session_id,
                         job_id=job_id,
-                        stage="deps",
-                        spec=job_data.get("goal", "")[:300],
-                        redis=_redis,
                     )
-                )
 
-            sandbox = self.sandbox_runtime_factory()
-            await sandbox.start()
+                    # Assemble context dict (inline per locked decision — no factory method)
+                    context = {
+                        "project_id": project_id,
+                        "user_id": user_id,
+                        "job_id": job_id,
+                        "session_id": session_id,
+                        "idea_brief": idea_brief,
+                        "understanding_qna": understanding_qna,
+                        "build_plan": {"goal": job_data.get("goal", "")},
+                        "redis": _redis,
+                        "max_tool_calls": 150,
+                        "tier": job_data.get("tier", "bootstrapper"),
+                        "dispatcher": dispatcher,
+                        "budget_service": budget_service,
+                        "checkpoint_service": checkpoint_service,
+                        "db_session": db_session,
+                        "wake_daemon": wake_daemon,
+                        "state_machine": state_machine,
+                        "snapshot_service": snapshot_service,
+                        "sandbox_runtime": sandbox,
+                        "retry_counts": retry_counts,
+                        "error_tracker": error_tracker,
+                    }
 
-            # Extend sandbox lifetime so it survives the full build cycle
-            await sandbox.set_timeout(3600)
-            workspace_path = "/home/user/project"
-            for rel_path, file_change in working_files.items():
-                # FileChange is a TypedDict — content is in the 'new_content' key
-                content = file_change.get("new_content", "") if isinstance(file_change, dict) else str(file_change)
-                abs_path = rel_path if rel_path.startswith("/") else f"{workspace_path}/{rel_path}"
-                await sandbox.write_file(abs_path, content)
+                    # Launch WakeDaemon as a background task alongside the TAOR loop
+                    if wake_daemon:
+                        asyncio.create_task(wake_daemon.run())
 
-            # 5. CHECKS — basic health check
-            await state_machine.transition(job_id, JobStatus.CHECKS, "Running health checks")
-            streamer._phase = "checks"
-            await streamer.write_event("--- Running health checks ---")
+                    # Run TAOR loop (db_session stays open for entire duration — see PLAN note)
+                    await self.runner.run_agent_loop(context)
 
-            # NARR-02: Fire-and-forget narration for CHECKS stage
-            if _settings.narration_enabled and _redis is not None:
-                asyncio.create_task(
-                    _narration_service.narrate(
+                    # Extract sandbox metadata
+                    sandbox_id = sandbox.sandbox_id
+                    preview_url = getattr(sandbox, "_preview_url", None) or ""
+                    build_version = await self._get_next_build_version(project_id, state_machine)
+
+                    # Post-build S3 snapshot — final sync after TAOR loop completes
+                    if snapshot_service:
+                        try:
+                            await snapshot_service.sync(runtime=sandbox, project_id=project_id)
+                        except Exception:
+                            logger.warning("final_snapshot_sync_failed", job_id=job_id, exc_info=True)
+
+                # 7. Post-build hook: MVP Built state transition (non-fatal)
+                try:
+                    await self._handle_mvp_built_transition(
                         job_id=job_id,
-                        stage="checks",
-                        spec=job_data.get("goal", "")[:300],
-                        redis=_redis,
-                    )
-                )
-
-            await sandbox.run_command(
-                "echo 'health-check-ok'",
-                cwd=workspace_path,
-                on_stdout=streamer.on_stdout,
-                on_stderr=streamer.on_stderr,
-            )
-
-            # 5b. Start dev server and get live preview URL
-            streamer._phase = "install"
-            await streamer.write_event("--- Starting dev server ---")
-            preview_url = await sandbox.start_dev_server(
-                workspace_path=workspace_path,
-                working_files=working_files,
-                on_stdout=streamer.on_stdout,
-                on_stderr=streamer.on_stderr,
-            )
-
-            # SNAP-03: Fire-and-forget screenshot captures after dev server is live
-            if _settings.screenshot_enabled and _redis is not None:
-                asyncio.create_task(
-                    _screenshot_service.capture(
+                        project_id=project_id,
+                        build_version=build_version,
                         preview_url=preview_url,
-                        job_id=job_id,
-                        stage="checks",
-                        redis=_redis,
                     )
+                except Exception:
+                    logger.warning("mvp_built_hook_failed", job_id=job_id, exc_info=True)
+
+                await emit_business_event("artifact_generated", user_id=user_id)
+
+                return {
+                    "sandbox_id": sandbox_id,
+                    "preview_url": preview_url,
+                    "build_version": build_version,
+                    "workspace_path": workspace_path,
+                    "_sandbox_runtime": sandbox,  # Worker consumes to call beta_pause() — popped before DB persist
+                }
+
+            else:
+                # ---- LEGACY RUNNER PATH (RunnerReal / RunnerFake) ----
+                # 3. CODE — run the Runner pipeline
+                await state_machine.transition(job_id, JobStatus.CODE, "Running LLM code generation pipeline")
+                streamer._phase = "code"
+                await streamer.write_event("--- Running LLM code generation ---")
+
+                final_state = await self.runner.run(agent_state)
+
+                # Emit auto-fix signal to log stream if debugger retried
+                retry_count = final_state.get("retry_count", 0)
+                max_retries = final_state.get("max_retries", 5)
+                if retry_count > 0:
+                    await streamer.write_event(f"--- Auto-fixing (attempt {retry_count} of {max_retries}) ---")
+
+                # Validate working_files before provisioning sandbox (fail fast)
+                working_files: dict = final_state.get("working_files", {})
+                _validate_working_files(working_files)
+
+                # 4. DEPS — create E2B sandbox, write generated files
+                await state_machine.transition(
+                    job_id, JobStatus.DEPS, "Provisioning E2B sandbox and installing dependencies"
                 )
-                asyncio.create_task(
-                    _screenshot_service.capture(
+                streamer._phase = "install"
+                await streamer.write_event("--- Provisioning sandbox and installing dependencies ---")
+
+                sandbox = self.sandbox_runtime_factory()
+                await sandbox.start()
+
+                # Extend sandbox lifetime so it survives the full build cycle
+                await sandbox.set_timeout(3600)
+                workspace_path = "/home/user/project"
+                for rel_path, file_change in working_files.items():
+                    # FileChange is a TypedDict — content is in the 'new_content' key
+                    content = file_change.get("new_content", "") if isinstance(file_change, dict) else str(file_change)
+                    abs_path = rel_path if rel_path.startswith("/") else f"{workspace_path}/{rel_path}"
+                    await sandbox.write_file(abs_path, content)
+
+                # 5. CHECKS — basic health check
+                await state_machine.transition(job_id, JobStatus.CHECKS, "Running health checks")
+                streamer._phase = "checks"
+                await streamer.write_event("--- Running health checks ---")
+
+                await sandbox.run_command(
+                    "echo 'health-check-ok'",
+                    cwd=workspace_path,
+                    on_stdout=streamer.on_stdout,
+                    on_stderr=streamer.on_stderr,
+                )
+
+                # 5b. Start dev server and get live preview URL
+                streamer._phase = "install"
+                await streamer.write_event("--- Starting dev server ---")
+                preview_url = await sandbox.start_dev_server(
+                    workspace_path=workspace_path,
+                    working_files=working_files,
+                    on_stdout=streamer.on_stdout,
+                    on_stderr=streamer.on_stderr,
+                )
+
+                # SNAP-03: Fire-and-forget screenshot captures after dev server is live
+                if _settings.screenshot_enabled and _redis is not None:
+                    asyncio.create_task(
+                        _screenshot_service.capture(
+                            preview_url=preview_url,
+                            job_id=job_id,
+                            stage="checks",
+                            redis=_redis,
+                        )
+                    )
+                    asyncio.create_task(
+                        _screenshot_service.capture(
+                            preview_url=preview_url,
+                            job_id=job_id,
+                            stage="ready",
+                            redis=_redis,
+                        )
+                    )
+
+                # 6. Compute build result fields
+                sandbox_id = sandbox.sandbox_id
+                build_version = await self._get_next_build_version(project_id, state_machine)
+
+                # 7. Post-build hook: MVP Built state transition (non-fatal)
+                try:
+                    await self._handle_mvp_built_transition(
+                        job_id=job_id,
+                        project_id=project_id,
+                        build_version=build_version,
                         preview_url=preview_url,
-                        job_id=job_id,
-                        stage="ready",
-                        redis=_redis,
                     )
-                )
+                except Exception:
+                    logger.warning("mvp_built_hook_failed", job_id=job_id, exc_info=True)
 
-            # 6. Compute build result fields
-            sandbox_id = sandbox.sandbox_id
-            build_version = await self._get_next_build_version(project_id, state_machine)
+                # Emit artifact_generated business event on successful build
+                await emit_business_event("artifact_generated", user_id=user_id)
 
-            # 7. Post-build hook: MVP Built state transition (non-fatal)
-            try:
-                await self._handle_mvp_built_transition(
-                    job_id=job_id,
-                    project_id=project_id,
-                    build_version=build_version,
-                    preview_url=preview_url,
-                )
-            except Exception:
-                logger.warning("mvp_built_hook_failed", job_id=job_id, exc_info=True)
-
-            # Emit artifact_generated business event on successful build
-            await emit_business_event("artifact_generated", user_id=user_id)
-
-            return {
-                "sandbox_id": sandbox_id,
-                "preview_url": preview_url,
-                "build_version": build_version,
-                "workspace_path": workspace_path,
-                "_sandbox_runtime": sandbox,  # Worker consumes this to call beta_pause() — popped before DB persist
-            }
+                return {
+                    "sandbox_id": sandbox_id,
+                    "preview_url": preview_url,
+                    "build_version": build_version,
+                    "workspace_path": workspace_path,
+                    "_sandbox_runtime": sandbox,  # Worker consumes this to call beta_pause() — popped before DB persist
+                }
 
         except Exception as exc:
             debug_id = str(uuid4())
@@ -382,42 +484,10 @@ class GenerationService:
             # Extend sandbox lifetime
             await sandbox.set_timeout(3600)
 
-            # DOCS-03: Start doc generation as background task after scaffold completes (iteration builds)
-            if _settings.docs_generation_enabled and _redis is not None:
-                asyncio.create_task(
-                    _doc_generation_service.generate(
-                        job_id=job_id,
-                        spec=job_data.get("goal", ""),
-                        redis=_redis,
-                    )
-                )
-
-            # NARR-02: Fire-and-forget narration for SCAFFOLD stage
-            if _settings.narration_enabled and _redis is not None:
-                asyncio.create_task(
-                    _narration_service.narrate(
-                        job_id=job_id,
-                        stage="scaffold",
-                        spec=job_data.get("goal", "")[:300],
-                        redis=_redis,
-                    )
-                )
-
             # 3. CODE — run Runner with change_request context
             await state_machine.transition(job_id, JobStatus.CODE, "Running LLM patch generation")
             streamer._phase = "code"
             await streamer.write_event("--- Running LLM patch generation ---")
-
-            # NARR-02: Fire-and-forget narration for CODE stage
-            if _settings.narration_enabled and _redis is not None:
-                asyncio.create_task(
-                    _narration_service.narrate(
-                        job_id=job_id,
-                        stage="code",
-                        spec=job_data.get("goal", "")[:300],
-                        redis=_redis,
-                    )
-                )
 
             # Build agent state that includes the change request context
             agent_state = create_initial_state(
@@ -451,17 +521,6 @@ class GenerationService:
             streamer._phase = "install"
             await streamer.write_event("--- Writing patched files to sandbox ---")
 
-            # NARR-02: Fire-and-forget narration for DEPS stage
-            if _settings.narration_enabled and _redis is not None:
-                asyncio.create_task(
-                    _narration_service.narrate(
-                        job_id=job_id,
-                        stage="deps",
-                        spec=job_data.get("goal", "")[:300],
-                        redis=_redis,
-                    )
-                )
-
             workspace_path = "/home/user/project"
             for rel_path, file_change in working_files.items():
                 content = file_change.get("new_content", "") if isinstance(file_change, dict) else str(file_change)
@@ -472,17 +531,6 @@ class GenerationService:
             await state_machine.transition(job_id, JobStatus.CHECKS, "Running health checks on patched build")
             streamer._phase = "checks"
             await streamer.write_event("--- Running health checks on patched build ---")
-
-            # NARR-02: Fire-and-forget narration for CHECKS stage
-            if _settings.narration_enabled and _redis is not None:
-                asyncio.create_task(
-                    _narration_service.narrate(
-                        job_id=job_id,
-                        stage="checks",
-                        spec=job_data.get("goal", "")[:300],
-                        redis=_redis,
-                    )
-                )
 
             check_result = await sandbox.run_command(
                 "echo 'health-check-ok'",
@@ -562,20 +610,6 @@ class GenerationService:
             # 6. Compute remaining build result fields
             sandbox_id = sandbox.sandbox_id
             build_version = await self._get_next_build_version(project_id, state_machine)
-
-            # DOCS-09: Generate changelog for v0.2+ iteration builds
-            if _settings.docs_generation_enabled and _redis is not None and build_version != "build_v0_1":
-                prev_spec = await self._fetch_previous_spec(project_id)
-                if prev_spec:
-                    asyncio.create_task(
-                        _doc_generation_service.generate_changelog(
-                            job_id=job_id,
-                            current_spec=job_data.get("goal", ""),
-                            previous_spec=prev_spec,
-                            build_version=build_version,
-                            redis=_redis,
-                        )
-                    )
 
             # 7. Timeline narration (GENL-05)
             try:

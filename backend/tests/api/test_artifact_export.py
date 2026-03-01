@@ -225,7 +225,7 @@ async def setup_project_and_artifacts(db_session):
                     "outcome": "System captures requirements",
                 },
             ],
-            "architecture": "FastAPI backend, Next.js frontend, LangGraph agents",
+            "architecture": "FastAPI backend, Next.js frontend, autonomous Claude agent",
             "data_flow": "User input → LLM → Code generation → E2B sandbox → Preview",
         },
         has_user_edits=False,

@@ -89,43 +89,10 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.info("neo4j_schema_skipped", reason=str(e))
 
-    # Initialize LangGraph checkpointer (production: AsyncPostgresSaver, fallback: MemorySaver)
-    try:
-        from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
-
-        db_url = settings.database_url
-        if db_url and "postgresql" in db_url:
-            # AsyncPostgresSaver uses psycopg directly — strip SQLAlchemy dialect
-            conn_string = db_url.replace("+asyncpg", "").replace("+psycopg", "")
-            checkpointer = AsyncPostgresSaver.from_conn_string(conn_string)
-            # from_conn_string returns an async context manager — enter it
-            app.state._checkpointer_cm = checkpointer
-            app.state.checkpointer = await checkpointer.__aenter__()
-            await app.state.checkpointer.setup()  # idempotent — creates tables if missing
-            logger.info("checkpointer_initialized", type="AsyncPostgresSaver")
-        else:
-            from langgraph.checkpoint.memory import MemorySaver
-
-            app.state.checkpointer = MemorySaver()
-            app.state._checkpointer_cm = None
-            logger.info("checkpointer_initialized", type="MemorySaver", reason="no_database_url")
-    except Exception as e:
-        from langgraph.checkpoint.memory import MemorySaver
-
-        app.state.checkpointer = MemorySaver()
-        app.state._checkpointer_cm = None
-        logger.warning("checkpointer_fallback", type="MemorySaver", error=str(e), error_type=type(e).__name__)
-
     yield
 
     # Shutdown
     logger.info("shutdown_begin")
-    # Close checkpointer connection
-    try:
-        if hasattr(app.state, "_checkpointer_cm") and app.state._checkpointer_cm is not None:
-            await app.state._checkpointer_cm.__aexit__(None, None, None)
-    except Exception:
-        pass
     try:
         from app.db.graph.strategy_graph import get_strategy_graph
 

@@ -1310,6 +1310,19 @@ PORT=8000
             "adapted_for": "Non-technical founder (bootstrapper tier) — smaller MVP scope, longer build phases, no-code tools for validation, managed hosting to avoid DevOps complexity",
         }
 
+    async def run_agent_loop(self, context: dict) -> dict:
+        """Deterministic stub for TDD — returns synthetic agent loop result."""
+        if self.scenario == "llm_failure":
+            raise RuntimeError("Anthropic API rate limit exceeded. Retry after 60 seconds.")
+        if self.scenario == "rate_limited":
+            raise RuntimeError("Worker capacity exceeded. Estimated wait: 5 minutes. Current queue depth: 12.")
+        return {
+            "status": "completed",
+            "project_id": context.get("project_id", "test-project"),
+            "phases_completed": 3,
+            "result": "stub: autonomous agent loop completed",
+        }
+
     async def generate_app_architecture(self, idea: str, brief: dict, tier: str) -> dict:
         """Generate App Architecture artifact with component diagram and cost estimates.
 

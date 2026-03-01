@@ -22,6 +22,7 @@ class UserSettings(Base):
     stripe_customer_id = Column(String(255), unique=True, nullable=True, index=True)
     stripe_subscription_id = Column(String(255), nullable=True)
     stripe_subscription_status = Column(String(50), nullable=True)
+    subscription_renewal_date = Column(DateTime(timezone=True), nullable=True)
 
     # Admin overrides (nullable = use plan default)
     override_models = Column(JSON, nullable=True)  # {"architect": "...", "coder": "..."}

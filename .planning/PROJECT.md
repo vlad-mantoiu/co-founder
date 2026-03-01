@@ -10,8 +10,8 @@ A non-technical founder can go from idea to running MVP preview in under 10 minu
 
 ## Current State
 
-**Shipped:** v0.5 Sandbox Integration (2026-02-22), v0.6 partial (phases 33-36 of 39, abandoned at phase 36)
-**Codebase:** ~19,500 LOC Python + ~13,500 LOC tests + ~19,900 LOC TypeScript (app ~15,700 + marketing ~4,200)
+**Shipped:** v0.7 Autonomous Agent (2026-03-01), v0.6 partial (phases 33-36), v0.5 Sandbox Integration (2026-02-22)
+**Codebase:** ~22,000 LOC Python + ~15,000 LOC tests + ~21,000 LOC TypeScript (app ~17,000 + marketing ~4,200)
 **Stack:** FastAPI + Next.js 14 + Anthropic API (tool use) + E2B + Neo4j + PostgreSQL + Redis + Clerk + AWS ECS Fargate + CloudFront + S3
 
 **What's live:**
@@ -36,6 +36,13 @@ A non-technical founder can go from idea to running MVP preview in under 10 minu
 - SSE streaming infrastructure with heartbeat (from v0.6)
 - S3 + CloudFront screenshot storage infrastructure (from v0.6)
 - Safety pattern filtering — no secrets, raw errors, or internal paths in output (from v0.6)
+- Autonomous Claude agent replacing LangGraph — TAOR loop with 7 tools in E2B (v0.7)
+- Token budget pacing with sleep/wake daemon — agent distributes work across subscription window (v0.7)
+- Self-healing error model — 3 retries with different approaches, then escalate to founder (v0.7)
+- Native narration and documentation — agent handles narrate() and document() as tools (v0.7)
+- Real-time UI integration — activity feed, Kanban timeline, agent state badge via SSE (v0.7)
+- REST bootstrap — budget_pct and wake_at Redis keys for page reload during sleep (v0.7)
+- Cross-session escalation visibility — SSE event for multi-session resolution (v0.7)
 
 ## Requirements
 
@@ -107,24 +114,26 @@ A non-technical founder can go from idea to running MVP preview in under 10 minu
 - ✓ Answer-format "What is Co-Founder.ai?" section — v0.4
 - ✓ llms.txt product description for AI crawlers — v0.4
 - ✓ Auto-generated Strategy Graph, Timeline, Architecture artifacts from real data — v0.4
+- ✓ LangGraph/LangChain dependencies atomically removed, Runner protocol extended with run_agent_loop() — v0.7
+- ✓ Feature flag (AUTONOMOUS_AGENT) toggles between old RunnerReal and AutonomousRunner — v0.7
+- ✓ Autonomous TAOR loop using Anthropic tool-use API with iteration cap and repetition detection — v0.7
+- ✓ Agent consumes Understanding Interview QnA + Idea Brief as input context — v0.7
+- ✓ 7 Claude Code-style tools (read, write, edit, bash, grep, glob, screenshot) dispatched to E2B — v0.7
+- ✓ E2B sandbox file sync to S3 after each commit step — v0.7
+- ✓ narrate() and document() tools replace NarrationService and DocGenerationService — v0.7
+- ✓ Token budget daemon with daily allowance, sleep/wake lifecycle, PostgreSQL persistence — v0.7
+- ✓ Model configurable per subscription tier (Opus for CTO, Sonnet for Bootstrapper) — v0.7
+- ✓ Per-tool cost tracking in Redis with hard daily ceiling circuit breaker — v0.7
+- ✓ Self-healing error model: 3 retries with different approaches, then escalate to founder — v0.7
+- ✓ Escalation surfaces structured context with SSE resolution visibility — v0.7
+- ✓ GSD phases on Kanban Timeline with real-time status via SSE — v0.7
+- ✓ Activity feed with verbose toggle for tool-level detail — v0.7
+- ✓ Dashboard agent state (working, sleeping, waiting, error) with REST bootstrap — v0.7
+- ✓ 11 SSE event types streaming agent actions to frontend — v0.7
 
 ### Active
 
-**Current Milestone: v0.7 Autonomous Agent**
-
-**Goal:** Replace the rigid LangGraph multi-agent pipeline with a single autonomous Claude agent that operates like Claude Code inside E2B — consuming the founder's Idea Brief, autonomously planning and executing a GSD-like workflow, streaming progress to the UI, pacing work against the subscription token budget, and only stopping when it genuinely needs the founder.
-
-**Target features:**
-- Autonomous agentic loop replacing LangGraph: discuss → plan → execute → verify, all autonomous
-- Claude Code-style tool surface operating inside E2B: read, write, edit, bash, grep, glob, take_screenshot
-- Configurable model per subscription tier (Opus for CTO, Sonnet for Bootstrapper)
-- GSD phases recorded on Kanban Timeline with live status updates
-- Activity feed with verbose toggle: phase summaries by default, tool-level detail on demand
-- Token budget pacing: agent distributes work across subscription window (tokens remaining ÷ days until renewal)
-- Sleep/wake daemon: agent state is "sleeping" when daily budget consumed, wakes on refresh
-- Self-healing error model: 3 retries with different approaches, then escalate to founder
-- Agent handles narration, documentation, and screenshots natively — no separate services
-- Fits into existing three-panel UI via SSE streaming
+(No active milestone — ready for `/gsd:new-milestone`)
 
 ### Out of Scope
 
@@ -153,8 +162,8 @@ Non-technical, product-led founders who think in roadmaps, reports, and artifact
 **Known Tech Debt:**
 - Neo4j dual-write non-fatal — graph empty when Neo4j not configured (medium, from v0.1)
 - Dashboard layout retains force-dynamic for useSearchParams() — documented deviation (low, from v0.3)
-- LangGraph node files (architect, coder, executor, debugger, reviewer, git_manager) to be removed after v0.7 agent replaces them
-- NarrationService, DocGenerationService to be removed after v0.7 agent handles natively
+- PROJECT_SNAPSHOT_BUCKET env var not set in ECS task definition — S3SnapshotService is None in production (medium, from v0.7)
+- No frontend unit tests for Phase 46 UI components — visual/interactive, requires browser (medium, from v0.7)
 - v0.6 phases 37-39 frontend work never built — three-panel UI deferred
 
 ## Constraints
@@ -198,12 +207,12 @@ Non-technical, product-led founders who think in roadmaps, reports, and artifact
 | Two-pass S3 sync in deploy pipeline | First pass syncs HTML/assets with --delete; second pass syncs images/ with immutable cache headers | ✓ Good — prevents image deletion race, correct cache headers |
 | Allow all AI crawlers including training crawlers | User decision: maximize discoverability, no Disallow entries for any bot | ✓ Good — all AI engines can index and cite content |
 
-| Replace LangGraph with autonomous Claude agent | LangGraph is a rigid predefined graph; autonomous agent with tools is more flexible, handles narration/docs/screenshots natively, matches GSD workflow pattern | — Pending |
-| Token budget pacing over one-shot builds | Agent runs 24/7 at paced capacity, distributing work across subscription window — gives impression of persistent co-founder | — Pending |
-| Claude Code-style tools in E2B | Full tool suite (read, write, edit, bash, grep, glob) gives agent maximum flexibility inside sandbox | — Pending |
-| Configurable model per subscription tier | Opus for premium tiers, Sonnet for budget — balances quality and cost | — Pending |
-| Sleep/wake daemon model | Agent sleeps when daily token budget consumed, wakes on refresh — sustainable 24/7 presence | — Pending |
-| Self-heal then escalate error model | 3 retries with different approaches before asking founder — minimizes interruptions | — Pending |
+| Replace LangGraph with autonomous Claude agent | LangGraph is a rigid predefined graph; autonomous agent with tools is more flexible, handles narration/docs/screenshots natively, matches GSD workflow pattern | ✓ Good — single agent with TAOR loop replaces 6-node graph, 24/24 requirements satisfied |
+| Token budget pacing over one-shot builds | Agent runs 24/7 at paced capacity, distributing work across subscription window — gives impression of persistent co-founder | ✓ Good — daily allowance with sleep/wake daemon, REST bootstrap on reload |
+| Claude Code-style tools in E2B | Full tool suite (read, write, edit, bash, grep, glob) gives agent maximum flexibility inside sandbox | ✓ Good — 7 tools dispatched via E2BToolDispatcher with S3 snapshot sync |
+| Configurable model per subscription tier | Opus for premium tiers, Sonnet for budget — balances quality and cost | ✓ Good — resolved at session start from UserSettings |
+| Sleep/wake daemon model | Agent sleeps when daily token budget consumed, wakes on refresh — sustainable 24/7 presence | ✓ Good — PostgreSQL checkpoint persistence, Redis state keys for REST bootstrap |
+| Self-heal then escalate error model | 3 retries with different approaches before asking founder — minimizes interruptions | ✓ Good — ErrorSignatureTracker with per-signature retry, structured escalation via DecisionConsole |
 
 ---
-*Last updated: 2026-02-24 after v0.7 milestone started*
+*Last updated: 2026-03-01 after v0.7 milestone complete*
