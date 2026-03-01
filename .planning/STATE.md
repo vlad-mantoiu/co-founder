@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** v0.7 Autonomous Agent — Phase 45: Self-Healing Error Model — ALL 3 PLANS COMPLETE — Phase 46 (escalation UI) next
+**Current focus:** v0.7 Autonomous Agent — Phase 46: UI Integration — Plans 01-02 complete — Plans 03-05 remaining (Kanban timeline, Activity feed, AutonomousBuildView)
 
 ## Current Position
 
-Phase: 46 of 46 (UI Integration) — Plan 1 of N complete
-Plan: 1 complete (46-01: SSE event types, REST endpoints for phases and agent state)
-Status: Phase 46 Plan 01 COMPLETE — 4 new SSEEventType constants, agent.thinking/agent.tool.called emissions, GSD phase Redis persistence, GET /api/jobs/{id}/phases endpoint, agent_state in job status — 22 new tests
-Last activity: 2026-03-01 — Phase 46 Plan 01 complete: UI integration backend SSE events and REST endpoints
+Phase: 46 of 46 (UI Integration) — Plan 2 of N complete
+Plan: 2 complete (46-02: 5 React hooks — useAgentEvents, useAgentPhases, useAgentState, useAgentActivityFeed, useAgentEscalations)
+Status: Phase 46 Plan 02 COMPLETE — single SSE consumer pattern, REST bootstrap + SSE live updates for all domain state slices, escalation resolve mutation, auto-scroll control
+Last activity: 2026-03-01 — Phase 46 Plan 02 complete: frontend data layer hooks for autonomous build dashboard
 
-Progress: [█████████░] 92% (v0.7: Phase 46 Plan 01 complete — UI integration SSE events and REST endpoints)
+Progress: [█████████░] 93% (v0.7: Phase 46 Plan 02 complete — 5 frontend data layer hooks)
 
 ## Performance Metrics
 
@@ -138,6 +138,11 @@ Progress: [█████████░] 92% (v0.7: Phase 46 Plan 01 complete 
 - [46-01] agent.thinking emitted before messages.stream() via local import of SSEEventType — follows Phase 43/44 pattern to avoid circular import at module level
 - [46-01] agent_state validated against _AGENT_VALID_STATES sentinel set — silently returns null for unexpected Redis values
 - [46-01] GSD phase Redis hash uses UUID phase_id as key — allows multiple concurrent phases and deterministic sort by started_at ISO timestamp
+- [46-02] useAgentEvents stores handlers in handlersRef.current — stable ref avoids reconnect storm when parent re-renders with new handler functions
+- [46-02] Domain hooks (useAgentPhases, useAgentState, etc.) do NOT call useAgentEvents internally — they export eventHandlers for page-level composition (single SSE connection per page)
+- [46-02] agent.sleeping does NOT close SSE stream — sleeping is transient; SSE must stay open to receive agent.waking
+- [46-02] onAgentWaitingForInput in useAgentEscalations re-fetches full escalation list from REST — backend creates DB record synchronously before firing the event
+- [46-02] resolve() uses optimistic local update — updates state immediately on 200 OK, SSE escalation_resolved provides eventual consistency
 
 ### Key Research Flags (check before planning)
 
@@ -158,9 +163,9 @@ None blocking Phase 41.
 
 ## Session Continuity
 
-Last session: 2026-03-01 (Phase 46 Plan 01 complete — SSE event types, REST endpoints for phases/agent state, 22 new tests — 693 total tests pass)
-Stopped at: Completed Phase 46 Plan 01 — 46-01-PLAN.md (SSE UI integration backend)
-Resume file: .planning/phases/46-ui-integration/ (Phase 46: continue remaining plans)
+Last session: 2026-03-01 (Phase 46 Plan 02 complete — 5 React hooks: useAgentEvents, useAgentPhases, useAgentState, useAgentActivityFeed, useAgentEscalations — zero TypeScript errors)
+Stopped at: Completed Phase 46 Plan 02 — 46-02-PLAN.md (frontend data layer hooks)
+Resume file: .planning/phases/46-ui-integration/ (Phase 46: continue with Plans 03-05: Kanban timeline, Activity feed, AutonomousBuildView)
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*
