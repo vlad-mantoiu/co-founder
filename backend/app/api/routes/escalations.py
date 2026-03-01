@@ -19,6 +19,7 @@ from sqlalchemy import select
 from app.core.auth import ClerkUser, require_auth
 from app.db.base import get_session_factory
 from app.db.models.agent_escalation import AgentEscalation
+from app.db.redis import get_redis
 
 router = APIRouter()
 
@@ -149,16 +150,19 @@ async def resolve_escalation(
     escalation_id: uuid.UUID,
     request: ResolveEscalationRequest,
     user: ClerkUser = Depends(require_auth),
+    redis=Depends(get_redis),
 ) -> EscalationResponse:
     """Resolve an escalation with the founder's decision.
 
     Writes founder_decision and optional founder_guidance, sets status to "resolved",
-    and records resolved_at timestamp.
+    records resolved_at timestamp, and emits agent.escalation_resolved SSE event
+    for cross-session visibility.
 
     Args:
         escalation_id: UUID of the escalation to resolve
         request: ResolveEscalationRequest with decision and optional guidance
         user: Authenticated user from JWT
+        redis: Shared Redis client for SSE event emission
 
     Returns:
         Updated EscalationResponse with resolved status
@@ -190,4 +194,17 @@ async def resolve_escalation(
 
         await session.commit()
 
-    return _to_response(esc)
+        # Emit agent.escalation_resolved SSE for cross-session visibility (AGNT-08)
+        from app.queue.state_machine import JobStateMachine, SSEEventType
+        _sm = JobStateMachine(redis)
+        await _sm.publish_event(
+            esc.job_id,
+            {
+                "type": SSEEventType.AGENT_ESCALATION_RESOLVED,
+                "escalation_id": str(esc.id),
+                "resolution": request.decision,
+                "resolved_at": esc.resolved_at.isoformat(),
+            },
+        )
+
+        return _to_response(esc)

@@ -9,6 +9,7 @@ Endpoints under test:
 - POST /api/escalations/{id}/resolve   → 200 on success, 404 not found, 409 already resolved
 """
 
+import json
 import uuid
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -18,6 +19,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.core.auth import ClerkUser, require_auth
+from app.db.redis import get_redis
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -41,9 +43,16 @@ def override_auth(user: ClerkUser):
 # ──────────────────────────────────────────────────────────────────────────────
 
 
+def _make_mock_redis() -> AsyncMock:
+    """Return an AsyncMock that looks like a Redis client."""
+    mock_redis = AsyncMock()
+    mock_redis.publish = AsyncMock(return_value=1)
+    return mock_redis
+
+
 @pytest.fixture
 def escalation_app():
-    """Minimal FastAPI app with only escalation routes, no real DB."""
+    """Minimal FastAPI app with only escalation routes, no real DB or Redis."""
     from app.api.routes.escalations import router
 
     app = FastAPI()
@@ -51,6 +60,14 @@ def escalation_app():
 
     user = _make_user()
     app.dependency_overrides[require_auth] = override_auth(user)
+
+    # Override get_redis so resolve_escalation can emit SSE without a real Redis connection
+    mock_redis = _make_mock_redis()
+
+    def override_redis():
+        return mock_redis
+
+    app.dependency_overrides[get_redis] = override_redis
 
     return app
 
@@ -294,3 +311,74 @@ def test_resolve_escalation_without_guidance(client):
     assert mock_esc.founder_decision == "skip"
     assert mock_esc.founder_guidance is None  # no guidance provided
     mock_session.commit.assert_awaited_once()
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# POST /escalations/{id}/resolve — SSE emission (AGNT-08)
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def test_resolve_emits_escalation_resolved_sse():
+    """POST /escalations/{id}/resolve calls redis.publish() with agent.escalation_resolved event."""
+    from app.api.routes.escalations import router
+
+    esc_id = uuid.uuid4()
+    job_id = "job-sse-test-001"
+    mock_esc = _mock_escalation(escalation_id=esc_id, job_id=job_id, status="pending")
+
+    mock_session = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = mock_esc
+    mock_session.execute.return_value = mock_result
+    mock_session.commit = AsyncMock()
+
+    mock_factory = MagicMock()
+    mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_factory.return_value.__aexit__ = AsyncMock(return_value=False)
+
+    # Build a dedicated app with a captured mock_redis for assertion
+    mock_redis = AsyncMock()
+    mock_redis.publish = AsyncMock(return_value=1)
+
+    app = FastAPI()
+    app.include_router(router)
+
+    user = _make_user()
+    app.dependency_overrides[require_auth] = override_auth(user)
+
+    def override_redis():
+        return mock_redis
+
+    app.dependency_overrides[get_redis] = override_redis
+
+    with patch("app.api.routes.escalations.get_session_factory", return_value=mock_factory):
+        with TestClient(app) as test_client:
+            response = test_client.post(
+                f"/escalations/{esc_id}/resolve",
+                json={"decision": "retry", "guidance": "Use a different approach"},
+            )
+
+    assert response.status_code == 200
+
+    # Verify redis.publish called with job channel and correct event payload
+    assert mock_redis.publish.called, "Expected redis.publish() to be called for SSE emission"
+
+    publish_calls = mock_redis.publish.call_args_list
+    assert len(publish_calls) >= 1
+
+    # Channel must match job:{job_id}:events pattern
+    channel_used = publish_calls[0].args[0]
+    assert f"job:{job_id}:events" == channel_used, (
+        f"Expected channel 'job:{job_id}:events', got '{channel_used}'"
+    )
+
+    # Payload must be valid JSON with correct event fields
+    payload_raw = publish_calls[0].args[1]
+    payload = json.loads(payload_raw)
+    assert payload["type"] == "agent.escalation_resolved", (
+        f"Expected type 'agent.escalation_resolved', got '{payload['type']}'"
+    )
+    assert "escalation_id" in payload
+    assert str(esc_id) == payload["escalation_id"]
+    assert payload["resolution"] == "retry"
+    assert "resolved_at" in payload
