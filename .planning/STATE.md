@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** A non-technical founder can go from idea to running MVP preview in under 10 minutes, making product decisions the entire way.
-**Current focus:** v0.7 Autonomous Agent — Phase 46: UI Integration — Plans 01-04 complete (03 retroactively verified) — Plan 05 remaining (AutonomousBuildView)
+**Current focus:** v0.7 Autonomous Agent — Phase 46: UI Integration — Plans 01-05 complete (auto tasks) — Plan 05 Task 3 awaiting human visual verification (checkpoint:human-verify)
 
 ## Current Position
 
-Phase: 46 of 46 (UI Integration) — Plan 4 of N complete
-Plan: 4 complete (46-04: 3 activity feed components — ActivityFeedEntry, EscalationEntry, AgentActivityFeed)
-Status: Phase 46 Plan 04 COMPLETE — chat-bubble narration with per-entry verbose expand, inline escalation entries, auto-scroll container with typing indicator
-Last activity: 2026-03-01 — Phase 46 Plan 04 complete: activity feed presentational components for autonomous build dashboard
+Phase: 46 of 46 (UI Integration) — Plan 5 of 5 auto tasks complete, awaiting checkpoint
+Plan: 5 complete (46-05: AutonomousBuildView composition + build page routing)
+Status: Phase 46 Plan 05 AUTO TASKS COMPLETE — awaiting human visual verification of complete autonomous build dashboard
+Last activity: 2026-03-01 — Phase 46 Plan 05 auto tasks done: AutonomousBuildView composition component + build page autonomous routing
 
-Progress: [█████████░] 95% (v0.7: Phase 46 Plan 04 complete — 3 activity feed components)
+Progress: [█████████░] 98% (v0.7: Phase 46 Plan 05 auto tasks complete — AutonomousBuildView + routing)
 
 ## Performance Metrics
 
@@ -40,6 +40,7 @@ Progress: [█████████░] 95% (v0.7: Phase 46 Plan 04 complete 
 | Phase 45-self-healing-error-model P02 | 18 | 2 tasks | 8 files |
 | Phase 45-self-healing-error-model P03 | 35 | 2 tasks | 3 files |
 | Phase 46 P03 | 3 | 2 tasks | 3 files |
+| Phase 46-ui-integration P05 | 7 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -153,6 +154,12 @@ Progress: [█████████░] 95% (v0.7: Phase 46 Plan 04 complete 
 - [46-04] ToolIcon dispatch uses substring matching — covers all current/future tool name variants without exhaustive enum
 - [46-04] EscalationEntry guidance input: first click reveals textarea, second click submits — inline UX, no modal required
 - [46-04] AgentActivityFeed adds optional filterPhaseName + onClearFilter props — needed for human-readable filter bar; passed by AutonomousBuildView (Plan 05)
+- [46-05] AutonomousBuildView fetches preview URL from /api/jobs/{id}/status internally — no prop drilling from build page parent
+- [46-05] Autonomous detection: ?autonomous=true URL param fast path (zero API call) + REST fallback via autonomous/job_type fields on /api/jobs/{id}/status
+- [46-05] Single-SSE-per-page: all domain hook eventHandlers merged at AutonomousBuildView composition layer, useAgentEvents called once
+- [46-05] Confetti, attention banner, and push notification each guarded by useRef flag — fire exactly once per page session regardless of re-renders
+- [46-05] handleWakeNow/handlePauseAfterPhase POST to /api/jobs/{id}/wake and /api/jobs/{id}/pause — non-fatal on 404 until endpoints exist
+- [46-05] Phase-to-feed filter sync: handlePhaseClick calls setPhaseFilterId + setFeedFilterPhaseId together — shared state from separate hooks
 
 ### Key Research Flags (check before planning)
 
@@ -173,9 +180,9 @@ None blocking Phase 41.
 
 ## Session Continuity
 
-Last session: 2026-03-01 (Phase 46 Plans 03+04 complete — GsdPhaseCard, GsdPhaseSidebar, AgentStateBadge (Plan 03) + ActivityFeedEntry, EscalationEntry, AgentActivityFeed (Plan 04) — zero TypeScript errors)
-Stopped at: Completed Phase 46 Plan 03 — 46-03-PLAN.md (Kanban timeline sidebar and agent state badge)
-Resume file: .planning/phases/46-ui-integration/ (Phase 46: continue with Plan 05: AutonomousBuildView)
+Last session: 2026-03-01 (Phase 46 Plan 05 auto tasks complete — AutonomousBuildView composition + build page routing — zero TypeScript errors, awaiting human visual verification checkpoint)
+Stopped at: Completed Phase 46 Plan 05 auto tasks — checkpoint:human-verify (Task 3) requires human to start dev server and visually verify the complete autonomous build dashboard
+Resume file: .planning/phases/46-ui-integration/ (Phase 46 Plan 05 Task 3: human-verify after frontend dev server confirms all 9 visual items)
 
 ---
 *v0.1 COMPLETE — 47 plans, 12 phases, 76/76 requirements (2026-02-17)*

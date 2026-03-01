@@ -111,7 +111,7 @@
 - [x] **Phase 43.1: Production Integration Glue** - Wire GenerationService to call run_agent_loop(), inject E2BToolDispatcher + BudgetService + CheckpointService + WakeDaemon into production context, connect S3SnapshotService, resolve model from tier, remove 501 gate (completed 2026-02-27)
 - [x] **Phase 44: Native Agent Capabilities** - narrate() tool replacing NarrationService; documentation generation native to agent workflow (completed 2026-02-27)
 - [x] **Phase 45: Self-Healing Error Model** - 3-retry with different approaches per error signature; founder escalation via DecisionConsole (completed 2026-02-28)
-- [ ] **Phase 46: UI Integration** - Activity feed with verbose toggle; agent state card; Kanban phase updates; new SSE event types wired to frontend
+- [x] **Phase 46: UI Integration** - Activity feed with verbose toggle; agent state card; Kanban phase updates; new SSE event types wired to frontend (completed 2026-03-01)
 
 ## Phase Details
 
@@ -371,7 +371,7 @@ Plans:
   3. Toggling verbose mode in the activity feed reveals individual tool calls with human-readable labels and their inputs/outputs — "Wrote 47 lines to `app/auth/login.tsx`" rather than raw JSON tool_use blocks
   4. The dashboard agent state card updates in real time: "Building" shows elapsed time, "Resting" shows a countdown to next wake, "Needs your input" shows the escalation prompt, "Error" shows what failed
   5. The 5 new SSE event types (agent.thinking, agent.tool.called, agent.sleeping, gsd.phase.started, gsd.phase.completed) are emitted by the backend and consumed by frontend hooks that dispatch them to the correct state slices — unknown event types are silently ignored by both old and new frontend code
-**Plans:** 4/5 plans executed
+**Plans:** 5/5 plans complete
 Plans:
 - [ ] 46-01-PLAN.md — Backend SSE event types + phase store + REST endpoints (UIAG-05, UIAG-01, UIAG-04)
 - [ ] 46-02-PLAN.md — Frontend SSE hooks layer (useAgentEvents, useAgentPhases, useAgentState, useAgentActivityFeed, useAgentEscalations) (UIAG-05, UIAG-02, UIAG-03)
@@ -429,7 +429,7 @@ Plans:
 | 43. Token Budget + Sleep/Wake Daemon | 3/4 | Complete    | 2026-02-26 | - |
 | 44. Native Agent Capabilities | 3/3 | Complete    | 2026-02-27 | - |
 | 45. Self-Healing Error Model | 3/3 | Complete    | 2026-02-28 | - |
-| 46. UI Integration | 4/5 | In Progress|  | - |
+| 46. UI Integration | 5/5 | Complete   | 2026-03-01 | - |
 
 ---
 *Created: 2026-02-16*
