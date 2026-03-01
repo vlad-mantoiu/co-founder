@@ -8,7 +8,7 @@
 - ✅ **v0.4 Marketing Speed & SEO** — Phases 22-27 (shipped 2026-02-22)
 - ✅ **v0.5 Sandbox Integration** — Phases 28-32 (shipped 2026-02-22)
 - ✅ **v0.6 Live Build Experience** — Phases 33-36 (shipped 2026-02-24, phases 37-39 abandoned)
-- 🚧 **v0.7 Autonomous Agent** — Phases 40-46 (in progress)
+- ✅ **v0.7 Autonomous Agent** — Phases 40-46 (shipped 2026-03-01)
 
 ## Phases
 

@@ -10,7 +10,7 @@ import { useAgentPhases } from "@/hooks/useAgentPhases";
 import { useAgentState } from "@/hooks/useAgentState";
 import { useAgentActivityFeed } from "@/hooks/useAgentActivityFeed";
 import { useAgentEscalations } from "@/hooks/useAgentEscalations";
-import { useAgentEvents } from "@/hooks/useAgentEvents";
+import { useAgentEvents, type EventHandlers } from "@/hooks/useAgentEvents";
 
 import { GsdPhaseSidebar } from "./GsdPhaseSidebar";
 import { AgentActivityFeed } from "./AgentActivityFeed";
@@ -206,14 +206,44 @@ export function AutonomousBuildView({
     eventHandlers: escalationEventHandlers,
   } = useAgentEscalations(jobId, getToken);
 
-  // ── Single SSE connection — merged handlers ───────────────────────────────
+  // ── Single SSE connection — composed handlers ──────────────────────────────
+  // Spread merge silently drops overlapping handler names. For any event name
+  // that appears in multiple hooks, we compose a single handler that calls all
+  // of them so every hook receives every relevant SSE event.
 
-  const { isConnected } = useAgentEvents(jobId, getToken, {
+  const composedHandlers: Partial<EventHandlers> = {
+    // Non-overlapping — safe to spread
     ...phaseEventHandlers,
     ...stateEventHandlers,
     ...feedEventHandlers,
     ...escalationEventHandlers,
-  });
+
+    // Overlapping — composed so ALL hooks fire
+    onGsdPhaseStarted: (e) => {
+      phaseEventHandlers.onGsdPhaseStarted?.(e);
+      stateEventHandlers.onGsdPhaseStarted?.(e);
+      feedEventHandlers.onGsdPhaseStarted?.(e);
+    },
+    onAgentThinking: (e) => {
+      stateEventHandlers.onAgentThinking?.(e);
+      feedEventHandlers.onAgentThinking?.(e);
+    },
+    onAgentToolCalled: (e) => {
+      stateEventHandlers.onAgentToolCalled?.(e);
+      feedEventHandlers.onAgentToolCalled?.(e);
+    },
+    onAgentWaitingForInput: (e) => {
+      stateEventHandlers.onAgentWaitingForInput?.(e);
+      feedEventHandlers.onAgentWaitingForInput?.(e);
+      escalationEventHandlers.onAgentWaitingForInput?.(e);
+    },
+    onAgentEscalationResolved: (e) => {
+      stateEventHandlers.onAgentEscalationResolved?.(e);
+      escalationEventHandlers.onAgentEscalationResolved?.(e);
+    },
+  };
+
+  const { isConnected } = useAgentEvents(jobId, getToken, composedHandlers);
 
   // ── Preview toggle ─────────────────────────────────────────────────────────
 
